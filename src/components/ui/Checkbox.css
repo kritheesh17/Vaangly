@@ -1,0 +1,90 @@
+.vaango-checkbox-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  cursor: pointer;
+  user-select: none;
+  min-height: 44px;
+  padding: var(--space-1) 0;
+}
+
+.vaango-checkbox-wrapper--disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.vaango-checkbox-box-container {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.vaango-checkbox-input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.vaango-checkbox-input:disabled {
+  cursor: not-allowed;
+}
+
+.vaango-checkbox-custom {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.vaango-checkbox-custom svg {
+  width: 14px;
+  height: 14px;
+  color: #FFFFFF;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all var(--transition-fast);
+}
+
+.vaango-checkbox-input:hover ~ .vaango-checkbox-custom {
+  border-color: var(--brand-primary);
+}
+
+.vaango-checkbox-input:focus-visible ~ .vaango-checkbox-custom {
+  box-shadow: var(--focus-ring);
+  border-color: var(--brand-primary);
+}
+
+.vaango-checkbox-input:checked ~ .vaango-checkbox-custom {
+  background-color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.vaango-checkbox-input:checked ~ .vaango-checkbox-custom svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.vaango-checkbox-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.vaango-checkbox-label {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.vaango-checkbox-sublabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}

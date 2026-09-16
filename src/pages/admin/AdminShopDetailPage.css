@@ -1,0 +1,164 @@
+.vaango-admin-shop-detail {
+  padding-top: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.vaango-shop-detail__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.vaango-shop-detail__badge-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: 4px;
+}
+
+.vaango-shop-detail__kicker {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-primary);
+}
+
+.vaango-shop-detail__title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-text);
+  margin: 0 0 4px 0;
+  letter-spacing: -0.02em;
+}
+
+.vaango-shop-detail__subtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.vaango-shop-detail__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Grid */
+.vaango-shop-detail__grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: var(--spacing-lg);
+}
+
+@media (max-width: 840px) {
+  .vaango-shop-detail__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vaango-shop-detail__col-main,
+.vaango-shop-detail__col-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.vaango-shop-sec-heading {
+  font-size: 1.05rem;
+  font-weight: 750;
+  color: var(--color-text);
+  margin: 0 0 14px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vaango-shop-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+/* Readiness Stats */
+.vaango-readiness-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.vaango-readiness-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-color: var(--color-surface-hover);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.vaango-readiness-val {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.vaango-readiness-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+/* Subscription Card */
+.vaango-sub-summary-card {
+  border: 1px solid rgba(10, 123, 131, 0.25);
+  background-color: rgba(10, 123, 131, 0.02);
+}
+
+.vaango-sub-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.vaango-sub-icon {
+  color: var(--color-primary);
+}
+
+.vaango-sub-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vaango-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.vaango-sub-row strong {
+  color: var(--color-text);
+}
+
+.vaango-sub-due {
+  padding: 8px;
+  background-color: rgba(239, 68, 68, 0.08);
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+}
+
+.vaango-gps-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

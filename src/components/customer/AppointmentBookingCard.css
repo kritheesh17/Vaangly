@@ -1,0 +1,389 @@
+.vaango-slot-status--text-booked { color: var(--color-error); font-weight: 700; }
+/* Appointment Booking Styles */
+
+.vaango-appointment-booking {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-12);
+}
+
+.vaango-booking-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.vaango-booking-section__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.vaango-booking-section__title {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin: 0;
+}
+
+.vaango-booking-loading,
+.vaango-booking-empty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  background: var(--color-card-bg);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+/* Service Selector Cards */
+.vaango-service-selector-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  .vaango-service-selector-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.vaango-service-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  background: var(--color-card-bg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  width: 100%;
+}
+
+.vaango-service-card:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-card-hover);
+  transform: translateY(-2px);
+}
+
+.vaango-service-card--selected {
+  border-color: var(--color-primary);
+  background: rgba(10, 123, 131, 0.08);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.vaango-service-card--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.8);
+}
+
+.vaango-service-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.vaango-service-card__name {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin: 0 0 4px 0;
+}
+
+.vaango-service-card__provider {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.vaango-service-card__price {
+  font-size: var(--text-base);
+  font-weight: 800;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.vaango-service-card__desc {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  margin: 0 0 var(--space-3) 0;
+  flex-grow: 1;
+}
+
+.vaango-service-card__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+}
+
+.vaango-service-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-muted);
+}
+
+.vaango-selected-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.vaango-select-prompt {
+  color: var(--color-text-muted);
+}
+
+/* Date Pills Strip */
+.vaango-date-strip {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+  -webkit-overflow-scrolling: touch;
+}
+
+.vaango-date-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  min-height: 60px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-card-bg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.vaango-date-pill:hover {
+  border-color: var(--color-primary);
+}
+
+.vaango-date-pill--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.vaango-date-pill__day {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vaango-date-pill--active .vaango-date-pill__day {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.vaango-date-pill__date {
+  font-size: var(--text-sm);
+  font-weight: 800;
+}
+
+/* Slots Grid */
+.vaango-slot-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.vaango-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vaango-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.vaango-legend-dot--available {
+  background: var(--color-success);
+}
+
+.vaango-legend-dot--selected {
+  background: var(--color-primary);
+}
+
+.vaango-legend-dot--booked {
+  background: var(--color-border);
+}
+
+.vaango-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  .vaango-slots-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .vaango-slots-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Individual Slot Button (≥ 52px height for high touch accessibility) */
+.vaango-slot-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-card-bg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.vaango-slot-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-card-hover);
+}
+
+.vaango-slot-btn--selected {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(10, 123, 131, 0.25);
+}
+
+.vaango-slot-btn--booked {
+  opacity: 0.45;
+  background: var(--color-bg);
+  border-color: var(--color-border);
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.vaango-slot-time {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.vaango-slot-status {
+  font-size: var(--text-xs);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vaango-slot-status--text-avail {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.vaango-slot-status--text-selected {
+  color: #ffffff;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.vaango-slot-status--text-booked {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.vaango-booking-alert--error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+  color: var(--color-error);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+}
+
+/* Contact & Review Box */
+.vaango-contact-review-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.vaango-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.vaango-form-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vaango-review-box {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.vaango-review-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+}
+
+.vaango-review-label {
+  color: var(--color-text-muted);
+}
+
+.vaango-review-value {
+  color: var(--color-text-main);
+  text-align: right;
+}
+
+.vaango-review-notice {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  background: rgba(10, 123, 131, 0.08);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+}

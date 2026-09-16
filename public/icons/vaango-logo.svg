@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 768" role="img" aria-labelledby="title desc">
+  <title id="title">Vaango</title>
+  <desc id="desc">Vaango logo with a location pin and flowing V mark</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#052A3A"/>
+      <stop offset="0.55" stop-color="#087B78"/>
+      <stop offset="1" stop-color="#8BEA36"/>
+    </linearGradient>
+    <linearGradient id="pin" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#FF3E22"/>
+      <stop offset="1" stop-color="#FFD21A"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#EAF9E4"/>
+      <stop offset="0.5" stop-color="#46D77B"/>
+      <stop offset="1" stop-color="#A7F33D"/>
+    </linearGradient>
+  </defs>
+  <rect x="40" y="40" width="688" height="688" rx="150" fill="url(#bg)"/>
+  <path d="M172 226c32 5 75 25 106 68l106 206c9 18 24 20 36 2l119-166c29-40 64-73 106-84-12 101-58 204-141 286-48 47-92 93-143 72-49-20-73-79-106-150-34-72-67-154-83-234z" fill="url(#leaf)"/>
+  <path d="M174 226c27 55 62 129 95 197 31 63 62 126 106 137 30 8 50-15 67-41-17 31-34 50-55 51-55 3-89-57-122-126-36-76-69-157-91-218z" fill="#FFFDF5" opacity=".96"/>
+  <path d="M383 166c0-59 48-107 107-107s107 48 107 107c0 67-70 151-107 197-37-46-107-130-107-197z" fill="url(#pin)"/>
+  <circle cx="490" cy="161" r="48" fill="#07535B"/>
+</svg>

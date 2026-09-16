@@ -1,0 +1,239 @@
+/* Service Request Styles */
+
+.vaango-service-request {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-12);
+}
+
+.vaango-service-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.vaango-service-section__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.vaango-service-section__title {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin: 0;
+}
+
+.vaango-service-loading,
+.vaango-service-empty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  background: var(--color-card-bg);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+/* Services Grid */
+.vaango-services-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  .vaango-services-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.vaango-service-item {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  background: var(--color-card-bg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  width: 100%;
+}
+
+.vaango-service-item:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-card-hover);
+  transform: translateY(-2px);
+}
+
+.vaango-service-item--selected {
+  border-color: var(--color-primary);
+  background: rgba(10, 123, 131, 0.08);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.vaango-service-item--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vaango-service-item__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.vaango-service-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  background: rgba(10, 123, 131, 0.1);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  margin-bottom: 4px;
+}
+
+.vaango-service-item__name {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin: 0 0 4px 0;
+}
+
+.vaango-service-item__provider {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.vaango-service-item__price-block {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.vaango-price-range__label,
+.vaango-price-fixed__label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.vaango-price-range__amount {
+  font-size: var(--text-base);
+  font-weight: 800;
+  color: var(--color-accent);
+}
+
+.vaango-price-fixed__amount {
+  font-size: var(--text-base);
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.vaango-service-item__desc {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  margin: 0 0 var(--space-3) 0;
+  flex-grow: 1;
+}
+
+.vaango-service-item__bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+}
+
+.vaango-service-item__duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-muted);
+}
+
+.vaango-service-item__selected-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.vaango-service-item__select-prompt {
+  color: var(--color-text-muted);
+}
+
+/* Service Form & Summary */
+.vaango-service-form-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.vaango-service-summary-box {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.vaango-service-summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+}
+
+.vaango-summary-label {
+  color: var(--color-text-muted);
+}
+
+.vaango-summary-val {
+  color: var(--color-text-main);
+  text-align: right;
+}
+
+.vaango-range-clarification {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.vaango-service-alert--error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+  color: var(--color-error);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}

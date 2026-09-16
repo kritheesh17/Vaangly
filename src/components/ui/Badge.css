@@ -1,0 +1,58 @@
+.vaango-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.vaango-badge--sm {
+  font-size: var(--font-size-xs);
+  padding: 2px var(--space-2);
+}
+
+.vaango-badge--md {
+  font-size: var(--font-size-sm);
+  padding: 4px var(--space-3);
+}
+
+.vaango-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: currentColor;
+}
+
+/* Variants */
+.vaango-badge--primary {
+  background-color: var(--brand-primary-light);
+  color: var(--brand-primary);
+}
+
+.vaango-badge--accent {
+  background-color: var(--brand-accent-light);
+  color: #B45309;
+}
+
+.vaango-badge--success {
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.vaango-badge--warning {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.vaango-badge--error {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.vaango-badge--neutral {
+  background-color: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+}

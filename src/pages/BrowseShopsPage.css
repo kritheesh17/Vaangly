@@ -1,0 +1,165 @@
+.vaango-browse {
+  padding-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.vaango-browse__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.vaango-browse__back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  align-self: flex-start;
+}
+
+.vaango-browse__back-btn:hover {
+  color: var(--brand-primary);
+}
+
+.vaango-browse__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vaango-browse__title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-text-primary);
+}
+
+.vaango-browse__location-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.vaango-browse__search-wrap {
+  width: 100%;
+}
+
+.vaango-browse__tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+  -webkit-overflow-scrolling: touch;
+}
+
+.vaango-browse-tab {
+  padding: 8px var(--space-4);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaango-browse-tab:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.vaango-browse-tab--active {
+  background-color: var(--brand-primary);
+  color: var(--color-text-inverse);
+  border-color: var(--brand-primary);
+}
+
+.vaango-browse-tab--active:hover {
+  color: var(--color-text-inverse);
+}
+
+.vaango-browse__item-matches {
+  background-color: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.vaango-browse__item-matches-title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+}
+
+.vaango-browse__item-pills {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.vaango-item-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  color: var(--color-text-primary);
+  transition: all var(--transition-fast);
+}
+
+.vaango-item-pill:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.vaango-item-pill__price {
+  font-weight: var(--font-weight-bold);
+  color: var(--brand-primary);
+}
+
+.vaango-item-pill__shop {
+  color: var(--color-text-muted);
+}
+
+.vaango-browse__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .vaango-browse__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .vaango-browse__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.vaango-browse__empty {
+  padding: var(--space-8) 0;
+}

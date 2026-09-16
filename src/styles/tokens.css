@@ -1,0 +1,138 @@
+/* Vaango Design System — Tokens */
+:root {
+  /* Brand Core Colors */
+  --brand-primary: #0A7B83;
+  --brand-primary-hover: #08666D;
+  --brand-primary-active: #065056;
+  --brand-primary-light: #E6F5F6;
+  --brand-primary-subtle: rgba(10, 123, 131, 0.12);
+
+  --brand-accent: #F59E0B;
+  --brand-accent-hover: #D97706;
+  --brand-accent-light: #FEF3C7;
+  --brand-accent-subtle: rgba(245, 158, 11, 0.12);
+
+  /* Semantic Feedback */
+  --color-success: #10B981;
+  --color-success-bg: #ECFDF5;
+  --color-warning: #F59E0B;
+  --color-warning-bg: #FFFBEB;
+  --color-error: #EF4444;
+  --color-error-bg: #FEF2F2;
+  --color-info: #0284C7;
+  --color-info-bg: #F0F9FF;
+
+  /* Typography */
+  --font-family-base: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;   /* 14px */
+  --font-size-base: 1rem;     /* 16px */
+  --font-size-lg: 1.125rem;   /* 18px */
+  --font-size-xl: 1.25rem;    /* 20px */
+  --font-size-2xl: 1.5rem;    /* 24px */
+  --font-size-3xl: 1.875rem;  /* 30px */
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* Spacing */
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-5: 1.25rem;  /* 20px */
+  --space-6: 1.5rem;   /* 24px */
+  --space-8: 2rem;     /* 32px */
+  --space-10: 2.5rem;  /* 40px */
+  --space-12: 3rem;    /* 48px */
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Touch Target Minimum (Accessibility requirement: ~52px) */
+  --min-touch-target: 52px;
+
+  /* Layout Constraints */
+  --header-height: 64px;
+  --bottom-nav-height: 72px;
+  --max-content-width: 1200px;
+  --max-readable-width: 768px;
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Light Theme Specific Tokens */
+  --color-bg: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-surface-elevated: #FFFFFF;
+  --color-surface-sunken: #F1F5F9;
+
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748B;
+  --color-text-inverse: #FFFFFF;
+
+  --color-border: #E2E8F0;
+  --color-border-subtle: #F1F5F9;
+  --color-border-focus: #0A7B83;
+
+  --color-disabled-bg: #E2E8F0;
+  --color-disabled-text: #94A3B8;
+
+  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+  --shadow-elevated: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+
+  --focus-ring: 0 0 0 3px rgba(10, 123, 131, 0.35);
+  --focus-ring-accent: 0 0 0 3px rgba(245, 158, 11, 0.4);
+}
+
+/* Dark Theme Tokens (Deep Navy #0F1828 as base background) */
+[data-theme='dark'],
+.dark {
+  --color-bg: #0F1828;
+  --color-surface: #172338;
+  --color-surface-elevated: #1F2E47;
+  --color-surface-sunken: #0B121E;
+
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #CBD5E1;
+  --color-text-muted: #94A3B8;
+  --color-text-inverse: #0F172A;
+
+  --color-border: #263852;
+  --color-border-subtle: #1C2B40;
+  --color-border-focus: #22D3EE;
+
+  --brand-primary-light: rgba(10, 123, 131, 0.25);
+  --brand-primary-subtle: rgba(10, 123, 131, 0.3);
+
+  --brand-accent-light: rgba(245, 158, 11, 0.2);
+  --brand-accent-subtle: rgba(245, 158, 11, 0.25);
+
+  --color-success-bg: rgba(16, 185, 129, 0.16);
+  --color-warning-bg: rgba(245, 158, 11, 0.16);
+  --color-error-bg: rgba(239, 68, 68, 0.16);
+  --color-info-bg: rgba(2, 132, 199, 0.16);
+
+  --color-disabled-bg: #1E293B;
+  --color-disabled-text: #64748B;
+
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+  --shadow-elevated: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+
+  --focus-ring: 0 0 0 3px rgba(34, 211, 238, 0.4);
+  --focus-ring-accent: 0 0 0 3px rgba(245, 158, 11, 0.5);
+}

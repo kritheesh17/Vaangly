@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+*.log
+
+# Android build outputs & local config
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/.kotlin/
+
+

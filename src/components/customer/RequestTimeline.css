@@ -1,0 +1,141 @@
+.vaango-timeline-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.vaango-timeline-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+}
+
+.vaango-timeline-alert--warning {
+  background-color: var(--color-warning-bg);
+  color: #B45309;
+  border: 1px solid var(--color-warning);
+}
+
+.vaango-timeline-alert--error {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+.vaango-timeline-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.vaango-timeline-step {
+  display: flex;
+  gap: var(--space-4);
+  position: relative;
+  min-height: 72px;
+}
+
+.vaango-timeline-step:last-child {
+  min-height: auto;
+}
+
+.vaango-timeline-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.vaango-timeline-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  z-index: 1;
+}
+
+.vaango-timeline-step--completed .vaango-timeline-icon-wrap {
+  border-color: var(--color-success);
+  background-color: var(--color-success-bg);
+}
+
+.vaango-timeline-step--active .vaango-timeline-icon-wrap {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-light);
+  box-shadow: 0 0 0 3px rgba(10, 123, 131, 0.2);
+}
+
+.vaango-step-icon--done {
+  color: var(--color-success);
+}
+
+.vaango-step-icon--active {
+  color: var(--brand-primary);
+}
+
+.vaango-step-icon-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-border);
+}
+
+.vaango-timeline-line {
+  width: 2px;
+  flex: 1;
+  background-color: var(--color-border);
+  margin: 4px 0;
+}
+
+.vaango-timeline-line--completed {
+  background-color: var(--color-success);
+}
+
+.vaango-timeline-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: var(--space-4);
+}
+
+.vaango-timeline-label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.vaango-timeline-label {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.vaango-timeline-step--pending .vaango-timeline-label {
+  color: var(--color-text-muted);
+}
+
+.vaango-timeline-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.vaango-timeline-time {
+  font-size: var(--font-size-xs);
+  color: var(--brand-primary);
+  font-weight: var(--font-weight-semibold);
+  margin-top: 2px;
+}

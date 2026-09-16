@@ -1,0 +1,72 @@
+.vaango-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.vaango-input {
+  width: 100%;
+  min-height: var(--min-touch-target);
+  padding: 0 var(--space-4);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
+}
+
+.vaango-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.vaango-input:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+}
+
+.vaango-input:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.vaango-input:disabled {
+  background-color: var(--color-disabled-bg);
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+}
+
+.vaango-input--has-left-icon {
+  padding-left: calc(var(--space-4) + 28px);
+}
+
+.vaango-input--has-right-icon {
+  padding-right: calc(var(--space-4) + 28px);
+}
+
+.vaango-input-wrapper__icon-left {
+  position: absolute;
+  left: var(--space-3);
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.vaango-input-wrapper__icon-right {
+  position: absolute;
+  right: var(--space-3);
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted);
+}
+
+.vaango-input-wrapper--error .vaango-input {
+  border-color: var(--color-error);
+}
+
+.vaango-input-wrapper--error .vaango-input:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+}

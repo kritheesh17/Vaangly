@@ -1,0 +1,57 @@
+/* Service Form Modal Styles */
+
+.vaango-service-modal {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-xl);
+  max-width: 580px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--space-6);
+  box-shadow: var(--shadow-xl);
+  animation: modalSlideUp var(--transition-normal);
+}
+
+.vaango-service-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.vaango-price-type-toggle {
+  display: flex;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 4px;
+}
+
+.vaango-toggle-btn {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaango-toggle-btn:hover {
+  color: var(--color-text-main);
+}
+
+.vaango-toggle-btn--active {
+  background: var(--color-primary);
+  color: #ffffff;
+  box-shadow: var(--shadow-xs);
+}
+
+.vaango-textarea {
+  resize: vertical;
+  min-height: 80px;
+}

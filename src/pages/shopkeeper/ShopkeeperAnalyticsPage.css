@@ -1,0 +1,440 @@
+.vaango-analytics-page {
+  padding-top: var(--spacing-lg);
+  padding-bottom: 90px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.vaango-analytics-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.vaango-analytics-header__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.vaango-analytics-header__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vaango-analytics-header__kicker {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vaango-analytics-header__title {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.vaango-analytics-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+/* Date Range Filter Bar */
+.vaango-analytics-filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding: 12px 16px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  flex-wrap: wrap;
+}
+
+.vaango-date-presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vaango-preset-btn {
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaango-preset-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.vaango-preset-btn--active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.vaango-custom-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.vaango-custom-date-inputs input[type="date"] {
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xs);
+}
+
+/* KPI Summary Cards */
+.vaango-analytics-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.vaango-kpi-card {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.vaango-kpi-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vaango-kpi-card__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-surface-hover);
+  color: var(--color-primary);
+}
+
+.vaango-kpi-card__val {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.vaango-kpi-card__growth {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.vaango-kpi-card__growth--up {
+  color: var(--color-success);
+}
+
+.vaango-kpi-card__growth--down {
+  color: var(--color-error);
+}
+
+.vaango-kpi-card__growth--neutral {
+  color: var(--color-text-muted);
+}
+
+/* Chart Container Cards */
+.vaango-chart-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.vaango-chart-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vaango-chart-card__title {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vaango-chart-card__legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.vaango-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* SVG Chart Wrappers */
+.vaango-svg-chart-wrap {
+  width: 100%;
+  overflow-x: auto;
+  padding-top: 8px;
+}
+
+.vaango-svg-chart {
+  width: 100%;
+  height: 220px;
+  display: block;
+}
+
+/* Grid Layout for Analytics Sections */
+.vaango-analytics-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+@media (max-width: 900px) {
+  .vaango-analytics-grid-2col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Table Responsive Wrappers */
+.vaango-analytics-table-wrap {
+  overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+.vaango-analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-xs);
+  text-align: left;
+}
+
+.vaango-analytics-table th {
+  padding: 10px 12px;
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.vaango-analytics-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.vaango-analytics-table tr:hover td {
+  background-color: rgba(10, 123, 131, 0.03);
+}
+
+.vaango-progress-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+}
+
+.vaango-progress-bar {
+  flex: 1;
+  height: 6px;
+  background-color: var(--color-border);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.vaango-progress-bar__fill {
+  height: 100%;
+  background-color: var(--color-primary);
+  border-radius: var(--radius-full);
+}
+
+/* Customer Retention Split */
+.vaango-retention-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: 12px 0;
+}
+
+.vaango-retention-bar {
+  display: flex;
+  height: 18px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--color-border);
+}
+
+.vaango-retention-bar__new {
+  background-color: var(--color-primary);
+  transition: width var(--transition-normal);
+}
+
+.vaango-retention-bar__returning {
+  background-color: var(--color-success);
+  transition: width var(--transition-normal);
+}
+
+.vaango-retention-legend {
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+  gap: 12px;
+}
+
+.vaango-retention-item strong {
+  display: block;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+}
+
+.vaango-retention-item span {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+/* Locked Free Tier Teaser State */
+.vaango-analytics-locked-hero {
+  background: linear-gradient(135deg, rgba(10, 123, 131, 0.12) 0%, rgba(30, 58, 138, 0.1) 100%);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-xl);
+  padding: 36px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  box-shadow: var(--shadow-md);
+}
+
+.vaango-analytics-locked-hero__icon {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+}
+
+.vaango-analytics-locked-hero__title {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.vaango-analytics-locked-hero__desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  max-width: 580px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.vaango-pro-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--spacing-md);
+  width: 100%;
+  max-width: 820px;
+  margin-top: var(--spacing-md);
+  text-align: left;
+}
+
+.vaango-pro-feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.vaango-pro-feature-item__icon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.vaango-pro-feature-item strong {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  display: block;
+}
+
+.vaango-pro-feature-item p {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin: 2px 0 0 0;
+  line-height: 1.4;
+}
+
+.vaango-locked-preview-blur {
+  position: relative;
+  filter: blur(4px);
+  pointer-events: none;
+  opacity: 0.6;
+  user-select: none;
+}

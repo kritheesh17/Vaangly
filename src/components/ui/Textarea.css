@@ -1,0 +1,38 @@
+.vaango-textarea {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  resize: vertical;
+  min-height: 96px;
+  line-height: 1.5;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.vaango-textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+.vaango-textarea:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+}
+
+.vaango-textarea:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.vaango-textarea:disabled {
+  background-color: var(--color-disabled-bg);
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+}
+
+.vaango-textarea--error {
+  border-color: var(--color-error);
+}

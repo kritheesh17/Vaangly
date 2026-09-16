@@ -1,0 +1,80 @@
+.vaango-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--color-text-primary);
+  flex-shrink: 0;
+}
+
+.vaango-icon-btn--sm {
+  width: 36px;
+  height: 36px;
+}
+
+.vaango-icon-btn--md {
+  width: 44px;
+  height: 44px;
+}
+
+.vaango-icon-btn--lg {
+  width: var(--min-touch-target);
+  height: var(--min-touch-target);
+}
+
+.vaango-icon-btn--ghost {
+  background: transparent;
+}
+
+.vaango-icon-btn--ghost:hover:not(:disabled) {
+  background-color: var(--color-surface-sunken);
+  color: var(--brand-primary);
+}
+
+.vaango-icon-btn--secondary {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.vaango-icon-btn--secondary:hover:not(:disabled) {
+  border-color: var(--brand-primary);
+  background-color: var(--color-surface-elevated);
+}
+
+.vaango-icon-btn--outline {
+  background: transparent;
+  border-color: var(--color-border);
+}
+
+.vaango-icon-btn--outline:hover:not(:disabled) {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.vaango-icon-btn--primary {
+  background-color: var(--brand-primary);
+  color: var(--color-text-inverse);
+}
+
+.vaango-icon-btn--primary:hover:not(:disabled) {
+  background-color: var(--brand-primary-hover);
+}
+
+.vaango-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vaango-icon-btn__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vaango-icon-btn__icon svg {
+  width: 22px;
+  height: 22px;
+}

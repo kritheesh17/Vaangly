@@ -1,0 +1,75 @@
+.vaango-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 90;
+  height: var(--bottom-nav-height);
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.04);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal);
+}
+
+@media (min-width: 820px) {
+  .vaango-bottom-nav {
+    display: none;
+  }
+}
+
+.vaango-bottom-nav__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.vaango-bottom-nav__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: var(--min-touch-target);
+  min-height: var(--min-touch-target);
+  flex: 1;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  padding: var(--space-1) 0;
+  transition: color var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vaango-bottom-nav__icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  transition: all var(--transition-fast);
+}
+
+.vaango-bottom-nav__label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.01em;
+}
+
+/* Active State in Deep Teal #0A7B83 */
+.vaango-bottom-nav__item--active {
+  color: var(--brand-primary);
+}
+
+.vaango-bottom-nav__item--active .vaango-bottom-nav__icon-wrap {
+  background-color: var(--brand-primary-light);
+  transform: translateY(-2px);
+}
+
+[data-theme='dark'] .vaango-bottom-nav__item--active,
+.dark .vaango-bottom-nav__item--active {
+  color: #22D3EE;
+}

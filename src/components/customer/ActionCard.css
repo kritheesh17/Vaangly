@@ -1,0 +1,94 @@
+.vaango-action-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background-color: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  width: 100%;
+  box-shadow: var(--shadow-sm);
+  min-height: 92px;
+}
+
+.vaango-action-card:hover:not(.vaango-action-card--disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--brand-primary);
+}
+
+.vaango-action-card:active:not(.vaango-action-card--disabled) {
+  transform: translateY(0);
+}
+
+.vaango-action-card--disabled {
+  cursor: default;
+  opacity: 0.85;
+  background-color: var(--color-surface-sunken);
+  border-style: dashed;
+}
+
+.vaango-action-card__icon-box {
+  width: 58px;
+  height: 58px;
+  border-radius: var(--radius-lg);
+  background-color: var(--brand-primary-light);
+  color: var(--brand-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vaango-action-card--disabled .vaango-action-card__icon-box {
+  background-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.vaango-action-card__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vaango-action-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.vaango-action-card__title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: 1.25;
+}
+
+.vaango-action-card__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.vaango-action-card__arrow {
+  color: var(--brand-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.vaango-action-card:hover:not(.vaango-action-card--disabled) .vaango-action-card__arrow {
+  transform: translateX(4px);
+}
+
+.vaango-action-card--disabled .vaango-action-card__arrow {
+  display: none;
+}

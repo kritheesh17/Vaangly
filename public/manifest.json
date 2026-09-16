@@ -1,0 +1,25 @@
+{
+  "name": "Vaango — Local Marketplace",
+  "short_name": "Vaango",
+  "description": "Hyperlocal multi-vertical marketplace connecting you to neighborhood shops, appointments, and services.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F1828",
+  "theme_color": "#0A7B83",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "lifestyle", "business"]
+}

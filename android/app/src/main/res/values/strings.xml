@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Vaangly</string>
+    <string name="title_activity_main">Vaangly</string>
+    <string name="package_name">com.vaangly.app</string>
+    <string name="custom_url_scheme">com.vaangly.app</string>
+</resources>

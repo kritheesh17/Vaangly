@@ -1,0 +1,90 @@
+.vaango-cart-bar {
+  position: fixed;
+  bottom: calc(var(--bottom-nav-height) + var(--space-3));
+  left: 0;
+  right: 0;
+  z-index: 85;
+  padding: 0 var(--space-4);
+  pointer-events: none;
+  animation: slideUp 200ms ease-out;
+}
+
+@media (min-width: 820px) {
+  .vaango-cart-bar {
+    bottom: var(--space-4);
+    max-width: 540px;
+    margin: 0 auto;
+    padding: 0;
+  }
+}
+
+.vaango-cart-bar__inner {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--brand-primary);
+  color: var(--color-text-inverse);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 10px 25px -5px rgba(10, 123, 131, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  min-height: 56px;
+}
+
+.vaango-cart-bar__info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.vaango-cart-bar__icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vaango-cart-bar__badge {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  background-color: var(--brand-accent);
+  color: #0F172A;
+  font-size: 11px;
+  font-weight: var(--font-weight-extrabold);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+}
+
+.vaango-cart-bar__total {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-extrabold);
+}
+
+.vaango-cart-bar__shop-name {
+  font-size: var(--font-size-xs);
+  opacity: 0.88;
+  max-width: 170px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vaango-cart-bar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+  transition: background-color var(--transition-fast);
+}
+
+.vaango-cart-bar__btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  color: #FFFFFF;
+}

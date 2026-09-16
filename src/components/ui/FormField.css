@@ -1,0 +1,36 @@
+.vaango-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.vaango-form-field__label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.vaango-form-field__required {
+  color: var(--color-error);
+  font-weight: var(--font-weight-bold);
+}
+
+.vaango-form-field__control {
+  width: 100%;
+}
+
+.vaango-form-field__hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.vaango-form-field__error {
+  font-size: var(--font-size-xs);
+  color: var(--color-error);
+  font-weight: var(--font-weight-medium);
+  animation: fadeIn var(--transition-fast) ease-out;
+}

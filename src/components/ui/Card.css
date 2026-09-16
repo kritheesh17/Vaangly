@@ -1,0 +1,59 @@
+.vaango-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-primary);
+  transition: all var(--transition-fast);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Variants */
+.vaango-card--default {
+  box-shadow: var(--shadow-sm);
+}
+
+.vaango-card--elevated {
+  background-color: var(--color-surface-elevated);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-border-subtle);
+}
+
+.vaango-card--sunken {
+  background-color: var(--color-surface-sunken);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.vaango-card--outlined {
+  box-shadow: none;
+  border: 1.5px solid var(--color-border);
+}
+
+/* Interactive Hover */
+.vaango-card--interactive {
+  cursor: pointer;
+}
+
+.vaango-card--interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--brand-primary);
+}
+
+/* Paddings */
+.vaango-card--padding-none {
+  padding: 0;
+}
+
+.vaango-card--padding-sm {
+  padding: var(--space-3);
+}
+
+.vaango-card--padding-md {
+  padding: var(--space-5);
+}
+
+.vaango-card--padding-lg {
+  padding: var(--space-8);
+}

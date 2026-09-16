@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Android: Build, install, and launch on phone",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "npm run build; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; npx cap sync android; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; .\\android\\gradlew.bat -p android installDebug; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; adb shell monkey -p com.vaangly.app 1"
+      ],
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": false
+      }
+    },
+    {
+      "label": "Android: Logcat Vaangly",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "$packagePid = (adb shell pidof -s com.vaangly.app).Trim(); if (-not $packagePid) { Write-Error 'Vaangly is not running on the connected phone.'; exit 1 }; adb logcat --pid=$packagePid '*:V'"
+      ],
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false
+      }
+    }
+  ]
+}

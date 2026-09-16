@@ -1,0 +1,182 @@
+.vaango-confirm-page {
+  padding-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  max-width: 640px;
+  margin: 0 auto;
+  padding-bottom: var(--space-8);
+}
+
+.vaango-confirm-card {
+  width: 100%;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+  gap: var(--space-3);
+}
+
+.vaango-confirm-badge-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-2);
+}
+
+.vaango-confirm-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--color-text-primary);
+}
+
+.vaango-confirm-subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  max-width: 440px;
+  line-height: 1.5;
+}
+
+.vaango-confirm-ref-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--space-4) var(--space-6);
+  background-color: var(--color-surface-sunken);
+  border-radius: var(--radius-lg);
+  border: 1.5px dashed var(--brand-primary);
+  width: 100%;
+  max-width: 380px;
+  margin: var(--space-2) 0;
+}
+
+.vaango-confirm-ref-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: var(--font-weight-bold);
+}
+
+.vaango-confirm-ref-code {
+  font-size: 1.75rem;
+  font-weight: var(--font-weight-extrabold);
+  color: var(--brand-primary);
+  font-family: monospace;
+  letter-spacing: 0.05em;
+}
+
+.vaango-confirm-status-pill {
+  margin-top: 4px;
+}
+
+.vaango-confirm-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--brand-primary-light);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  text-align: left;
+  line-height: 1.5;
+}
+
+.vaango-confirm-banner-icon {
+  color: var(--brand-primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.vaango-confirm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+@media (min-width: 500px) {
+  .vaango-confirm-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
+
+.vaango-confirm-items-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.vaango-confirm-items-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.vaango-confirm-items-title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+}
+
+.vaango-confirm-items-total {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--brand-primary);
+}
+
+.vaango-confirm-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.vaango-confirm-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+}
+
+.vaango-confirm-item-name {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.vaango-confirm-item-unit {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.vaango-confirm-item-qty {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.vaango-confirm-direct-pay {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}

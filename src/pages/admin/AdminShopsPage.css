@@ -1,0 +1,152 @@
+.vaango-admin-shops {
+  padding-top: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.vaango-admin-shops__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.vaango-admin-shops__title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-text);
+  margin: 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.vaango-admin-shops__subtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  max-width: 680px;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Filter Card */
+.vaango-admin-shops__filter-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.vaango-admin-shops__search {
+  flex: 1;
+  min-width: 240px;
+}
+
+.vaango-admin-shops__filters-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vaango-admin-select {
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.vaango-admin-select:focus {
+  border-color: var(--color-primary);
+}
+
+/* Shop List */
+.vaango-admin-shops__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vaango-admin-shop-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.vaango-admin-shop-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-primary);
+}
+
+.vaango-admin-shop-item--suspended {
+  border-left: 4px solid var(--color-error);
+  opacity: 0.75;
+}
+
+.vaango-admin-shop-item__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vaango-admin-shop-item__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vaango-admin-shop-item__name {
+  font-size: 1.1rem;
+  font-weight: 750;
+  color: var(--color-text);
+  margin: 0 0 2px 0;
+}
+
+.vaango-admin-shop-item__tagline {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.vaango-admin-shop-item__badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vaango-admin-shop-item__meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.vaango-admin-shop-item__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.vaango-admin-shop-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}

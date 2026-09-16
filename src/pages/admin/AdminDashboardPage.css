@@ -1,0 +1,331 @@
+.vaango-admin-dash {
+  padding-top: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.vaango-admin-dash__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.vaango-admin-dash__badge-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: 4px;
+}
+
+.vaango-admin-dash__kicker {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-primary);
+}
+
+.vaango-admin-dash__title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-text);
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.vaango-admin-dash__subtitle {
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  max-width: 680px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Alert Banner */
+.vaango-admin-alert-banner {
+  background-color: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.vaango-admin-alert-banner__content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--color-text);
+}
+
+.vaango-admin-alert-banner__content p {
+  margin: 4px 0 0 0;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.vaango-admin-alert-banner__icon {
+  color: var(--color-accent);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.vaango-admin-alert-banner__actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Metrics Grid */
+.vaango-admin-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.vaango-admin-stat-card {
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.vaango-admin-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.vaango-admin-stat-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.vaango-admin-stat-card__label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.vaango-admin-stat-card__icon--primary {
+  color: var(--color-primary);
+}
+
+.vaango-admin-stat-card__icon--success {
+  color: var(--color-success);
+}
+
+.vaango-admin-stat-card__icon--accent {
+  color: var(--color-accent);
+}
+
+.vaango-admin-stat-card__icon--danger {
+  color: var(--color-error);
+}
+
+.vaango-admin-stat-card__value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--color-text);
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.vaango-admin-stat-card__subval {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.vaango-admin-stat-card__hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* Cancellation Section */
+.vaango-admin-dash__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.vaango-admin-dash__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.vaango-admin-dash__section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-text);
+}
+
+.vaango-admin-dash__section-subtitle {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 2px 0 0 0;
+}
+
+.vaango-admin-cancellation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.vaango-admin-cancellation-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vaango-cancellation-card__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.vaango-cancellation-card__value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.vaango-cancellation-card__note {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* Admin Modules Grid */
+.vaango-admin-modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.vaango-admin-module-card {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.vaango-admin-module-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-primary);
+}
+
+.vaango-admin-module-card__icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background-color: rgba(10, 123, 131, 0.12);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.vaango-admin-module-card__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  color: var(--color-text);
+}
+
+.vaango-admin-module-card__desc {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  margin: 0 0 16px 0;
+  flex: 1;
+}
+
+.vaango-admin-module-card__link {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Audit Log Stream */
+.vaango-admin-audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vaango-admin-audit-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.vaango-admin-audit-row__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: rgba(10, 123, 131, 0.1);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vaango-admin-audit-row__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vaango-admin-audit-row__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vaango-admin-audit-action {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  letter-spacing: 0.02em;
+}
+
+.vaango-admin-audit-time {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vaango-admin-audit-detail {
+  font-size: 0.85rem;
+  color: var(--color-text);
+}
+
+.vaango-admin-audit-meta {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}

@@ -1,0 +1,96 @@
+.vaango-admin-subs {
+  padding-top: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.vaango-admin-subs__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.vaango-admin-subs__title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-text);
+  margin: 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.vaango-admin-subs__subtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  max-width: 680px;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Policy Card */
+.vaango-policy-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background-color: rgba(10, 123, 131, 0.04);
+  border: 1px solid rgba(10, 123, 131, 0.2);
+}
+
+.vaango-policy-card__icon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.vaango-policy-card__text {
+  font-size: 0.85rem;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.vaango-policy-card__text p {
+  margin: 4px 0 0 0;
+  color: var(--color-text-muted);
+}
+
+/* Filter Bar */
+.vaango-admin-subs__filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 12px;
+  overflow-x: auto;
+}
+
+/* Table */
+.vaango-admin-subs__table-card {
+  overflow: hidden;
+}
+
+.vaango-admin-subs__table-responsive {
+  overflow-x: auto;
+}
+
+.vaango-sub-shop-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vaango-sub-shop-icon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.vaango-receipt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background-color: var(--color-surface-hover);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}

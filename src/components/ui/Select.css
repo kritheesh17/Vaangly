@@ -1,0 +1,50 @@
+.vaango-select-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.vaango-select {
+  width: 100%;
+  min-height: var(--min-touch-target);
+  padding: 0 var(--space-8) 0 var(--space-4);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  appearance: none;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.vaango-select:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+}
+
+.vaango-select:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.vaango-select:disabled {
+  background-color: var(--color-disabled-bg);
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+}
+
+.vaango-select-arrow {
+  position: absolute;
+  right: var(--space-4);
+  pointer-events: none;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.vaango-select-wrapper--error .vaango-select {
+  border-color: var(--color-error);
+}

@@ -1,0 +1,111 @@
+.vaango-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background-color: rgba(15, 24, 40, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  animation: fadeIn 200ms ease-out;
+}
+
+@media (min-width: 640px) {
+  .vaango-modal-overlay {
+    align-items: center;
+    padding: var(--space-4);
+  }
+}
+
+.vaango-modal-content {
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-elevated);
+  animation: slideUp 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+@media (min-width: 640px) {
+  .vaango-modal-content {
+    border-radius: var(--radius-xl);
+  }
+
+  .vaango-modal-content--sm {
+    max-width: 420px;
+  }
+
+  .vaango-modal-content--md {
+    max-width: 540px;
+  }
+
+  .vaango-modal-content--lg {
+    max-width: 680px;
+  }
+
+  .vaango-modal-content--xl {
+    max-width: 860px;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vaango-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+  gap: var(--space-3);
+}
+
+.vaango-modal-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.vaango-modal-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.vaango-modal-desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.vaango-modal-body {
+  padding: var(--space-6);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.vaango-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--color-border-subtle);
+  background-color: var(--color-surface-sunken);
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+}

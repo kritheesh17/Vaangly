@@ -1,0 +1,141 @@
+.vaango-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-semibold);
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  border: 1px solid transparent;
+  user-select: none;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Sizes */
+.vaango-button--sm {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.vaango-button--md {
+  min-height: 46px;
+  padding: 0 var(--space-4);
+  font-size: var(--font-size-base);
+}
+
+.vaango-button--lg {
+  min-height: var(--min-touch-target); /* 52px accessible target */
+  padding: 0 var(--space-6);
+  font-size: var(--font-size-base);
+}
+
+.vaango-button--full-width {
+  width: 100%;
+}
+
+/* Primary Variant (Deep Teal #0A7B83) */
+.vaango-button--primary {
+  background-color: var(--brand-primary);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-sm);
+}
+
+.vaango-button--primary:hover:not(:disabled) {
+  background-color: var(--brand-primary-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.vaango-button--primary:active:not(:disabled) {
+  background-color: var(--brand-primary-active);
+  transform: translateY(0);
+}
+
+/* Accent Variant (Warm Amber #F59E0B) */
+.vaango-button--accent {
+  background-color: var(--brand-accent);
+  color: #0F172A;
+  box-shadow: var(--shadow-sm);
+}
+
+.vaango-button--accent:hover:not(:disabled) {
+  background-color: var(--brand-accent-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.vaango-button--accent:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Secondary Variant */
+.vaango-button--secondary {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+.vaango-button--secondary:hover:not(:disabled) {
+  background-color: var(--color-surface-elevated);
+  border-color: var(--brand-primary);
+}
+
+/* Outline Variant */
+.vaango-button--outline {
+  background-color: transparent;
+  color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.vaango-button--outline:hover:not(:disabled) {
+  background-color: var(--brand-primary-light);
+}
+
+/* Ghost Variant */
+.vaango-button--ghost {
+  background-color: transparent;
+  color: var(--color-text-primary);
+}
+
+.vaango-button--ghost:hover:not(:disabled) {
+  background-color: var(--color-surface-sunken);
+  color: var(--brand-primary);
+}
+
+/* Danger Variant */
+.vaango-button--danger {
+  background-color: var(--color-error);
+  color: #FFFFFF;
+}
+
+.vaango-button--danger:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+/* Disabled state */
+.vaango-button:disabled {
+  background-color: var(--color-disabled-bg) !important;
+  color: var(--color-disabled-text) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Spinner */
+.vaango-button__spinner svg {
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

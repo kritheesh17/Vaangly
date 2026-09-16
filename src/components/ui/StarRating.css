@@ -1,0 +1,4 @@
+.vaango-stars { display: flex; gap: 2px; }
+.vaango-star { background: none; border: none; cursor: pointer; color: var(--color-border, #CBD5E1); padding: 2px; line-height: 1; transition: color 0.1s; user-select: none; }
+.vaango-star--on { color: #F59E0B; }
+.vaango-star:disabled { cursor: default; }

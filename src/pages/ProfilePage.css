@@ -1,0 +1,191 @@
+.vaango-profile {
+  padding-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.vaango-profile__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: var(--max-readable-width);
+}
+
+.vaango-profile__title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-extrabold);
+}
+
+.vaango-profile__subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+}
+
+.vaango-profile__grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: var(--max-readable-width);
+}
+
+.vaango-profile-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.vaango-profile-card__avatar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.vaango-profile-card__avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-full);
+  background-color: var(--brand-primary-light);
+  color: var(--brand-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vaango-profile-card__name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.vaango-profile-card__name {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.vaango-profile-card__role-tag {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+.vaango-profile-card__details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.vaango-profile-card__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+}
+
+.vaango-profile-card__item-icon {
+  color: var(--brand-primary);
+  flex-shrink: 0;
+}
+
+.vaango-profile-card__section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.vaango-section-icon {
+  color: var(--brand-primary);
+  width: 24px;
+  height: 24px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.vaango-card-heading {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.vaango-card-subheading {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+.vaango-role-selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.vaango-role-opt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border);
+  background-color: var(--color-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaango-role-opt:hover {
+  border-color: var(--brand-primary);
+}
+
+.vaango-role-opt--active {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-light);
+}
+
+.vaango-role-opt__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vaango-role-opt__title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.vaango-role-opt__check {
+  color: var(--brand-primary);
+}
+
+.vaango-role-opt__desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.vaango-profile__theme-indicator {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+}
+
+.vaango-theme-chip {
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: #FFFFFF;
+}
+
+.vaango-profile__logout-row {
+  margin-top: var(--space-2);
+}
