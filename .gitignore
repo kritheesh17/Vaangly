@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .env
+.env.local
+.env.*.local
 .env.*
 !.env.example
 .DS_Store
@@ -13,5 +15,7 @@ android/.gradle/
 android/build/
 android/app/build/
 android/.kotlin/
+
+supabase/.temp/
 
 

@@ -73,6 +73,9 @@ const AdminAuditPage = React.lazy(() =>
 const DesignSystemShowcasePage = React.lazy(() =>
   import('./pages/DesignSystemShowcasePage').then((m) => ({ default: m.DesignSystemShowcasePage }))
 );
+const SupabaseDiagnosticPage = React.lazy(() =>
+  import('./pages/dev/SupabaseDiagnosticPage').then((m) => ({ default: m.SupabaseDiagnosticPage }))
+);
 
 import { AdminRoute } from './components/admin/AdminRoute';
 import { AdminLayout } from './components/admin/AdminLayout';
@@ -202,8 +205,9 @@ export const App: React.FC = () => {
                           <Route path="audit" element={<AdminAuditPage />} />
                         </Route>
 
-                        {/* Public Design System Showcase */}
+                        {/* Public Design System Showcase & Dev Diagnostics */}
                         {import.meta.env.DEV && <Route path="/design-system" element={<DesignSystemShowcasePage />} />}
+                        {import.meta.env.DEV && <Route path="/dev/supabase-test" element={<SupabaseDiagnosticPage />} />}
 
                         {/* Fallback 404 */}
                         <Route path="*" element={<NotFoundPage />} />

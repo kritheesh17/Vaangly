@@ -17,15 +17,15 @@ SET is_live = TRUE,
     upi_id = 'muruganstore@upi',
     gps_lat = 11.4533,
     gps_lng = 77.4361
-WHERE id = 'shop-gobi-grocery-1';
+WHERE id = '30000000-0000-0000-0000-000000000001';
 
 UPDATE public.shops
 SET is_live = TRUE
 WHERE id IN (
-    'shop-gobi-bakery-1',
-    'shop-gobi-restaurant-1',
-    'shop-gobi-pharmacy-1',
-    'shop-gobi-stationery-1'
+    '30000000-0000-0000-0000-000000000002',
+    '30000000-0000-0000-0000-000000000003',
+    '30000000-0000-0000-0000-000000000004',
+    '30000000-0000-0000-0000-000000000005'
 );
 
 -- 2. EXTEND SHOP APPLICATIONS TABLE WITH ONBOARDING FIELDS

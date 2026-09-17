@@ -3,6 +3,11 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles/global.css';
 
+// Development Supabase health check & window.checkSupabase binding
+if (import.meta.env.DEV) {
+  import('./lib/supabaseHealth');
+}
+
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
