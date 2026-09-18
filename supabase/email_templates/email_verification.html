@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vaango Verification Code</title>
+  <title>Vaangly Email Confirmation</title>
   <style>
     body {
       margin: 0;
@@ -131,32 +131,26 @@
     <div class="email-content">
       <div class="email-header">
         <div class="brand-logo">V</div>
-        <h1 class="brand-title">Vaango</h1>
+        <h1 class="brand-title">Vaangly</h1>
       </div>
       <div class="email-body">
         <div class="greeting">Hello,</div>
         <p class="lead-text">
-          Use the 6-digit verification code below to securely verify your email and sign in to your Vaango account.
+          Click the button below to confirm your email address and activate your Vaangly account.
         </p>
 
-        <div class="otp-card">
-          <div class="otp-label">Your Verification Code</div>
-          <div class="otp-code">{{ .Token }}</div>
-          <p class="otp-validity">Valid according to your Supabase Auth OTP expiration settings.</p>
-        </div>
-
         <div class="action-button-wrap">
-          <a href="{{ .ConfirmationURL }}" class="action-button">Log In Directly to Vaango</a>
+          <a href="{{ .ConfirmationURL }}" class="action-button">Confirm Email Address</a>
         </div>
 
         <hr class="divider" />
 
         <div class="security-notice">
-          <strong>Security Notice:</strong> If you did not request this verification code, please ignore this email. Never share this code with anyone. Vaango support will never ask for your verification code.
+          <strong>Security Notice:</strong> If you did not request a Vaangly account, you can safely ignore this email.
         </div>
       </div>
       <div class="email-footer">
-        &copy; 2026 Vaango Platform. Hyperlocal neighborhood commerce in Gobichettipalayam.
+        &copy; 2026 Vaangly Platform. Hyperlocal neighborhood commerce in Gobichettipalayam.
       </div>
     </div>
   </div>

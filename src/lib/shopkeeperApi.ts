@@ -440,8 +440,11 @@ export const getShopRequests = async (shopId: string): Promise<Request[]> => {
       if (!error && data) {
         return data as Request[];
       }
+      console.error('Error fetching shop requests from Supabase:', error);
+      return [];
     } catch (err) {
       console.error('Error fetching shop requests from Supabase:', err);
+      return [];
     }
   }
 

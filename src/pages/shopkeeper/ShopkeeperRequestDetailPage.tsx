@@ -86,11 +86,24 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
 
     if (isSupabaseConfigured) {
       try {
-        const { data: reqData, error: reqErr } = await supabase
+        let { data: reqData, error: reqErr } = await supabase
           .from('requests')
           .select('*')
           .eq('id', requestId)
           .single();
+
+        // Notifications and legacy links may contain the human reference code.
+        if (reqErr || !reqData) {
+          const fallback = await supabase
+            .from('requests')
+            .select('*')
+            .eq('reference_code', requestId)
+            .maybeSingle();
+          reqData = fallback.data;
+          reqErr = fallback.error;
+        }
+
+        const resolvedRequestId = reqData?.id || requestId;
 
         if (!reqErr && reqData) {
           setRequest(reqData as Request);
@@ -107,7 +120,7 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
         const { data: evtsData } = await supabase
           .from('request_events')
           .select('*')
-          .eq('request_id', requestId)
+          .eq('request_id', resolvedRequestId)
           .order('created_at', { ascending: false });
 
         if (evtsData) {

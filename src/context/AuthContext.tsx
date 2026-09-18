@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getAuthRedirectUrl, supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Profile, UserRole } from '../types/database';
 
 export interface EmailOtpMetadata {
@@ -24,7 +24,8 @@ export interface AuthContextType {
     token: string
   ) => Promise<{ success: boolean; error?: string; user?: Profile }>;
   loginWithEmail: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
-  signUpWithEmail: (email: string, fullName: string, role?: UserRole, phone?: string) => Promise<{ success: boolean; error?: string }>;
+  signUpWithEmail: (email: string, password: string, fullName: string, role?: UserRole, phone?: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  resendEmailConfirmation: (email: string) => Promise<{ success: boolean; error?: string }>;
   requestPhoneOtp: (phone: string) => Promise<{ success: boolean; error?: string }>;
   verifyPhoneOtp: (phone: string, token: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
@@ -92,10 +93,13 @@ export function mapSupabaseAuthError(err: unknown, defaultMessage = 'Unable to v
     return 'Too many attempts. Please wait and try again.';
   }
   if (msg.includes('expired') || msg.includes('otp_expired')) {
-    return 'This verification code has expired. Request a new code.';
+    return 'This confirmation link has expired. Request a new confirmation email.';
   }
   if (msg.includes('invalid') || msg.includes('token') || msg.includes('incorrect') || msg.includes('invalid_grant')) {
-    return 'That code is incorrect or has expired.';
+    return 'This confirmation link is invalid or has expired. Request a new confirmation email.';
+  }
+  if (msg.includes('already') && (msg.includes('confirmed') || msg.includes('verified'))) {
+    return 'This email address is already verified. You can sign in.';
   }
   if (msg.includes('network') || msg.includes('fetch') || msg.includes('connection') || msg.includes('offline')) {
     return 'Unable to verify your email right now. Please try again.';
@@ -294,6 +298,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // -------------------------------------------------------------
+  // EMAIL CONFIRMATION RESEND
+  // -------------------------------------------------------------
+  const resendEmailConfirmation = async (email: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) return { success: false, error: 'Please enter your email address.' };
+    if (!isSupabaseConfigured) return { success: true };
+
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: cleanEmail,
+      options: { emailRedirectTo: getAuthRedirectUrl() },
+    });
+    return error
+      ? { success: false, error: mapSupabaseAuthError(error, 'Unable to send a new confirmation email.') }
+      : { success: true };
+  };
+
+  // -------------------------------------------------------------
   // EMAIL OTP VERIFY
   // -------------------------------------------------------------
   const verifyEmailOtp = async (
@@ -485,15 +507,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // -------------------------------------------------------------
-  // SIGN UP WITH EMAIL (Directly hooks to OTP verification flow)
+  // SIGN UP WITH EMAIL (Supabase confirmation-link flow)
   // -------------------------------------------------------------
   const signUpWithEmail = async (
     email: string,
+    password: string,
     fullName: string,
     role: UserRole = 'customer',
     phone?: string
   ) => {
-    return requestEmailOtp(email, { fullName, role, phone });
+    if (!isSupabaseConfigured) return requestEmailOtp(email, { fullName, role, phone });
+
+    const { error } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+      options: {
+        emailRedirectTo: getAuthRedirectUrl(),
+        data: { full_name: fullName.trim(), role, phone: phone?.trim() || null },
+      },
+    });
+    return error
+      ? { success: false, error: mapSupabaseAuthError(error, 'Registration request failed. Please try again.') }
+      : { success: true };
   };
 
   // -------------------------------------------------------------
@@ -579,6 +614,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isEmailVerified: Boolean(user?.is_verified),
         requestEmailOtp,
         verifyEmailOtp,
+        resendEmailConfirmation,
         loginWithEmail,
         signUpWithEmail,
         requestPhoneOtp,

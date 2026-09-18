@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, User, Phone, AlertCircle, CheckCircle2, ArrowRight, RefreshCw, Info } from 'lucide-react';
+import { Mail, User, Phone, Lock, AlertCircle, CheckCircle2, ArrowRight, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -20,6 +20,7 @@ export const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState<UserRole>('customer');
+  const [password, setPassword] = useState('');
 
   // Step state
   const [step, setStep] = useState<RegisterStep>('details');
@@ -29,7 +30,7 @@ export const RegisterPage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState<number>(0);
 
-  const { signUpWithEmail, verifyEmailOtp, isSupabaseLive } = useAuth();
+  const { signUpWithEmail, verifyEmailOtp, resendEmailConfirmation, isSupabaseLive } = useAuth();
   const navigate = useNavigate();
 
   // Cooldown timer
@@ -65,14 +66,16 @@ export const RegisterPage: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    setStatusMessage('Sending verification code...');
+    setStatusMessage(isSupabaseLive ? 'Creating your account...' : 'Sending verification code...');
 
-    const result = await signUpWithEmail(cleanEmail, cleanName, role, phone.trim() || undefined);
+    const result = await signUpWithEmail(cleanEmail, password, cleanName, role, phone.trim() || undefined);
     setIsSubmitting(false);
 
     if (result.success) {
       setStep('verify');
-      setStatusMessage('Verification code sent to your email.');
+      setStatusMessage(isSupabaseLive
+        ? 'Check your email to verify your Vaangly account. Click the confirmation link to continue.'
+        : 'Verification code sent to your email.');
       setCooldown(RESEND_COOLDOWN_SECONDS);
     } else {
       setStatusMessage(null);
@@ -80,7 +83,7 @@ export const RegisterPage: React.FC = () => {
     }
   };
 
-  // Step 2: Verify OTP
+  // Verify the local preview OTP. Live Supabase registration uses the confirmation link callback.
   const handleVerifyOtp = async (codeToVerify?: string) => {
     const code = (codeToVerify || otpCode).trim();
     setErrorMsg(null);
@@ -112,17 +115,20 @@ export const RegisterPage: React.FC = () => {
     }
   };
 
-  // Resend code handler
+  // Resend a confirmation link in live mode or a preview code offline.
   const handleResend = async () => {
     if (cooldown > 0) return;
-    setOtpCode('');
     setIsSubmitting(true);
-    setStatusMessage('Sending verification code...');
-    const result = await signUpWithEmail(email.trim(), fullName.trim(), role, phone.trim() || undefined);
+    setStatusMessage(isSupabaseLive ? 'Sending confirmation email...' : 'Sending verification code...');
+    const result = isSupabaseLive
+      ? await resendEmailConfirmation(email)
+      : await signUpWithEmail(email.trim(), password, fullName.trim(), role, phone.trim() || undefined);
     setIsSubmitting(false);
 
     if (result.success) {
-      setStatusMessage('Verification code sent to your email.');
+      setStatusMessage(isSupabaseLive
+        ? 'Check your email to verify your Vaangly account. Click the confirmation link to continue.'
+        : 'Verification code sent to your email.');
       setCooldown(RESEND_COOLDOWN_SECONDS);
     } else {
       setErrorMsg(result.error || 'Unable to verify your email right now. Please try again.');
@@ -194,6 +200,19 @@ export const RegisterPage: React.FC = () => {
               />
             </FormField>
 
+            <FormField id="reg-password" label="Password" hint="Use at least 6 characters." required>
+              <Input
+                id="reg-password"
+                type="password"
+                minLength={6}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Create a password"
+                leftIcon={<Lock size={18} />}
+              />
+            </FormField>
+
             <FormField id="reg-phone" label="Mobile Number" hint="Optional - used for order notifications (+91)">
               <Input
                 id="reg-phone"
@@ -230,7 +249,7 @@ export const RegisterPage: React.FC = () => {
               isLoading={isSubmitting}
               rightIcon={<ArrowRight size={18} />}
             >
-              Send Verification Code
+              {isSupabaseLive ? 'Create Account' : 'Send Verification Code'}
             </Button>
           </form>
         ) : (
@@ -252,48 +271,47 @@ export const RegisterPage: React.FC = () => {
               </button>
             </div>
 
-            <FormField
-              id="reg-otp-input"
-              label="Enter Verification Code"
-              hint="Enter the 6-digit code sent to your email to activate your account"
-              required
-            >
-              <OtpInput
-                value={otpCode}
-                onChange={setOtpCode}
-                length={6}
-                disabled={isSubmitting}
-                hasError={Boolean(errorMsg)}
-                autoFocus
-                onComplete={(completedCode) => handleVerifyOtp(completedCode)}
-              />
-            </FormField>
+            {isSupabaseLive ? (
+              <p className="vaango-auth-subtitle">
+                Check your email to verify your Vaangly account. Click the confirmation link to continue.
+              </p>
+            ) : (
+              <>
+                <FormField
+                  id="reg-otp-input"
+                  label="Enter Verification Code"
+                  hint="Enter the 6-digit code sent to your email to activate your account"
+                  required
+                >
+                  <OtpInput
+                    value={otpCode}
+                    onChange={setOtpCode}
+                    length={6}
+                    disabled={isSubmitting}
+                    hasError={Boolean(errorMsg)}
+                    autoFocus
+                    onComplete={(completedCode) => handleVerifyOtp(completedCode)}
+                  />
+                </FormField>
 
-            {isSupabaseLive && (
-              <div className="vaango-auth-info-banner" style={{ marginTop: 'var(--space-3)' }}>
-                <Info size={15} className="vaango-auth-info-icon" />
-                <span>
-                  Not receiving your code? Supabase development email is limited to 3/hour. Check your spam folder, or use code 123456 in local preview mode.
-                </span>
-              </div>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  disabled={otpCode.length !== 6 || isSubmitting}
+                  isLoading={isSubmitting}
+                  onClick={() => handleVerifyOtp()}
+                >
+                  Verify & Complete Registration
+                </Button>
+              </>
             )}
-
-            <Button
-              type="button"
-              variant="primary"
-              size="lg"
-              fullWidth
-              disabled={otpCode.length !== 6 || isSubmitting}
-              isLoading={isSubmitting}
-              onClick={() => handleVerifyOtp()}
-            >
-              Verify & Complete Registration
-            </Button>
 
             <div className="vaango-otp-resend-row">
               {cooldown > 0 ? (
                 <span className="vaango-otp-cooldown-text">
-                  Resend code in <strong>{cooldown}s</strong>
+                  {isSupabaseLive ? 'Resend confirmation in' : 'Resend code in'} <strong>{cooldown}s</strong>
                 </span>
               ) : (
                 <button
@@ -302,7 +320,7 @@ export const RegisterPage: React.FC = () => {
                   disabled={isSubmitting}
                   onClick={handleResend}
                 >
-                  Resend code
+                  {isSupabaseLive ? 'Resend confirmation email' : 'Resend code'}
                 </button>
               )}
             </div>

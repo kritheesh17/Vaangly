@@ -59,40 +59,26 @@ function getStoredSubscriptions(): ShopSubscription[] {
     console.error('Error reading admin subscriptions:', e);
   }
 
-  // Seed initial subscriptions for existing mock shops
-  const initial: ShopSubscription[] = MOCK_SHOPS.map((shop, idx) => {
-    // Stagger dates: some in trial, some active, one overdue for demonstration
+  // Seed staging subscriptions in the free initial period.
+  const initial: ShopSubscription[] = MOCK_SHOPS.map((shop) => {
     const now = new Date();
-    const goLive = shop.is_live ? new Date(now.getTime() - (idx === 0 ? 70 : 15) * 24 * 60 * 60 * 1000) : null;
-    const trialEnd = goLive
-      ? new Date(goLive.getTime() + 60 * 24 * 60 * 60 * 1000)
-      : new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+    const trialEnd = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
 
-    let status: SubscriptionStatus = 'TRIAL';
-    let amountDue = 0;
-    if (shop.status === 'suspended') {
-      status = 'SUSPENDED';
-    } else if (idx === 0 && goLive && now > trialEnd) {
-      // Murugan Supermarket (Seed shop) overdue past 60 days
-      status = 'OVERDUE';
-      amountDue = 10 * 30; // ₹300 monthly due
-    } else if (idx === 1 && goLive && now > trialEnd) {
-      status = 'ACTIVE';
-    }
+    const status: SubscriptionStatus = shop.status === 'suspended' ? 'SUSPENDED' : 'TRIAL';
 
     return {
       id: `sub-${shop.id}`,
       shop_id: shop.id,
       status,
-      trial_start_date: goLive ? goLive.toISOString() : now.toISOString(),
+      trial_start_date: now.toISOString(),
       trial_end_date: trialEnd.toISOString(),
-      go_live_date: goLive ? goLive.toISOString() : null,
+      go_live_date: null,
       daily_rate: 10.0, // ₹10/day (well under ₹20 cap)
       billing_cycle: 'MONTHLY',
-      current_period_start: goLive ? goLive.toISOString() : now.toISOString(),
+      current_period_start: now.toISOString(),
       current_period_end: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      amount_due: amountDue,
-      last_payment_date: idx === 1 ? new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString() : null,
+      amount_due: 0,
+      last_payment_date: null,
       grace_period_days: 0,
       created_at: now.toISOString(),
       updated_at: now.toISOString(),

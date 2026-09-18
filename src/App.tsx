@@ -20,6 +20,7 @@ import { OrdersPage } from './pages/OrdersPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { AuthCallbackPage } from './pages/auth/AuthCallbackPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 // Code-split Shopkeeper modules (lazy loaded on navigation)
@@ -216,6 +217,7 @@ export const App: React.FC = () => {
                       {/* Standalone Auth Routes */}
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/register" element={<RegisterPage />} />
+                      <Route path="/auth/callback" element={<AuthCallbackPage />} />
                     </Routes>
                   </React.Suspense>
                 </BrowserRouter>

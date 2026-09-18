@@ -458,7 +458,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
               ₹{subscription.daily_rate}/day x {subscription.billing_cycle === 'WEEKLY' ? 7 : 30} days = ₹{subscription.billing_cycle === 'WEEKLY' ? subscription.daily_rate * 7 : subscription.daily_rate * 30}
             </div>
 
-            {subscription.amount_due > 0 && (
+            {subscription.amount_due > 0 && subscription.status !== 'TRIAL' && (
               <div
                 style={{
                   display: 'flex',
@@ -488,31 +488,12 @@ export const ShopkeeperProfilePage: React.FC = () => {
               </div>
             )}
 
-            {/* Payment Instructions */}
-            <div
-              style={{
-                marginTop: '10px',
-                padding: '12px',
-                backgroundColor: 'var(--color-surface-hover)',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--color-border)',
-                fontSize: '0.85rem',
-                lineHeight: 1.5,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, marginBottom: 4, color: 'var(--color-primary)' }}>
-                <Info size={15} /> Renewal UPI Payment Instructions
+            {subscription.amount_due <= 0 && subscription.status !== 'OVERDUE' && (
+              <div className="vaango-auth-info-banner" style={{ marginTop: '10px' }}>
+                <Info size={15} className="vaango-auth-info-icon" />
+                <span>No platform amount is due during the current staging free period.</span>
               </div>
-              <p style={{ margin: '0 0 6px 0', color: 'var(--color-text-muted)' }}>
-                To renew your daily platform subscription, transfer via UPI to platform operations:
-              </p>
-              <div style={{ padding: '6px 10px', background: 'var(--color-bg)', borderRadius: 4, marginBottom: 6 }}>
-                UPI ID: <strong>admin@vaango.in</strong>
-              </div>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                <em>Note:</em> Include your Shop Name in the UPI transfer note. All subscription receipts are reviewed and verified manually by the platform administrator; merchants cannot self-certify payments.
-              </p>
-            </div>
+            )}
           </div>
         ) : (
           <p className="vaango-settings-card__desc">
