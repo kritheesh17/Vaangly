@@ -21,11 +21,13 @@ import {
   Plus,
   Building2,
   Users,
-  Heart
+  Heart,
+  ShoppingBag,
 } from 'lucide-react';
 import { useLocationContext } from '../context/LocationContext';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Shop, ShopProduct } from '../types/database';
 import './HomePage.css';
 
@@ -33,6 +35,7 @@ export const HomePage: React.FC = () => {
   const { selectedLocation, setIsLocationModalOpen } = useLocationContext();
   const { addItem } = useCart();
   const { success } = useToast();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
 
   // Category filter state for "Discover What's Around You"
@@ -93,26 +96,26 @@ export const HomePage: React.FC = () => {
       created_at: new Date().toISOString(),
     };
     addItem(demoProduct, demoShop);
-    success(`Added ${name} to your cart!`);
+    success(t('addedToCart', { product: name }));
   };
 
   const businessCategories = [
-    { id: 'all', label: 'All Businesses', emoji: '🏬' },
-    { id: 'groceries', label: 'Groceries', emoji: '🥦' },
-    { id: 'bakery', label: 'Food & Bakery', emoji: '🥖' },
-    { id: 'fashion', label: 'Fashion', emoji: '👗' },
-    { id: 'salon', label: 'Beauty & Salon', emoji: '✂️' },
-    { id: 'health', label: 'Health', emoji: '🩺' },
-    { id: 'home', label: 'Home Services', emoji: '🔧' },
-    { id: 'electronics', label: 'Electronics', emoji: '📱' },
-    { id: 'services', label: 'Local Services', emoji: '🛵' },
+    { id: 'all', label: t('allBusinesses'), emoji: '🏬' },
+    { id: 'groceries', label: t('groceriesCategory'), emoji: '🥦' },
+    { id: 'bakery', label: t('bakeryCategory'), emoji: '🥖' },
+    { id: 'fashion', label: t('fashionCategory'), emoji: '👗' },
+    { id: 'salon', label: t('salonCategory'), emoji: '✂️' },
+    { id: 'health', label: t('healthCategory'), emoji: '🩺' },
+    { id: 'home', label: t('homeCategory'), emoji: '🔧' },
+    { id: 'electronics', label: t('electronicsCategory'), emoji: '📱' },
+    { id: 'services', label: t('servicesCategory'), emoji: '🛵' },
   ];
 
   const featuredShops = [
     {
       id: 'shop-1',
       name: 'Green Mart Provisions',
-      category: 'Groceries',
+      category: t('groceriesCategory'),
       categoryKey: 'groceries',
       distance: '1.2 km away',
       location: selectedLocation.name,
@@ -120,12 +123,12 @@ export const HomePage: React.FC = () => {
       reviewsCount: 142,
       tagline: 'Farm-fresh vegetables, cold-pressed oils & pulses',
       image: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&auto=format&fit=crop&q=80',
-      badge: 'Fast Counter Pickup',
+      badge: t('fastCounterPickup'),
     },
     {
       id: 'shop-2',
       name: 'Crown Bakery & Sweets',
-      category: 'Food & Bakery',
+      category: t('bakeryCategory'),
       categoryKey: 'bakery',
       distance: '0.8 km away',
       location: selectedLocation.name,
@@ -133,12 +136,12 @@ export const HomePage: React.FC = () => {
       reviewsCount: 210,
       tagline: 'Fresh wheat bread, butter cookies & evening hot snacks',
       image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&auto=format&fit=crop&q=80',
-      badge: 'Fresh Daily',
+      badge: t('freshDaily'),
     },
     {
       id: 'shop-3',
       name: 'Karpagam Silks & Tailors',
-      category: 'Fashion',
+      category: t('fashionCategory'),
       categoryKey: 'fashion',
       distance: '1.5 km away',
       location: selectedLocation.name,
@@ -146,12 +149,12 @@ export const HomePage: React.FC = () => {
       reviewsCount: 88,
       tagline: 'Traditional sarees, cotton shirts & expert alterations',
       image: 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&auto=format&fit=crop&q=80',
-      badge: 'Custom Stitching',
+      badge: t('customStitching'),
     },
     {
       id: 'shop-4',
       name: 'Ayush Care Clinic & Pharmacy',
-      category: 'Health',
+      category: t('healthCategory'),
       categoryKey: 'health',
       distance: '0.5 km away',
       location: selectedLocation.name,
@@ -159,12 +162,12 @@ export const HomePage: React.FC = () => {
       reviewsCount: 164,
       tagline: 'Consultation tokens, daily prescription refills & baby care',
       image: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=800&auto=format&fit=crop&q=80',
-      badge: 'Verified Doctor',
+      badge: t('verifiedDoctor'),
     },
     {
       id: 'shop-5',
       name: 'Elite Grooming Studio & Salon',
-      category: 'Beauty & Salon',
+      category: t('salonCategory'),
       categoryKey: 'salon',
       distance: '1.0 km away',
       location: selectedLocation.name,
@@ -172,12 +175,12 @@ export const HomePage: React.FC = () => {
       reviewsCount: 125,
       tagline: 'Modern haircuts, beard sculpting & skin rejuvenation',
       image: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800&auto=format&fit=crop&q=80',
-      badge: 'Appointments Open',
+      badge: t('appointmentsOpen'),
     },
     {
       id: 'shop-6',
       name: 'Velan Two-Wheeler Workshop',
-      category: 'Local Services',
+      category: t('servicesCategory'),
       categoryKey: 'services',
       distance: '2.1 km away',
       location: selectedLocation.name,
@@ -185,7 +188,7 @@ export const HomePage: React.FC = () => {
       reviewsCount: 94,
       tagline: 'Oil servicing, electrical repair & periodic tune-ups',
       image: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80',
-      badge: 'Service Slots Available',
+      badge: t('serviceSlotsAvailable'),
     },
   ];
 
@@ -287,36 +290,40 @@ export const HomePage: React.FC = () => {
 
   const faqList = [
     {
-      q: 'What is Vaangly?',
-      a: 'Vaangly is a local commerce and services platform that connects customers with verified nearby shops, services, and appointment providers in their hometown. You can discover local businesses, pre-order groceries and daily essentials, and book service appointments with trusted community professionals.',
+      q: language === 'ta' ? 'வாங்கோ என்றால் என்ன?' : 'What is Vaangly?',
+      a: language === 'ta'
+        ? 'வாங்கோ என்பது உங்கள் ஊரில் உள்ள கடைகள், சேவைகள் மற்றும் முன்பதிவு வழங்குநர்களை இணைக்கும் எளிய உள்ளூர் தளமாகும். மளிகைப் பொருட்களை முன்கூட்டியே ஆர்டர் செய்யவும், மருத்துவர் மற்றும் சலூன் நேரங்களை முன்பதிவு செய்யவும் உதவுகிறது.'
+        : 'Vaangly is a local commerce and services platform that connects customers with verified nearby shops, services, and appointment providers in their hometown. You can discover local businesses, pre-order groceries and daily essentials, and book service appointments with trusted community professionals.',
     },
     {
-      q: 'How does Vaangly work?',
-      a: 'Simply select your town to see nearby businesses. You can browse products to place order requests, book scheduled appointment slots for salons or clinics, or request home repairs. Merchants confirm your request and update you in real time when items are packed or ready.',
+      q: language === 'ta' ? 'வாங்கோ எவ்வாறு செயல்படுகிறது?' : 'How does Vaangly work?',
+      a: language === 'ta'
+        ? 'உங்கள் ஊரைத் தேர்வு செய்து அருகிலுள்ள கடைகளைக் காணலாம். பொருட்களை தேர்வு செய்து ஆர்டர் அனுப்பலாம், சலூன் அல்லது கிளினிக் நேரம் முன்பதிவு செய்யலாம் அல்லது வீட்டு பழுதுபார்ப்பு சேவைகளைக் கோரலாம்.'
+        : 'Simply select your town to see nearby businesses. You can browse products to place order requests, book scheduled appointment slots for salons or clinics, or request home repairs. Merchants confirm your request and update you in real time when items are packed or ready.',
     },
     {
-      q: 'Can I order from local shops?',
-      a: 'Yes. You can browse catalogs from local grocery stores, bakeries, eateries, and pharmacies, add items to your cart, and place an order request. You can choose counter pickup to skip waiting lines or select local doorstep delivery where offered.',
+      q: language === 'ta' ? 'உள்ளூர் கடைகளில் எவ்வாறு ஆர்டர் செய்வது?' : 'Can I order from local shops?',
+      a: language === 'ta'
+        ? 'ஆம். உங்கள் பகுதி மளிகைக் கடைகள், பேக்கரிகள் மற்றும் மருந்தகங்களின் தயாரிப்புகளைப் பார்த்து கூடையில் சேர்த்து கோரிக்கை அனுப்பலாம். கடையில் நேரில் சென்று பெறலாம் அல்லது டெலிவரி பெறலாம்.'
+        : 'Yes. You can browse catalogs from local grocery stores, bakeries, eateries, and pharmacies, add items to your cart, and place an order request. You can choose counter pickup to skip waiting lines or select local doorstep delivery where offered.',
     },
     {
-      q: 'Can I book appointments?',
-      a: 'Yes! Vaangly is not just shopping. You can book guaranteed appointment slots at neighborhood clinics, barbershops, salons, dental care centers, and diagnostic labs without waiting in long queues.',
+      q: language === 'ta' ? 'முன்பதிவு (Appointments) செய்ய முடியுமா?' : 'Can I book appointments?',
+      a: language === 'ta'
+        ? 'கண்டிப்பாக! முடித்திருத்தகம், அழகு நிலையம், பல் மற்றும் பொது மருத்துவ கிளினிக்குகளில் வரிசையில் காத்திருக்காமல் உங்களுக்கு வசதியான நேரத்தை நேரடியாக முன்பதிவு செய்யலாம்.'
+        : 'Yes! Vaangly is not just shopping. You can book guaranteed appointment slots at neighborhood clinics, barbershops, salons, dental care centers, and diagnostic labs without waiting in long queues.',
     },
     {
-      q: 'Can businesses join Vaangly?',
-      a: 'Absolutely. Any verified local merchant or service provider can click "Join as a Business" or "For Businesses", submit basic shop details, storefront photos, and verification documents to start receiving orders and appointment requests.',
+      q: language === 'ta' ? 'கடைக்காரர்கள் எப்படி இணையலாம்?' : 'How can businesses join Vaangly?',
+      a: language === 'ta'
+        ? 'எந்தவொரு உள்ளூர் கடை அல்லது சேவை வழங்குநரும் "கடையைத் தொடங்குங்கள்" அல்லது "விண்ணப்பிக்கவும்" பொத்தானைக் கிளிக் செய்து, அடிப்படை விவரங்கள் மற்றும் ஆவணங்களைச் சமர்ப்பித்து நிர்வாக ஒப்புதல் பெறலாம்.'
+        : 'Any verified local merchant or service provider can click "Open Your Shop on Vaangly", submit basic shop details, storefront photos, and verification documents to start receiving orders and appointment requests.',
     },
     {
-      q: 'Is Vaangly available on mobile?',
-      a: 'Yes, Vaangly is a modern Progressive Web App (PWA) that installs seamlessly onto any Android or iOS device from your browser. A dedicated mobile application is also releasing soon.',
-    },
-    {
-      q: 'How do businesses add their products?',
-      a: 'Once approved, business owners receive access to the Vaangly Shopkeeper Dashboard where they can add products, set prices and units, define variants (like 500 ml vs 1 L), list services, and configure opening hours.',
-    },
-    {
-      q: 'How are order updates provided?',
-      a: 'Both customers and shopkeepers receive real-time notifications when an order is received, accepted, packed, or ready for pickup. Live status tracking keeps everyone informed without constant phone calls.',
+      q: language === 'ta' ? 'ஆர்டர் நிலையை எவ்வாறு அறிந்து கொள்வது?' : 'How are order updates provided?',
+      a: language === 'ta'
+        ? 'ஆர்டர் ஏற்றுக்கொள்ளப்பட்டது, பேக் செய்யப்படுகிறது, தயாராகிவிட்டது போன்ற அனைத்து நிலைகளும் உங்கள் தொலைபேசியில் நேரலையாகத் தெரிவிக்கப்படும்.'
+        : 'Both customers and shopkeepers receive real-time notifications when an order is received, accepted, packed, or ready for pickup. Live status tracking keeps everyone informed without constant phone calls.',
     },
   ];
 
@@ -329,10 +336,10 @@ export const HomePage: React.FC = () => {
             type="button"
             className="vaangly-location-chip"
             onClick={() => setIsLocationModalOpen(true)}
-            aria-label={`Current location is ${selectedLocation.name}. Tap to change town.`}
+            aria-label={`${t('browsingIn')} ${selectedLocation.name}. ${t('changeLocation')}.`}
           >
             <MapPin size={16} className="vaangly-location-icon" />
-            <span className="vaangly-location-label">Browsing local businesses in:</span>
+            <span className="vaangly-location-label">{t('browsingIn')}</span>
             <strong className="vaangly-location-name">
               {selectedLocation.name}, {selectedLocation.state}
             </strong>
@@ -340,32 +347,32 @@ export const HomePage: React.FC = () => {
           </button>
           <div className="vaangly-location-badge">
             <span className="vaangly-location-pulse" />
-            <span>Active Hometown Marketplace</span>
+            <span>{t('activeMarketplace')}</span>
           </div>
         </div>
       </section>
 
-      {/* 2. Hero Section */}
+      {/* 2. Hero Section — Primary Proposition */}
       <section className="vaangly-hero">
         <div className="container vaangly-hero__container">
           <div className="vaangly-hero__content">
             <div className="vaangly-hero__pill">
               <Sparkles size={15} />
-              <span>Local • Trustworthy • Simple</span>
+              <span>{t('heroPill')}</span>
             </div>
             <h1 className="vaangly-hero__title">
-              Everything You Need, <br />
-              <span className="vaangly-hero__title--highlight">Right Around You.</span>
+              {t('heroTitlePrefix')} <br />
+              <span className="vaangly-hero__title--highlight">{t('heroTitleHighlight')}</span>
             </h1>
             <p className="vaangly-hero__subtitle">
-              Discover local shops, products, services and appointments — all in one place with Vaangly.
+              {t('heroSubtitle')}
             </p>
             <div className="vaangly-hero__actions">
-              <Link to="/shops" className="vaangly-btn vaangly-btn--primary">
-                Explore Vaangly <ArrowRight size={18} />
+              <Link to="/shops?group=ORDER" className="vaangly-btn vaangly-btn--primary">
+                {t('heroStartOrdering')} <ArrowRight size={18} />
               </Link>
               <Link to="/shopkeeper/apply" className="vaangly-btn vaangly-btn--outline">
-                Join as a Business
+                {t('heroOpenShop')}
               </Link>
             </div>
 
@@ -373,15 +380,15 @@ export const HomePage: React.FC = () => {
             <div className="vaangly-hero__features">
               <div className="vaangly-hero__feature-item">
                 <CheckCircle2 size={16} className="vaangly-hero__check" />
-                <span>Verified Neighborhood Stores</span>
+                <span>{t('heroFeatureStores')}</span>
               </div>
               <div className="vaangly-hero__feature-item">
                 <CheckCircle2 size={16} className="vaangly-hero__check" />
-                <span>Zero Wait Counter Pickup</span>
+                <span>{t('heroFeaturePickup')}</span>
               </div>
               <div className="vaangly-hero__feature-item">
                 <CheckCircle2 size={16} className="vaangly-hero__check" />
-                <span>Book Services & Clinics</span>
+                <span>{t('heroFeatureServices')}</span>
               </div>
             </div>
           </div>
@@ -395,7 +402,7 @@ export const HomePage: React.FC = () => {
                 <div className="vaangly-mini-card__details">
                   <h4>Green Mart Provisions</h4>
                   <p>Farm-fresh vegetables & spices • 1.2 km</p>
-                  <span className="vaangly-mini-card__status">Ready for Pickup</span>
+                  <span className="vaangly-mini-card__status">{t('status_READY')}</span>
                 </div>
               </div>
 
@@ -415,7 +422,7 @@ export const HomePage: React.FC = () => {
                 <div className="vaangly-mini-card__details">
                   <h4>Ayush Care Clinic</h4>
                   <p>Dr. R. Vijayakumar (MBBS)</p>
-                  <span className="vaangly-mini-card__slot">Today 5:30 PM Slot Open</span>
+                  <span className="vaangly-mini-card__slot">{t('appointmentsOpen')}</span>
                 </div>
               </div>
 
@@ -431,25 +438,84 @@ export const HomePage: React.FC = () => {
               {/* Ecosystem Caption */}
               <div className="vaangly-ecosystem-footer">
                 <Store size={16} />
-                <span>Your local businesses, connected in one place.</span>
+                <span>{t('tagline')}</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. Discover What's Around You */}
+      {/* 3. PROMINENT 3 CORE ACTION ENTRY POINTS (ORDER, APPOINTMENTS, SERVICES) */}
+      <section className="vaangly-core-actions-section" id="core-actions">
+        <div className="container">
+          <div className="vaangly-section__header vaangly-section__header--center">
+            <h2 className="vaangly-section__title">{t('coreActionsTitle')}</h2>
+            <p className="vaangly-section__subtitle">
+              {t('coreActionsSubtitle', { location: selectedLocation.name })}
+            </p>
+          </div>
+
+          <div className="vaangly-core-actions-grid">
+            {/* 1. ORDER */}
+            <Link to="/shops?group=ORDER" className="vaangly-core-action-card vaangly-core-action-card--order">
+              <div className="vaangly-core-action-badge vaangly-core-action-badge--order">
+                <ShoppingBag size={14} />
+                <span>1. {t('coreOrderTitle')}</span>
+              </div>
+              <h3 className="vaangly-core-action-title">{t('coreOrderTitle')}</h3>
+              <div className="vaangly-core-action-sub">{t('coreOrderSubtitle')}</div>
+              <p className="vaangly-core-action-desc">{t('coreOrderDesc')}</p>
+              <div className="vaangly-core-action-btn">
+                <span>{t('coreOrderAction')}</span>
+                <ArrowRight size={16} />
+              </div>
+            </Link>
+
+            {/* 2. APPOINTMENTS */}
+            <Link to="/shops?group=APPOINTMENT" className="vaangly-core-action-card vaangly-core-action-card--appointments">
+              <div className="vaangly-core-action-badge vaangly-core-action-badge--appointments">
+                <Calendar size={14} />
+                <span>2. {t('coreAppointmentsTitle')}</span>
+              </div>
+              <h3 className="vaangly-core-action-title">{t('coreAppointmentsTitle')}</h3>
+              <div className="vaangly-core-action-sub">{t('coreAppointmentsSubtitle')}</div>
+              <p className="vaangly-core-action-desc">{t('coreAppointmentsDesc')}</p>
+              <div className="vaangly-core-action-btn">
+                <span>{t('coreAppointmentsAction')}</span>
+                <ArrowRight size={16} />
+              </div>
+            </Link>
+
+            {/* 3. SERVICES */}
+            <Link to="/shops?group=SERVICE" className="vaangly-core-action-card vaangly-core-action-card--services">
+              <div className="vaangly-core-action-badge vaangly-core-action-badge--services">
+                <Wrench size={14} />
+                <span>3. {t('coreServicesTitle')}</span>
+              </div>
+              <h3 className="vaangly-core-action-title">{t('coreServicesTitle')}</h3>
+              <div className="vaangly-core-action-sub">{t('coreServicesSubtitle')}</div>
+              <p className="vaangly-core-action-desc">{t('coreServicesDesc')}</p>
+              <div className="vaangly-core-action-btn">
+                <span>{t('coreServicesAction')}</span>
+                <ArrowRight size={16} />
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Discover What's Around You */}
       <section className="vaangly-section" id="explore">
         <div className="container">
           <div className="vaangly-section__header">
             <div>
-              <h2 className="vaangly-section__title">Discover What's Around You</h2>
+              <h2 className="vaangly-section__title">{t('discoverTitle')}</h2>
               <p className="vaangly-section__subtitle">
-                Support authentic neighborhood stores, groceries, and trusted providers right in {selectedLocation.name}.
+                {t('discoverSubtitle', { location: selectedLocation.name })}
               </p>
             </div>
             <Link to="/shops" className="vaangly-link-action">
-              <span>View all shops</span>
+              <span>{t('viewAllShops')}</span>
               <ChevronRight size={16} />
             </Link>
           </div>
@@ -493,7 +559,7 @@ export const HomePage: React.FC = () => {
                       {shop.distance}
                     </span>
                     <Link to="/shops" className="vaangly-shop-card__btn">
-                      View Shop
+                      {t('viewShop')}
                     </Link>
                   </div>
                 </div>
@@ -503,64 +569,74 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. How Vaangly Works */}
+      {/* 5. How Vaangly Works */}
       <section className="vaangly-section vaangly-section--alt" id="how-it-works">
         <div className="container">
           <div className="vaangly-section__header vaangly-section__header--center">
-            <h2 className="vaangly-section__title">How Vaangly Works</h2>
+            <h2 className="vaangly-section__title">{t('navHowItWorks')}</h2>
             <p className="vaangly-section__subtitle">
-              Four simple steps to connect with local merchants and skip unnecessary waiting.
+              {language === 'ta'
+                ? 'உள்ளூர் வணிகங்களுடன் எளிதாக இணைய 4 எளிய வழிகள்.'
+                : 'Four simple steps to connect with local merchants and skip unnecessary waiting.'}
             </p>
           </div>
 
           <div className="vaangly-steps-grid">
             <div className="vaangly-step-card">
               <div className="vaangly-step-card__number">01</div>
-              <h3 className="vaangly-step-card__title">Discover</h3>
+              <h3 className="vaangly-step-card__title">{language === 'ta' ? 'கண்டறியுங்கள்' : 'Discover'}</h3>
               <p className="vaangly-step-card__desc">
-                Find shops, products, and services around you in your local hometown.
+                {language === 'ta'
+                  ? 'உங்கள் ஊரில் உள்ள கடைகள், பொருட்கள் மற்றும் சேவைகளைக் கண்டறியுங்கள்.'
+                  : 'Find shops, products, and services around you in your local hometown.'}
               </p>
             </div>
 
             <div className="vaangly-step-card">
               <div className="vaangly-step-card__number">02</div>
-              <h3 className="vaangly-step-card__title">Choose</h3>
+              <h3 className="vaangly-step-card__title">{language === 'ta' ? 'தேர்வு செய்யுங்கள்' : 'Choose'}</h3>
               <p className="vaangly-step-card__desc">
-                Browse products, select required package variants, or choose a convenient service.
+                {language === 'ta'
+                  ? 'தேவையான பொருட்கள், அளவுகள் அல்லது வசதியான நேரத்தைத் தேர்வு செய்யுங்கள்.'
+                  : 'Browse products, select required package variants, or choose a convenient service.'}
               </p>
             </div>
 
             <div className="vaangly-step-card">
               <div className="vaangly-step-card__number">03</div>
-              <h3 className="vaangly-step-card__title">Order or Book</h3>
+              <h3 className="vaangly-step-card__title">{language === 'ta' ? 'ஆர்டர் அல்லது முன்பதிவு' : 'Order or Book'}</h3>
               <p className="vaangly-step-card__desc">
-                Place your order request for counter pickup or book a reserved appointment slot.
+                {language === 'ta'
+                  ? 'பொருட்களை ஆர்டர் செய்யுங்கள் அல்லது கிளினிக்/சலூன் நேரத்தை முன்பதிவு செய்யுங்கள்.'
+                  : 'Place your order request for counter pickup or book a reserved appointment slot.'}
               </p>
             </div>
 
             <div className="vaangly-step-card">
               <div className="vaangly-step-card__number">04</div>
-              <h3 className="vaangly-step-card__title">Get Notified</h3>
+              <h3 className="vaangly-step-card__title">{language === 'ta' ? 'தகவல் பெறுங்கள்' : 'Get Notified'}</h3>
               <p className="vaangly-step-card__desc">
-                Receive live updates when your merchant accepts, packs, or readies your request.
+                {language === 'ta'
+                  ? 'கடைக்காரர் ஏற்றதும், தயாரானதும் உடனுக்குடன் அறிவிப்பு பெறுங்கள்.'
+                  : 'Receive live updates when your merchant accepts, packs, or readies your request.'}
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 5. Product Discovery */}
+      {/* 6. Shop From Local Businesses (Products) */}
       <section className="vaangly-section">
         <div className="container">
           <div className="vaangly-section__header">
             <div>
-              <h2 className="vaangly-section__title">Shop From Local Businesses</h2>
+              <h2 className="vaangly-section__title">{t('shopFromLocal')}</h2>
               <p className="vaangly-section__subtitle">
-                Pre-order fresh essentials and household staples with clear variant options.
+                {t('shopFromLocalSubtitle')}
               </p>
             </div>
             <Link to="/shops?group=ORDER" className="vaangly-link-action">
-              <span>View more products</span>
+              <span>{t('viewMoreProducts')}</span>
               <ChevronRight size={16} />
             </Link>
           </div>
@@ -577,7 +653,7 @@ export const HomePage: React.FC = () => {
 
                   {/* Product Variants Pill Selector */}
                   {prod.variants.length > 0 && (
-                    <div className="vaangly-product-card__variants" aria-label="Choose variant">
+                    <div className="vaangly-product-card__variants" aria-label={t('chooseVariant')}>
                       {prod.variants.map((v) => (
                         <button
                           key={v}
@@ -599,10 +675,10 @@ export const HomePage: React.FC = () => {
                       type="button"
                       className="vaangly-product-card__add-btn"
                       onClick={() => handleQuickAdd(prod.id, prod.name, prod.price, prod.shop, prod.image)}
-                      aria-label={`Add ${prod.name} to cart`}
+                      aria-label={`${t('addToCart')} ${prod.name}`}
                     >
                       <Plus size={16} />
-                      <span>Add to Cart</span>
+                      <span>{t('addToCart')}</span>
                     </button>
                   </div>
                 </div>
@@ -612,22 +688,22 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 6. More Than Shopping (Services + Appointments) */}
+      {/* 7. More Than Shopping (Services + Appointments) */}
       <section className="vaangly-section vaangly-section--warm" id="services">
         <div className="container">
           <div className="vaangly-section__header">
             <div>
               <div className="vaangly-badge-pill">
                 <Calendar size={14} />
-                <span>Appointments & Services</span>
+                <span>{t('navAppointments')} & {t('navServices')}</span>
               </div>
-              <h2 className="vaangly-section__title">More Than Shopping</h2>
+              <h2 className="vaangly-section__title">{t('moreThanShopping')}</h2>
               <p className="vaangly-section__subtitle">
-                Vaangly is not just shopping. Book appointments with clinics, grooming salons, and home service experts.
+                {t('moreThanShoppingSubtitle')}
               </p>
             </div>
             <Link to="/shops?group=APPOINTMENT" className="vaangly-link-action">
-              <span>View all services</span>
+              <span>{t('viewAllServices')}</span>
               <ChevronRight size={16} />
             </Link>
           </div>
@@ -654,7 +730,7 @@ export const HomePage: React.FC = () => {
                       className="vaangly-service-card__book-btn"
                       onClick={() => navigate(service.actionUrl)}
                     >
-                      Book Now
+                      {t('bookNow')}
                     </button>
                   </div>
                 </div>
@@ -664,44 +740,44 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 7. For Business Owners */}
-      <section className="vaangly-section vaangly-section--business" id="for-businesses">
+      {/* 8. Open Your Shop on Vaangly (Replaced Business Section) */}
+      <section className="vaangly-section vaangly-section--business" id="open-your-shop">
         <div className="container vaangly-business__container">
           <div className="vaangly-business__content">
             <div className="vaangly-badge-pill vaangly-badge-pill--accent">
               <Building2 size={14} />
-              <span>For Neighborhood Merchants</span>
+              <span>{t('navOpenShop')}</span>
             </div>
-            <h2 className="vaangly-business__title">Bring Your Local Business Online.</h2>
+            <h2 className="vaangly-business__title">{t('openShopSectionTitle')}</h2>
             <p className="vaangly-business__subtitle">
-              Reach nearby customers, manage orders and appointments, and grow your business with Vaangly.
+              {t('openShopSectionSubtitle')}
             </p>
 
             <ul className="vaangly-business__benefits">
               <li>
                 <div className="vaangly-benefit-check"><Check size={16} /></div>
-                <span>Create your business profile with verified storefront credentials</span>
+                <span>{t('openShopStep1')}</span>
               </li>
               <li>
                 <div className="vaangly-benefit-check"><Check size={16} /></div>
-                <span>Add products, package sizes, and custom service offerings</span>
+                <span>{t('openShopStep2')}</span>
               </li>
               <li>
                 <div className="vaangly-benefit-check"><Check size={16} /></div>
-                <span>Receive customer orders with direct counter pickup and UPI payments</span>
+                <span>{t('openShopStep3')}</span>
               </li>
               <li>
                 <div className="vaangly-benefit-check"><Check size={16} /></div>
-                <span>Manage appointments and patient/client queue slots effortlessly</span>
+                <span>{t('openShopStep4')}</span>
               </li>
               <li>
                 <div className="vaangly-benefit-check"><Check size={16} /></div>
-                <span>Track your business performance with real-time analytics</span>
+                <span>{t('openShopStep5')}</span>
               </li>
             </ul>
 
             <Link to="/shopkeeper/apply" className="vaangly-btn vaangly-btn--primary vaangly-btn--lg">
-              Join Vaangly <ArrowRight size={18} />
+              {t('applyShopCta')} <ArrowRight size={18} />
             </Link>
           </div>
 
@@ -715,7 +791,7 @@ export const HomePage: React.FC = () => {
                 />
                 <div className="vaangly-merchant-card__badge">
                   <CheckCircle2 size={16} />
-                  <span>Verified Merchant</span>
+                  <span>{t('verifiedMerchantBadge')}</span>
                 </div>
               </div>
               <div className="vaangly-merchant-card__content">
@@ -724,15 +800,15 @@ export const HomePage: React.FC = () => {
                 <div className="vaangly-merchant-stat-grid">
                   <div className="vaangly-merchant-stat">
                     <strong>100%</strong>
-                    <span>Local Orders</span>
+                    <span>{t('localOrdersStat')}</span>
                   </div>
                   <div className="vaangly-merchant-stat">
                     <strong>Zero</strong>
-                    <span>Middleman Fees</span>
+                    <span>{t('zeroFeesStat')}</span>
                   </div>
                   <div className="vaangly-merchant-stat">
                     <strong>Direct</strong>
-                    <span>UPI Settlement</span>
+                    <span>{t('directUpiStat')}</span>
                   </div>
                 </div>
               </div>
@@ -741,7 +817,7 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 8. Trust & Community Section */}
+      {/* 9. Trust & Community Section */}
       <section className="vaangly-section" id="about">
         <div className="container">
           <div className="vaangly-section__header vaangly-section__header--center">
@@ -749,9 +825,9 @@ export const HomePage: React.FC = () => {
               <Users size={14} />
               <span>Community First</span>
             </div>
-            <h2 className="vaangly-section__title">Built Around Local Businesses.</h2>
+            <h2 className="vaangly-section__title">{t('communityTitle')}</h2>
             <p className="vaangly-section__subtitle" style={{ maxWidth: '680px', margin: '0 auto' }}>
-              Vaangly helps customers discover the businesses they already know — and the ones they haven't discovered yet.
+              {t('communitySubtitle')}
             </p>
           </div>
 
@@ -760,30 +836,30 @@ export const HomePage: React.FC = () => {
               <div className="vaangly-trust-icon">
                 <ShieldCheck size={26} />
               </div>
-              <h3>Verified Storefronts</h3>
-              <p>Every business on Vaangly is physically verified with real storefront photos, GPS location, and proprietor identity proofs.</p>
+              <h3>{t('trustVerifiedTitle')}</h3>
+              <p>{t('trustVerifiedDesc')}</p>
             </div>
 
             <div className="vaangly-trust-item">
               <div className="vaangly-trust-icon">
                 <Clock size={26} />
               </div>
-              <h3>Direct & Punctual</h3>
-              <p>Skip crowded counters. Send orders ahead of time and pick up your packed items with zero waiting lines.</p>
+              <h3>{t('trustPunctualTitle')}</h3>
+              <p>{t('trustPunctualDesc')}</p>
             </div>
 
             <div className="vaangly-trust-item">
               <div className="vaangly-trust-icon">
                 <Heart size={26} />
               </div>
-              <h3>Hometown Prosperity</h3>
-              <p>Keep your spending in the local community. Money circulates directly between local shoppers and neighborhood merchants.</p>
+              <h3>{t('trustProsperityTitle')}</h3>
+              <p>{t('trustProsperityDesc')}</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 9. Vaangly App Section */}
+      {/* 10. Vaangly App Section */}
       <section className="vaangly-section vaangly-section--alt">
         <div className="container vaangly-app-section">
           <div className="vaangly-app-section__content">
@@ -791,29 +867,29 @@ export const HomePage: React.FC = () => {
               <Smartphone size={14} />
               <span>Mobile Experience</span>
             </div>
-            <h2 className="vaangly-section__title">Your Local Marketplace, In Your Pocket.</h2>
+            <h2 className="vaangly-section__title">{t('appSectionTitle')}</h2>
             <p className="vaangly-section__subtitle">
-              Browse shops on the street, track packing progress in real time, and book medical or salon tokens whenever you need them.
+              {t('appSectionSubtitle')}
             </p>
 
             <div className="vaangly-app-features-list">
               <div className="vaangly-app-feature">
                 <div className="vaangly-app-feature__bullet" />
-                <span>Live order status tracking & readiness notifications</span>
+                <span>{t('appFeature1')}</span>
               </div>
               <div className="vaangly-app-feature">
                 <div className="vaangly-app-feature__bullet" />
-                <span>Instant appointment booking with verified time slots</span>
+                <span>{t('appFeature2')}</span>
               </div>
               <div className="vaangly-app-feature">
                 <div className="vaangly-app-feature__bullet" />
-                <span>Direct merchant contact and direct UPI payments</span>
+                <span>{t('appFeature3')}</span>
               </div>
             </div>
 
             <div className="vaangly-app-ctas">
-              <Link to="/shops" className="vaangly-btn vaangly-btn--primary">
-                Explore Vaangly <ArrowRight size={16} />
+              <Link to="/shops?group=ORDER" className="vaangly-btn vaangly-btn--primary">
+                {t('heroStartOrdering')} <ArrowRight size={16} />
               </Link>
               <button
                 type="button"
@@ -823,7 +899,7 @@ export const HomePage: React.FC = () => {
                   success('Vaangly is available instantly in your browser! Add to Home Screen via browser menu.');
                 }}
               >
-                Get the App
+                {t('getAppBtn')}
               </button>
             </div>
 
@@ -831,11 +907,11 @@ export const HomePage: React.FC = () => {
             <div className="vaangly-store-badges">
               <div className="vaangly-store-badge">
                 <span className="vaangly-store-badge__sub">Available as</span>
-                <strong className="vaangly-store-badge__name">Mobile Web App (PWA)</strong>
+                <strong className="vaangly-store-badge__name">{t('pwaBadge')}</strong>
               </div>
               <div className="vaangly-store-badge">
-                <span className="vaangly-store-badge__sub">Play Store & App Store</span>
-                <strong className="vaangly-store-badge__name">Coming Soon</strong>
+                <span className="vaangly-store-badge__sub">Mobile App</span>
+                <strong className="vaangly-store-badge__name">{t('playStoreComingSoon')}</strong>
               </div>
             </div>
           </div>
@@ -854,7 +930,7 @@ export const HomePage: React.FC = () => {
                   <div className="vaangly-phone-card">
                     <span className="vaangly-phone-card__title">Order #4821 Ready</span>
                     <p>Green Mart • 3 items packed</p>
-                    <span className="vaangly-phone-pill">Pickup at Counter</span>
+                    <span className="vaangly-phone-pill">{t('counterPickup')}</span>
                   </div>
                   <div className="vaangly-phone-card vaangly-phone-card--slot">
                     <span className="vaangly-phone-card__title">Clinic Token Confirmed</span>
@@ -872,22 +948,24 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 10. Testimonials */}
+      {/* 11. Testimonials */}
       <section className="vaangly-section">
         <div className="container">
           <div className="vaangly-section__header vaangly-section__header--center">
-            <h2 className="vaangly-section__title">Loved by Customers & Shopkeepers</h2>
+            <h2 className="vaangly-section__title">{t('testimonialsTitle')}</h2>
             <p className="vaangly-section__subtitle">
-              Real feedback from community members and local business owners.
+              {t('testimonialsSubtitle')}
             </p>
           </div>
 
           <div className="vaangly-testimonials-grid">
             {/* Customer Testimonial */}
             <div className="vaangly-testimonial-card">
-              <div className="vaangly-testimonial-badge">Customer</div>
+              <div className="vaangly-testimonial-badge">{t('customerBadge')}</div>
               <p className="vaangly-testimonial-quote">
-                "I can find nearby shops and place orders without having to search for every business separately."
+                {language === 'ta'
+                  ? '"அருகிலுள்ள கடைகளை எளிதாகக் கண்டுபிடித்து, தனியாக ஒவ்வொரு கடையையும் தேடாமல் ஆர்டர் செய்ய வாங்கோ மிகவும் பயனுள்ளதாக உள்ளது."'
+                  : '"I can find nearby shops and place orders without having to search for every business separately."'}
               </p>
               <div className="vaangly-testimonial-author">
                 <div className="vaangly-testimonial-avatar">A</div>
@@ -900,9 +978,11 @@ export const HomePage: React.FC = () => {
 
             {/* Shopkeeper Testimonial */}
             <div className="vaangly-testimonial-card vaangly-testimonial-card--merchant">
-              <div className="vaangly-testimonial-badge vaangly-testimonial-badge--merchant">Shopkeeper</div>
+              <div className="vaangly-testimonial-badge vaangly-testimonial-badge--merchant">{t('shopkeeperBadge')}</div>
               <p className="vaangly-testimonial-quote">
-                "Vaangly gives my shop a simple way to reach customers nearby."
+                {language === 'ta'
+                  ? '"எங்கள் கடைக்கு அருகிலுள்ள புதிய வாடிக்கையாளர்களை எந்தவொரு கூடுதல் கட்டணமும் இல்லாமல் அடைய வாங்கோ எளிய வழியை வழங்குகிறது."'
+                  : '"Vaangly gives my shop a simple way to reach customers nearby."'}
               </p>
               <div className="vaangly-testimonial-author">
                 <div className="vaangly-testimonial-avatar vaangly-testimonial-avatar--merchant">S</div>
@@ -916,13 +996,13 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 11. FAQ Section */}
+      {/* 12. FAQ Section */}
       <section className="vaangly-section vaangly-section--alt" id="faq">
         <div className="container" style={{ maxWidth: '820px' }}>
           <div className="vaangly-section__header vaangly-section__header--center">
-            <h2 className="vaangly-section__title">Frequently Asked Questions</h2>
+            <h2 className="vaangly-section__title">{t('faqTitle')}</h2>
             <p className="vaangly-section__subtitle">
-              Everything you need to know about shopping, booking, and joining Vaangly.
+              {t('faqSubtitle')}
             </p>
           </div>
 
@@ -952,23 +1032,23 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 12. Final CTA Section */}
+      {/* 13. Final CTA Section */}
       <section className="vaangly-final-cta">
         <div className="container vaangly-final-cta__inner">
           <div className="vaangly-final-cta__badge">
             <Sparkles size={14} />
-            <span>Join the Community</span>
+            <span>{t('joinCommunity')}</span>
           </div>
-          <h2 className="vaangly-final-cta__title">Your Local Businesses. One Vaangly.</h2>
+          <h2 className="vaangly-final-cta__title">{t('finalCtaTitle')}</h2>
           <p className="vaangly-final-cta__subtitle">
-            Discover, order and book from businesses around you.
+            {t('finalCtaSubtitle')}
           </p>
           <div className="vaangly-final-cta__actions">
-            <Link to="/shops" className="vaangly-btn vaangly-btn--primary vaangly-btn--lg">
-              Explore Vaangly <ArrowRight size={18} />
+            <Link to="/shops?group=ORDER" className="vaangly-btn vaangly-btn--primary vaangly-btn--lg">
+              {t('heroStartOrdering')} <ArrowRight size={18} />
             </Link>
             <Link to="/shopkeeper/apply" className="vaangly-btn vaangly-btn--white vaangly-btn--lg">
-              Join as a Business
+              {t('applyShopCta')}
             </Link>
           </div>
         </div>

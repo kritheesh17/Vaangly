@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User, Phone, MapPin, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -10,6 +11,7 @@ import './Auth.css';
 
 export const CompleteProfilePage: React.FC = () => {
   const { user, isAuthenticated, isProfileComplete, updateCustomerProfile, isLoading } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -63,35 +65,40 @@ export const CompleteProfilePage: React.FC = () => {
     const cleanAddress = address.trim();
 
     if (!cleanName) {
-      setErrorMessage('Please enter your full name.');
+      setErrorMessage(t('enterNamePrompt'));
       return;
     }
 
     if (!cleanPhone || cleanPhone.length < 10) {
-      setErrorMessage('Please enter a valid 10-digit mobile phone number.');
+      setErrorMessage(t('validPhonePrompt'));
       return;
     }
 
     if (!cleanAddress || cleanAddress.length < 5) {
-      setErrorMessage('Please enter your full delivery address in Kangeyam.');
+      setErrorMessage(t('fullAddressPrompt'));
       return;
     }
 
     setIsSubmitting(true);
-    const result = await updateCustomerProfile({
-      full_name: cleanName,
-      phone: cleanPhone,
-      address: cleanAddress,
-    });
+    try {
+      const result = await updateCustomerProfile({
+        full_name: cleanName,
+        phone: cleanPhone,
+        address: cleanAddress,
+      });
 
-    if (result.success) {
-      setIsSuccess(true);
-      setTimeout(() => {
-        navigate(targetPath, { replace: true });
-      }, 600);
-    } else {
+      if (result.success) {
+        setIsSuccess(true);
+        setTimeout(() => {
+          navigate(targetPath, { replace: true });
+        }, 600);
+      } else {
+        setErrorMessage(result.error || t('genericError'));
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || t('genericError'));
+    } finally {
       setIsSubmitting(false);
-      setErrorMessage(result.error || 'Failed to save profile details. Please try again.');
     }
   };
 
@@ -102,16 +109,16 @@ export const CompleteProfilePage: React.FC = () => {
           <div className="vaango-auth-logo">
             <span>V</span>
           </div>
-          <h1 className="vaango-auth-title">Complete Your Profile</h1>
+          <h1 className="vaango-auth-title">{t('completeProfileTitle')}</h1>
           <p className="vaango-auth-subtitle">
-            Welcome to Vaangly! Please provide your delivery and contact details to access stores, orders, and appointments.
+            {t('completeProfileSubtitle')}
           </p>
         </div>
 
         {isSuccess && (
           <div className="vaango-auth-status-alert vaango-auth-status-alert--success" role="status">
             <CheckCircle2 size={18} className="text-success" />
-            <span>Profile saved successfully! Redirecting to Vaangly...</span>
+            <span>{t('profileSavedSuccess')}</span>
           </div>
         )}
 
@@ -123,7 +130,7 @@ export const CompleteProfilePage: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} className="vaango-auth-form">
-          <FormField id="onboard-fullname" label="Full Name" required>
+          <FormField id="onboard-fullname" label={t('fullNameLabel')} required>
             <Input
               id="onboard-fullname"
               type="text"
@@ -138,8 +145,8 @@ export const CompleteProfilePage: React.FC = () => {
 
           <FormField
             id="onboard-phone"
-            label="Phone Number"
-            hint="10-digit Indian mobile number for order contact (+91)"
+            label={t('phoneLabel')}
+            hint={t('validPhonePrompt')}
             required
           >
             <Input
@@ -156,8 +163,8 @@ export const CompleteProfilePage: React.FC = () => {
 
           <FormField
             id="onboard-address"
-            label="Delivery & Contact Address"
-            hint="Street address, door number, and locality in Kangeyam"
+            label={t('addressLineLabel')}
+            hint={t('fullAddressPrompt')}
             required
           >
             <Input
@@ -181,7 +188,7 @@ export const CompleteProfilePage: React.FC = () => {
             disabled={isSuccess}
             rightIcon={<ArrowRight size={18} />}
           >
-            {isSuccess ? 'Profile Completed' : 'Save & Continue'}
+            {isSuccess ? t('actionSuccess') : t('saveProfileBtn')}
           </Button>
         </form>
 

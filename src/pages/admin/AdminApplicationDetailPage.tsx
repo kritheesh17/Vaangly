@@ -93,15 +93,20 @@ export const AdminApplicationDetailPage: React.FC = () => {
   const handleApprove = async () => {
     if (!applicationId || !user) return;
     setIsApproving(true);
-    const res = await approveShopApplication(applicationId, user.id, approvalNotes);
-    setIsApproving(false);
-    setApproveModalOpen(false);
+    try {
+      const res = await approveShopApplication(applicationId, user.id, approvalNotes);
+      setApproveModalOpen(false);
 
-    if (res.success) {
-      success('Shop Application Approved! Shop is created with "Catalogue Incomplete" status.');
-      loadDetail();
-    } else {
-      toastError(res.error || 'Failed to approve application.');
+      if (res.success) {
+        success('Shop Application Approved! Shop is created with "Catalogue Incomplete" status.');
+        loadDetail();
+      } else {
+        toastError(res.error || 'Failed to approve application.');
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : 'Error approving application.');
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -113,15 +118,20 @@ export const AdminApplicationDetailPage: React.FC = () => {
     }
 
     setIsRejecting(true);
-    const res = await rejectShopApplication(applicationId, user.id, rejectionReason.trim());
-    setIsRejecting(false);
+    try {
+      const res = await rejectShopApplication(applicationId, user.id, rejectionReason.trim());
 
-    if (res.success) {
-      success('Application marked as Rejected with mandatory audit note.');
-      setRejectModalOpen(false);
-      loadDetail();
-    } else {
-      setRejectError(res.error || 'Failed to reject application.');
+      if (res.success) {
+        success('Application marked as Rejected with mandatory audit note.');
+        setRejectModalOpen(false);
+        loadDetail();
+      } else {
+        setRejectError(res.error || 'Failed to reject application.');
+      }
+    } catch (err: unknown) {
+      setRejectError(err instanceof Error ? err.message : 'Error rejecting application.');
+    } finally {
+      setIsRejecting(false);
     }
   };
 

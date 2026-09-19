@@ -27,7 +27,7 @@ export const Header: React.FC = () => {
   const { itemCount } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const { success } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -38,7 +38,7 @@ export const Header: React.FC = () => {
   const handleResetDemoData = () => {
     const res = resetDemoData();
     if (res.success) {
-      success('Sample shops, appointments & orders restored!');
+      success(t('actionSuccess'));
     }
   };
 
@@ -65,7 +65,7 @@ export const Header: React.FC = () => {
               <div className="vaango-header__logo-icon" aria-hidden="true">
                 <span>V</span>
               </div>
-              <span className="vaango-header__logo-text">VAANGLY</span>
+              <span className="vaango-header__logo-text">{t('brand').toUpperCase()}</span>
             </Link>
 
             {/* Location Selector Pill */}
@@ -73,7 +73,7 @@ export const Header: React.FC = () => {
               type="button"
               className="vaango-header__location-btn"
               onClick={() => setIsLocationModalOpen(true)}
-              aria-label={`Current location: ${selectedLocation.name}. Tap to change.`}
+              aria-label={`${t('location')}: ${selectedLocation.name}. ${t('changeLocation')}.`}
             >
               <MapPin size={15} className="vaango-header__location-icon" />
               <span className="vaango-header__location-name">{selectedLocation.name}</span>
@@ -85,44 +85,64 @@ export const Header: React.FC = () => {
           <nav className="vaango-header__desktop-nav" aria-label="Main Navigation">
             {role === 'admin' ? (
               <>
-                <Link to="/admin/dashboard" className="vaango-header__nav-link">Admin Console</Link>
-                <Link to="/admin/applications" className="vaango-header__nav-link">Applications</Link>
-                <Link to="/admin/shops" className="vaango-header__nav-link">Shops</Link>
-                <Link to="/admin/subscriptions" className="vaango-header__nav-link">Subscriptions</Link>
-                <Link to="/admin/locations" className="vaango-header__nav-link">Locations</Link>
+                <Link to="/admin/dashboard" className="vaango-header__nav-link">{t('navAdmin')}</Link>
+                <Link to="/admin/applications" className="vaango-header__nav-link">{t('adminAppsTitle')}</Link>
+                <Link to="/admin/shops" className="vaango-header__nav-link">{t('adminShopsTitle')}</Link>
+                <Link to="/admin/locations" className="vaango-header__nav-link">{t('adminLocationsTitle')}</Link>
                 <Link to="/admin/audit" className="vaango-header__nav-link">Audit</Link>
               </>
             ) : role === 'shopkeeper' ? (
               <>
-                <Link to="/shopkeeper/dashboard" className="vaango-header__nav-link">Dashboard</Link>
-                <Link to="/shopkeeper/requests" className="vaango-header__nav-link">Orders</Link>
-                <Link to="/shopkeeper/catalogue" className="vaango-header__nav-link">Catalogue</Link>
-                <Link to="/shopkeeper/analytics" className="vaango-header__nav-link vaango-header__nav-link--highlight">Analytics (Pro)</Link>
-                <Link to="/shopkeeper/profile" className="vaango-header__nav-link">Settings</Link>
+                <Link to="/shopkeeper/dashboard" className="vaango-header__nav-link">{t('navDashboard')}</Link>
+                <Link to="/shopkeeper/requests" className="vaango-header__nav-link">{t('navOrders')}</Link>
+                <Link to="/shopkeeper/catalogue" className="vaango-header__nav-link">{t('navCatalogue')}</Link>
+                <Link to="/shopkeeper/analytics" className="vaango-header__nav-link vaango-header__nav-link--highlight">{t('navAnalytics')} (Pro)</Link>
+                <Link to="/shopkeeper/profile" className="vaango-header__nav-link">{t('navSettings')}</Link>
               </>
             ) : (
               <>
-                <Link to="/" className={`vaango-header__nav-link ${location.pathname === '/' && !location.hash ? 'vaango-header__nav-link--active' : ''}`}>
-                  Home
+                <Link
+                  to="/"
+                  className={`vaango-header__nav-link ${location.pathname === '/' && !location.hash ? 'vaango-header__nav-link--active' : ''}`}
+                >
+                  {t('navHome')}
                 </Link>
-                <Link to="/shops" className={`vaango-header__nav-link ${location.pathname === '/shops' ? 'vaango-header__nav-link--active' : ''}`}>
-                  Explore
+                <Link
+                  to="/shops?group=ORDER"
+                  className={`vaango-header__nav-link ${location.pathname === '/shops' && location.search.includes('group=ORDER') ? 'vaango-header__nav-link--active' : ''}`}
+                >
+                  {t('navOrder')}
                 </Link>
-                <a href="/#how-it-works" className="vaango-header__nav-link">
-                  How It Works
+                <Link
+                  to="/shops?group=APPOINTMENT"
+                  className={`vaango-header__nav-link ${location.pathname === '/shops' && location.search.includes('group=APPOINTMENT') ? 'vaango-header__nav-link--active' : ''}`}
+                >
+                  {t('navAppointments')}
+                </Link>
+                <Link
+                  to="/shops?group=SERVICE"
+                  className={`vaango-header__nav-link ${location.pathname === '/shops' && location.search.includes('group=SERVICE') ? 'vaango-header__nav-link--active' : ''}`}
+                >
+                  {t('navServices')}
+                </Link>
+                <Link
+                  to="/shopkeeper/apply"
+                  className="vaango-header__nav-link vaango-header__nav-link--business"
+                >
+                  {t('navOpenShop')}
+                </Link>
+                <a href="/#how-it-works" className="vaango-header__nav-link vaango-header__nav-link--info">
+                  {t('navHowItWorks')}
                 </a>
-                <Link to="/shopkeeper/apply" className="vaango-header__nav-link vaango-header__nav-link--business">
-                  For Businesses
-                </Link>
-                <a href="/#about" className="vaango-header__nav-link">
-                  About
+                <a href="/#about" className="vaango-header__nav-link vaango-header__nav-link--info">
+                  {t('navAbout')}
                 </a>
               </>
             )}
             {import.meta.env.DEV && (
               <Link to="/design-system" className="vaango-header__nav-link vaango-header__nav-link--badge" title="Design tokens showcase">
                 <Sparkles size={15} />
-                <span>Tokens</span>
+                <span>{t('navTokens')}</span>
               </Link>
             )}
           </nav>
@@ -134,7 +154,7 @@ export const Header: React.FC = () => {
 
             {/* Header Cart Icon if items > 0 */}
             {itemCount > 0 && (
-              <Link to="/cart" className="vaango-header__cart-link" aria-label={`View cart with ${itemCount} items`} onClick={closeMobileMenu}>
+              <Link to="/cart" className="vaango-header__cart-link" aria-label={t('itemsInCart', { count: itemCount })} onClick={closeMobileMenu}>
                 <ShoppingBag size={20} />
                 <span className="vaango-header__cart-badge">{itemCount}</span>
               </Link>
@@ -149,9 +169,9 @@ export const Header: React.FC = () => {
                     className="vaango-header__role-select"
                     aria-label="Switch active role"
                   >
-                    <option value="customer">Role: Customer</option>
-                    <option value="shopkeeper">Role: Shopkeeper</option>
-                    <option value="admin">Role: Admin</option>
+                    <option value="customer">{t('roleCustomer')}</option>
+                    <option value="shopkeeper">{t('roleShopkeeper')}</option>
+                    <option value="admin">{t('roleAdmin')}</option>
                   </select>
                 </div>
                 <button
@@ -194,14 +214,14 @@ export const Header: React.FC = () => {
                   <div className="vaango-header__user-avatar">
                     <User size={17} />
                   </div>
-                  <span className="vaango-header__user-name">{user.full_name?.split(' ')[0] || 'Profile'}</span>
+                  <span className="vaango-header__user-name">{user.full_name?.split(' ')[0] || t('profile')}</span>
                 </Link>
                 <button
                   type="button"
                   onClick={() => signOut().then(() => navigate('/login'))}
                   className="vaango-header__logout-btn"
-                  title="Sign out"
-                  aria-label="Sign out"
+                  title={t('signOut')}
+                  aria-label={t('signOut')}
                 >
                   <LogOut size={16} />
                 </button>
@@ -209,10 +229,10 @@ export const Header: React.FC = () => {
             ) : (
               <div className="vaango-header__auth-btns">
                 <Link to="/login" className="vaango-header__btn-login">
-                  Log in
+                  {t('logIn')}
                 </Link>
-                <Link to="/shops" className="vaango-header__btn-get-started">
-                  Get Started
+                <Link to="/shops?group=ORDER" className="vaango-header__btn-get-started">
+                  {t('getStarted')}
                 </Link>
               </div>
             )}
@@ -235,28 +255,34 @@ export const Header: React.FC = () => {
           <div className="vaango-mobile-menu" role="dialog" aria-modal="true" aria-label="Mobile Navigation">
             <nav className="vaango-mobile-menu__nav">
               <Link to="/" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
-                Home
+                {t('navHome')}
               </Link>
-              <Link to="/shops" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
-                Explore
+              <Link to="/shops?group=ORDER" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                {t('navOrder')}
+              </Link>
+              <Link to="/shops?group=APPOINTMENT" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                {t('navAppointments')}
+              </Link>
+              <Link to="/shops?group=SERVICE" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                {t('navServices')}
+              </Link>
+              <Link to="/shopkeeper/apply" className="vaango-mobile-menu__link vaango-mobile-menu__link--highlight" onClick={closeMobileMenu}>
+                {t('navOpenShop')}
               </Link>
               <a href="/#how-it-works" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
-                How It Works
+                {t('navHowItWorks')}
               </a>
-              <Link to="/shopkeeper/apply" className="vaango-mobile-menu__link vaango-mobile-menu__link--highlight" onClick={closeMobileMenu}>
-                For Businesses
-              </Link>
               <a href="/#about" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
-                About
+                {t('navAbout')}
               </a>
               {role === 'admin' && (
                 <Link to="/admin/dashboard" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
-                  Admin Console
+                  {t('navAdmin')}
                 </Link>
               )}
               {role === 'shopkeeper' && (
                 <Link to="/shopkeeper/dashboard" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
-                  Shopkeeper Dashboard
+                  {t('navDashboard')}
                 </Link>
               )}
             </nav>
@@ -265,10 +291,10 @@ export const Header: React.FC = () => {
               {!user ? (
                 <div className="vaango-mobile-menu__auth-actions">
                   <Link to="/login" className="vaango-mobile-menu__btn-login" onClick={closeMobileMenu}>
-                    Log in
+                    {t('logIn')}
                   </Link>
-                  <Link to="/shops" className="vaango-mobile-menu__btn-primary" onClick={closeMobileMenu}>
-                    Get Started <ArrowRight size={16} />
+                  <Link to="/shops?group=ORDER" className="vaango-mobile-menu__btn-primary" onClick={closeMobileMenu}>
+                    {t('getStarted')} <ArrowRight size={16} />
                   </Link>
                 </div>
               ) : (
@@ -286,7 +312,7 @@ export const Header: React.FC = () => {
                     className="vaango-mobile-menu__logout-btn"
                   >
                     <LogOut size={16} />
-                    <span>Sign Out</span>
+                    <span>{t('signOut')}</span>
                   </button>
                 </div>
               )}
@@ -299,8 +325,8 @@ export const Header: React.FC = () => {
       <Modal
         isOpen={isLocationModalOpen}
         onClose={() => setIsLocationModalOpen(false)}
-        title="Select Your Town"
-        description="Choose a supported location. Vaangly displays local shops and merchants available in that town."
+        title={t('selectTown')}
+        description={t('selectTownDesc')}
         maxWidth="sm"
       >
         <div className="vaango-location-modal-list">
@@ -322,9 +348,9 @@ export const Header: React.FC = () => {
                   </div>
                 </div>
                 {loc.is_launch_town ? (
-                  <Badge variant="primary" size="sm">Launch Town</Badge>
+                  <Badge variant="primary" size="sm">{t('launchTown')}</Badge>
                 ) : (
-                  <Badge variant="neutral" size="sm">Active</Badge>
+                  <Badge variant="neutral" size="sm">{t('activeTown')}</Badge>
                 )}
               </div>
             );

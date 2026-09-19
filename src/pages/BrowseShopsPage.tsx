@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Store, ArrowLeft } from 'lucide-react';
 import { useLocationContext } from '../context/LocationContext';
+import { useLanguage } from '../context/LanguageContext';
 import { MOCK_SHOP_TYPES } from '../data/mockData';
 import { searchLocationCatalog } from '../lib/search';
 import { ShopCard } from '../components/customer/ShopCard';
@@ -14,11 +15,13 @@ import './BrowseShopsPage.css';
 
 export const BrowseShopsPage: React.FC = () => {
   const { selectedLocation } = useLocationContext();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const selectedCategoryCode = searchParams.get('category') || 'all';
-  const selectedGroup = (searchParams.get('group') as WorkflowGroupCode) || null;
+  const rawGroup = searchParams.get('group') || searchParams.get('type');
+  const selectedGroup = (rawGroup?.toUpperCase() as WorkflowGroupCode) || null;
   const [searchQuery, setSearchQuery] = useState('');
 
   // Find active shop type if selected
@@ -36,11 +39,11 @@ export const BrowseShopsPage: React.FC = () => {
   // Dynamic page title
   const pageTitle = useMemo(() => {
     if (activeShopType) return activeShopType.name;
-    if (selectedGroup === 'APPOINTMENT') return 'Book an Appointment';
-    if (selectedGroup === 'SERVICE') return 'Get a Local Service';
-    if (selectedGroup === 'ORDER') return 'Order from Local Shops';
-    return 'Local Shops & Merchants';
-  }, [activeShopType, selectedGroup]);
+    if (selectedGroup === 'APPOINTMENT') return t('coreAppointmentsTitle');
+    if (selectedGroup === 'SERVICE') return t('coreServicesTitle');
+    if (selectedGroup === 'ORDER') return t('coreOrderTitle');
+    return t('allBusinesses');
+  }, [activeShopType, selectedGroup, t]);
 
   // Execute search / filtering
   const { shops, matchingProducts, matchingServices } = useMemo(() => {
@@ -78,10 +81,10 @@ export const BrowseShopsPage: React.FC = () => {
           type="button"
           className="vaango-browse__back-btn"
           onClick={() => navigate('/')}
-          aria-label="Back to home"
+          aria-label={t('backBtn')}
         >
           <ArrowLeft size={18} />
-          <span>Home</span>
+          <span>{t('navHome')}</span>
         </button>
 
         <div className="vaango-browse__title-row">
@@ -89,7 +92,7 @@ export const BrowseShopsPage: React.FC = () => {
             <h1 className="vaango-browse__title">{pageTitle}</h1>
             <div className="vaango-browse__location-tag">
               <MapPin size={15} />
-              <span>In {selectedLocation.name}</span>
+              <span>{t('location')}: {selectedLocation.name}</span>
             </div>
           </div>
         </div>
@@ -101,10 +104,16 @@ export const BrowseShopsPage: React.FC = () => {
             type="search"
             placeholder={
               selectedGroup === 'APPOINTMENT'
-                ? 'Search doctor, salon, haircut (e.g., Mudi, Doctor)...'
+                ? language === 'ta'
+                  ? 'டாக்டர், சலூன், கிளினிக் தேடுக...'
+                  : 'Search doctor, clinic, haircut, salon...'
                 : selectedGroup === 'SERVICE'
-                ? 'Search repair, tailoring, mechanic (e.g., Thaiyal, Vandi, Phone)...'
-                : 'Search shops or items (e.g., Thakkali, Rice, Bread, Coffee)...'
+                ? language === 'ta'
+                  ? 'பழுது, தையல், மெக்கானிக் தேடுக...'
+                  : 'Search repair, tailoring, mechanic, bike...'
+                : language === 'ta'
+                ? 'பொருட்கள் அல்லது கடைகளைத் தேடுக (எ.கா. தக்காளி, பால்)...'
+                : 'Search shops or items (e.g. Tomato, Milk, Bread)...'
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -122,10 +131,10 @@ export const BrowseShopsPage: React.FC = () => {
             onClick={() => handleCategorySelect('all')}
           >
             {selectedGroup === 'APPOINTMENT'
-              ? 'All Appointments'
+              ? t('coreAppointmentsTitle')
               : selectedGroup === 'SERVICE'
-              ? 'All Services'
-              : 'All Shops'}
+              ? t('coreServicesTitle')
+              : t('allBusinesses')}
           </button>
           {displayedShopTypes.map((type) => (
             <button
@@ -146,7 +155,7 @@ export const BrowseShopsPage: React.FC = () => {
       {searchQuery.trim() && matchingProducts.length > 0 && (
         <div className="vaango-browse__item-matches">
           <span className="vaango-browse__item-matches-title">
-            Items found matching &ldquo;{searchQuery}&rdquo;:
+            {language === 'ta' ? `கிடைத்த பொருட்கள்: "${searchQuery}"` : `Items found matching "${searchQuery}":`}
           </span>
           <div className="vaango-browse__item-pills">
             {matchingProducts.slice(0, 4).map(({ product, shop }) => (
@@ -169,7 +178,7 @@ export const BrowseShopsPage: React.FC = () => {
       {searchQuery.trim() && matchingServices && matchingServices.length > 0 && (
         <div className="vaango-browse__item-matches">
           <span className="vaango-browse__item-matches-title">
-            Services found matching &ldquo;{searchQuery}&rdquo;:
+            {language === 'ta' ? `கிடைத்த சேவைகள்: "${searchQuery}"` : `Services found matching "${searchQuery}":`}
           </span>
           <div className="vaango-browse__item-pills">
             {matchingServices.slice(0, 4).map(({ service, shop }) => (
@@ -212,14 +221,18 @@ export const BrowseShopsPage: React.FC = () => {
         <div className="vaango-browse__empty">
           <EmptyState
             icon={<Store size={44} />}
-            title="No shops found in this area"
-            description={`We could not find any active shops matching "${searchQuery || activeShopType?.name || 'criteria'}" in ${selectedLocation.name}.`}
-            actionLabel="View All Shops"
+            title={language === 'ta' ? 'கடைகள் எதுவும் கிடைக்கவில்லை' : 'No shops found in this area'}
+            description={
+              language === 'ta'
+                ? `தேடலுக்குரிய கடைகள் எதுவும் ${selectedLocation.name} பகுதியில் தற்போது செயலில் இல்லை.`
+                : `We could not find any active shops matching "${searchQuery || activeShopType?.name || 'criteria'}" in ${selectedLocation.name}.`
+            }
+            actionLabel={t('viewAllShops')}
             onAction={() => {
               setSearchQuery('');
               handleCategorySelect('all');
             }}
-            secondaryActionLabel="Restore Sample Shops"
+            secondaryActionLabel={language === 'ta' ? 'மாதிரி கடைகளை மீட்டெடு' : 'Restore Sample Shops'}
             onSecondaryAction={() => {
               resetDemoData();
               setSearchQuery('');

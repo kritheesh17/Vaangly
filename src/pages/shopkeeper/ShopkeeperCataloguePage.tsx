@@ -14,7 +14,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { Shop, ShopProduct, ShopService, PriceType } from '../../types/database';
+import { Shop, ShopProduct, ShopService, PriceType, ProductVariant, ProductAttributeGroup } from '../../types/database';
 import { WorkflowGroupCode } from '../../types/workflow';
 import { MOCK_SHOP_TYPES } from '../../data/mockData';
 import {
@@ -40,12 +40,14 @@ import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 import './ShopkeeperCataloguePage.css';
 
 export const ShopkeeperCataloguePage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { success, error: toastError, info } = useToast();
+  const { t, language } = useLanguage();
 
   const [shop, setShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<ShopProduct[]>([]);
@@ -106,18 +108,25 @@ export const ShopkeeperCataloguePage: React.FC = () => {
       prev.map((p) => (p.id === productId ? { ...p, is_available: nextStock } : p))
     );
 
-    const res = await toggleProductStock(shop.id, productId, nextStock);
-    if (res.success) {
-      if (nextStock) {
-        success('Item marked In Stock.');
+    try {
+      const res = await toggleProductStock(shop.id, productId, nextStock);
+      if (res.success) {
+        if (nextStock) {
+          success(language === 'ta' ? 'பொருள் இருப்பில் உள்ளது என மாற்றப்பட்டது.' : 'Item marked In Stock.');
+        } else {
+          info(language === 'ta' ? 'பொருள் இருப்பில் இல்லை என மாற்றப்பட்டது.' : 'Item marked Out of Stock.');
+        }
       } else {
-        info('Item marked Out of Stock.');
+        setProducts((prev) =>
+          prev.map((p) => (p.id === productId ? { ...p, is_available: currentStock } : p))
+        );
+        toastError(res.error || t('genericError'));
       }
-    } else {
+    } catch (err: unknown) {
       setProducts((prev) =>
         prev.map((p) => (p.id === productId ? { ...p, is_available: currentStock } : p))
       );
-      toastError(res.error || 'Failed to update stock.');
+      toastError(err instanceof Error ? err.message : t('genericError'));
     }
   };
 
@@ -130,22 +139,29 @@ export const ShopkeeperCataloguePage: React.FC = () => {
       prev.map((s) => (s.id === service.id ? { ...s, is_available: nextAvailable } : s))
     );
 
-    const res = await saveShopService(shop.id, {
-      ...service,
-      is_available: nextAvailable,
-    });
+    try {
+      const res = await saveShopService(shop.id, {
+        ...service,
+        is_available: nextAvailable,
+      });
 
-    if (res.success) {
-      if (nextAvailable) {
-        success('Service marked Available.');
+      if (res.success) {
+        if (nextAvailable) {
+          success(language === 'ta' ? 'சேவை உள்ளது என மாற்றப்பட்டது.' : 'Service marked Available.');
+        } else {
+          info(language === 'ta' ? 'சேவை நிறுத்தி வைக்கப்பட்டுள்ளது.' : 'Service marked Unavailable for new bookings.');
+        }
       } else {
-        info('Service marked Unavailable for new bookings.');
+        setServices((prev) =>
+          prev.map((s) => (s.id === service.id ? { ...s, is_available: service.is_available } : s))
+        );
+        toastError(res.error || t('genericError'));
       }
-    } else {
+    } catch (err: unknown) {
       setServices((prev) =>
         prev.map((s) => (s.id === service.id ? { ...s, is_available: service.is_available } : s))
       );
-      toastError(res.error || 'Failed to update service availability.');
+      toastError(err instanceof Error ? err.message : t('genericError'));
     }
   };
 
@@ -158,27 +174,38 @@ export const ShopkeeperCataloguePage: React.FC = () => {
     is_available: boolean;
     image_url: string | null;
     image_urls: string[];
+    offer_label: string | null;
+    offer_type: ShopProduct['offer_type'];
+    offer_value: number | null;
+    has_variants?: boolean;
+    variants?: ProductVariant[];
+    attribute_groups?: ProductAttributeGroup[];
   }) => {
     if (!shop) return { success: false, error: 'No shop associated with account.' };
 
-    if (editingProduct) {
-      const res = await updateShopProduct(shop.id, editingProduct.id, productData);
-      if (res.success && res.product) {
-        setProducts((prev) =>
-          prev.map((p) => (p.id === editingProduct.id ? res.product! : p))
-        );
-        success(`Updated "${productData.name}"`);
-        return { success: true };
+    try {
+      if (editingProduct) {
+        const res = await updateShopProduct(shop.id, editingProduct.id, productData);
+        if (res.success && res.product) {
+          setProducts((prev) =>
+            prev.map((p) => (p.id === editingProduct.id ? res.product! : p))
+          );
+          success(t('productSavedSuccess', { name: productData.name }));
+          return { success: true };
+        }
+        return { success: false, error: res.error || t('genericError') };
+      } else {
+        const res = await createShopProduct(shop.id, productData);
+        if (res.success && res.product) {
+          setProducts((prev) => [res.product!, ...prev]);
+          success(t('productSavedSuccess', { name: productData.name }));
+          return { success: true };
+        }
+        return { success: false, error: res.error || t('genericError') };
       }
-      return { success: false, error: res.error };
-    } else {
-      const res = await createShopProduct(shop.id, productData);
-      if (res.success && res.product) {
-        setProducts((prev) => [res.product!, ...prev]);
-        success(`Added "${productData.name}" to catalogue!`);
-        return { success: true };
-      }
-      return { success: false, error: res.error };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t('genericError');
+      return { success: false, error: message };
     }
   };
 
@@ -199,56 +226,70 @@ export const ShopkeeperCataloguePage: React.FC = () => {
   }) => {
     if (!shop) return { success: false, error: 'No shop associated with account.' };
 
-    const res = await saveShopService(shop.id, serviceData);
-    if (res.success && res.service) {
-      setServices((prev) => {
-        const idx = prev.findIndex((s) => s.id === res.service!.id);
-        if (idx !== -1) {
-          const copy = [...prev];
-          copy[idx] = res.service!;
-          return copy;
-        }
-        return [res.service!, ...prev];
-      });
-      success(`Service "${serviceData.name}" saved!`);
-      return { success: true };
+    try {
+      const res = await saveShopService(shop.id, serviceData);
+      if (res.success && res.service) {
+        setServices((prev) => {
+          const idx = prev.findIndex((s) => s.id === res.service!.id);
+          if (idx !== -1) {
+            const copy = [...prev];
+            copy[idx] = res.service!;
+            return copy;
+          }
+          return [res.service!, ...prev];
+        });
+        success(language === 'ta' ? `"${serviceData.name}" சேவை சேமிக்கப்பட்டது!` : `Service "${serviceData.name}" saved!`);
+        return { success: true };
+      }
+      return { success: false, error: res.error || t('genericError') };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t('genericError');
+      return { success: false, error: message };
     }
-    return { success: false, error: res.error };
   };
 
   // Delete Product / Service
   const handleDeleteItem = async (itemId: string) => {
     if (!shop) return;
 
-    if (workflowGroup === 'ORDER') {
-      const res = await deleteShopProduct(shop.id, itemId);
-      if (res.success) {
-        setProducts((prev) => prev.filter((p) => p.id !== itemId));
-        success('Product removed from catalogue.');
+    try {
+      if (workflowGroup === 'ORDER') {
+        const res = await deleteShopProduct(shop.id, itemId);
+        if (res.success) {
+          setProducts((prev) => prev.filter((p) => p.id !== itemId));
+          success(t('productDeletedSuccess'));
+        } else {
+          toastError(res.error || t('genericError'));
+        }
       } else {
-        toastError(res.error || 'Failed to delete product.');
+        const res = await deleteShopService(shop.id, itemId);
+        if (res.success) {
+          setServices((prev) => prev.filter((s) => s.id !== itemId));
+          success(language === 'ta' ? 'சேவை நீக்கப்பட்டது.' : 'Service removed.');
+        } else {
+          toastError(res.error || t('genericError'));
+        }
       }
-    } else {
-      const res = await deleteShopService(shop.id, itemId);
-      if (res.success) {
-        setServices((prev) => prev.filter((s) => s.id !== itemId));
-        success('Service removed.');
-      } else {
-        toastError(res.error || 'Failed to delete service.');
-      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setDeleteConfirmId(null);
     }
-    setDeleteConfirmId(null);
   };
 
   // Go Live Shortcut
   const handleGoLive = async () => {
     if (!shop) return;
-    const res = await toggleShopLive(shop.id, true);
-    if (res.success && res.shop) {
-      setShop(res.shop);
-      success('🎉 Your shop is now LIVE! Customers can now discover and book.');
-    } else {
-      toastError(res.error || 'Failed to go live.');
+    try {
+      const res = await toggleShopLive(shop.id, true);
+      if (res.success && res.shop) {
+        setShop(res.shop);
+        success(language === 'ta' ? '🎉 உங்கள் கடை இப்போது நேரலையில் உள்ளது!' : '🎉 Your shop is now LIVE! Customers can now discover and book.');
+      } else {
+        toastError(res.error || t('genericError'));
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : t('genericError'));
     }
   };
 

@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState } from 'react';
-import { getTranslation, Language } from '../lib/i18n';
+import { getTranslation, Language, TranslationKey } from '../lib/i18n';
 
 type LanguageContextValue = {
   language: Language;
   setLanguage: (language: Language) => void;
-  t: (key: keyof typeof import('../lib/i18n').DICTIONARY.en) => string;
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string;
 };
 
 const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);
@@ -20,7 +20,8 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.setItem('vaango_language', nextLanguage);
   };
 
-  const t = (key: keyof typeof import('../lib/i18n').DICTIONARY.en) => getTranslation(language, key);
+  const t = (key: TranslationKey, params?: Record<string, string | number>) =>
+    getTranslation(language, key, params);
 
   return <LanguageContext.Provider value={{ language, setLanguage, t }}>{children}</LanguageContext.Provider>;
 };

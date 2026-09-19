@@ -17,6 +17,7 @@ import { Input } from '../../components/ui/Input';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 import './ShopkeeperRequestsPage.css';
 
 type RequestFilterTab = 'all' | 'new' | 'active' | 'ready' | 'completed' | 'cancelled';
@@ -92,6 +93,7 @@ export const ShopkeeperRequestsPage: React.FC = () => {
     }
   };
 
+  const { t } = useLanguage();
   const shopType = MOCK_SHOP_TYPES.find((t) => t.id === shop?.shop_type_id);
   const workflowGroup: WorkflowGroupCode = (shopType?.workflow_group_code || 'ORDER') as WorkflowGroupCode;
 
@@ -106,21 +108,26 @@ export const ShopkeeperRequestsPage: React.FC = () => {
     if (nextState === 'READY') note = 'Order / service is ready for customer.';
     if (nextState === 'COMPLETED') note = 'Completed.';
 
-    const res = await transitionRequestState(
-      req.id,
-      req.current_state,
-      nextState,
-      user.id,
-      note
-    );
+    try {
+      const res = await transitionRequestState(
+        req.id,
+        req.current_state,
+        nextState,
+        user.id,
+        note
+      );
 
-    if (res.success && res.request) {
-      setRequests((prev) => prev.map((r) => (r.id === req.id ? res.request! : r)));
-      success(`Request #${req.reference_code} updated to ${nextState}`);
-    } else {
-      toastError(res.error || 'Failed to update order state.');
+      if (res.success && res.request) {
+        setRequests((prev) => prev.map((r) => (r.id === req.id ? res.request! : r)));
+        success(`Request #${req.reference_code} updated to ${nextState}`);
+      } else {
+        toastError(res.error || t('genericError'));
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setActionLoadingId(null);
     }
-    setActionLoadingId(null);
   };
 
   // Filter requests by tab and search

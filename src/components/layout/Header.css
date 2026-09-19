@@ -104,6 +104,47 @@
   color: var(--brand-primary);
 }
 
+.vaango-header__nav-link--active {
+  color: var(--brand-primary);
+  font-weight: var(--font-weight-bold);
+}
+
+.vaango-header__nav-link--active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background-color: var(--brand-primary);
+  border-radius: var(--radius-full);
+}
+
+.vaango-header__nav-link--business {
+  color: var(--brand-accent);
+  font-weight: var(--font-weight-bold);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  background-color: var(--brand-accent-light);
+  transition: all var(--transition-fast);
+}
+
+.vaango-header__nav-link--business:hover {
+  background-color: var(--brand-accent);
+  color: #FFFFFF;
+}
+
+.vaango-header__nav-link--info {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+.vaango-header__nav-link--info:hover {
+  color: var(--color-text-primary);
+  opacity: 1;
+}
+
 .vaango-header__nav-link--badge {
   display: flex;
   align-items: center;

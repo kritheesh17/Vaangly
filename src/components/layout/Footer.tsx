@@ -1,9 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, ArrowUpRight } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import './Footer.css';
 
 export const Footer: React.FC = () => {
+  const { t } = useLanguage();
+
   return (
     <footer className="vaangly-footer">
       <div className="container vaangly-footer__inner">
@@ -13,41 +16,41 @@ export const Footer: React.FC = () => {
             <div className="vaangly-footer__logo-icon">
               <span>V</span>
             </div>
-            <span className="vaangly-footer__logo-text">VAANGLY</span>
+            <span className="vaangly-footer__logo-text">{t('brand').toUpperCase()}</span>
           </Link>
           <p className="vaangly-footer__tagline">
-            The local commerce and services platform connecting customers with authentic nearby businesses, shops, and trusted service providers.
+            {t('footerTagline')}
           </p>
           <div className="vaangly-footer__location-badge">
             <MapPin size={15} />
-            <span>Serving Kangeyam, Gobichettipalayam & Neighborhoods</span>
+            <span>{t('servingTowns')}</span>
           </div>
         </div>
 
         {/* Links Grid */}
         <div className="vaangly-footer__grid">
-          {/* Column 1: Explore */}
+          {/* Column 1: Core Customer Offerings */}
           <div className="vaangly-footer__col">
-            <h4 className="vaangly-footer__heading">Explore</h4>
+            <h4 className="vaangly-footer__heading">{t('exploreHeading')}</h4>
             <ul className="vaangly-footer__links">
               <li>
-                <Link to="/shops" className="vaangly-footer__link">
-                  Shops
-                </Link>
-              </li>
-              <li>
                 <Link to="/shops?group=ORDER" className="vaangly-footer__link">
-                  Products
-                </Link>
-              </li>
-              <li>
-                <Link to="/shops?group=SERVICE" className="vaangly-footer__link">
-                  Services
+                  {t('navOrder')}
                 </Link>
               </li>
               <li>
                 <Link to="/shops?group=APPOINTMENT" className="vaangly-footer__link">
-                  Appointments
+                  {t('navAppointments')}
+                </Link>
+              </li>
+              <li>
+                <Link to="/shops?group=SERVICE" className="vaangly-footer__link">
+                  {t('navServices')}
+                </Link>
+              </li>
+              <li>
+                <Link to="/shops" className="vaangly-footer__link">
+                  {t('allBusinesses')}
                 </Link>
               </li>
             </ul>
@@ -55,21 +58,21 @@ export const Footer: React.FC = () => {
 
           {/* Column 2: For Businesses */}
           <div className="vaangly-footer__col">
-            <h4 className="vaangly-footer__heading">For Businesses</h4>
+            <h4 className="vaangly-footer__heading">{t('forBusinessesHeading')}</h4>
             <ul className="vaangly-footer__links">
               <li>
                 <Link to="/shopkeeper/apply" className="vaangly-footer__link vaangly-footer__link--highlight">
-                  Join Vaangly <ArrowUpRight size={13} />
+                  {t('navOpenShop')} <ArrowUpRight size={13} />
                 </Link>
               </li>
               <li>
                 <Link to="/login?redirect=/shopkeeper/dashboard" className="vaangly-footer__link">
-                  Business Login
+                  {t('logIn')}
                 </Link>
               </li>
               <li>
                 <Link to="/shopkeeper/analytics" className="vaangly-footer__link">
-                  Business Analytics
+                  {t('navAnalytics')}
                 </Link>
               </li>
             </ul>
@@ -77,31 +80,31 @@ export const Footer: React.FC = () => {
 
           {/* Column 3: Company */}
           <div className="vaangly-footer__col">
-            <h4 className="vaangly-footer__heading">Company</h4>
+            <h4 className="vaangly-footer__heading">{t('companyHeading')}</h4>
             <ul className="vaangly-footer__links">
               <li>
                 <a href="/#about" className="vaangly-footer__link">
-                  About
+                  {t('navAbout')}
                 </a>
               </li>
               <li>
-                <a href="/#contact" className="vaangly-footer__link">
-                  Contact
+                <a href="/#how-it-works" className="vaangly-footer__link">
+                  {t('navHowItWorks')}
                 </a>
               </li>
               <li>
                 <a href="mailto:support@vaangly.com" className="vaangly-footer__link">
-                  Support
+                  {t('supportLink')}
                 </a>
               </li>
               <li>
                 <a href="#privacy" className="vaangly-footer__link">
-                  Privacy Policy
+                  {t('privacyLink')}
                 </a>
               </li>
               <li>
                 <a href="#terms" className="vaangly-footer__link">
-                  Terms
+                  {t('termsLink')}
                 </a>
               </li>
             </ul>
@@ -113,7 +116,7 @@ export const Footer: React.FC = () => {
       <div className="vaangly-footer__bottom">
         <div className="container vaangly-footer__bottom-inner">
           <p className="vaangly-footer__copyright">
-            © {new Date().getFullYear()} VAANGLY. All rights reserved. Built with pride for local businesses.
+            {t('copyrightNotice', { year: new Date().getFullYear() })}
           </p>
           <div className="vaangly-footer__socials" aria-label="Social links">
             <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="vaangly-footer__social-link" aria-label="Twitter / X">

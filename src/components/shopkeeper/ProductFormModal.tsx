@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Image, AlertCircle, Check } from 'lucide-react';
 import { ShopProduct, ProductAttributeGroup, ProductVariant } from '../../types/database';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { useLanguage } from '../../context/LanguageContext';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import './ProductFormModal.css';
@@ -48,6 +49,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   initialProduct,
   shopId,
 }) => {
+  const { t, language } = useLanguage();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
@@ -118,13 +120,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setError(null);
 
     if (!name.trim()) {
-      setError('Please enter a product name.');
+      setError(language === 'ta' ? 'தயவுசெய்து பொருளின் பெயரை உள்ளிடுக.' : 'Please enter a product name.');
       return;
     }
 
     const parsedPrice = parseFloat(price);
     if (isNaN(parsedPrice) || parsedPrice < 0) {
-      setError('Please enter a valid price (₹0 or greater).');
+      setError(language === 'ta' ? 'சரியான விலையை உள்ளிடுக (₹0 அல்லது அதிகம்).' : 'Please enter a valid price (₹0 or greater).');
       return;
     }
 
@@ -140,7 +142,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           continue;
         }
         const filePath = `shop-photos/${shopId}/products/${Date.now()}_${index}.jpg`;
-        const { error: uploadError } = await supabase.storage.from('shop-photos').upload(filePath, file, { upsert: true });
+        const uploadPromise = supabase.storage.from('shop-photos').upload(filePath, file, { upsert: true });
+        const timeoutPromise = new Promise<{ data: null; error: Error }>((_, reject) =>
+          setTimeout(() => reject(new Error('Image upload timed out. Please check your network connection.')), 15000)
+        );
+        const { error: uploadError } = await Promise.race([uploadPromise, timeoutPromise]);
         if (uploadError) throw uploadError;
         uploadedUrls.push(supabase.storage.from('shop-photos').getPublicUrl(filePath).data.publicUrl);
       }
@@ -164,10 +170,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       if (result.success) {
         onClose();
       } else {
-        setError(result.error || 'Failed to save product.');
+        setError(result.error || t('genericError'));
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error saving product';
+      const msg = err instanceof Error ? err.message : t('genericError');
       setError(msg);
     } finally {
       setIsSubmitting(false);
@@ -180,13 +186,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         {/* Header */}
         <div className="vaango-product-modal__header">
           <h2 id="product-form-title" className="vaango-product-modal__title">
-            {initialProduct ? 'Edit Product' : 'Add New Product'}
+            {initialProduct
+              ? (language === 'ta' ? 'பொருளைத் திருத்துக' : 'Edit Product')
+              : (language === 'ta' ? 'புதிய பொருள் சேர்க்க' : 'Add New Product')}
           </h2>
           <button
             type="button"
             className="vaango-product-modal__close-btn"
             onClick={onClose}
-            aria-label="Close modal"
+            aria-label={t('closeBtn')}
           >
             <X size={20} />
           </button>
@@ -205,11 +213,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           {/* Product Name */}
           <div className="vaango-form-group">
             <label className="vaango-form-label" htmlFor="prod-name">
-              Product Name <span className="vaango-required">*</span>
+              {t('productNameLabel')} <span className="vaango-required">*</span>
             </label>
             <Input
               id="prod-name"
-              placeholder="e.g. Country Tomatoes (நாட்டு தக்காளி)"
+              placeholder={language === 'ta' ? 'எ.கா. நாட்டு தக்காளி, ஆவின் பால்...' : 'e.g. Country Tomatoes, Milk 1L...'}
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -220,7 +228,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           <div className="vaango-product-modal__row">
             <div className="vaango-form-group">
               <label className="vaango-form-label" htmlFor="prod-price">
-                Price in Rupees (₹) <span className="vaango-required">*</span>
+                {t('productPriceLabel')} <span className="vaango-required">*</span>
               </label>
               <Input
                 id="prod-price"
@@ -236,7 +244,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
             <div className="vaango-form-group">
               <label className="vaango-form-label" htmlFor="prod-unit">
-                Selling Unit <span className="vaango-required">*</span>
+                {t('productUnitLabel')} <span className="vaango-required">*</span>
               </label>
               <select
                 id="prod-unit"
@@ -249,7 +257,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     Per {u}
                   </option>
                 ))}
-                <option value="other">Other custom unit...</option>
+                <option value="other">{language === 'ta' ? 'வேறு அலகு...' : 'Other custom unit...'}</option>
               </select>
             </div>
           </div>
@@ -257,7 +265,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           {unit === 'other' && (
             <div className="vaango-form-group">
               <label className="vaango-form-label" htmlFor="prod-custom-unit">
-                Custom Unit Name
+                {language === 'ta' ? 'தனிப்பயன் அலகு பெயர்' : 'Custom Unit Name'}
               </label>
               <Input
                 id="prod-custom-unit"
@@ -268,30 +276,53 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           )}
 
-          <label className="vaango-checkbox-row mt-3"><input type="checkbox" checked={hasVariants} onChange={(e) => setHasVariants(e.target.checked)} /> This product has size/variant options</label>
-          {hasVariants ? <div className="vaango-form-group mt-2">
-            {variants.map((variant) => <div key={variant.id} className="vaango-product-modal__row">
-              <Input placeholder="Variant label" value={variant.label} onChange={(e) => setVariants((items) => items.map((item) => item.id === variant.id ? { ...item, label: e.target.value } : item))} />
-              <Input type="number" min="0" placeholder="Price" value={variant.price} onChange={(e) => setVariants((items) => items.map((item) => item.id === variant.id ? { ...item, price: Number(e.target.value) } : item))} />
-              <label><input type="checkbox" checked={variant.in_stock} onChange={(e) => setVariants((items) => items.map((item) => item.id === variant.id ? { ...item, in_stock: e.target.checked } : item))} /> In stock</label>
-              <Button type="button" variant="outline" size="sm" onClick={() => setVariants((items) => items.filter((item) => item.id !== variant.id))}>Remove</Button>
-            </div>)}
-            {variants.length < 8 && <Button type="button" variant="outline" size="sm" onClick={() => setVariants((items) => [...items, { id: `variant-${Date.now()}`, label: '', price: Number(price) || 0, in_stock: true }])}>+ Add Variant</Button>}
-          </div> : <div className="vaango-form-group mt-2">
-            {attributeGroups.map((group, index) => <div key={`${group.name}-${index}`} className="vaango-product-modal__row"><Input placeholder="Group name" value={group.name} onChange={(e) => setAttributeGroups((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, name: e.target.value } : item))} /><Input placeholder="Options comma-separated" value={group.options.join(', ')} onChange={(e) => setAttributeGroups((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, options: e.target.value.split(',').map((option) => option.trim()).filter(Boolean) } : item))} /><Button type="button" variant="outline" size="sm" onClick={() => setAttributeGroups((items) => items.filter((_, itemIndex) => itemIndex !== index))}>Remove</Button></div>)}
-            {attributeGroups.length < 4 && <Button type="button" variant="outline" size="sm" onClick={() => setAttributeGroups((items) => [...items, { name: '', options: [] }])}>+ Add Attribute Group</Button>}
-          </div>}
+          <label className="vaango-checkbox-row mt-3">
+            <input type="checkbox" checked={hasVariants} onChange={(e) => setHasVariants(e.target.checked)} />
+            {language === 'ta' ? 'இந்த பொருளுக்கு அளவு/வேறுபாடுகள் உண்டு (எ.கா. 500g, 1kg)' : 'This product has size/variant options'}
+          </label>
+          {hasVariants ? (
+            <div className="vaango-form-group mt-2">
+              {variants.map((variant) => (
+                <div key={variant.id} className="vaango-product-modal__row">
+                  <Input placeholder="Variant label" value={variant.label} onChange={(e) => setVariants((items) => items.map((item) => item.id === variant.id ? { ...item, label: e.target.value } : item))} />
+                  <Input type="number" min="0" placeholder="Price" value={variant.price} onChange={(e) => setVariants((items) => items.map((item) => item.id === variant.id ? { ...item, price: Number(e.target.value) } : item))} />
+                  <label><input type="checkbox" checked={variant.in_stock} onChange={(e) => setVariants((items) => items.map((item) => item.id === variant.id ? { ...item, in_stock: e.target.checked } : item))} /> {t('inStock')}</label>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setVariants((items) => items.filter((item) => item.id !== variant.id))}>{t('deleteItem')}</Button>
+                </div>
+              ))}
+              {variants.length < 8 && (
+                <Button type="button" variant="outline" size="sm" onClick={() => setVariants((items) => [...items, { id: `variant-${Date.now()}`, label: '', price: Number(price) || 0, in_stock: true }])}>
+                  + {language === 'ta' ? 'அளவு சேர்க்க' : 'Add Variant'}
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="vaango-form-group mt-2">
+              {attributeGroups.map((group, index) => (
+                <div key={`${group.name}-${index}`} className="vaango-product-modal__row">
+                  <Input placeholder="Group name" value={group.name} onChange={(e) => setAttributeGroups((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, name: e.target.value } : item))} />
+                  <Input placeholder="Options comma-separated" value={group.options.join(', ')} onChange={(e) => setAttributeGroups((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, options: e.target.value.split(',').map((option) => option.trim()).filter(Boolean) } : item))} />
+                  <Button type="button" variant="outline" size="sm" onClick={() => setAttributeGroups((items) => items.filter((_, itemIndex) => itemIndex !== index))}>{t('deleteItem')}</Button>
+                </div>
+              ))}
+              {attributeGroups.length < 4 && (
+                <Button type="button" variant="outline" size="sm" onClick={() => setAttributeGroups((items) => [...items, { name: '', options: [] }])}>
+                  + {language === 'ta' ? 'கூடுதல் பண்பு சேர்க்க' : 'Add Attribute Group'}
+                </Button>
+              )}
+            </div>
+          )}
 
           {/* Description */}
           <div className="vaango-form-group">
             <label className="vaango-form-label" htmlFor="prod-desc">
-              Description / Notes (Optional)
+              {language === 'ta' ? 'விளக்கம் / குறிப்புகள் (விருப்பத்தேர்வு)' : 'Description / Notes (Optional)'}
             </label>
             <textarea
               id="prod-desc"
               className="vaango-textarea"
               rows={2}
-              placeholder="Brief details about quality, farm source, or preparation..."
+              placeholder={language === 'ta' ? 'பொருளின் தரம் அல்லது விவரங்கள்...' : 'Brief details about quality, farm source, or preparation...'}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -299,11 +330,50 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
           {/* Product Photos */}
           <div className="vaango-form-group">
-            <label className="vaango-form-label">Product Photos <span className="vaango-label-hint">- Up to 5 photos</span></label>
-            {existingImageUrls.length > 0 && <div className="vaango-product-photo-grid">{existingImageUrls.map((url, index) => <div key={url} className="vaango-product-photo-item"><img src={url} alt={`Product ${index + 1}`} className="vaango-product-photo-thumb" /><button type="button" className="vaango-product-photo-remove" onClick={() => setExistingImageUrls((prev) => prev.filter((_, itemIndex) => itemIndex !== index))} aria-label="Remove photo">x</button></div>)}</div>}
-            {existingImageUrls.length + imageFiles.length < 5 && <input type="file" accept="image/*" multiple className="vaango-file-input mt-2" onChange={(e) => { const files = Array.from(e.target.files || []); const accepted = files.slice(0, 5 - existingImageUrls.length - imageFiles.length); setImageFiles((prev) => [...prev, ...accepted]); setImageFilePreviews((prev) => [...prev, ...accepted.map((file) => URL.createObjectURL(file))]); e.currentTarget.value = ''; }} />}
-            {imageFilePreviews.length > 0 && <div className="vaango-product-photo-grid mt-2">{imageFilePreviews.map((src, index) => <div key={src} className="vaango-product-photo-item"><img src={src} alt={`New photo ${index + 1}`} className="vaango-product-photo-thumb" /><button type="button" className="vaango-product-photo-remove" onClick={() => { setImageFiles((prev) => prev.filter((_, itemIndex) => itemIndex !== index)); setImageFilePreviews((prev) => prev.filter((_, itemIndex) => itemIndex !== index)); }} aria-label="Remove photo">x</button></div>)}</div>}
-            <label className="vaango-form-label" htmlFor="prod-img">Optional Image URL</label>
+            <label className="vaango-form-label">
+              {language === 'ta' ? 'பொருள் புகைப்படங்கள்' : 'Product Photos'} <span className="vaango-label-hint">{language === 'ta' ? '- 5 படங்கள் வரை' : '- Up to 5 photos'}</span>
+            </label>
+            {existingImageUrls.length > 0 && (
+              <div className="vaango-product-photo-grid">
+                {existingImageUrls.map((url, index) => (
+                  <div key={url} className="vaango-product-photo-item">
+                    <img src={url} alt={`Product ${index + 1}`} className="vaango-product-photo-thumb" />
+                    <button type="button" className="vaango-product-photo-remove" onClick={() => setExistingImageUrls((prev) => prev.filter((_, itemIndex) => itemIndex !== index))} aria-label="Remove photo">x</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {existingImageUrls.length + imageFiles.length < 5 && (
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="vaango-file-input mt-2"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  const accepted = files.slice(0, 5 - existingImageUrls.length - imageFiles.length);
+                  setImageFiles((prev) => [...prev, ...accepted]);
+                  setImageFilePreviews((prev) => [...prev, ...accepted.map((file) => URL.createObjectURL(file))]);
+                  e.currentTarget.value = '';
+                }}
+              />
+            )}
+            {imageFilePreviews.length > 0 && (
+              <div className="vaango-product-photo-grid mt-2">
+                {imageFilePreviews.map((src, index) => (
+                  <div key={src} className="vaango-product-photo-item">
+                    <img src={src} alt={`New photo ${index + 1}`} className="vaango-product-photo-thumb" />
+                    <button type="button" className="vaango-product-photo-remove" onClick={() => {
+                      setImageFiles((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
+                      setImageFilePreviews((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
+                    }} aria-label="Remove photo">x</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <label className="vaango-form-label mt-2" htmlFor="prod-img">
+              {language === 'ta' ? 'அல்லது இணையப் பட URL' : 'Optional Image URL'}
+            </label>
             <Input
               id="prod-img"
               type="url"
@@ -312,21 +382,27 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               onChange={(e) => setImageUrl(e.target.value)}
               leftIcon={<Image size={18} />}
             />
-            {imageUrl && existingImageUrls.length === 0 && <img src={imageUrl} alt="Product preview" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--radius-sm)', marginTop: 'var(--space-2)' }} />}
-            <p className="vaango-field-hint">The first photo is shown in the product listing. On mobile, choose photos from your gallery or camera.</p>
+            {imageUrl && existingImageUrls.length === 0 && (
+              <img src={imageUrl} alt="Product preview" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--radius-sm)', marginTop: 'var(--space-2)' }} />
+            )}
           </div>
 
+          {/* Offer */}
           <div className="vaango-form-group">
-            <label className="vaango-form-label" htmlFor="prod-offer-label">Add an offer (Optional)</label>
-            <Input id="prod-offer-label" placeholder="e.g. Buy 1 Get 1" value={offerLabel} onChange={(e) => setOfferLabel(e.target.value)} />
+            <label className="vaango-form-label" htmlFor="prod-offer-label">
+              {language === 'ta' ? 'சிறப்புச் சலுகை (விருப்பத்தேர்வு)' : 'Add an offer (Optional)'}
+            </label>
+            <Input id="prod-offer-label" placeholder="e.g. Buy 1 Get 1 / 10% Off" value={offerLabel} onChange={(e) => setOfferLabel(e.target.value)} />
             <div className="vaango-product-modal__row">
               <select className="vaango-select-input" value={offerType || ''} onChange={(e) => setOfferType((e.target.value || null) as ShopProduct['offer_type'])}>
-                <option value="">No offer type</option>
-                <option value="bogo">BOGO</option>
-                <option value="percent_off">% off</option>
-                <option value="flat_off">Flat off</option>
+                <option value="">{language === 'ta' ? 'சலுகை வகை இல்லை' : 'No offer type'}</option>
+                <option value="bogo">BOGO (Buy 1 Get 1)</option>
+                <option value="percent_off">% {language === 'ta' ? 'தள்ளுபடி' : 'off'}</option>
+                <option value="flat_off">{language === 'ta' ? 'நேரடி தள்ளுபடி' : 'Flat off'}</option>
               </select>
-              {offerType && offerType !== 'bogo' && <Input type="number" min="0" step="0.01" placeholder="Offer value" value={offerValue} onChange={(e) => setOfferValue(e.target.value)} />}
+              {offerType && offerType !== 'bogo' && (
+                <Input type="number" min="0" step="0.01" placeholder={language === 'ta' ? 'சலுகை மதிப்பு' : 'Offer value'} value={offerValue} onChange={(e) => setOfferValue(e.target.value)} />
+              )}
             </div>
           </div>
 
@@ -343,10 +419,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </label>
             <div className="vaango-product-modal__stock-info">
               <span className="vaango-product-modal__stock-status">
-                {isAvailable ? 'In Stock (Available for ordering)' : 'Out of Stock (Customers cannot order)'}
+                {isAvailable
+                  ? (language === 'ta' ? 'இருப்பில் உள்ளது (ஆர்டர் செய்யலாம்)' : 'In Stock (Available for ordering)')
+                  : (language === 'ta' ? 'இருப்பில் இல்லை (வாடிக்கையாளர் ஆர்டர் செய்ய முடியாது)' : 'Out of Stock (Customers cannot order)')}
               </span>
               <span className="vaango-product-modal__stock-hint">
-                You can also toggle stock instantly with one click from your catalogue list.
+                {language === 'ta'
+                  ? 'பொருட்கள் பட்டியலில் இருந்தும் ஒரே கிளிக்கில் இருப்பை மாற்றலாம்.'
+                  : 'You can also toggle stock instantly with one click from your catalogue list.'}
               </span>
             </div>
           </div>
@@ -354,7 +434,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           {/* Form Actions */}
           <div className="vaango-product-modal__actions">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-              Cancel
+              {t('cancelBtn')}
             </Button>
             <Button
               type="submit"
@@ -362,7 +442,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               isLoading={isSubmitting}
               leftIcon={<Check size={18} />}
             >
-              {initialProduct ? 'Save Changes' : 'Add to Catalogue'}
+              {initialProduct ? (language === 'ta' ? 'மாற்றங்களைச் சேமி' : 'Save Changes') : (language === 'ta' ? 'பட்டியலில் சேர்க்க' : 'Add to Catalogue')}
             </Button>
           </div>
         </form>

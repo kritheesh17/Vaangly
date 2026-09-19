@@ -27,6 +27,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../context/ToastContext';
+import { useLanguage } from '../../context/LanguageContext';
 import './ShopkeeperRequestDetailPage.css';
 
 interface DecodedPayload {
@@ -58,6 +59,7 @@ interface DecodedPayload {
 export const ShopkeeperRequestDetailPage: React.FC = () => {
   const { requestId } = useParams<{ requestId: string }>();
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const { success, error: toastError } = useToast();
 
@@ -187,36 +189,45 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
     if (!request || !user) return;
     setIsActionLoading(true);
 
-    const res = await transitionRequestState(
-      request.id,
-      request.current_state,
-      nextState,
-      user.id,
-      notes
-    );
+    try {
+      const res = await transitionRequestState(
+        request.id,
+        request.current_state,
+        nextState,
+        user.id,
+        notes
+      );
 
-    setIsActionLoading(false);
-
-    if (res.success && res.request) {
-      setRequest(res.request);
-      success(`Request #${request.reference_code} updated to ${nextState}`);
-      await loadRequestAndHistory();
-    } else {
-      toastError(res.error || 'Failed to update request state.');
+      if (res.success && res.request) {
+        setRequest(res.request);
+        success(`Request #${request.reference_code} updated to ${nextState}`);
+        await loadRequestAndHistory();
+      } else {
+        toastError(res.error || t('genericError'));
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
   const handleMarkPaid = async () => {
     if (!request || !user) return;
     setIsActionLoading(true);
-    const result = await markRequestCustomerPaid(request.id, user.id);
-    setIsActionLoading(false);
-    if (result.success && result.request) {
-      setRequest(result.request);
-      success('Customer payment marked as received.');
-      await loadRequestAndHistory();
-    } else {
-      toastError(result.error || 'Failed to update payment status.');
+    try {
+      const result = await markRequestCustomerPaid(request.id, user.id);
+      if (result.success && result.request) {
+        setRequest(result.request);
+        success('Customer payment marked as received.');
+        await loadRequestAndHistory();
+      } else {
+        toastError(result.error || t('genericError'));
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -236,29 +247,33 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
     if (!request || !user) return;
     const numPrice = parseFloat(priceInput);
     if (isNaN(numPrice) || numPrice <= 0) {
-      toastError('Please enter a valid price greater than 0.');
+      toastError(language === 'ta' ? 'சரியான தொகையை உள்ளிடுக.' : 'Please enter a valid price greater than 0.');
       return;
     }
 
     setIsActionLoading(true);
-    const priceRes = await confirmServicePrice(request.id, numPrice, user.id);
-    if (!priceRes.success) {
-      toastError(priceRes.error || 'Failed to confirm price.');
+    try {
+      const priceRes = await confirmServicePrice(request.id, numPrice, user.id);
+      if (!priceRes.success) {
+        toastError(priceRes.error || t('genericError'));
+        return;
+      }
+
+      if (nextStateAfterPrice) {
+        await handleTransition(nextStateAfterPrice, `Price confirmed at ₹${numPrice}. Work initiated.`);
+      } else {
+        success(`Final price confirmed at ₹${numPrice}`);
+        await loadRequestAndHistory();
+      }
+
+      setPriceModalOpen(false);
+      setPriceInput('');
+      setNextStateAfterPrice(null);
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
       setIsActionLoading(false);
-      return;
     }
-
-    if (nextStateAfterPrice) {
-      await handleTransition(nextStateAfterPrice, `Price confirmed at ₹${numPrice}. Work initiated.`);
-    } else {
-      success(`Final price confirmed at ₹${numPrice}`);
-      await loadRequestAndHistory();
-    }
-
-    setPriceModalOpen(false);
-    setPriceInput('');
-    setNextStateAfterPrice(null);
-    setIsActionLoading(false);
   };
 
   if (isLoading) {

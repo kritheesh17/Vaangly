@@ -87,13 +87,18 @@ export const RequestDetailPage: React.FC = () => {
   const handleCustomerMarkPaid = async () => {
     if (!request || !user) return;
     setIsMarkingPaid(true);
-    const result = await markRequestCustomerPaid(request.id, user.id);
-    setIsMarkingPaid(false);
-    if (result.success && result.request) {
-      setRequest(result.request);
-      success('Payment marked. The shopkeeper has been notified.');
-    } else {
-      toastError(result.error || 'Unable to mark payment.');
+    try {
+      const result = await markRequestCustomerPaid(request.id, user.id);
+      if (result.success && result.request) {
+        setRequest(result.request);
+        success('Payment marked. The shopkeeper has been notified.');
+      } else {
+        toastError(result.error || 'Unable to mark payment.');
+      }
+    } catch (err: any) {
+      toastError(err?.message || 'Unable to mark payment.');
+    } finally {
+      setIsMarkingPaid(false);
     }
   };
 
@@ -149,14 +154,19 @@ export const RequestDetailPage: React.FC = () => {
     e.preventDefault();
     if (!request || !user) return;
     setIsCancelling(true);
-    const res = await cancelCustomerRequest(request.id, user.id, cancelReason);
-    setIsCancelling(false);
-    if (res.success && res.request) {
-      setRequest(res.request);
-      setCancelModalOpen(false);
-      success('Your request has been cancelled.');
-    } else {
-      toastError(res.error || 'Failed to cancel request.');
+    try {
+      const res = await cancelCustomerRequest(request.id, user.id, cancelReason);
+      if (res.success && res.request) {
+        setRequest(res.request);
+        setCancelModalOpen(false);
+        success('Your request has been cancelled.');
+      } else {
+        toastError(res.error || 'Failed to cancel request.');
+      }
+    } catch (err: any) {
+      toastError(err?.message || 'Failed to cancel request.');
+    } finally {
+      setIsCancelling(false);
     }
   };
 

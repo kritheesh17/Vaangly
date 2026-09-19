@@ -1542,3 +1542,131 @@
   flex-wrap: wrap;
   justify-content: center;
 }
+
+/* 3 Core Action Entry Cards (Order, Appointments, Services) */
+.vaangly-core-actions-section {
+  padding: var(--space-8) 0 var(--space-12);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.vaangly-core-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+@media (min-width: 768px) {
+  .vaangly-core-actions-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.vaangly-core-action-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  text-decoration: none;
+  transition: all var(--transition-normal);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.vaangly-core-action-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.vaangly-core-action-card--order {
+  border-color: #10B981;
+}
+.vaangly-core-action-card--order:hover {
+  border-color: #059669;
+  background: linear-gradient(180deg, var(--color-surface) 0%, rgba(16, 185, 129, 0.06) 100%);
+}
+
+.vaangly-core-action-card--appointments {
+  border-color: #0EA5E9;
+}
+.vaangly-core-action-card--appointments:hover {
+  border-color: #0284C7;
+  background: linear-gradient(180deg, var(--color-surface) 0%, rgba(14, 165, 233, 0.06) 100%);
+}
+
+.vaangly-core-action-card--services {
+  border-color: #F59E0B;
+}
+.vaangly-core-action-card--services:hover {
+  border-color: #D97706;
+  background: linear-gradient(180deg, var(--color-surface) 0%, rgba(245, 158, 11, 0.06) 100%);
+}
+
+.vaangly-core-action-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-3);
+  width: fit-content;
+}
+
+.vaangly-core-action-badge--order {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #059669;
+}
+
+.vaangly-core-action-badge--appointments {
+  background-color: rgba(14, 165, 233, 0.15);
+  color: #0284C7;
+}
+
+.vaangly-core-action-badge--services {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #D97706;
+}
+
+.vaangly-core-action-title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.vaangly-core-action-sub {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--brand-primary);
+  margin-bottom: var(--space-3);
+}
+
+.vaangly-core-action-desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-5);
+  flex-grow: 1;
+}
+
+.vaangly-core-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--brand-primary);
+  transition: gap var(--transition-fast);
+}
+
+.vaangly-core-action-card:hover .vaangly-core-action-btn {
+  gap: var(--space-3);
+}

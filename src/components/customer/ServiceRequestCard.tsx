@@ -14,6 +14,7 @@ import {
 import { Shop, ShopService } from '../../types/database';
 import { fetchShopServices, submitServiceRequest } from '../../lib/appointmentServiceApi';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -26,6 +27,7 @@ interface ServiceRequestCardProps {
 
 export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) => {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const { success, error: toastError } = useToast();
 
@@ -33,8 +35,8 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
 
   // Customer contact details
-  const [customerName, setCustomerName] = useState(user?.full_name || 'Valued Customer');
-  const [customerPhone, setCustomerPhone] = useState(user?.phone || '+91 98765 00000');
+  const [customerName, setCustomerName] = useState(user?.full_name || '');
+  const [customerPhone, setCustomerPhone] = useState(user?.phone || '');
   const [notes, setNotes] = useState('');
 
   const [isLoadingServices, setIsLoadingServices] = useState(true);
@@ -45,14 +47,19 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
     let isMounted = true;
     async function loadServices() {
       setIsLoadingServices(true);
-      const srvs = await fetchShopServices(shop.id);
-      if (isMounted) {
-        setServices(srvs);
-        const available = srvs.filter((s) => s.is_available);
-        if (available.length > 0) {
-          setSelectedServiceId(available[0].id);
+      try {
+        const srvs = await fetchShopServices(shop.id);
+        if (isMounted) {
+          setServices(srvs);
+          const available = srvs.filter((s) => s.is_available);
+          if (available.length > 0) {
+            setSelectedServiceId(available[0].id);
+          }
         }
-        setIsLoadingServices(false);
+      } catch (err) {
+        console.error('Error loading services:', err);
+      } finally {
+        if (isMounted) setIsLoadingServices(false);
       }
     }
     loadServices();
@@ -67,16 +74,16 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
 
   const handleSubmitRequest = async () => {
     if (!selectedService) {
-      toastError('Please select a service.');
+      toastError(language === 'ta' ? 'தயவுசெய்து சேவையைத் தேர்வு செய்க.' : 'Please select a service.');
       return;
     }
     if (!customerName.trim() || !customerPhone.trim()) {
-      toastError('Please provide your name and phone number.');
+      toastError(language === 'ta' ? 'பெயர் மற்றும் தொலைபேசி எண்ணை உள்ளிடுக.' : 'Please provide your name and phone number.');
       return;
     }
 
     if (!user) {
-      toastError('Please sign in with Google to submit a service request.');
+      toastError(language === 'ta' ? 'கோரிக்கை அனுப்ப தயவுசெய்து உள்நுழையவும்.' : 'Please sign in to submit a service request.');
       navigate('/login', { state: { from: { pathname: `/shop/${shop.id}` } } });
       return;
     }
@@ -84,25 +91,31 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
     setIsSubmitting(true);
     setServiceError(null);
 
-    const res = await submitServiceRequest({
-      shopId: shop.id,
-      shopName: shop.name,
-      shopAddress: shop.address_line,
-      shopPhone: shop.phone,
-      service: selectedService,
-      customerId: user.id,
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      notes: notes.trim(),
-    });
+    try {
+      const res = await submitServiceRequest({
+        shopId: shop.id,
+        shopName: shop.name,
+        shopAddress: shop.address_line,
+        shopPhone: shop.phone,
+        service: selectedService,
+        customerId: user.id,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        notes: notes.trim(),
+      });
 
-    setIsSubmitting(false);
-
-    if (res.success && res.request) {
-      success('Service request submitted! The shopkeeper will review and accept.');
-      navigate(`/requests/${res.request.id}`);
-    } else {
-      setServiceError(res.error || 'Failed to submit service request.');
+      if (res.success && res.request) {
+        success(t('serviceSuccessMsg'));
+        navigate(`/requests/${res.request.id}`);
+      } else {
+        setServiceError(res.error || t('genericError'));
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t('genericError');
+      setServiceError(msg);
+      toastError(msg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -112,13 +125,15 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
       <section className="vaango-service-section">
         <div className="vaango-service-section__header">
           <Wrench size={20} className="text-primary" />
-          <h2 className="vaango-service-section__title">1. Select Required Service</h2>
+          <h2 className="vaango-service-section__title">{t('selectServiceTitle')}</h2>
         </div>
 
         {isLoadingServices ? (
-          <div className="vaango-service-loading">Loading available services...</div>
+          <div className="vaango-service-loading">{t('loadingText')}</div>
         ) : services.length === 0 ? (
-          <div className="vaango-service-empty">This shop has not listed any services yet.</div>
+          <div className="vaango-service-empty">
+            {language === 'ta' ? 'இந்தக் கடையில் சேவைகள் எதுவும் சேர்க்கப்படவில்லை.' : 'This shop has not listed any services yet.'}
+          </div>
         ) : (
           <div className="vaango-services-grid" role="radiogroup" aria-label="Available Services">
             {services.map((srv) => {
@@ -132,15 +147,14 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
                   role="radio"
                   aria-checked={isSelected}
                   disabled={!srv.is_available}
-                  className={`vaango-service-item ${isSelected ? 'vaango-service-item--selected' : ''} ${!srv.is_available ? 'vaango-service-item--disabled' : ''
-                    }`}
+                  className={`vaango-service-item ${isSelected ? 'vaango-service-item--selected' : ''} ${!srv.is_available ? 'vaango-service-item--disabled' : ''}`}
                   onClick={() => setSelectedServiceId(srv.id)}
                 >
                   <div className="vaango-service-item__top">
                     <div>
                       <div className="vaango-service-category-badge">
                         <Tag size={12} />
-                        <span>{srv.service_category || 'Service'}</span>
+                        <span>{srv.service_category || (language === 'ta' ? 'சேவை' : 'Service')}</span>
                       </div>
                       <h3 className="vaango-service-item__name">{srv.name}</h3>
                       {srv.provider_name && (
@@ -153,14 +167,14 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
                     <div className="vaango-service-item__price-block">
                       {isRange ? (
                         <div className="vaango-price-range">
-                          <span className="vaango-price-range__label">Estimated</span>
+                          <span className="vaango-price-range__label">{language === 'ta' ? 'மதிப்பீடு' : 'Estimated'}</span>
                           <span className="vaango-price-range__amount">
                             ₹{srv.min_price} – ₹{srv.max_price}
                           </span>
                         </div>
                       ) : (
                         <div className="vaango-price-fixed">
-                          <span className="vaango-price-fixed__label">Fixed Rate</span>
+                          <span className="vaango-price-fixed__label">{language === 'ta' ? 'நிலையான விலை' : 'Fixed Rate'}</span>
                           <span className="vaango-price-fixed__amount">₹{srv.base_price}</span>
                         </div>
                       )}
@@ -174,15 +188,17 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
                   <div className="vaango-service-item__bottom">
                     {srv.duration_minutes && (
                       <span className="vaango-service-item__duration">
-                        <Clock size={13} /> Approx {srv.duration_minutes} mins
+                        <Clock size={13} /> {language === 'ta' ? `சுமார் ${srv.duration_minutes} நிமிடம்` : `Approx ${srv.duration_minutes} mins`}
                       </span>
                     )}
                     {isSelected ? (
                       <span className="vaango-service-item__selected-label">
-                        <CheckCircle2 size={16} /> Selected
+                        <CheckCircle2 size={16} /> {language === 'ta' ? 'தேர்ந்தெடுக்கப்பட்டது' : 'Selected'}
                       </span>
                     ) : (
-                      <span className="vaango-service-item__select-prompt">Tap to Select</span>
+                      <span className="vaango-service-item__select-prompt">
+                        {language === 'ta' ? 'தேர்வு செய்ய தட்டவும்' : 'Tap to Select'}
+                      </span>
                     )}
                   </div>
                 </button>
@@ -197,7 +213,9 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
         <section className="vaango-service-section">
           <div className="vaango-service-section__header">
             <User size={20} className="text-primary" />
-            <h2 className="vaango-service-section__title">2. Request Details & Requirements</h2>
+            <h2 className="vaango-service-section__title">
+              {language === 'ta' ? '2. கோரிக்கை விவரங்கள் மற்றும் தேவை' : '2. Request Details & Requirements'}
+            </h2>
           </div>
 
           <Card variant="default" padding="lg" className="vaango-service-form-card">
@@ -210,39 +228,39 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
 
             <div className="vaango-form-group">
               <label htmlFor="srv-customer-name" className="vaango-form-label">
-                Your Name <span className="text-error">*</span>
+                {t('yourNameLabel')} <span className="text-error">*</span>
               </label>
               <Input
                 id="srv-customer-name"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Enter customer name"
+                placeholder={language === 'ta' ? 'உங்கள் பெயரை உள்ளிடுக' : 'Enter customer name'}
                 leftIcon={<User size={16} />}
               />
             </div>
 
             <div className="vaango-form-group">
               <label htmlFor="srv-customer-phone" className="vaango-form-label">
-                Phone Number <span className="text-error">*</span>
+                {t('yourPhoneLabel')} <span className="text-error">*</span>
               </label>
               <Input
                 id="srv-customer-phone"
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="10-digit mobile number"
+                placeholder={language === 'ta' ? '10 இலக்க மொபைல் எண்' : '10-digit mobile number'}
                 leftIcon={<Phone size={16} />}
               />
             </div>
 
             <div className="vaango-form-group">
               <label htmlFor="srv-notes" className="vaango-form-label">
-                Item Details / Specific Requirements
+                {language === 'ta' ? 'பொருள் விவரங்கள் / தேவை' : 'Item Details / Specific Requirements'}
               </label>
               <Input
                 id="srv-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g., Bike model: Hero Splendor Plus / Screen cracked on corner"
+                placeholder={language === 'ta' ? 'எ.கா. வண்டி மாடல்: Hero Splendor / பழுது விவரம்' : 'e.g., Bike model: Hero Splendor / Screen cracked'}
                 leftIcon={<FileText size={16} />}
               />
             </div>
@@ -250,19 +268,19 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
             {/* Price Clarification & Review */}
             <div className="vaango-service-summary-box">
               <div className="vaango-service-summary-row">
-                <span className="vaango-summary-label">Selected Service:</span>
+                <span className="vaango-summary-label">{language === 'ta' ? 'தேர்ந்தெடுத்த சேவை:' : 'Selected Service:'}</span>
                 <strong className="vaango-summary-val">{selectedService.name}</strong>
               </div>
 
               <div className="vaango-service-summary-row">
-                <span className="vaango-summary-label">Price Model:</span>
+                <span className="vaango-summary-label">{language === 'ta' ? 'விலை விவரம்:' : 'Price Model:'}</span>
                 <span className="vaango-summary-val">
                   {selectedService.price_type === 'range' ? (
                     <strong className="text-accent">
-                      Estimated: ₹{selectedService.min_price} – ₹{selectedService.max_price}
+                      {language === 'ta' ? 'மதிப்பீடு:' : 'Estimated:'} ₹{selectedService.min_price} – ₹{selectedService.max_price}
                     </strong>
                   ) : (
-                    <strong className="text-primary">Fixed: ₹{selectedService.base_price}</strong>
+                    <strong className="text-primary">{language === 'ta' ? 'நிலையான விலை:' : 'Fixed:'} ₹{selectedService.base_price}</strong>
                   )}
                 </span>
               </div>
@@ -271,8 +289,9 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
                 <div className="vaango-range-clarification">
                   <Info size={16} />
                   <span>
-                    The final price will be confirmed by the merchant when your request is accepted
-                    or inspected at the counter.
+                    {language === 'ta'
+                      ? 'இறுதி விலை கடைக்காரர் உங்கள் கோரிக்கையை ஏற்றதும் அல்லது ஆய்வு செய்ததும் உறுதி செய்யப்படும்.'
+                      : 'The final price will be confirmed by the merchant when your request is accepted or inspected at the counter.'}
                   </span>
                 </div>
               )}
@@ -285,7 +304,7 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
               isLoading={isSubmitting}
               onClick={handleSubmitRequest}
             >
-              Submit Service Request
+              {isSubmitting ? t('submittingService') : t('serviceRequestBtn')}
             </Button>
           </Card>
         </section>

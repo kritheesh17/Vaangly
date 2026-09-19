@@ -96,30 +96,40 @@ export const AdminShopDetailPage: React.FC = () => {
     }
 
     setIsSuspending(true);
-    const res = await suspendShop(shop.id, user.id, suspendReason.trim());
-    setIsSuspending(false);
+    try {
+      const res = await suspendShop(shop.id, user.id, suspendReason.trim());
 
-    if (res.success) {
-      success(`${shop.name} has been suspended.`);
-      setSuspendModalOpen(false);
-      loadShopData();
-    } else {
-      setSuspendError(res.error || 'Failed to suspend shop.');
+      if (res.success) {
+        success(`${shop.name} has been suspended.`);
+        setSuspendModalOpen(false);
+        loadShopData();
+      } else {
+        setSuspendError(res.error || 'Failed to suspend shop.');
+      }
+    } catch (err: unknown) {
+      setSuspendError(err instanceof Error ? err.message : 'Error suspending shop.');
+    } finally {
+      setIsSuspending(false);
     }
   };
 
   const handleConfirmReactivate = async () => {
     if (!shop || !user) return;
     setIsReactivating(true);
-    const res = await reactivateShop(shop.id, user.id);
-    setIsReactivating(false);
-    setReactivateModalOpen(false);
+    try {
+      const res = await reactivateShop(shop.id, user.id);
+      setReactivateModalOpen(false);
 
-    if (res.success) {
-      success(`${shop.name} has been reactivated.`);
-      loadShopData();
-    } else {
-      toastError(res.error || 'Failed to reactivate shop.');
+      if (res.success) {
+        success(`${shop.name} has been reactivated.`);
+        loadShopData();
+      } else {
+        toastError(res.error || 'Failed to reactivate shop.');
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : 'Error reactivating shop.');
+    } finally {
+      setIsReactivating(false);
     }
   };
 
@@ -128,13 +138,18 @@ export const AdminShopDetailPage: React.FC = () => {
     if (!shop) return;
     const nextTier = shop.subscription_tier === 'PRO' ? 'FREE' : 'PRO';
     setIsUpdatingTier(true);
-    const res = await updateShopSubscriptionTier(shop.id, nextTier);
-    setIsUpdatingTier(false);
-    if (res.success) {
-      success(`Shop tier updated to ${nextTier}`);
-      setShop((prev) => prev ? { ...prev, subscription_tier: nextTier } : null);
-    } else {
-      toastError(res.error || 'Failed to update subscription tier');
+    try {
+      const res = await updateShopSubscriptionTier(shop.id, nextTier);
+      if (res.success) {
+        success(`Shop tier updated to ${nextTier}`);
+        setShop((prev) => prev ? { ...prev, subscription_tier: nextTier } : null);
+      } else {
+        toastError(res.error || 'Failed to update subscription tier');
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : 'Error updating subscription tier.');
+    } finally {
+      setIsUpdatingTier(false);
     }
   };
 

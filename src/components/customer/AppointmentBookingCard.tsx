@@ -13,6 +13,7 @@ import {
 import { Shop, ShopService, AppointmentSlot } from '../../types/database';
 import { fetchShopServices, fetchAppointmentSlots, bookAppointmentRequest } from '../../lib/appointmentServiceApi';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -26,6 +27,7 @@ interface AppointmentBookingCardProps {
 
 export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ shop }) => {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const { success, error: toastError } = useToast();
 
@@ -40,20 +42,24 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
       const d = new Date(today);
       d.setDate(today.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
-      const dayName = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short' });
-      const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dayName = i === 0
+        ? (language === 'ta' ? 'இன்று' : 'Today')
+        : i === 1
+        ? (language === 'ta' ? 'நாளை' : 'Tomorrow')
+        : d.toLocaleDateString(language === 'ta' ? 'ta-IN' : 'en-US', { weekday: 'short' });
+      const label = d.toLocaleDateString(language === 'ta' ? 'ta-IN' : 'en-US', { month: 'short', day: 'numeric' });
       dates.push({ dateStr, label, dayName });
     }
     return dates;
-  }, []);
+  }, [language]);
 
   const [selectedDateStr, setSelectedDateStr] = useState<string>(dateOptions[0].dateStr);
   const [slots, setSlots] = useState<AppointmentSlot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string>('');
 
   // Customer contact details
-  const [customerName, setCustomerName] = useState(user?.full_name || 'Valued Customer');
-  const [customerPhone, setCustomerPhone] = useState(user?.phone || '+91 98765 00000');
+  const [customerName, setCustomerName] = useState(user?.full_name || '');
+  const [customerPhone, setCustomerPhone] = useState(user?.phone || '');
   const [notes, setNotes] = useState('');
 
   const [isLoadingServices, setIsLoadingServices] = useState(true);
@@ -66,14 +72,19 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
     let isMounted = true;
     async function loadServices() {
       setIsLoadingServices(true);
-      const srvs = await fetchShopServices(shop.id);
-      if (isMounted) {
-        setServices(srvs);
-        const available = srvs.filter((s) => s.is_available);
-        if (available.length > 0) {
-          setSelectedServiceId(available[0].id);
+      try {
+        const srvs = await fetchShopServices(shop.id);
+        if (isMounted) {
+          setServices(srvs);
+          const available = srvs.filter((s) => s.is_available);
+          if (available.length > 0) {
+            setSelectedServiceId(available[0].id);
+          }
         }
-        setIsLoadingServices(false);
+      } catch (err) {
+        console.error('Error fetching services:', err);
+      } finally {
+        if (isMounted) setIsLoadingServices(false);
       }
     }
     loadServices();
@@ -88,11 +99,16 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
     async function loadSlots() {
       setIsLoadingSlots(true);
       setBookingError(null);
-      const fetchedSlots = await fetchAppointmentSlots(shop.id, selectedDateStr);
-      if (isMounted) {
-        setSlots(fetchedSlots);
-        setSelectedSlotId('');
-        setIsLoadingSlots(false);
+      try {
+        const fetchedSlots = await fetchAppointmentSlots(shop.id, selectedDateStr);
+        if (isMounted) {
+          setSlots(fetchedSlots);
+          setSelectedSlotId('');
+        }
+      } catch (err) {
+        console.error('Error fetching slots:', err);
+      } finally {
+        if (isMounted) setIsLoadingSlots(false);
       }
     }
     loadSlots();
@@ -137,20 +153,20 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
 
   const handleBookAppointment = async () => {
     if (!selectedService) {
-      toastError('Please select a service or doctor.');
+      toastError(language === 'ta' ? 'தயவுசெய்து சேவையைத் தேர்வு செய்யவும்.' : 'Please select a service or doctor.');
       return;
     }
     if (!selectedSlot) {
-      toastError('Please select an available time slot.');
+      toastError(language === 'ta' ? 'கிடைக்கக்கூடிய நேரத்தைத் தேர்வு செய்யவும்.' : 'Please select an available time slot.');
       return;
     }
     if (!customerName.trim() || !customerPhone.trim()) {
-      toastError('Please provide your contact name and phone number.');
+      toastError(language === 'ta' ? 'பெயர் மற்றும் தொலைபேசி எண்ணை உள்ளிடுங்கள்.' : 'Please provide your contact name and phone number.');
       return;
     }
 
     if (!user) {
-      toastError('Please sign in with Google to reserve an appointment.');
+      toastError(language === 'ta' ? 'முன்பதிவு செய்ய தயவுசெய்து உள்நுழையவும்.' : 'Please sign in to reserve an appointment.');
       navigate('/login', { state: { from: { pathname: `/shop/${shop.id}` } } });
       return;
     }
@@ -158,30 +174,36 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
     setIsSubmitting(true);
     setBookingError(null);
 
-    const res = await bookAppointmentRequest({
-      shopId: shop.id,
-      shopName: shop.name,
-      shopAddress: shop.address_line,
-      shopPhone: shop.phone,
-      service: selectedService,
-      slot: selectedSlot,
-      customerId: user.id,
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      notes: notes.trim(),
-    });
+    try {
+      const res = await bookAppointmentRequest({
+        shopId: shop.id,
+        shopName: shop.name,
+        shopAddress: shop.address_line,
+        shopPhone: shop.phone,
+        service: selectedService,
+        slot: selectedSlot,
+        customerId: user.id,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        notes: notes.trim(),
+      });
 
-    setIsSubmitting(false);
-
-    if (res.success && res.request) {
-      success('Appointment request sent! Shopkeeper will confirm shortly.');
-      navigate(`/requests/${res.request.id}`);
-    } else {
-      setBookingError(res.error || 'Failed to reserve appointment slot.');
-      // Refresh slots immediately to show latest availability
-      const updatedSlots = await fetchAppointmentSlots(shop.id, selectedDateStr);
-      setSlots(updatedSlots);
-      setSelectedSlotId('');
+      if (res.success && res.request) {
+        success(t('appointmentSuccessMsg'));
+        navigate(`/requests/${res.request.id}`);
+      } else {
+        setBookingError(res.error || t('genericError'));
+        // Refresh slots immediately to show latest availability
+        const updatedSlots = await fetchAppointmentSlots(shop.id, selectedDateStr);
+        setSlots(updatedSlots);
+        setSelectedSlotId('');
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t('genericError');
+      setBookingError(message);
+      toastError(message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -191,13 +213,15 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
       <section className="vaango-booking-section">
         <div className="vaango-booking-section__header">
           <Sparkles size={20} className="text-primary" />
-          <h2 className="vaango-booking-section__title">1. Choose Service or Doctor</h2>
+          <h2 className="vaango-booking-section__title">{t('chooseServiceDoctor')}</h2>
         </div>
 
         {isLoadingServices ? (
-          <div className="vaango-booking-loading">Loading available services...</div>
+          <div className="vaango-booking-loading">{t('loadingText')}</div>
         ) : services.length === 0 ? (
-          <div className="vaango-booking-empty">This shop hasn't added any appointment services yet.</div>
+          <div className="vaango-booking-empty">
+            {language === 'ta' ? 'இந்த கடையில் சேவைகள் எதுவும் சேர்க்கப்படவில்லை.' : "This shop hasn't added any appointment services yet."}
+          </div>
         ) : (
           <div className="vaango-service-selector-grid" role="radiogroup" aria-label="Appointment Services">
             {services.map((srv) => {
@@ -224,7 +248,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                       )}
                     </div>
                     <div className="vaango-service-card__price">
-                      {srv.base_price ? `₹${srv.base_price}` : 'Consultation Fee'}
+                      {srv.base_price ? `₹${srv.base_price}` : (language === 'ta' ? 'கட்டணம்' : 'Consultation Fee')}
                     </div>
                   </div>
 
@@ -236,15 +260,17 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                     {srv.duration_minutes && (
                       <span className="vaango-service-duration">
                         <Clock size={14} />
-                        {srv.duration_minutes} mins
+                        {srv.duration_minutes} {language === 'ta' ? 'நிமிடம்' : 'mins'}
                       </span>
                     )}
                     {isSelected ? (
                       <span className="vaango-selected-tag">
-                        <CheckCircle2 size={16} /> Selected
+                        <CheckCircle2 size={16} /> {language === 'ta' ? 'தேர்ந்தெடுக்கப்பட்டது' : 'Selected'}
                       </span>
                     ) : (
-                      <span className="vaango-select-prompt">Tap to Select</span>
+                      <span className="vaango-select-prompt">
+                        {language === 'ta' ? 'தேர்வு செய்ய தட்டவும்' : 'Tap to Select'}
+                      </span>
                     )}
                   </div>
                 </button>
@@ -258,7 +284,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
       <section className="vaango-booking-section">
         <div className="vaango-booking-section__header">
           <CalendarIcon size={20} className="text-primary" />
-          <h2 className="vaango-booking-section__title">2. Select Date</h2>
+          <h2 className="vaango-booking-section__title">{t('chooseDateSlot')}</h2>
         </div>
 
         <div className="vaango-date-strip" role="tablist" aria-label="Appointment Dates">
@@ -285,19 +311,21 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
       <section className="vaango-booking-section">
         <div className="vaango-booking-section__header">
           <Clock size={20} className="text-primary" />
-          <h2 className="vaango-booking-section__title">3. Select Time Slot</h2>
+          <h2 className="vaango-booking-section__title">
+            {language === 'ta' ? 'நேரத்தைத் தேர்வு செய்க' : 'Select Time Slot'}
+          </h2>
         </div>
 
         {/* Legend for accessibility */}
         <div className="vaango-slot-legend">
           <span className="vaango-legend-item">
-            <span className="vaango-legend-dot vaango-legend-dot--available" /> Available
+            <span className="vaango-legend-dot vaango-legend-dot--available" /> {language === 'ta' ? 'கிடைக்கக்கூடியது' : 'Available'}
           </span>
           <span className="vaango-legend-item">
-            <span className="vaango-legend-dot vaango-legend-dot--selected" /> Selected
+            <span className="vaango-legend-dot vaango-legend-dot--selected" /> {language === 'ta' ? 'தேர்ந்தெடுக்கப்பட்டது' : 'Selected'}
           </span>
           <span className="vaango-legend-item">
-            <span className="vaango-legend-dot vaango-legend-dot--booked" /> Booked
+            <span className="vaango-legend-dot vaango-legend-dot--booked" /> {language === 'ta' ? 'நிரம்பியது' : 'Booked'}
           </span>
         </div>
 
@@ -309,9 +337,11 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
         )}
 
         {isLoadingSlots ? (
-          <div className="vaango-booking-loading">Loading appointment slots...</div>
+          <div className="vaango-booking-loading">{t('loadingText')}</div>
         ) : slots.length === 0 ? (
-          <div className="vaango-booking-empty">No available appointment slots for this date.</div>
+          <div className="vaango-booking-empty">
+            {language === 'ta' ? 'இந்தத் தேதியில் நேர இடைவெளிகள் எதுவும் இல்லை.' : 'No available appointment slots for this date.'}
+          </div>
         ) : (
           <div className="vaango-slots-grid" role="radiogroup" aria-label="Appointment Time Slots">
             {slots.map((slot) => {
@@ -328,8 +358,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                   role="radio"
                   aria-checked={isSelected}
                   disabled={!isAvailable || isSubmitting}
-                  className={`vaango-slot-btn ${isSelected ? 'vaango-slot-btn--selected' : ''
-                    } ${!isAvailable ? 'vaango-slot-btn--booked' : ''}`}
+                  className={`vaango-slot-btn ${isSelected ? 'vaango-slot-btn--selected' : ''} ${!isAvailable ? 'vaango-slot-btn--booked' : ''}`}
                   onClick={() => {
                     if (isAvailable) {
                       setSelectedSlotId(slot.id);
@@ -344,14 +373,18 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                   <div className="vaango-slot-status">
                     {isSelected ? (
                       <span className="vaango-slot-status--text-selected">
-                        <CheckCircle2 size={15} /> Selected
+                        <CheckCircle2 size={15} /> {language === 'ta' ? 'தேர்வு செய்யப்பட்டது' : 'Selected'}
                       </span>
                     ) : isAvailable ? (
                       <span className="vaango-slot-status--text-avail">
-                        {capacity > 1 && remaining <= 3 ? `${remaining} left` : 'Available'}
+                        {capacity > 1 && remaining <= 3
+                          ? (language === 'ta' ? `${remaining} உள்ளது` : `${remaining} left`)
+                          : (language === 'ta' ? 'உள்ளது' : 'Available')}
                       </span>
                     ) : (
-                      <span className="vaango-slot-status--text-booked">Full</span>
+                      <span className="vaango-slot-status--text-booked">
+                        {language === 'ta' ? 'நிரம்பியது' : 'Full'}
+                      </span>
                     )}
                   </div>
                 </button>
@@ -366,45 +399,45 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
         <section className="vaango-booking-section">
           <div className="vaango-booking-section__header">
             <User size={20} className="text-primary" />
-            <h2 className="vaango-booking-section__title">4. Patient / Visitor Contact Details</h2>
+            <h2 className="vaango-booking-section__title">{t('contactDetailsTitle')}</h2>
           </div>
 
           <Card variant="default" padding="lg" className="vaango-contact-review-card">
             <div className="vaango-form-group">
               <label htmlFor="customer-name" className="vaango-form-label">
-                Name <span className="text-error">*</span>
+                {t('yourNameLabel')} <span className="text-error">*</span>
               </label>
               <Input
                 id="customer-name"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Enter visitor/patient name"
+                placeholder={language === 'ta' ? 'உங்கள் பெயரை உள்ளிடுக' : 'Enter visitor/patient name'}
                 leftIcon={<User size={16} />}
               />
             </div>
 
             <div className="vaango-form-group">
               <label htmlFor="customer-phone" className="vaango-form-label">
-                Mobile Phone <span className="text-error">*</span>
+                {t('yourPhoneLabel')} <span className="text-error">*</span>
               </label>
               <Input
                 id="customer-phone"
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="10-digit mobile number"
+                placeholder={language === 'ta' ? '10 இலக்க மொபைல் எண்' : '10-digit mobile number'}
                 leftIcon={<Phone size={16} />}
               />
             </div>
 
             <div className="vaango-form-group">
               <label htmlFor="customer-notes" className="vaango-form-label">
-                Special Request / Symptoms (Optional)
+                {t('bookingNotesPlaceholder')}
               </label>
               <Input
                 id="customer-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g., Seasonal viral fever checkup / specific hairstyle"
+                placeholder={language === 'ta' ? 'கூடுதல் தகவல்கள்...' : 'e.g. Specific checkup / notes'}
                 leftIcon={<FileText size={16} />}
               />
             </div>
@@ -412,29 +445,29 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
             {/* Review Summary Box */}
             <div className="vaango-review-box">
               <div className="vaango-review-row">
-                <span className="vaango-review-label">Service:</span>
+                <span className="vaango-review-label">{language === 'ta' ? 'சேவை:' : 'Service:'}</span>
                 <strong className="vaango-review-value">{selectedService.name}</strong>
               </div>
               {selectedService.provider_name && (
                 <div className="vaango-review-row">
-                  <span className="vaango-review-label">Provider:</span>
+                  <span className="vaango-review-label">{language === 'ta' ? 'நிபுணர்:' : 'Provider:'}</span>
                   <span className="vaango-review-value">{selectedService.provider_name}</span>
                 </div>
               )}
               <div className="vaango-review-row">
-                <span className="vaango-review-label">Date & Time:</span>
+                <span className="vaango-review-label">{language === 'ta' ? 'தேதி & நேரம்:' : 'Date & Time:'}</span>
                 <strong className="vaango-review-value">
                   {selectedSlot.slot_date} at {selectedSlot.start_time} – {selectedSlot.end_time}
                 </strong>
               </div>
               <div className="vaango-review-row">
-                <span className="vaango-review-label">Estimated Fee:</span>
+                <span className="vaango-review-label">{language === 'ta' ? 'மதிப்பீட்டுக் கட்டணம்:' : 'Estimated Fee:'}</span>
                 <strong className="vaango-review-value text-primary">
-                  {selectedService.base_price ? `₹${selectedService.base_price}` : 'Pay at shop'}
+                  {selectedService.base_price ? `₹${selectedService.base_price}` : (language === 'ta' ? 'நேரில் செலுத்தவும்' : 'Pay at shop')}
                 </strong>
               </div>
               <div className="vaango-review-notice">
-                <span>ℹ️ <strong>Note:</strong> Your appointment starts in <strong>REQUESTED</strong> state. The shopkeeper will review and confirm your slot.</span>
+                <span>ℹ️ <strong>{language === 'ta' ? 'குறிப்பு:' : 'Note:'}</strong> {language === 'ta' ? 'உங்கள் முன்பதிவு கடைக்காரரின் ஒப்புதலுக்கு அனுப்பப்படும்.' : 'Your appointment will be reviewed and confirmed by the merchant.'}</span>
               </div>
             </div>
 
@@ -445,7 +478,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
               isLoading={isSubmitting}
               onClick={handleBookAppointment}
             >
-              Request Appointment Slot
+              {isSubmitting ? t('bookingAppointment') : t('bookAppointmentBtn')}
             </Button>
           </Card>
         </section>

@@ -12,6 +12,7 @@ import {
 import { Request } from '../types/database';
 import { WorkflowGroupCode } from '../types/workflow';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -40,6 +41,7 @@ type StatusFilter = 'active' | 'completed' | 'all';
 
 export const OrdersPage: React.FC = () => {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
 
   const [requests, setRequests] = useState<Request[]>([]);
@@ -101,29 +103,32 @@ export const OrdersPage: React.FC = () => {
     return true;
   });
 
-  const getStatusBadge = (state: string, group: WorkflowGroupCode) => {
+  const getStatusBadge = (state: string, _group?: WorkflowGroupCode) => {
+    const key = `status_${state}` as any;
+    const label = t(key) || state;
+
     switch (state) {
       case 'READY':
-        return <Badge variant="success" size="sm" withDot>Ready for Pickup</Badge>;
+        return <Badge variant="success" size="sm" withDot>{label}</Badge>;
       case 'CONFIRMED':
-        return <Badge variant="success" size="sm" withDot>Slot Confirmed</Badge>;
+        return <Badge variant="success" size="sm" withDot>{label}</Badge>;
       case 'PREPARING':
-        return <Badge variant="accent" size="sm" withDot>Preparing</Badge>;
+        return <Badge variant="accent" size="sm" withDot>{label}</Badge>;
       case 'IN_PROGRESS':
-        return <Badge variant="accent" size="sm" withDot>In Progress</Badge>;
+        return <Badge variant="accent" size="sm" withDot>{label}</Badge>;
       case 'ACCEPTED':
-        return <Badge variant="primary" size="sm" withDot>Accepted</Badge>;
+        return <Badge variant="primary" size="sm" withDot>{label}</Badge>;
       case 'COMPLETED':
-        return <Badge variant="success" size="sm">Completed</Badge>;
+        return <Badge variant="success" size="sm">{label}</Badge>;
       case 'DELAYED':
-        return <Badge variant="warning" size="sm">Delayed</Badge>;
+        return <Badge variant="warning" size="sm">{label}</Badge>;
       case 'NO_SHOW':
-        return <Badge variant="error" size="sm">No-Show</Badge>;
+        return <Badge variant="error" size="sm">{label}</Badge>;
       case 'CANCELLED':
       case 'REJECTED':
-        return <Badge variant="error" size="sm">{state}</Badge>;
+        return <Badge variant="error" size="sm">{label}</Badge>;
       default:
-        return <Badge variant="primary" size="sm" withDot>{group === 'APPOINTMENT' ? 'Requested' : 'Requested'}</Badge>;
+        return <Badge variant="primary" size="sm" withDot>{t('status_REQUESTED')}</Badge>;
     }
   };
 
@@ -133,23 +138,23 @@ export const OrdersPage: React.FC = () => {
         <div className="vaango-merchant-notice-banner mb-4">
           <div className="flex items-center gap-2">
             <Store size={18} className="text-primary" />
-            <span className="text-sm font-semibold">You are logged in as a Merchant.</span>
+            <span className="text-sm font-semibold">{language === 'ta' ? 'நீங்கள் கடைக்காரராக உள்நுழைந்துள்ளீர்கள்.' : 'You are logged in as a Merchant.'}</span>
           </div>
           <button
             type="button"
             className="vaango-btn vaango-btn--primary vaango-btn--sm"
             onClick={() => navigate('/shopkeeper/requests')}
           >
-            Go to Merchant Inbox →
+            {language === 'ta' ? 'கடைக்காரர் ஆர்டர்கள் →' : 'Go to Merchant Inbox →'}
           </button>
         </div>
       )}
 
       <div className="vaango-orders-header">
         <div>
-          <h1 className="vaango-orders-title">Your Activity & Requests</h1>
+          <h1 className="vaango-orders-title">{t('ordersHeaderTitle')}</h1>
           <p className="vaango-orders-subtitle">
-            Track orders, reserved appointments, and service requests in real time.
+            {t('ordersHeaderSubtitle')}
           </p>
         </div>
 
@@ -160,28 +165,28 @@ export const OrdersPage: React.FC = () => {
             className={`vaango-group-pill ${groupFilter === 'ALL' ? 'vaango-group-pill--active' : ''}`}
             onClick={() => setGroupFilter('ALL')}
           >
-            All Activity
+            {t('filterAll')}
           </button>
           <button
             type="button"
             className={`vaango-group-pill ${groupFilter === 'ORDER' ? 'vaango-group-pill--active' : ''}`}
             onClick={() => setGroupFilter('ORDER')}
           >
-            <ShoppingBag size={14} /> Orders
+            <ShoppingBag size={14} /> {t('navOrder')}
           </button>
           <button
             type="button"
             className={`vaango-group-pill ${groupFilter === 'APPOINTMENT' ? 'vaango-group-pill--active' : ''}`}
             onClick={() => setGroupFilter('APPOINTMENT')}
           >
-            <Calendar size={14} /> Appointments
+            <Calendar size={14} /> {t('navAppointments')}
           </button>
           <button
             type="button"
             className={`vaango-group-pill ${groupFilter === 'SERVICE' ? 'vaango-group-pill--active' : ''}`}
             onClick={() => setGroupFilter('SERVICE')}
           >
-            <Wrench size={14} /> Services
+            <Wrench size={14} /> {t('navServices')}
           </button>
         </div>
 
@@ -194,7 +199,7 @@ export const OrdersPage: React.FC = () => {
             className={`vaango-orders-tab ${statusFilter === 'active' ? 'vaango-orders-tab--active' : ''}`}
             onClick={() => setStatusFilter('active')}
           >
-            Active ({requests.filter((r) => !['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(r.current_state)).length})
+            {t('filterActive')} ({requests.filter((r) => !['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(r.current_state)).length})
           </button>
           <button
             type="button"
@@ -203,7 +208,7 @@ export const OrdersPage: React.FC = () => {
             className={`vaango-orders-tab ${statusFilter === 'completed' ? 'vaango-orders-tab--active' : ''}`}
             onClick={() => setStatusFilter('completed')}
           >
-            Past ({requests.filter((r) => ['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(r.current_state)).length})
+            {t('filterCompleted')} ({requests.filter((r) => ['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(r.current_state)).length})
           </button>
           <button
             type="button"
@@ -212,7 +217,7 @@ export const OrdersPage: React.FC = () => {
             className={`vaango-orders-tab ${statusFilter === 'all' ? 'vaango-orders-tab--active' : ''}`}
             onClick={() => setStatusFilter('all')}
           >
-            All ({requests.length})
+            {t('filterAll')} ({requests.length})
           </button>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { User, Lock, Mail, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, KeyRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -24,6 +25,7 @@ export const LoginPage: React.FC = () => {
     updatePassword,
     refreshUser,
   } = useAuth();
+  const { t } = useLanguage();
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,6 +50,7 @@ export const LoginPage: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
   const [isResendingEmail, setIsResendingEmail] = useState(false);
+  const [isCheckingVerification, setIsCheckingVerification] = useState(false);
 
   // If already authenticated upon arrival, redirect directly to destination once verified
   useEffect(() => {
@@ -91,15 +94,20 @@ export const LoginPage: React.FC = () => {
     setSuccessMsg(null);
     setIsGoogleLoading(true);
 
-    if (from && from !== '/') {
-      sessionStorage.setItem('vaangly_auth_redirect', from);
-      localStorage.setItem('vaangly_auth_redirect', from);
-    }
+    try {
+      if (from && from !== '/') {
+        sessionStorage.setItem('vaangly_auth_redirect', from);
+        localStorage.setItem('vaangly_auth_redirect', from);
+      }
 
-    const result = await signInWithGoogle(from);
-    if (!result.success) {
+      const result = await signInWithGoogle(from);
+      if (!result.success) {
+        setErrorMsg(result.error || t('genericError'));
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || t('genericError'));
+    } finally {
       setIsGoogleLoading(false);
-      setErrorMsg(result.error || 'Failed to initialize Google authentication. Please try again.');
     }
   };
 
@@ -111,27 +119,31 @@ export const LoginPage: React.FC = () => {
     setUnconfirmedEmail(null);
 
     if (!email.trim()) {
-      setErrorMsg('Please enter your email address.');
+      setErrorMsg(t('enterEmailPrompt'));
       return;
     }
     if (!password) {
-      setErrorMsg('Please enter your password.');
+      setErrorMsg(t('enterPasswordPrompt'));
       return;
     }
 
     setIsSubmitting(true);
-    const result = await loginWithEmail(email, password);
-    setIsSubmitting(false);
-
-    if (result.success) {
-      setSuccessMsg(null);
-      setUnconfirmedEmail(null);
-      navigate(from, { replace: true });
-    } else {
-      setErrorMsg(result.error || 'Failed to sign in. Please check your credentials.');
-      if (result.isEmailUnconfirmed) {
-        setUnconfirmedEmail(email.trim().toLowerCase());
+    try {
+      const result = await loginWithEmail(email, password);
+      if (result.success) {
+        setSuccessMsg(null);
+        setUnconfirmedEmail(null);
+        navigate(from, { replace: true });
+      } else {
+        setErrorMsg(result.error || t('genericError'));
+        if (result.isEmailUnconfirmed) {
+          setUnconfirmedEmail(email.trim().toLowerCase());
+        }
       }
+    } catch (err: any) {
+      setErrorMsg(err?.message || t('genericError'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -143,43 +155,46 @@ export const LoginPage: React.FC = () => {
     setUnconfirmedEmail(null);
 
     if (!fullName.trim()) {
-      setErrorMsg('Please enter your full name.');
+      setErrorMsg(t('enterNamePrompt'));
       return;
     }
     if (!email.trim()) {
-      setErrorMsg('Please enter your email address.');
+      setErrorMsg(t('enterEmailPrompt'));
       return;
     }
     if (!password || password.length < 6) {
-      setErrorMsg('Password must be at least 6 characters long.');
+      setErrorMsg(t('passwordMinHint'));
       return;
     }
     if (password !== confirmPassword) {
-      setErrorMsg('Passwords do not match. Please re-enter.');
+      setErrorMsg(t('passwordMismatch'));
       return;
     }
 
     setIsSubmitting(true);
-    if (from && from !== '/') {
-      sessionStorage.setItem('vaangly_auth_redirect', from);
-      localStorage.setItem('vaangly_auth_redirect', from);
-    }
-
-    const result = await signUpWithEmail(email, password, fullName, 'customer', undefined, from);
-    setIsSubmitting(false);
-
-    if (result.success) {
-      if (result.requiresEmailConfirmation) {
-        setSuccessMsg(
-          result.message ||
-            'Account created! We have sent a confirmation link to your email. Please verify your email before signing in.'
-        );
-        setUnconfirmedEmail(email.trim().toLowerCase());
-      } else {
-        navigate(from, { replace: true });
+    try {
+      if (from && from !== '/') {
+        sessionStorage.setItem('vaangly_auth_redirect', from);
+        localStorage.setItem('vaangly_auth_redirect', from);
       }
-    } else {
-      setErrorMsg(result.error || 'Registration failed. Please check your details and try again.');
+
+      const result = await signUpWithEmail(email, password, fullName, 'customer', undefined, from);
+      if (result.success) {
+        if (result.requiresEmailConfirmation) {
+          setSuccessMsg(
+            result.message || t('verificationEmailSent')
+          );
+          setUnconfirmedEmail(email.trim().toLowerCase());
+        } else {
+          navigate(from, { replace: true });
+        }
+      } else {
+        setErrorMsg(result.error || t('genericError'));
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || t('genericError'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -190,18 +205,22 @@ export const LoginPage: React.FC = () => {
     setSuccessMsg(null);
 
     if (!email.trim()) {
-      setErrorMsg('Please enter the email address associated with your account.');
+      setErrorMsg(t('enterEmailPrompt'));
       return;
     }
 
     setIsSubmitting(true);
-    const result = await resetPasswordForEmail(email);
-    setIsSubmitting(false);
-
-    if (result.success) {
-      setSuccessMsg(`If an account exists for ${email.trim()}, a password reset link has been sent. Please check your inbox.`);
-    } else {
-      setErrorMsg(result.error || 'Failed to request password reset. Please try again.');
+    try {
+      const result = await resetPasswordForEmail(email);
+      if (result.success) {
+        setSuccessMsg(t('verificationEmailSent'));
+      } else {
+        setErrorMsg(result.error || t('genericError'));
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || t('genericError'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -212,25 +231,29 @@ export const LoginPage: React.FC = () => {
     setSuccessMsg(null);
 
     if (!password || password.length < 6) {
-      setErrorMsg('Password must be at least 6 characters long.');
+      setErrorMsg(t('passwordMinHint'));
       return;
     }
     if (password !== confirmPassword) {
-      setErrorMsg('Passwords do not match. Please re-enter.');
+      setErrorMsg(t('passwordMismatch'));
       return;
     }
 
     setIsSubmitting(true);
-    const result = await updatePassword(password);
-    setIsSubmitting(false);
-
-    if (result.success) {
-      setSuccessMsg('Your password has been updated successfully. Redirecting you now...');
-      window.setTimeout(() => {
-        navigate(from, { replace: true });
-      }, 1200);
-    } else {
-      setErrorMsg(result.error || 'Failed to update password. Please request a new reset link.');
+    try {
+      const result = await updatePassword(password);
+      if (result.success) {
+        setSuccessMsg(t('passwordUpdatedSuccess'));
+        window.setTimeout(() => {
+          navigate(from, { replace: true });
+        }, 1200);
+      } else {
+        setErrorMsg(result.error || t('genericError'));
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || t('genericError'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -240,13 +263,17 @@ export const LoginPage: React.FC = () => {
     if (!targetEmail) return;
 
     setIsResendingEmail(true);
-    const result = await resendEmailConfirmation(targetEmail);
-    setIsResendingEmail(false);
-
-    if (result.success) {
-      setSuccessMsg(`A new confirmation email has been sent to ${targetEmail}. Please check your inbox.`);
-    } else {
-      setErrorMsg(result.error || 'Failed to resend confirmation email. Please try again later.');
+    try {
+      const result = await resendEmailConfirmation(targetEmail);
+      if (result.success) {
+        setSuccessMsg(t('verificationEmailSent'));
+      } else {
+        setErrorMsg(result.error || t('genericError'));
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || t('genericError'));
+    } finally {
+      setIsResendingEmail(false);
     }
   };
 
@@ -259,22 +286,22 @@ export const LoginPage: React.FC = () => {
             <span>V</span>
           </div>
           <h1 className="vaango-auth-title">
-            {mode === 'signin' && 'Welcome to Vaangly'}
-            {mode === 'signup' && 'Create Your Account'}
-            {mode === 'forgot' && 'Reset Your Password'}
-            {mode === 'recovery' && 'Set New Password'}
+            {mode === 'signin' && t('signInTitle')}
+            {mode === 'signup' && t('signUpTitle')}
+            {mode === 'forgot' && t('authForgotTitle')}
+            {mode === 'recovery' && t('authRecoveryTitle')}
           </h1>
           <p className="vaango-auth-subtitle">
             {mode === 'signin' &&
               (from.includes('/shopkeeper')
-                ? 'Sign in to your Vaangly account to begin or continue your partner application.'
-                : 'Sign in to explore neighborhood shops, pre-orders, and local services in Kangeyam.')}
+                ? t('authPartnerSignInSubtitle')
+                : t('signInSubtitle'))}
             {mode === 'signup' &&
               (from.includes('/shopkeeper')
-                ? 'Register your Vaangly account to begin your partner onboarding. One account for shopping and business.'
-                : 'Join Vaangly to discover local stores, place pre-orders, and book neighborhood services.')}
-            {mode === 'forgot' && 'Enter your registered email address to receive a secure password reset link.'}
-            {mode === 'recovery' && 'Enter and confirm your new account password.'}
+                ? t('authPartnerSignUpSubtitle')
+                : t('signUpSubtitle'))}
+            {mode === 'forgot' && t('authForgotSubtitle')}
+            {mode === 'recovery' && t('authRecoverySubtitle')}
           </p>
         </div>
 
@@ -294,7 +321,7 @@ export const LoginPage: React.FC = () => {
               }}
             >
               <Lock size={16} />
-              <span>Sign In</span>
+              <span>{t('signInSubmit')}</span>
             </button>
             <button
               type="button"
@@ -309,7 +336,7 @@ export const LoginPage: React.FC = () => {
               }}
             >
               <User size={16} />
-              <span>Sign Up</span>
+              <span>{t('signUpSubmit')}</span>
             </button>
           </div>
         )}
@@ -344,26 +371,34 @@ export const LoginPage: React.FC = () => {
             }}
           >
             <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-              Waiting for email verification for <strong>{unconfirmedEmail}</strong>.
+              {t('waitingEmailVerification', { email: unconfirmedEmail })}
             </span>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <Button
                 type="button"
                 variant="primary"
                 size="sm"
+                isLoading={isCheckingVerification}
                 onClick={async () => {
                   setErrorMsg(null);
-                  const updated = await refreshUser();
-                  if (updated?.is_verified) {
-                    setSuccessMsg('Email verified! Redirecting you now...');
-                    setUnconfirmedEmail(null);
-                    setTimeout(() => navigate(from, { replace: true }), 500);
-                  } else {
-                    setErrorMsg('Email confirmation is not detected yet. Please click the link sent to your email or click Resend below.');
+                  setIsCheckingVerification(true);
+                  try {
+                    const updated = await refreshUser();
+                    if (updated?.is_verified) {
+                      setSuccessMsg(t('emailVerifiedRedirect'));
+                      setUnconfirmedEmail(null);
+                      setTimeout(() => navigate(from, { replace: true }), 500);
+                    } else {
+                      setErrorMsg(t('emailNotDetectedYet'));
+                    }
+                  } catch (err: any) {
+                    setErrorMsg(err?.message || t('genericError'));
+                  } finally {
+                    setIsCheckingVerification(false);
                   }
                 }}
               >
-                I Have Verified (Check Status)
+                {t('checkEmailVerificationBtn')}
               </Button>
               <Button
                 type="button"
@@ -372,7 +407,7 @@ export const LoginPage: React.FC = () => {
                 isLoading={isResendingEmail}
                 onClick={handleResendConfirmation}
               >
-                Resend Verification Email
+                {t('resendVerificationLink')}
               </Button>
             </div>
           </div>
@@ -383,7 +418,7 @@ export const LoginPage: React.FC = () => {
         {/* ========================================================= */}
         {mode === 'signin' && (
           <form onSubmit={handleSignIn} className="vaango-auth-form">
-            <FormField id="signin-email" label="Email Address" required>
+            <FormField id="signin-email" label={t('emailLabel')} required>
               <Input
                 id="signin-email"
                 type="email"
@@ -396,7 +431,7 @@ export const LoginPage: React.FC = () => {
               />
             </FormField>
 
-            <FormField id="signin-password" label="Password" required>
+            <FormField id="signin-password" label={t('passwordLabel')} required>
               <Input
                 id="signin-password"
                 type="password"
@@ -420,7 +455,7 @@ export const LoginPage: React.FC = () => {
                   setSuccessMsg(null);
                 }}
               >
-                Forgot password?
+                {t('forgotPasswordLink')}
               </button>
             </div>
 
@@ -432,7 +467,7 @@ export const LoginPage: React.FC = () => {
               isLoading={isSubmitting}
               rightIcon={<ArrowRight size={18} />}
             >
-              Sign In
+              {t('signInSubmit')}
             </Button>
 
             {/* Divider */}
@@ -446,7 +481,7 @@ export const LoginPage: React.FC = () => {
             >
               <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
               <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                or
+                {t('orDivider')}
               </span>
               <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
             </div>
@@ -490,7 +525,7 @@ export const LoginPage: React.FC = () => {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                 />
               </svg>
-              <span>Continue with Google</span>
+              <span>{t('googleSignInBtn')}</span>
             </Button>
           </form>
         )}
@@ -500,7 +535,7 @@ export const LoginPage: React.FC = () => {
         {/* ========================================================= */}
         {mode === 'signup' && (
           <form onSubmit={handleSignUp} className="vaango-auth-form">
-            <FormField id="signup-name" label="Full Name" required>
+            <FormField id="signup-name" label={t('fullNameLabel')} required>
               <Input
                 id="signup-name"
                 type="text"
@@ -513,7 +548,7 @@ export const LoginPage: React.FC = () => {
               />
             </FormField>
 
-            <FormField id="signup-email" label="Email Address" required>
+            <FormField id="signup-email" label={t('emailLabel')} required>
               <Input
                 id="signup-email"
                 type="email"
@@ -526,7 +561,7 @@ export const LoginPage: React.FC = () => {
               />
             </FormField>
 
-            <FormField id="signup-password" label="Password" required hint="Minimum 6 characters">
+            <FormField id="signup-password" label={t('passwordLabel')} required hint={t('passwordMinHint')}>
               <Input
                 id="signup-password"
                 type="password"
@@ -534,12 +569,12 @@ export const LoginPage: React.FC = () => {
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
+                placeholder={t('passwordMinHint')}
                 leftIcon={<Lock size={18} />}
               />
             </FormField>
 
-            <FormField id="signup-confirm-password" label="Confirm Password" required>
+            <FormField id="signup-confirm-password" label={t('confirmPasswordLabel')} required>
               <Input
                 id="signup-confirm-password"
                 type="password"
@@ -547,7 +582,7 @@ export const LoginPage: React.FC = () => {
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter password"
+                placeholder={t('confirmPasswordLabel')}
                 leftIcon={<Lock size={18} />}
               />
             </FormField>
@@ -560,7 +595,7 @@ export const LoginPage: React.FC = () => {
               isLoading={isSubmitting}
               rightIcon={<ArrowRight size={18} />}
             >
-              Create Account
+              {t('signUpSubmit')}
             </Button>
 
             {/* Divider */}
@@ -574,7 +609,7 @@ export const LoginPage: React.FC = () => {
             >
               <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
               <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                or
+                {t('orDivider')}
               </span>
               <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
             </div>
@@ -618,7 +653,7 @@ export const LoginPage: React.FC = () => {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                 />
               </svg>
-              <span>Continue with Google</span>
+              <span>{t('googleSignInBtn')}</span>
             </Button>
           </form>
         )}
@@ -628,7 +663,7 @@ export const LoginPage: React.FC = () => {
         {/* ========================================================= */}
         {mode === 'forgot' && (
           <form onSubmit={handleForgotPassword} className="vaango-auth-form">
-            <FormField id="forgot-email" label="Account Email Address" required>
+            <FormField id="forgot-email" label={t('emailLabel')} required>
               <Input
                 id="forgot-email"
                 type="email"
@@ -649,7 +684,7 @@ export const LoginPage: React.FC = () => {
               isLoading={isSubmitting}
               leftIcon={<KeyRound size={18} />}
             >
-              Send Password Reset Link
+              {t('sendResetLinkBtn')}
             </Button>
 
             <Button
@@ -663,7 +698,7 @@ export const LoginPage: React.FC = () => {
                 setSuccessMsg(null);
               }}
             >
-              Back to Sign In
+              {t('backToSignInBtn')}
             </Button>
           </form>
         )}
@@ -673,7 +708,7 @@ export const LoginPage: React.FC = () => {
         {/* ========================================================= */}
         {mode === 'recovery' && (
           <form onSubmit={handlePasswordRecovery} className="vaango-auth-form">
-            <FormField id="recovery-password" label="New Password" required hint="Minimum 6 characters">
+            <FormField id="recovery-password" label={t('passwordLabel')} required hint={t('passwordMinHint')}>
               <Input
                 id="recovery-password"
                 type="password"
@@ -681,12 +716,12 @@ export const LoginPage: React.FC = () => {
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter new password"
+                placeholder={t('passwordMinHint')}
                 leftIcon={<Lock size={18} />}
               />
             </FormField>
 
-            <FormField id="recovery-confirm-password" label="Confirm New Password" required>
+            <FormField id="recovery-confirm-password" label={t('confirmPasswordLabel')} required>
               <Input
                 id="recovery-confirm-password"
                 type="password"
@@ -694,7 +729,7 @@ export const LoginPage: React.FC = () => {
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter new password"
+                placeholder={t('confirmPasswordLabel')}
                 leftIcon={<Lock size={18} />}
               />
             </FormField>
@@ -707,7 +742,7 @@ export const LoginPage: React.FC = () => {
               isLoading={isSubmitting}
               leftIcon={<ShieldCheck size={18} />}
             >
-              Save New Password
+              {t('saveNewPasswordBtn')}
             </Button>
           </form>
         )}
@@ -715,7 +750,7 @@ export const LoginPage: React.FC = () => {
         {/* Footer */}
         <div className="vaango-auth-footer">
           <p>
-            Are you a merchant or store owner?{' '}
+            {t('authMerchantPrompt')}{' '}
             <Link
               to={isAuthenticated ? '/shopkeeper/apply' : '/login?redirect=/shopkeeper/apply'}
               className="vaango-auth-link"
@@ -726,7 +761,7 @@ export const LoginPage: React.FC = () => {
                 }
               }}
             >
-              Apply to partner
+              {t('authApplyPartner')}
             </Link>
           </p>
         </div>
