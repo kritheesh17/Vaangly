@@ -18,7 +18,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   allowedRoles,
   requireVerified = true,
 }) => {
-  const { user, role, isLoading, isAuthenticated, isEmailVerified } = useAuth();
+  const { user, role, isLoading, isAuthenticated, isEmailVerified, refreshUser } = useAuth();
+  const [isCheckingStatus, setIsCheckingStatus] = React.useState(false);
   const location = useLocation();
 
   if (isLoading) {
@@ -75,13 +76,24 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           Your email address (<strong>{user.email || 'your account'}</strong>) is not yet verified.
           Please complete email verification to access this protected area.
         </p>
-        <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'center' }}>
-          <Link to="/login" state={{ from: location }}>
-            <Button variant="primary">Verify Email Now</Button>
-          </Link>
-          <Button variant="outline" onClick={() => window.history.back()}>
-            Go Back
+        <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Button
+            variant="primary"
+            isLoading={isCheckingStatus}
+            onClick={async () => {
+              setIsCheckingStatus(true);
+              try {
+                await refreshUser();
+              } finally {
+                setIsCheckingStatus(false);
+              }
+            }}
+          >
+            Check Status
           </Button>
+          <Link to={`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} state={{ from: location }}>
+            <Button variant="outline">Sign In / Switch Account</Button>
+          </Link>
         </div>
       </div>
     );

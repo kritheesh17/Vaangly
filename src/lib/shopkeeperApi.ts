@@ -791,11 +791,36 @@ export const submitShopApplication = async (
   if (isSupabaseConfigured) {
     try {
       // 1. Authoritative check: applicant must have a valid authenticated Supabase session
-      const { data: authData, error: authError } = await supabase.auth.getUser();
+      const authUserPromise = supabase.auth.getUser();
+      const authTimeout = new Promise<{ data: { user: null }; error: Error }>((_, reject) =>
+        setTimeout(() => reject(new Error('Authentication verification timed out. Please refresh and try again.')), 8000)
+      );
+      const { data: authData, error: authError } = await Promise.race([authUserPromise, authTimeout]);
+
       if (authError || !authData?.user) {
         return { success: false, error: 'You must be signed in to submit an application.' };
       }
       const verifiedApplicantId = authData.user.id;
+
+      // Ensure profile exists in public.profiles to satisfy foreign key REFERENCES public.profiles(id)
+      const { data: profileCheck } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', verifiedApplicantId)
+        .maybeSingle();
+
+      if (!profileCheck) {
+        await supabase
+          .from('profiles')
+          .insert({
+            id: verifiedApplicantId,
+            role: 'customer',
+            full_name: application.owner_name?.trim() || authData.user.user_metadata?.full_name || 'Partner Applicant',
+            phone: application.contact_phone.trim(),
+            email: authData.user.email || null,
+            is_verified: Boolean(authData.user.email_confirmed_at || authData.user.confirmed_at),
+          });
+      }
 
       // 2. Prevent duplicate application creation on refresh/retry
       const { data: existingApp } = await supabase
@@ -838,13 +863,48 @@ export const submitShopApplication = async (
         }
       }
 
+      // 4. Resolve location_id to valid active location in public.locations
+      let resolvedLocationId = application.location_id;
+      const isLocUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(resolvedLocationId);
+      if (isLocUuid) {
+        const { data: matchedLocation } = await supabase
+          .from('locations')
+          .select('id')
+          .eq('id', resolvedLocationId)
+          .maybeSingle();
+
+        if (!matchedLocation?.id) {
+          const { data: fallbackLoc } = await supabase
+            .from('locations')
+            .select('id')
+            .eq('is_active', true)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          if (fallbackLoc?.id) {
+            resolvedLocationId = fallbackLoc.id;
+          }
+        }
+      } else {
+        const { data: fallbackLoc } = await supabase
+          .from('locations')
+          .select('id')
+          .eq('is_active', true)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (fallbackLoc?.id) {
+          resolvedLocationId = fallbackLoc.id;
+        }
+      }
+
       const newAppPayload = {
         applicant_id: verifiedApplicantId,
         shop_name: application.shop_name.trim(),
         owner_name: application.owner_name?.trim() || '',
         description: application.description?.trim() || null,
         shop_type_id: resolvedShopTypeId,
-        location_id: application.location_id,
+        location_id: resolvedLocationId,
         contact_phone: application.contact_phone.trim(),
         status: 'submitted' as const,
         photo_url: application.photo_url || null,
@@ -865,7 +925,15 @@ export const submitShopApplication = async (
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '42501') {
+          return { success: false, error: 'Permission denied: Please ensure you are submitting from your verified partner account.' };
+        }
+        if (error.code === '23503') {
+          return { success: false, error: 'Invalid location or category selected. Please re-select your town and category.' };
+        }
+        throw error;
+      }
       return { success: true, application: data as ShopApplication };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to submit application.';

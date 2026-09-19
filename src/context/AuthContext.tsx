@@ -31,6 +31,7 @@ export interface AuthContextType {
   resetPasswordForEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
   updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<Profile | null>;
   switchDemoRole: (role: UserRole) => void;
 }
 
@@ -253,6 +254,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // -------------------------------------------------------------
+  // REFRESH AUTHENTICATED USER STATE
+  // -------------------------------------------------------------
+  const refreshUser = useCallback(async (): Promise<Profile | null> => {
+    if (!isSupabaseConfigured) return user;
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData?.user) {
+        return null;
+      }
+      const authUser = authData.user;
+      const isGoogleOAuth = authUser.app_metadata?.provider === 'google' ||
+        Boolean(authUser.identities?.some((id: { provider?: string }) => id.provider === 'google'));
+      const isEmailConfirmed = Boolean(authUser.email_confirmed_at || authUser.confirmed_at || isGoogleOAuth);
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      let activeProfile: Profile;
+      if (profile) {
+        activeProfile = {
+          ...(profile as Profile),
+          address: (profile as Profile).address || null,
+          is_verified: isEmailConfirmed,
+        };
+      } else {
+        activeProfile = {
+          id: authUser.id,
+          role: 'customer',
+          full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Customer',
+          phone: authUser.phone || null,
+          email: authUser.email || null,
+          address: null,
+          avatar_url: authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || null,
+          preferred_location_id: null,
+          is_verified: isEmailConfirmed,
+          created_at: authUser.created_at || new Date().toISOString(),
+          updated_at: authUser.created_at || new Date().toISOString(),
+        };
+      }
+      setUser(activeProfile);
+      return activeProfile;
+    } catch (err) {
+      console.error('Error in refreshUser:', err);
+      return user;
+    }
+  }, [user]);
+
+  // -------------------------------------------------------------
   // EMAIL CONFIRMATION RESEND (Used by Auth Callback)
   // -------------------------------------------------------------
   const resendEmailConfirmation = async (email: string) => {
@@ -416,6 +468,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true, requiresEmailConfirmation: false };
       } else {
         // Email confirmation is required by Supabase
+        localStorage.setItem('vaangly_pending_confirmation_email', cleanEmail);
         return {
           success: true,
           requiresEmailConfirmation: true,
@@ -591,6 +644,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       localStorage.removeItem(LOCAL_STORAGE_DEMO_KEY);
       localStorage.removeItem(LOCAL_STORAGE_DEMO_USER);
+      localStorage.removeItem('vaangly_pending_confirmation_email');
     } finally {
       setIsLoading(false);
     }
@@ -622,6 +676,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetPasswordForEmail,
         updatePassword,
         signOut,
+        refreshUser,
         switchDemoRole,
       }}
     >

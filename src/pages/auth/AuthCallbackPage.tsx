@@ -10,7 +10,7 @@ type CallbackState = 'loading' | 'success' | 'error';
 
 export const AuthCallbackPage: React.FC = () => {
   const navigate = useNavigate();
-  const { resendEmailConfirmation } = useAuth();
+  const { resendEmailConfirmation, refreshUser } = useAuth();
   const [state, setState] = useState<CallbackState>('loading');
   const [message, setMessage] = useState('Completing your authentication...');
   const [email, setEmail] = useState('');
@@ -37,11 +37,22 @@ export const AuthCallbackPage: React.FC = () => {
       }
 
       const code = query.get('code');
+      const tokenHash = query.get('token_hash');
+      const otpType = (query.get('type') || 'signup') as any;
+
       if (code) {
         try {
-          await supabase.auth.exchangeCodeForSession(code);
+          const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeErr) console.warn('exchangeCodeForSession warning:', exchangeErr.message);
         } catch (exchangeErr) {
           console.error('Error exchanging code for session:', exchangeErr);
+        }
+      } else if (tokenHash) {
+        try {
+          const { error: verifyErr } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: otpType });
+          if (verifyErr) console.warn('verifyOtp warning:', verifyErr.message);
+        } catch (verifyErr) {
+          console.error('Error verifying OTP token hash:', verifyErr);
         }
       }
 
@@ -139,6 +150,7 @@ export const AuthCallbackPage: React.FC = () => {
          Boolean(resolvedAddress.trim()));
 
       localStorage.removeItem('vaangly_pending_confirmation_email');
+      await refreshUser();
       setState('success');
       setMessage('Authentication confirmed. Redirecting you now...');
       window.setTimeout(() => {

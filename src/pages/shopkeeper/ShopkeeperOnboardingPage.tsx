@@ -83,6 +83,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
 
   // Keep owner name and contact phone in sync with authenticated user
   useEffect(() => {
@@ -267,10 +268,25 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         reader.readAsDataURL(file);
       });
     }
-    const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: false });
-    if (error) throw error;
+
+    const isPdf = file.name.toLowerCase().endsWith('.pdf');
+    const mimeType = file.type || (bucket === 'shop-documents' && isPdf ? 'application/pdf' : 'image/jpeg');
+
+    const uploadPromise = supabase.storage.from(bucket).upload(path, file, {
+      upsert: true,
+      contentType: mimeType,
+    });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Uploading "${file.name}" timed out. Please check your internet connection.`)), 25000)
+    );
+
+    const { error } = await Promise.race([uploadPromise, timeoutPromise]);
+    if (error) {
+      throw new Error(`Failed to upload ${file.name}: ${error.message}`);
+    }
     if (bucket === 'shop-documents') return path;
-    return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
+    return publicData.publicUrl;
   };
 
   useEffect(() => {
@@ -321,24 +337,40 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       return;
     }
 
+    if (isSubmitting) return;
     setIsSubmitting(true);
     try {
       let activeUserId = user.id;
       if (isSupabaseConfigured) {
-        const { data: authData } = await supabase.auth.getUser();
+        const authUserPromise = supabase.auth.getUser();
+        const authTimeout = new Promise<{ data: { user: null }; error: Error }>((_, reject) =>
+          setTimeout(() => reject(new Error('Authentication verification timed out. Please refresh and try again.')), 8000)
+        );
+        const { data: authData } = await Promise.race([authUserPromise, authTimeout]);
         if (!authData?.user) {
           throw new Error('Please sign in to submit your partner application.');
         }
         activeUserId = authData.user.id;
       }
 
-      const photoUrls = await Promise.all(
-        shopPhotos.map((file, index) => uploadFile('shop-photos', `${activeUserId}/photos/${Date.now()}_${index}.jpg`, file))
-      );
-      const idProofPath = await uploadFile('shop-documents', `${activeUserId}/id_proof_${Date.now()}${idProofFile.name.toLowerCase().endsWith('.pdf') ? '.pdf' : '.jpg'}`, idProofFile);
-      const upiQrUrl = upiQrFile
-        ? await uploadFile('shop-photos', `${activeUserId}/upi-qr/upi_qr_${Date.now()}.jpg`, upiQrFile)
-        : null;
+      // Upload storefront photos sequentially to ensure connection reliability
+      const photoUrls: string[] = [];
+      for (let i = 0; i < shopPhotos.length; i++) {
+        const file = shopPhotos[i];
+        const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const url = await uploadFile('shop-photos', `${activeUserId}/photos/${Date.now()}_${i}.${ext}`, file);
+        photoUrls.push(url);
+      }
+
+      const idExt = idProofFile.name.toLowerCase().endsWith('.pdf') ? 'pdf' : (idProofFile.name.split('.').pop()?.toLowerCase() || 'jpg');
+      const idProofPath = await uploadFile('shop-documents', `${activeUserId}/id_proof_${Date.now()}.${idExt}`, idProofFile);
+
+      let upiQrUrl: string | null = null;
+      if (upiQrFile) {
+        const upiExt = upiQrFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+        upiQrUrl = await uploadFile('shop-photos', `${activeUserId}/upi-qr/upi_qr_${Date.now()}.${upiExt}`, upiQrFile);
+      }
+
       const res = await submitShopApplication({
         applicant_id: activeUserId,
         shop_name: shopName.trim(),
@@ -360,9 +392,11 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       if (res.success && res.application) {
         setExistingApp(res.application);
         success('Storefront application submitted for verification!');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        setFormError(res.error || 'Failed to submit application.');
-        toastError(res.error || 'Failed to submit application.');
+        const errMsg = res.error || 'Failed to submit application.';
+        setFormError(errMsg);
+        toastError(errMsg);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error submitting application';
@@ -774,7 +808,12 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                 {photoPreviews.length > 0 && (
                   <div className="vaango-photo-gallery">
                     {photoPreviews.map((item, idx) => (
-                      <div key={item.id} className="vaango-photo-tile">
+                      <div
+                        key={item.id}
+                        className="vaango-photo-tile"
+                        onClick={() => setPreviewModalUrl(item.url)}
+                        title="Click to view full photo"
+                      >
                         <img src={item.url} alt={`Storefront Preview ${idx + 1}`} className="vaango-photo-tile__img" />
                         <span className="vaango-photo-tile__badge">
                           {idx === 0 ? 'Primary' : `#${idx + 1}`}
@@ -782,7 +821,10 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                         <button
                           type="button"
                           className="vaango-photo-tile__remove"
-                          onClick={() => handleRemovePhoto(idx)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemovePhoto(idx);
+                          }}
                           title="Remove photo"
                         >
                           <X size={14} />
@@ -1016,7 +1058,17 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                         key={item.id}
                         src={item.url}
                         alt={`Thumbnail ${idx + 1}`}
-                        style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
+                        onClick={() => setPreviewModalUrl(item.url)}
+                        title="Click to view full photo"
+                        style={{
+                          width: '72px',
+                          height: '72px',
+                          objectFit: 'cover',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1.5px solid var(--color-border)',
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                        }}
                       />
                     ))}
                   </div>
@@ -1060,6 +1112,29 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Lightbox Modal for Photo Preview */}
+      {previewModalUrl && (
+        <div
+          className="vaango-image-modal-backdrop"
+          onClick={() => setPreviewModalUrl(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Full size photo preview"
+        >
+          <div className="vaango-image-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="vaango-image-modal-close"
+              onClick={() => setPreviewModalUrl(null)}
+              title="Close preview"
+            >
+              <X size={20} />
+            </button>
+            <img src={previewModalUrl} alt="Storefront full preview" className="vaango-image-modal-img" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

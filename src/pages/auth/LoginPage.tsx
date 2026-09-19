@@ -22,6 +22,7 @@ export const LoginPage: React.FC = () => {
     resendEmailConfirmation,
     resetPasswordForEmail,
     updatePassword,
+    refreshUser,
   } = useAuth();
 
   const navigate = useNavigate();
@@ -48,10 +49,16 @@ export const LoginPage: React.FC = () => {
   const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
   const [isResendingEmail, setIsResendingEmail] = useState(false);
 
-  // If already authenticated upon arrival, redirect directly to destination
+  // If already authenticated upon arrival, redirect directly to destination once verified
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated && user) {
-      navigate(from, { replace: true });
+      if (user.is_verified) {
+        setSuccessMsg(null);
+        setUnconfirmedEmail(null);
+        navigate(from, { replace: true });
+      } else {
+        setUnconfirmedEmail(user.email?.trim().toLowerCase() || null);
+      }
     }
   }, [isAuthLoading, isAuthenticated, user, navigate, from]);
 
@@ -117,6 +124,8 @@ export const LoginPage: React.FC = () => {
     setIsSubmitting(false);
 
     if (result.success) {
+      setSuccessMsg(null);
+      setUnconfirmedEmail(null);
       navigate(from, { replace: true });
     } else {
       setErrorMsg(result.error || 'Failed to sign in. Please check your credentials.');
@@ -281,6 +290,7 @@ export const LoginPage: React.FC = () => {
                 setMode('signin');
                 setErrorMsg(null);
                 setSuccessMsg(null);
+                setUnconfirmedEmail(null);
               }}
             >
               <Lock size={16} />
@@ -295,6 +305,7 @@ export const LoginPage: React.FC = () => {
                 setMode('signup');
                 setErrorMsg(null);
                 setSuccessMsg(null);
+                setUnconfirmedEmail(null);
               }}
             >
               <User size={16} />
@@ -333,17 +344,37 @@ export const LoginPage: React.FC = () => {
             }}
           >
             <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-              Didn't receive the verification email or link expired?
+              Waiting for email verification for <strong>{unconfirmedEmail}</strong>.
             </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              isLoading={isResendingEmail}
-              onClick={handleResendConfirmation}
-            >
-              Resend Verification Email
-            </Button>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={async () => {
+                  setErrorMsg(null);
+                  const updated = await refreshUser();
+                  if (updated?.is_verified) {
+                    setSuccessMsg('Email verified! Redirecting you now...');
+                    setUnconfirmedEmail(null);
+                    setTimeout(() => navigate(from, { replace: true }), 500);
+                  } else {
+                    setErrorMsg('Email confirmation is not detected yet. Please click the link sent to your email or click Resend below.');
+                  }
+                }}
+              >
+                I Have Verified (Check Status)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                isLoading={isResendingEmail}
+                onClick={handleResendConfirmation}
+              >
+                Resend Verification Email
+              </Button>
+            </div>
           </div>
         )}
 
