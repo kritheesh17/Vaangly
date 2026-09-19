@@ -1,9 +1,9 @@
 // Shopkeeper Data Access & Business Domain Layer for Vaango Phase 3
 
-import { Shop, ShopProduct, Request, RequestEvent, ShopApplication, ApplicationStatus, SlotConfig } from '../types/database';
+import { Shop, ShopProduct, Request, RequestEvent, ShopApplication, ApplicationStatus, SlotConfig, ShopType } from '../types/database';
 import { WorkflowStateCode, WorkflowGroupCode } from '../types/workflow';
 import { supabase, isSupabaseConfigured } from './supabase';
-import { MOCK_SHOPS, MOCK_PRODUCTS } from '../data/mockData';
+import { MOCK_SHOPS, MOCK_PRODUCTS, MOCK_SHOP_TYPES } from '../data/mockData';
 import { getStoredDemoRequests } from './demoData';
 
 const DEMO_SHOPS_KEY = 'vaango_demo_shops';
@@ -751,6 +751,28 @@ export const markRequestCustomerPaid = async (
 };
 
 /**
+ * Fetch available shop types from database or fallback to mock types
+ */
+export const fetchShopTypes = async (): Promise<ShopType[]> => {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('shop_types')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        return data as ShopType[];
+      }
+    } catch (err) {
+      console.error('Error fetching shop types from Supabase:', err);
+    }
+  }
+  return MOCK_SHOP_TYPES;
+};
+
+/**
  * 12. Submit Shopkeeper Onboarding Application
  */
 export const submitShopApplication = async (
@@ -766,35 +788,80 @@ export const submitShopApplication = async (
     return { success: false, error: 'Live device GPS location capture is required.' };
   }
 
-  const newApp: ShopApplication = {
-    id: `app-${Date.now()}`,
-    applicant_id: application.applicant_id,
-    shop_name: application.shop_name.trim(),
-    owner_name: application.owner_name?.trim() || '',
-    description: application.description?.trim() || null,
-    shop_type_id: application.shop_type_id,
-    location_id: application.location_id,
-    contact_phone: application.contact_phone.trim(),
-    status: 'submitted',
-    photo_url: application.photo_url || null,
-    photo_urls: application.photo_urls || (application.photo_url ? [application.photo_url] : []),
-    upi_id: application.upi_id || null,
-    upi_qr_url: application.upi_qr_url || null,
-    id_proof_url: application.id_proof_url || null,
-    gps_lat: application.gps_lat,
-    gps_lng: application.gps_lng,
-    google_maps_url: application.google_maps_url || null,
-    review_notes: null,
-    reviewed_by: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-
   if (isSupabaseConfigured) {
     try {
+      // 1. Authoritative check: applicant must have a valid authenticated Supabase session
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData?.user) {
+        return { success: false, error: 'You must be signed in to submit an application.' };
+      }
+      const verifiedApplicantId = authData.user.id;
+
+      // 2. Prevent duplicate application creation on refresh/retry
+      const { data: existingApp } = await supabase
+        .from('shop_applications')
+        .select('*')
+        .eq('applicant_id', verifiedApplicantId)
+        .in('status', ['submitted', 'under_review'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingApp) {
+        return { success: true, application: existingApp as ShopApplication };
+      }
+
+      // 3. Resolve shop_type_id to valid UUID from shop_types table
+      let resolvedShopTypeId = application.shop_type_id;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(resolvedShopTypeId);
+      if (!isUuid) {
+        const normalizedCode = resolvedShopTypeId.replace(/^type-/, '').toLowerCase();
+        const { data: matchedType } = await supabase
+          .from('shop_types')
+          .select('id')
+          .eq('code', normalizedCode)
+          .maybeSingle();
+
+        if (matchedType?.id) {
+          resolvedShopTypeId = matchedType.id;
+        } else {
+          const { data: fallbackType } = await supabase
+            .from('shop_types')
+            .select('id')
+            .eq('is_active', true)
+            .order('display_order', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          if (fallbackType?.id) {
+            resolvedShopTypeId = fallbackType.id;
+          }
+        }
+      }
+
+      const newAppPayload = {
+        applicant_id: verifiedApplicantId,
+        shop_name: application.shop_name.trim(),
+        owner_name: application.owner_name?.trim() || '',
+        description: application.description?.trim() || null,
+        shop_type_id: resolvedShopTypeId,
+        location_id: application.location_id,
+        contact_phone: application.contact_phone.trim(),
+        status: 'submitted' as const,
+        photo_url: application.photo_url || null,
+        photo_urls: application.photo_urls || (application.photo_url ? [application.photo_url] : []),
+        upi_id: application.upi_id || null,
+        upi_qr_url: application.upi_qr_url || null,
+        id_proof_url: application.id_proof_url || null,
+        gps_lat: application.gps_lat,
+        gps_lng: application.gps_lng,
+        google_maps_url: application.google_maps_url || null,
+        review_notes: null,
+        reviewed_by: null,
+      };
+
       const { data, error } = await supabase
         .from('shop_applications')
-        .insert(newApp)
+        .insert(newAppPayload)
         .select()
         .single();
 
@@ -807,7 +874,34 @@ export const submitShopApplication = async (
   }
 
   // Mock mode
+  const newAppPayload = {
+    applicant_id: application.applicant_id,
+    shop_name: application.shop_name.trim(),
+    owner_name: application.owner_name?.trim() || '',
+    description: application.description?.trim() || null,
+    shop_type_id: application.shop_type_id,
+    location_id: application.location_id,
+    contact_phone: application.contact_phone.trim(),
+    status: 'submitted' as const,
+    photo_url: application.photo_url || null,
+    photo_urls: application.photo_urls || (application.photo_url ? [application.photo_url] : []),
+    upi_id: application.upi_id || null,
+    upi_qr_url: application.upi_qr_url || null,
+    id_proof_url: application.id_proof_url || null,
+    gps_lat: application.gps_lat,
+    gps_lng: application.gps_lng,
+    google_maps_url: application.google_maps_url || null,
+    review_notes: null,
+    reviewed_by: null,
+  };
+
   try {
+    const newApp: ShopApplication = {
+      id: `app-${Date.now()}`,
+      ...newAppPayload,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
     const raw = localStorage.getItem(DEMO_APPLICATIONS_KEY);
     const existing: ShopApplication[] = raw ? JSON.parse(raw) : [];
     existing.unshift(newApp);

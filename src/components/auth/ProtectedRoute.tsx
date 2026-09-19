@@ -31,9 +31,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // 1. Unauthenticated -> Redirect to login
+  // 1. Unauthenticated -> Redirect to login with explicit redirect query param
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    const redirectUrl = location.pathname + location.search;
+    return <Navigate to={`/login?redirect=${redirectUrl}`} state={{ from: location }} replace />;
   }
 
   // 2. Authenticated but unverified check

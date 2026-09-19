@@ -1,6 +1,6 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { MapPin, Sun, Moon, Sparkles, User, LogOut, ChevronDown, ShoppingBag, RotateCcw } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { MapPin, Sun, Moon, Sparkles, User, LogOut, ChevronDown, ShoppingBag, RotateCcw, Menu, X, ArrowRight } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useLocationContext } from '../../context/LocationContext';
@@ -26,8 +26,10 @@ export const Header: React.FC = () => {
   } = useLocationContext();
   const { itemCount } = useCart();
   const navigate = useNavigate();
-  const { t, language, setLanguage } = useLanguage();
+  const location = useLocation();
+  const { language, setLanguage } = useLanguage();
   const { success } = useToast();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleRoleChange = (newRole: UserRole) => {
     switchDemoRole(newRole);
@@ -40,6 +42,8 @@ export const Header: React.FC = () => {
     }
   };
 
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
+
   return (
     <>
       <header className="vaango-header">
@@ -51,16 +55,17 @@ export const Header: React.FC = () => {
                 role === 'admin'
                   ? '/admin/dashboard'
                   : role === 'shopkeeper'
-                  ? '/shopkeeper/dashboard'
-                  : '/'
+                    ? '/shopkeeper/dashboard'
+                    : '/'
               }
               className="vaango-header__logo"
-              aria-label="Vaango Home"
+              aria-label="Vaangly Home"
+              onClick={closeMobileMenu}
             >
               <div className="vaango-header__logo-icon" aria-hidden="true">
                 <span>V</span>
               </div>
-              <span className="vaango-header__logo-text">Vaango</span>
+              <span className="vaango-header__logo-text">VAANGLY</span>
             </Link>
 
             {/* Location Selector Pill */}
@@ -70,9 +75,9 @@ export const Header: React.FC = () => {
               onClick={() => setIsLocationModalOpen(true)}
               aria-label={`Current location: ${selectedLocation.name}. Tap to change.`}
             >
-              <MapPin size={16} className="vaango-header__location-icon" />
+              <MapPin size={15} className="vaango-header__location-icon" />
               <span className="vaango-header__location-name">{selectedLocation.name}</span>
-              <ChevronDown size={14} />
+              <ChevronDown size={13} />
             </button>
           </div>
 
@@ -97,18 +102,29 @@ export const Header: React.FC = () => {
               </>
             ) : (
               <>
-                <Link to="/" className="vaango-header__nav-link">{t('home')}</Link>
-                <Link to="/shops" className="vaango-header__nav-link">{t('shops')}</Link>
-                <Link to="/orders" className="vaango-header__nav-link">{t('requests')}</Link>
-                {(!user || !user.is_verified) && <Link to="/shopkeeper/apply" className="vaango-header__nav-link vaango-header__nav-link--highlight">
-                  Partner with Vaango
-                </Link>}
+                <Link to="/" className={`vaango-header__nav-link ${location.pathname === '/' && !location.hash ? 'vaango-header__nav-link--active' : ''}`}>
+                  Home
+                </Link>
+                <Link to="/shops" className={`vaango-header__nav-link ${location.pathname === '/shops' ? 'vaango-header__nav-link--active' : ''}`}>
+                  Explore
+                </Link>
+                <a href="/#how-it-works" className="vaango-header__nav-link">
+                  How It Works
+                </a>
+                <Link to="/shopkeeper/apply" className="vaango-header__nav-link vaango-header__nav-link--business">
+                  For Businesses
+                </Link>
+                <a href="/#about" className="vaango-header__nav-link">
+                  About
+                </a>
               </>
             )}
-            {import.meta.env.DEV && <Link to="/design-system" className="vaango-header__nav-link vaango-header__nav-link--badge">
-              <Sparkles size={16} />
-              <span>Tokens</span>
-            </Link>}
+            {import.meta.env.DEV && (
+              <Link to="/design-system" className="vaango-header__nav-link vaango-header__nav-link--badge" title="Design tokens showcase">
+                <Sparkles size={15} />
+                <span>Tokens</span>
+              </Link>
+            )}
           </nav>
 
           {/* Controls & Actions */}
@@ -118,7 +134,7 @@ export const Header: React.FC = () => {
 
             {/* Header Cart Icon if items > 0 */}
             {itemCount > 0 && (
-              <Link to="/cart" className="vaango-header__cart-link" aria-label={`View cart with ${itemCount} items`}>
+              <Link to="/cart" className="vaango-header__cart-link" aria-label={`View cart with ${itemCount} items`} onClick={closeMobileMenu}>
                 <ShoppingBag size={20} />
                 <span className="vaango-header__cart-badge">{itemCount}</span>
               </Link>
@@ -150,7 +166,13 @@ export const Header: React.FC = () => {
               </>
             )}
 
-            <button type="button" className="vaango-header__lang-btn" onClick={() => setLanguage(language === 'en' ? 'ta' : 'en')} aria-label={language === 'en' ? 'Switch to Tamil' : 'Switch to English'} title={language === 'en' ? 'தமிழில் காண' : 'View in English'}>
+            <button
+              type="button"
+              className="vaango-header__lang-btn"
+              onClick={() => setLanguage(language === 'en' ? 'ta' : 'en')}
+              aria-label={language === 'en' ? 'Switch to Tamil' : 'Switch to English'}
+              title={language === 'en' ? 'தமிழில் காண' : 'View in English'}
+            >
               {language === 'en' ? 'தமிழ்' : 'EN'}
             </button>
 
@@ -162,17 +184,17 @@ export const Header: React.FC = () => {
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+              {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
             </button>
 
-            {/* Auth Profile / Login */}
+            {/* Auth Profile / Login & Get Started Buttons */}
             {user ? (
               <div className="vaango-header__user-wrap">
-                <Link to="/profile" className="vaango-header__profile-link" aria-label="View user profile">
+                <Link to="/profile" className="vaango-header__profile-link" aria-label="View user profile" onClick={closeMobileMenu}>
                   <div className="vaango-header__user-avatar">
-                    <User size={18} />
+                    <User size={17} />
                   </div>
-                  <span className="vaango-header__user-name">{user.full_name.split(' ')[0]}</span>
+                  <span className="vaango-header__user-name">{user.full_name?.split(' ')[0] || 'Profile'}</span>
                 </Link>
                 <button
                   type="button"
@@ -185,20 +207,100 @@ export const Header: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <Link to="/login" className="vaango-header__login-link">
-                Sign In
-              </Link>
+              <div className="vaango-header__auth-btns">
+                <Link to="/login" className="vaango-header__btn-login">
+                  Log in
+                </Link>
+                <Link to="/shops" className="vaango-header__btn-get-started">
+                  Get Started
+                </Link>
+              </div>
             )}
+
+            {/* Mobile Hamburger Toggle */}
+            <button
+              type="button"
+              className="vaango-header__hamburger-btn"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={isMobileMenuOpen}
+            >
+              {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Navigation Drawer */}
+        {isMobileMenuOpen && (
+          <div className="vaango-mobile-menu" role="dialog" aria-modal="true" aria-label="Mobile Navigation">
+            <nav className="vaango-mobile-menu__nav">
+              <Link to="/" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                Home
+              </Link>
+              <Link to="/shops" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                Explore
+              </Link>
+              <a href="/#how-it-works" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                How It Works
+              </a>
+              <Link to="/shopkeeper/apply" className="vaango-mobile-menu__link vaango-mobile-menu__link--highlight" onClick={closeMobileMenu}>
+                For Businesses
+              </Link>
+              <a href="/#about" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                About
+              </a>
+              {role === 'admin' && (
+                <Link to="/admin/dashboard" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                  Admin Console
+                </Link>
+              )}
+              {role === 'shopkeeper' && (
+                <Link to="/shopkeeper/dashboard" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                  Shopkeeper Dashboard
+                </Link>
+              )}
+            </nav>
+
+            <div className="vaango-mobile-menu__footer">
+              {!user ? (
+                <div className="vaango-mobile-menu__auth-actions">
+                  <Link to="/login" className="vaango-mobile-menu__btn-login" onClick={closeMobileMenu}>
+                    Log in
+                  </Link>
+                  <Link to="/shops" className="vaango-mobile-menu__btn-primary" onClick={closeMobileMenu}>
+                    Get Started <ArrowRight size={16} />
+                  </Link>
+                </div>
+              ) : (
+                <div className="vaango-mobile-menu__user-card">
+                  <div className="vaango-mobile-menu__user-info">
+                    <User size={18} />
+                    <span>{user.full_name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeMobileMenu();
+                      signOut().then(() => navigate('/login'));
+                    }}
+                    className="vaango-mobile-menu__logout-btn"
+                  >
+                    <LogOut size={16} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
-      {/* Alphabetical Location Selector Modal */}
+      {/* Location Selector Modal */}
       <Modal
         isOpen={isLocationModalOpen}
         onClose={() => setIsLocationModalOpen(false)}
         title="Select Your Town"
-        description="Choose a supported location. Vaango displays local shops and merchants available in that town."
+        description="Choose a supported location. Vaangly displays local shops and merchants available in that town."
         maxWidth="sm"
       >
         <div className="vaango-location-modal-list">

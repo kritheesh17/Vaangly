@@ -1,276 +1,305 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Phone, Lock, AlertCircle, CheckCircle2, ArrowRight, RefreshCw, KeyRound, Info } from 'lucide-react';
+import { User, Lock, Mail, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, KeyRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { FormField } from '../../components/ui/FormField';
-import { Badge } from '../../components/ui/Badge';
-import { OtpInput } from '../../components/auth/OtpInput';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import './Auth.css';
 
-type AuthMode = 'email' | 'phone';
-type EmailStep = 'request' | 'verify';
-type VerificationStatus = 'idle' | 'sending' | 'sent' | 'verifying' | 'success';
-
-const RESEND_COOLDOWN_SECONDS = 60;
-const MAX_RESEND_ATTEMPTS = 5;
+type AuthMode = 'signin' | 'signup' | 'forgot' | 'recovery';
 
 export const LoginPage: React.FC = () => {
-  const [authMode, setAuthMode] = useState<AuthMode>('email');
-
-  // Email OTP state
-  const [email, setEmail] = useState('');
-  const [emailStep, setEmailStep] = useState<EmailStep>('request');
-  const [otpCode, setOtpCode] = useState('');
-  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('idle');
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [cooldown, setCooldown] = useState<number>(0);
-  const [resendAttempts, setResendAttempts] = useState<number>(0);
-  const resendResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Secondary Password Mode (Retained for Administrator / Operational staff)
-  const [showPasswordFallback, setShowPasswordFallback] = useState(false);
-  const [password, setPassword] = useState('');
-
-  // Phone OTP state
-  const [phone, setPhone] = useState('+91 98765 43210');
-  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
-  const [phoneOtpToken, setPhoneOtpToken] = useState('');
-  const [isPhoneLoading, setIsPhoneLoading] = useState(false);
-
   const {
-    requestEmailOtp,
-    verifyEmailOtp,
+    user,
+    isAuthenticated,
+    isLoading: isAuthLoading,
+    signInWithGoogle,
     loginWithEmail,
-    requestPhoneOtp,
-    verifyPhoneOtp,
-    isSupabaseLive,
+    signUpWithEmail,
+    resendEmailConfirmation,
+    resetPasswordForEmail,
+    updatePassword,
   } = useAuth();
 
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/';
+  const searchParams = new URLSearchParams(location.search);
+  const redirectParam = searchParams.get('redirect');
+  const from = redirectParam || (location.state as { from?: { pathname?: string; search?: string } })?.from?.pathname || '/';
 
-  // Cooldown countdown effect
+  // Mode state: signin | signup | forgot | recovery
+  const initialMode = (searchParams.get('mode') as AuthMode) || 'signin';
+  const [mode, setMode] = useState<AuthMode>(initialMode);
+
+  // Form states
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+
+  // UI state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
+  const [isResendingEmail, setIsResendingEmail] = useState(false);
+
+  // If already authenticated upon arrival, redirect directly to destination
   useEffect(() => {
-    if (cooldown <= 0) return;
-    const timer = setInterval(() => {
-      setCooldown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [cooldown]);
+    if (!isAuthLoading && isAuthenticated && user) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthLoading, isAuthenticated, user, navigate, from]);
 
-  useEffect(() => () => {
-    if (resendResetTimer.current) clearTimeout(resendResetTimer.current);
+  // Check URL hash or Supabase event for password recovery token
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery')) {
+      setMode('recovery');
+      setErrorMsg(null);
+      setSuccessMsg(null);
+    }
+
+    if (isSupabaseConfigured) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          setMode('recovery');
+          setErrorMsg(null);
+          setSuccessMsg(null);
+        }
+      });
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
   }, []);
 
-  // Step 1: Request Email OTP
-  const handleRequestOtp = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  // Customer / Partner: Continue with Google
+  const handleGoogleSignIn = async () => {
     setErrorMsg(null);
+    setSuccessMsg(null);
+    setIsGoogleLoading(true);
 
-    const cleanEmail = email.trim();
-    if (!cleanEmail) {
+    if (from && from !== '/') {
+      sessionStorage.setItem('vaangly_auth_redirect', from);
+      localStorage.setItem('vaangly_auth_redirect', from);
+    }
+
+    const result = await signInWithGoogle(from);
+    if (!result.success) {
+      setIsGoogleLoading(false);
+      setErrorMsg(result.error || 'Failed to initialize Google authentication. Please try again.');
+    }
+  };
+
+  // Sign In submit
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setUnconfirmedEmail(null);
+
+    if (!email.trim()) {
       setErrorMsg('Please enter your email address.');
       return;
     }
-
-    if (resendAttempts >= MAX_RESEND_ATTEMPTS) {
-      setErrorMsg(
-        'Too many attempts. The limit resets automatically in 10 minutes. ' +
-        'Check your spam folder, or use code 123456 in local preview mode.'
-      );
+    if (!password) {
+      setErrorMsg('Please enter your password.');
       return;
     }
 
-    setVerificationStatus('sending');
-    setStatusMessage('Sending verification code...');
-
-    const result = await requestEmailOtp(cleanEmail);
-
-    if (result.success) {
-      setVerificationStatus('sent');
-      setStatusMessage('Verification code sent to your email.');
-      setEmailStep('verify');
-      setCooldown(RESEND_COOLDOWN_SECONDS);
-      const newAttemptCount = resendAttempts + 1;
-      setResendAttempts(newAttemptCount);
-      if (newAttemptCount >= MAX_RESEND_ATTEMPTS) {
-        resendResetTimer.current = setTimeout(() => {
-          setResendAttempts(0);
-          setErrorMsg(null);
-          resendResetTimer.current = null;
-        }, 10 * 60 * 1000);
-      }
-    } else {
-      setVerificationStatus('idle');
-      setStatusMessage(null);
-      setErrorMsg(result.error || 'Unable to verify your email right now. Please try again.');
-    }
-  };
-
-  // Step 2: Verify OTP
-  const handleVerifyOtp = async (codeToVerify?: string) => {
-    const code = (codeToVerify || otpCode).trim();
-    setErrorMsg(null);
-
-    if (code.length !== 6) {
-      setErrorMsg('That code is incorrect or has expired.');
-      return;
-    }
-
-    setVerificationStatus('verifying');
-    setStatusMessage('Verifying...');
-
-    const result = await verifyEmailOtp(email, code);
-
-    if (result.success) {
-      setVerificationStatus('success');
-      setStatusMessage('Email verified successfully.');
-      setTimeout(() => {
-        navigate(from, { replace: true });
-      }, 700);
-    } else {
-      setVerificationStatus('idle');
-      setStatusMessage(null);
-      setErrorMsg(result.error || 'That code is incorrect or has expired.');
-    }
-  };
-
-  // Resend code handler
-  const handleResendCode = async () => {
-    if (cooldown > 0) return;
-    setOtpCode('');
-    await handleRequestOtp();
-  };
-
-  // Change email handler (Return to Step 1)
-  const handleChangeEmail = () => {
-    setEmailStep('request');
-    setOtpCode('');
-    setErrorMsg(null);
-    setStatusMessage(null);
-    setVerificationStatus('idle');
-  };
-
-  // Admin / Password Fallback Submit
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setVerificationStatus('verifying');
-    setStatusMessage('Verifying credentials...');
-
+    setIsSubmitting(true);
     const result = await loginWithEmail(email, password);
-    setVerificationStatus('idle');
-    setStatusMessage(null);
+    setIsSubmitting(false);
 
     if (result.success) {
       navigate(from, { replace: true });
     } else {
-      setErrorMsg(result.error || 'Invalid email or password.');
+      setErrorMsg(result.error || 'Failed to sign in. Please check your credentials.');
+      if (result.isEmailUnconfirmed) {
+        setUnconfirmedEmail(email.trim().toLowerCase());
+      }
     }
   };
 
-  // Phone OTP Submit
-  const handlePhoneSubmit = async (e: React.FormEvent) => {
+  // Sign Up submit
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
-    setIsPhoneLoading(true);
+    setSuccessMsg(null);
+    setUnconfirmedEmail(null);
 
-    if (!phoneOtpSent) {
-      const result = await requestPhoneOtp(phone);
-      setIsPhoneLoading(false);
-      if (result.success) {
-        setPhoneOtpSent(true);
+    if (!fullName.trim()) {
+      setErrorMsg('Please enter your full name.');
+      return;
+    }
+    if (!email.trim()) {
+      setErrorMsg('Please enter your email address.');
+      return;
+    }
+    if (!password || password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorMsg('Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    if (from && from !== '/') {
+      sessionStorage.setItem('vaangly_auth_redirect', from);
+      localStorage.setItem('vaangly_auth_redirect', from);
+    }
+
+    const result = await signUpWithEmail(email, password, fullName, 'customer', undefined, from);
+    setIsSubmitting(false);
+
+    if (result.success) {
+      if (result.requiresEmailConfirmation) {
+        setSuccessMsg(
+          result.message ||
+            'Account created! We have sent a confirmation link to your email. Please verify your email before signing in.'
+        );
+        setUnconfirmedEmail(email.trim().toLowerCase());
       } else {
-        setErrorMsg(result.error || 'Failed to request OTP');
+        navigate(from, { replace: true });
       }
     } else {
-      const result = await verifyPhoneOtp(phone, phoneOtpToken);
-      setIsPhoneLoading(false);
-      if (result.success) {
+      setErrorMsg(result.error || 'Registration failed. Please check your details and try again.');
+    }
+  };
+
+  // Forgot password submit
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (!email.trim()) {
+      setErrorMsg('Please enter the email address associated with your account.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const result = await resetPasswordForEmail(email);
+    setIsSubmitting(false);
+
+    if (result.success) {
+      setSuccessMsg(`If an account exists for ${email.trim()}, a password reset link has been sent. Please check your inbox.`);
+    } else {
+      setErrorMsg(result.error || 'Failed to request password reset. Please try again.');
+    }
+  };
+
+  // Password recovery (set new password) submit
+  const handlePasswordRecovery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (!password || password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorMsg('Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const result = await updatePassword(password);
+    setIsSubmitting(false);
+
+    if (result.success) {
+      setSuccessMsg('Your password has been updated successfully. Redirecting you now...');
+      window.setTimeout(() => {
         navigate(from, { replace: true });
-      } else {
-        setErrorMsg(result.error || 'Invalid OTP code');
-      }
+      }, 1200);
+    } else {
+      setErrorMsg(result.error || 'Failed to update password. Please request a new reset link.');
+    }
+  };
+
+  // Resend verification email
+  const handleResendConfirmation = async () => {
+    const targetEmail = unconfirmedEmail || email.trim().toLowerCase();
+    if (!targetEmail) return;
+
+    setIsResendingEmail(true);
+    const result = await resendEmailConfirmation(targetEmail);
+    setIsResendingEmail(false);
+
+    if (result.success) {
+      setSuccessMsg(`A new confirmation email has been sent to ${targetEmail}. Please check your inbox.`);
+    } else {
+      setErrorMsg(result.error || 'Failed to resend confirmation email. Please try again later.');
     }
   };
 
   return (
     <div className="container vaango-auth-container">
       <Card variant="elevated" padding="lg" className="vaango-auth-card">
-        {/* Logo & Header */}
+        {/* Header */}
         <div className="vaango-auth-header">
           <div className="vaango-auth-logo">
             <span>V</span>
           </div>
-          <h1 className="vaango-auth-title">Welcome to Vaango</h1>
+          <h1 className="vaango-auth-title">
+            {mode === 'signin' && 'Welcome to Vaangly'}
+            {mode === 'signup' && 'Create Your Account'}
+            {mode === 'forgot' && 'Reset Your Password'}
+            {mode === 'recovery' && 'Set New Password'}
+          </h1>
           <p className="vaango-auth-subtitle">
-            Sign in with verified email to explore neighborhood stores, pre-orders, and local services.
+            {mode === 'signin' &&
+              (from.includes('/shopkeeper')
+                ? 'Sign in to your Vaangly account to begin or continue your partner application.'
+                : 'Sign in to explore neighborhood shops, pre-orders, and local services in Kangeyam.')}
+            {mode === 'signup' &&
+              (from.includes('/shopkeeper')
+                ? 'Register your Vaangly account to begin your partner onboarding. One account for shopping and business.'
+                : 'Join Vaangly to discover local stores, place pre-orders, and book neighborhood services.')}
+            {mode === 'forgot' && 'Enter your registered email address to receive a secure password reset link.'}
+            {mode === 'recovery' && 'Enter and confirm your new account password.'}
           </p>
-
-          {!isSupabaseLive && (
-            <div className="vaango-auth-badge">
-              <Badge variant="accent" size="sm" withDot>
-                Local Preview Mode (Code: 123456)
-              </Badge>
-            </div>
-          )}
         </div>
 
-        {/* Method Switcher */}
-        <div className="vaango-auth-tabs" role="tablist" aria-label="Sign in method tabs">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={authMode === 'email'}
-            className={`vaango-auth-tab ${authMode === 'email' ? 'vaango-auth-tab--active' : ''}`}
-            onClick={() => {
-              setAuthMode('email');
-              setErrorMsg(null);
-            }}
-          >
-            <Mail size={16} />
-            <span>Email</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={authMode === 'phone'}
-            className={`vaango-auth-tab ${authMode === 'phone' ? 'vaango-auth-tab--active' : ''}`}
-            onClick={() => {
-              setAuthMode('phone');
-              setErrorMsg(null);
-            }}
-          >
-            <Phone size={16} />
-            <span>Phone OTP</span>
-          </button>
-        </div>
-
-        {/* Dynamic Status / Success Alerts */}
-        {statusMessage && (
-          <div
-            className={`vaango-auth-status-alert ${
-              verificationStatus === 'success' ? 'vaango-auth-status-alert--success' : ''
-            }`}
-            role="status"
-          >
-            {verificationStatus === 'success' ? (
-              <CheckCircle2 size={18} className="text-success" />
-            ) : (
-              <RefreshCw size={16} className="vaango-spin text-primary" />
-            )}
-            <span>{statusMessage}</span>
+        {/* Tab Switcher for Sign In / Sign Up */}
+        {(mode === 'signin' || mode === 'signup') && (
+          <div className="vaango-auth-tabs" role="tablist" aria-label="Authentication modes">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'signin'}
+              className={`vaango-auth-tab ${mode === 'signin' ? 'vaango-auth-tab--active' : ''}`}
+              onClick={() => {
+                setMode('signin');
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
+            >
+              <Lock size={16} />
+              <span>Sign In</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'signup'}
+              className={`vaango-auth-tab ${mode === 'signup' ? 'vaango-auth-tab--active' : ''}`}
+              onClick={() => {
+                setMode('signup');
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
+            >
+              <User size={16} />
+              <span>Sign Up</span>
+            </button>
           </div>
         )}
 
@@ -282,220 +311,372 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
-        {/* EMAIL AUTHENTICATION FLOW */}
-        {authMode === 'email' ? (
-          showPasswordFallback ? (
-            /* Staff / Admin Password Fallback */
-            <form onSubmit={handlePasswordSubmit} className="vaango-auth-form">
-              <FormField id="auth-email-pwd" label="Email Address" required>
-                <Input
-                  id="auth-email-pwd"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@vaango.in"
-                  leftIcon={<Mail size={18} />}
-                />
-              </FormField>
+        {/* Success Alert */}
+        {successMsg && (
+          <div className="vaango-auth-status-alert vaango-auth-status-alert--success" role="status">
+            <CheckCircle2 size={18} />
+            <span>{successMsg}</span>
+          </div>
+        )}
 
-              <FormField id="auth-password" label="Password" required>
-                <Input
-                  id="auth-password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  leftIcon={<Lock size={18} />}
-                />
-              </FormField>
-
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                fullWidth
-                isLoading={verificationStatus === 'verifying'}
-                rightIcon={<ArrowRight size={18} />}
-              >
-                Sign In with Password
-              </Button>
-
-              <div className="vaango-auth-switch-mode">
-                <button
-                  type="button"
-                  className="vaango-link-btn text-xs text-secondary"
-                  onClick={() => setShowPasswordFallback(false)}
-                >
-                  ← Return to Email Verification Code
-                </button>
-              </div>
-            </form>
-          ) : emailStep === 'request' ? (
-            /* STEP 1: Request Verification Code */
-            <form onSubmit={handleRequestOtp} className="vaango-auth-form">
-              <FormField
-                id="auth-email-step1"
-                label="Email Address"
-                hint="We will send a 6-digit verification code"
-                required
-              >
-                <Input
-                  id="auth-email-step1"
-                  type="email"
-                  required
-                  autoFocus
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  leftIcon={<Mail size={18} />}
-                />
-              </FormField>
-
-              {resendAttempts >= 2 && isSupabaseLive && (
-                <div className="vaango-auth-info-banner" style={{ marginBottom: 'var(--space-3)' }}>
-                  <Info size={15} className="vaango-auth-info-icon" />
-                  <span>
-                    Not receiving codes? Supabase&apos;s development email service is limited to 3 emails/hour. Check your spam folder, wait a few minutes, or configure a custom SMTP provider in the Supabase dashboard for unlimited delivery.
-                  </span>
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                fullWidth
-                isLoading={verificationStatus === 'sending'}
-                rightIcon={<ArrowRight size={18} />}
-              >
-                Send Verification Code
-              </Button>
-
-              <div className="vaango-auth-secondary-actions">
-                <button
-                  type="button"
-                  className="vaango-link-btn text-xs text-muted"
-                  onClick={() => setShowPasswordFallback(true)}
-                >
-                  <KeyRound size={13} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                  Staff or Admin? Sign in with password
-                </button>
-              </div>
-            </form>
-          ) : (
-            /* STEP 2: Enter Verification Code */
-            <div className="vaango-auth-otp-step">
-              <div className="vaango-otp-dest-bar">
-                <span className="vaango-otp-dest-label">Code sent to:</span>
-                <span className="vaango-otp-dest-email">{email}</span>
-                <button
-                  type="button"
-                  onClick={handleChangeEmail}
-                  className="vaango-link-btn text-xs vaango-otp-change-btn"
-                >
-                  Change
-                </button>
-              </div>
-
-              <FormField
-                id="auth-otp-input"
-                label="Enter Verification Code"
-                hint="Enter the 6-digit verification code from your email"
-                required
-              >
-                <OtpInput
-                  value={otpCode}
-                  onChange={setOtpCode}
-                  length={6}
-                  disabled={verificationStatus === 'verifying' || verificationStatus === 'success'}
-                  hasError={Boolean(errorMsg)}
-                  autoFocus
-                  onComplete={(completedCode) => handleVerifyOtp(completedCode)}
-                />
-              </FormField>
-
-              <Button
-                type="button"
-                variant="primary"
-                size="lg"
-                fullWidth
-                disabled={otpCode.length !== 6 || verificationStatus === 'verifying'}
-                isLoading={verificationStatus === 'verifying'}
-                onClick={() => handleVerifyOtp()}
-              >
-                {verificationStatus === 'success' ? 'Email Verified!' : 'Verify & Continue'}
-              </Button>
-
-              <div className="vaango-otp-resend-row">
-                {cooldown > 0 ? (
-                  <span className="vaango-otp-cooldown-text">
-                    Resend code in <strong>{cooldown}s</strong>
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    className="vaango-link-btn vaango-otp-resend-btn"
-                    disabled={verificationStatus === 'sending'}
-                    onClick={handleResendCode}
-                  >
-                    Resend code
-                  </button>
-                )}
-              </div>
-            </div>
-          )
-        ) : (
-          /* PHONE OTP FLOW */
-          <form onSubmit={handlePhoneSubmit} className="vaango-auth-form">
-            {/* Informational Banner as specified in requirement 10 */}
-            <div className="vaango-auth-info-banner">
-              <Info size={16} className="vaango-auth-info-icon" />
-              <span>
-                <strong>Phone OTP Notice:</strong> In local preview mode, use code 123456. Production phone OTP requires a configured Supabase SMS provider.
-              </span>
-            </div>
-
-            <FormField
-              id="auth-phone"
-              label="Mobile Number"
-              hint="Indian mobile numbers (+91)"
-              required
+        {/* Unconfirmed Email Action Banner */}
+        {unconfirmedEmail && (
+          <div
+            style={{
+              padding: 'var(--space-3)',
+              background: 'var(--color-surface-sunken)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-border)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--space-2)',
+            }}
+          >
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+              Didn't receive the verification email or link expired?
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              isLoading={isResendingEmail}
+              onClick={handleResendConfirmation}
             >
+              Resend Verification Email
+            </Button>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* MODE: SIGN IN */}
+        {/* ========================================================= */}
+        {mode === 'signin' && (
+          <form onSubmit={handleSignIn} className="vaango-auth-form">
+            <FormField id="signin-email" label="Email Address" required>
               <Input
-                id="auth-phone"
-                type="tel"
+                id="signin-email"
+                type="email"
                 required
-                disabled={phoneOtpSent}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+91 98765 43210"
-                leftIcon={<Phone size={18} />}
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                leftIcon={<Mail size={18} />}
               />
             </FormField>
 
-            {phoneOtpSent && (
-              <FormField id="auth-phone-otp" label="One-Time Password (OTP)" required>
-                <Input
-                  id="auth-phone-otp"
-                  type="text"
-                  required
-                  value={phoneOtpToken}
-                  onChange={(e) => setPhoneOtpToken(e.target.value)}
-                  placeholder="6-digit code"
-                />
-              </FormField>
-            )}
+            <FormField id="signin-password" label="Password" required>
+              <Input
+                id="signin-password"
+                type="password"
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                leftIcon={<Lock size={18} />}
+              />
+            </FormField>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-4px' }}>
+              <button
+                type="button"
+                className="vaango-auth-link"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }}
+                onClick={() => {
+                  setMode('forgot');
+                  setErrorMsg(null);
+                  setSuccessMsg(null);
+                }}
+              >
+                Forgot password?
+              </button>
+            </div>
 
             <Button
               type="submit"
               variant="primary"
               size="lg"
               fullWidth
-              isLoading={isPhoneLoading}
+              isLoading={isSubmitting}
+              rightIcon={<ArrowRight size={18} />}
             >
-              {phoneOtpSent ? 'Verify & Continue' : 'Send Verification OTP'}
+              Sign In
+            </Button>
+
+            {/* Divider */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                margin: 'var(--space-2) 0',
+                gap: 'var(--space-3)',
+              }}
+            >
+              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
+              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+                or
+              </span>
+              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
+            </div>
+
+            {/* Google Sign In */}
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              fullWidth
+              isLoading={isGoogleLoading}
+              onClick={handleGoogleSignIn}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                fontWeight: 600,
+                fontSize: '1rem',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--color-surface)',
+                color: 'var(--color-text-primary)',
+                cursor: 'pointer',
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+              <span>Continue with Google</span>
+            </Button>
+          </form>
+        )}
+
+        {/* ========================================================= */}
+        {/* MODE: SIGN UP */}
+        {/* ========================================================= */}
+        {mode === 'signup' && (
+          <form onSubmit={handleSignUp} className="vaango-auth-form">
+            <FormField id="signup-name" label="Full Name" required>
+              <Input
+                id="signup-name"
+                type="text"
+                required
+                autoComplete="name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="John Doe"
+                leftIcon={<User size={18} />}
+              />
+            </FormField>
+
+            <FormField id="signup-email" label="Email Address" required>
+              <Input
+                id="signup-email"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                leftIcon={<Mail size={18} />}
+              />
+            </FormField>
+
+            <FormField id="signup-password" label="Password" required hint="Minimum 6 characters">
+              <Input
+                id="signup-password"
+                type="password"
+                required
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 6 characters"
+                leftIcon={<Lock size={18} />}
+              />
+            </FormField>
+
+            <FormField id="signup-confirm-password" label="Confirm Password" required>
+              <Input
+                id="signup-confirm-password"
+                type="password"
+                required
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter password"
+                leftIcon={<Lock size={18} />}
+              />
+            </FormField>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              fullWidth
+              isLoading={isSubmitting}
+              rightIcon={<ArrowRight size={18} />}
+            >
+              Create Account
+            </Button>
+
+            {/* Divider */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                margin: 'var(--space-2) 0',
+                gap: 'var(--space-3)',
+              }}
+            >
+              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
+              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+                or
+              </span>
+              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
+            </div>
+
+            {/* Google Sign In */}
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              fullWidth
+              isLoading={isGoogleLoading}
+              onClick={handleGoogleSignIn}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                fontWeight: 600,
+                fontSize: '1rem',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--color-surface)',
+                color: 'var(--color-text-primary)',
+                cursor: 'pointer',
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+              <span>Continue with Google</span>
+            </Button>
+          </form>
+        )}
+
+        {/* ========================================================= */}
+        {/* MODE: FORGOT PASSWORD */}
+        {/* ========================================================= */}
+        {mode === 'forgot' && (
+          <form onSubmit={handleForgotPassword} className="vaango-auth-form">
+            <FormField id="forgot-email" label="Account Email Address" required>
+              <Input
+                id="forgot-email"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                leftIcon={<Mail size={18} />}
+              />
+            </FormField>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              fullWidth
+              isLoading={isSubmitting}
+              leftIcon={<KeyRound size={18} />}
+            >
+              Send Password Reset Link
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              fullWidth
+              onClick={() => {
+                setMode('signin');
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
+            >
+              Back to Sign In
+            </Button>
+          </form>
+        )}
+
+        {/* ========================================================= */}
+        {/* MODE: PASSWORD RECOVERY */}
+        {/* ========================================================= */}
+        {mode === 'recovery' && (
+          <form onSubmit={handlePasswordRecovery} className="vaango-auth-form">
+            <FormField id="recovery-password" label="New Password" required hint="Minimum 6 characters">
+              <Input
+                id="recovery-password"
+                type="password"
+                required
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter new password"
+                leftIcon={<Lock size={18} />}
+              />
+            </FormField>
+
+            <FormField id="recovery-confirm-password" label="Confirm New Password" required>
+              <Input
+                id="recovery-confirm-password"
+                type="password"
+                required
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter new password"
+                leftIcon={<Lock size={18} />}
+              />
+            </FormField>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              fullWidth
+              isLoading={isSubmitting}
+              leftIcon={<ShieldCheck size={18} />}
+            >
+              Save New Password
             </Button>
           </form>
         )}
@@ -503,9 +684,18 @@ export const LoginPage: React.FC = () => {
         {/* Footer */}
         <div className="vaango-auth-footer">
           <p>
-            New to Vaango?{' '}
-            <Link to="/register" className="vaango-auth-link">
-              Create an account
+            Are you a merchant or store owner?{' '}
+            <Link
+              to={isAuthenticated ? '/shopkeeper/apply' : '/login?redirect=/shopkeeper/apply'}
+              className="vaango-auth-link"
+              onClick={() => {
+                if (!isAuthenticated) {
+                  setErrorMsg(null);
+                  setSuccessMsg(null);
+                }
+              }}
+            >
+              Apply to partner
             </Link>
           </p>
         </div>

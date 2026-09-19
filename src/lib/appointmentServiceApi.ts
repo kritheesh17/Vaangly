@@ -93,7 +93,7 @@ export const fetchAppointmentSlots = async (shopId: string, dateStr: string): Pr
     const raw = localStorage.getItem(DEMO_SLOTS_KEY);
     let allSlots: Record<string, AppointmentSlot[]> = raw ? JSON.parse(raw) : {};
     const key = `${shopId}_${dateStr}`;
-    
+
     if (!allSlots[key]) {
       allSlots[key] = generateDailySlots(shopId, dateStr);
       localStorage.setItem(DEMO_SLOTS_KEY, JSON.stringify(allSlots));

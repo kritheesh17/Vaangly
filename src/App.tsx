@@ -20,6 +20,7 @@ import { OrdersPage } from './pages/OrdersPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { CompleteProfilePage } from './pages/auth/CompleteProfilePage';
 import { AuthCallbackPage } from './pages/auth/AuthCallbackPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -91,136 +92,144 @@ export const App: React.FC = () => {
             <LanguageProvider>
               <CartProvider>
                 <ToastProvider>
-                <BrowserRouter>
-                  <AdInterstitialScreen />
-                  <React.Suspense
-                    fallback={
-                      <div className="container" style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                        <div style={{ display: 'inline-block', width: 32, height: 32, border: '3px solid var(--color-border)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                        <div style={{ marginTop: 12, fontSize: '0.9rem' }}>Loading view...</div>
-                      </div>
-                    }
-                  >
-                    <Routes>
-                      {/* Routes wrapped in responsive navigation shell */}
-                      <Route element={<AppShell />}>
-                        <Route path="/" element={<HomePage />} />
-                        <Route path="/shops" element={<BrowseShopsPage />} />
-                        <Route path="/explore" element={<Navigate to="/shops" replace />} />
-                        <Route path="/shop/:shopId" element={<ShopDetailPage />} />
-                        <Route path="/cart" element={<CartPage />} />
-                        <Route
-                          path="/request-confirmation/:requestId"
-                          element={<RequestConfirmationPage />}
-                        />
-                        <Route path="/request/:requestId" element={<RequestDetailPage />} />
-                        <Route path="/requests/:requestId" element={<RequestDetailPage />} />
-                        <Route
-                          path="/orders"
-                          element={
-                            <ProtectedRoute requireVerified={true}>
-                              <OrdersPage />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route path="/requests" element={<Navigate to="/orders" replace />} />
-                        <Route
-                          path="/profile"
-                          element={
-                            <ProtectedRoute requireVerified={false}>
-                              <ProfilePage />
-                            </ProtectedRoute>
-                          }
-                        />
+                  <BrowserRouter>
+                    <AdInterstitialScreen />
+                    <React.Suspense
+                      fallback={
+                        <div className="container" style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                          <div style={{ display: 'inline-block', width: 32, height: 32, border: '3px solid var(--color-border)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                          <div style={{ marginTop: 12, fontSize: '0.9rem' }}>Loading view...</div>
+                        </div>
+                      }
+                    >
+                      <Routes>
+                        {/* Routes wrapped in responsive navigation shell */}
+                        <Route element={<AppShell />}>
+                          <Route path="/" element={<HomePage />} />
+                          <Route path="/shops" element={<BrowseShopsPage />} />
+                          <Route path="/explore" element={<Navigate to="/shops" replace />} />
+                          <Route path="/shop/:shopId" element={<ShopDetailPage />} />
+                          <Route path="/cart" element={<CartPage />} />
+                          <Route
+                            path="/request-confirmation/:requestId"
+                            element={<RequestConfirmationPage />}
+                          />
+                          <Route path="/request/:requestId" element={<RequestDetailPage />} />
+                          <Route path="/requests/:requestId" element={<RequestDetailPage />} />
+                          <Route
+                            path="/orders"
+                            element={
+                              <ProtectedRoute requireVerified={true}>
+                                <OrdersPage />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route path="/requests" element={<Navigate to="/orders" replace />} />
+                          <Route
+                            path="/profile"
+                            element={
+                              <ProtectedRoute requireVerified={false}>
+                                <ProfilePage />
+                              </ProtectedRoute>
+                            }
+                          />
 
-                        {/* Shopkeeper MVP Routes */}
-                        <Route path="/shopkeeper" element={<Navigate to="/shopkeeper/dashboard" replace />} />
-                        <Route
-                          path="/shopkeeper/dashboard"
-                          element={
-                            <ProtectedRoute allowedRoles={['shopkeeper']} requireVerified={true}>
-                              <ShopkeeperDashboardPage />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="/shopkeeper/requests"
-                          element={
-                            <ProtectedRoute allowedRoles={['shopkeeper']} requireVerified={true}>
-                              <ShopkeeperRequestsPage />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="/shopkeeper/requests/:requestId"
-                          element={
-                            <ProtectedRoute allowedRoles={['shopkeeper']} requireVerified={true}>
-                              <ShopkeeperRequestDetailPage />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="/shopkeeper/catalogue"
-                          element={
-                            <ProtectedRoute allowedRoles={['shopkeeper']} requireVerified={true}>
-                              <ShopkeeperCataloguePage />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="/shopkeeper/profile"
-                          element={
-                            <ProtectedRoute allowedRoles={['shopkeeper']} requireVerified={true}>
-                              <ShopkeeperProfilePage />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="/shopkeeper/analytics"
-                          element={
-                            <ProtectedRoute allowedRoles={['shopkeeper', 'admin']} requireVerified={true}>
-                              <ShopkeeperAnalyticsPage />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route path="/shopkeeper/settings" element={<Navigate to="/shopkeeper/profile" replace />} />
-                        <Route path="/shopkeeper/apply" element={<ProtectedRoute requireVerified={true}><ShopkeeperOnboardingPage /></ProtectedRoute>} />
+                          {/* Shopkeeper MVP Routes */}
+                          <Route path="/shopkeeper" element={<Navigate to="/shopkeeper/dashboard" replace />} />
+                          <Route
+                            path="/shopkeeper/dashboard"
+                            element={
+                              <ProtectedRoute allowedRoles={['shopkeeper']} requireVerified={true}>
+                                <ShopkeeperDashboardPage />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/shopkeeper/requests"
+                            element={
+                              <ProtectedRoute allowedRoles={['shopkeeper']} requireVerified={true}>
+                                <ShopkeeperRequestsPage />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/shopkeeper/requests/:requestId"
+                            element={
+                              <ProtectedRoute allowedRoles={['shopkeeper']} requireVerified={true}>
+                                <ShopkeeperRequestDetailPage />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/shopkeeper/catalogue"
+                            element={
+                              <ProtectedRoute allowedRoles={['shopkeeper']} requireVerified={true}>
+                                <ShopkeeperCataloguePage />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/shopkeeper/profile"
+                            element={
+                              <ProtectedRoute allowedRoles={['shopkeeper']} requireVerified={true}>
+                                <ShopkeeperProfilePage />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/shopkeeper/analytics"
+                            element={
+                              <ProtectedRoute allowedRoles={['shopkeeper', 'admin']} requireVerified={true}>
+                                <ShopkeeperAnalyticsPage />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route path="/shopkeeper/settings" element={<Navigate to="/shopkeeper/profile" replace />} />
+                          <Route
+                            path="/shopkeeper/apply"
+                            element={
+                              <ProtectedRoute requireVerified={true}>
+                                <ShopkeeperOnboardingPage />
+                              </ProtectedRoute>
+                            }
+                          />
 
-                        {/* Admin & Business Operations Routes (Phase 5) */}
-                        <Route
-                          path="/admin"
-                          element={
-                            <AdminRoute>
-                              <AdminLayout />
-                            </AdminRoute>
-                          }
-                        >
-                          <Route index element={<Navigate to="/admin/dashboard" replace />} />
-                          <Route path="dashboard" element={<AdminDashboardPage />} />
-                          <Route path="locations" element={<AdminLocationsPage />} />
-                          <Route path="applications" element={<AdminApplicationsPage />} />
-                          <Route path="applications/:applicationId" element={<AdminApplicationDetailPage />} />
-                          <Route path="shops" element={<AdminShopsPage />} />
-                          <Route path="shops/:shopId" element={<AdminShopDetailPage />} />
-                          <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
-                          <Route path="audit" element={<AdminAuditPage />} />
+                          {/* Admin & Business Operations Routes (Phase 5) */}
+                          <Route
+                            path="/admin"
+                            element={
+                              <AdminRoute>
+                                <AdminLayout />
+                              </AdminRoute>
+                            }
+                          >
+                            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                            <Route path="dashboard" element={<AdminDashboardPage />} />
+                            <Route path="locations" element={<AdminLocationsPage />} />
+                            <Route path="applications" element={<AdminApplicationsPage />} />
+                            <Route path="applications/:applicationId" element={<AdminApplicationDetailPage />} />
+                            <Route path="shops" element={<AdminShopsPage />} />
+                            <Route path="shops/:shopId" element={<AdminShopDetailPage />} />
+                            <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
+                            <Route path="audit" element={<AdminAuditPage />} />
+                          </Route>
+
+                          {/* Public Design System Showcase & Dev Diagnostics */}
+                          {import.meta.env.DEV && <Route path="/design-system" element={<DesignSystemShowcasePage />} />}
+                          {import.meta.env.DEV && <Route path="/dev/supabase-test" element={<SupabaseDiagnosticPage />} />}
+
+                          {/* Fallback 404 */}
+                          <Route path="*" element={<NotFoundPage />} />
                         </Route>
 
-                        {/* Public Design System Showcase & Dev Diagnostics */}
-                        {import.meta.env.DEV && <Route path="/design-system" element={<DesignSystemShowcasePage />} />}
-                        {import.meta.env.DEV && <Route path="/dev/supabase-test" element={<SupabaseDiagnosticPage />} />}
-
-                        {/* Fallback 404 */}
-                        <Route path="*" element={<NotFoundPage />} />
-                      </Route>
-
-                      {/* Standalone Auth Routes */}
-                      <Route path="/login" element={<LoginPage />} />
-                      <Route path="/register" element={<RegisterPage />} />
-                      <Route path="/auth/callback" element={<AuthCallbackPage />} />
-                    </Routes>
-                  </React.Suspense>
-                </BrowserRouter>
+                        {/* Standalone Auth Routes */}
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route path="/register" element={<RegisterPage />} />
+                        <Route path="/complete-profile" element={<CompleteProfilePage />} />
+                        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+                      </Routes>
+                    </React.Suspense>
+                  </BrowserRouter>
                 </ToastProvider>
               </CartProvider>
             </LanguageProvider>

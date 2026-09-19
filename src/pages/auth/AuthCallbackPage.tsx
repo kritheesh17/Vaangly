@@ -12,7 +12,7 @@ export const AuthCallbackPage: React.FC = () => {
   const navigate = useNavigate();
   const { resendEmailConfirmation } = useAuth();
   const [state, setState] = useState<CallbackState>('loading');
-  const [message, setMessage] = useState('Completing your email confirmation...');
+  const [message, setMessage] = useState('Completing your authentication...');
   const [email, setEmail] = useState('');
 
   useEffect(() => {
@@ -36,19 +36,30 @@ export const AuthCallbackPage: React.FC = () => {
         return;
       }
 
+      const code = query.get('code');
+      if (code) {
+        try {
+          await supabase.auth.exchangeCodeForSession(code);
+        } catch (exchangeErr) {
+          console.error('Error exchanging code for session:', exchangeErr);
+        }
+      }
+
       const { data, error } = await supabase.auth.getSession();
       if (!mounted) return;
       if (error || !data.session?.user) {
         setState('error');
-        setMessage(error ? 'A network or Auth error prevented confirmation. Please request a new email.' : 'This confirmation link is missing, invalid, or expired.');
+        setMessage(error ? 'A network or Auth error prevented authentication. Please try again.' : 'This authentication session is missing, invalid, or expired.');
         return;
       }
 
       const confirmedUser = data.session.user;
-      const isEmailConfirmed = Boolean(confirmedUser.email_confirmed_at || confirmedUser.confirmed_at);
+      const isGoogleOAuth = confirmedUser.app_metadata?.provider === 'google' ||
+        Boolean(confirmedUser.identities?.some((id: { provider?: string }) => id.provider === 'google'));
+      const isEmailConfirmed = Boolean(confirmedUser.email_confirmed_at || confirmedUser.confirmed_at || isGoogleOAuth);
       if (!isEmailConfirmed) {
         setState('error');
-        setMessage('Your email confirmation could not be completed. Please request a new confirmation email.');
+        setMessage('Your account confirmation could not be completed. Please request a new confirmation email.');
         return;
       }
 
@@ -59,24 +70,97 @@ export const AuthCallbackPage: React.FC = () => {
         .eq('id', confirmedUser.id)
         .maybeSingle();
 
-      if (!profile) {
-        const metadata = confirmedUser.user_metadata || {};
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: confirmedUser.id,
-          role: ['customer', 'shopkeeper'].includes(metadata.role) ? metadata.role : 'customer',
-          full_name: metadata.full_name || confirmedUser.email?.split('@')[0] || 'User',
-          email: confirmedUser.email || null,
-          phone: metadata.phone || confirmedUser.phone || null,
-          is_verified: isEmailConfirmed,
-        });
-        if (profileError && profileError.code !== '23505') throw profileError;
+      const metadata = confirmedUser.user_metadata || {};
+      let activeProfile = profile;
+
+      if (!activeProfile) {
+        const { data: createdProfile, error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: confirmedUser.id,
+            role: 'customer',
+            full_name: metadata.full_name || metadata.name || confirmedUser.email?.split('@')[0] || 'Customer',
+            email: confirmedUser.email || null,
+            phone: confirmedUser.phone || null,
+            avatar_url: metadata.avatar_url || metadata.picture || null,
+            is_verified: isEmailConfirmed,
+          })
+          .select('*')
+          .maybeSingle();
+
+        if (profileError) {
+          if (profileError.code === '23505') {
+            // Concurrent insert race condition handled safely
+            const { data: existingProfile, error: fetchExistingError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', confirmedUser.id)
+              .maybeSingle();
+            if (fetchExistingError || !existingProfile) {
+              if (mounted) {
+                setState('error');
+                setMessage('Profile exists but could not be loaded. Please sign in again.');
+              }
+              return;
+            }
+            activeProfile = existingProfile;
+          } else {
+            console.error('Could not insert profile on callback:', profileError);
+            if (mounted) {
+              setState('error');
+              setMessage(profileError.message || 'Failed to initialize your profile. Please try signing in again.');
+            }
+            return;
+          }
+        } else {
+          activeProfile = createdProfile;
+        }
       }
+
+      if (!activeProfile) {
+        if (mounted) {
+          setState('error');
+          setMessage('Unable to load or create your profile. Please try signing in again.');
+        }
+        return;
+      }
+
+      // Check profile completeness for customer strictly from authoritative public.profiles
+      // Existing shopkeeper and admin profiles are never downgraded to customer
+      const targetRole = activeProfile?.role || 'customer';
+      const resolvedName = activeProfile?.full_name || '';
+      const resolvedPhone = activeProfile?.phone || '';
+      const resolvedAddress = activeProfile?.address || '';
+
+      const isComplete =
+        targetRole !== 'customer' ||
+        (Boolean(resolvedName.trim()) &&
+         Boolean(resolvedPhone.trim().length >= 7) &&
+         Boolean(resolvedAddress.trim()));
 
       localStorage.removeItem('vaangly_pending_confirmation_email');
       setState('success');
-      setMessage('Your email is confirmed. Redirecting you now...');
+      setMessage('Authentication confirmed. Redirecting you now...');
       window.setTimeout(() => {
-        navigate(confirmedUser.user_metadata?.role === 'shopkeeper' ? '/shopkeeper/apply' : '/', { replace: true });
+        const queryRedirect = query.get('redirect');
+        const sessionRedirect = sessionStorage.getItem('vaangly_auth_redirect');
+        const localRedirect = localStorage.getItem('vaangly_auth_redirect');
+        const pendingRedirect = queryRedirect || sessionRedirect || localRedirect;
+
+        if (sessionRedirect) sessionStorage.removeItem('vaangly_auth_redirect');
+        if (localRedirect) localStorage.removeItem('vaangly_auth_redirect');
+
+        if (targetRole === 'admin') {
+          navigate('/admin/dashboard', { replace: true });
+        } else if (targetRole === 'shopkeeper') {
+          navigate('/shopkeeper/dashboard', { replace: true });
+        } else if (pendingRedirect) {
+          navigate(pendingRedirect, { replace: true });
+        } else if (!isComplete) {
+          navigate('/complete-profile', { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
       }, 700);
     };
     completeConfirmation().catch(() => {
@@ -102,7 +186,7 @@ export const AuthCallbackPage: React.FC = () => {
       <div className="vaango-auth-card">
         <div className="vaango-auth-header">
           <div className="vaango-auth-logo"><span>V</span></div>
-          <h1 className="vaango-auth-title">Email confirmation</h1>
+          <h1 className="vaango-auth-title">Account authentication</h1>
           <p className="vaango-auth-subtitle">{message}</p>
         </div>
         {state === 'loading' && <RefreshCw size={22} className="vaango-spin text-primary" aria-label="Loading" />}

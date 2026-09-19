@@ -31,7 +31,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
 
   const [services, setServices] = useState<ShopService[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
-  
+
   // Date selection: Next 7 days
   const dateOptions = useMemo(() => {
     const dates: { dateStr: string; label: string; dayName: string }[] = [];
@@ -149,6 +149,12 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
       return;
     }
 
+    if (!user) {
+      toastError('Please sign in with Google to reserve an appointment.');
+      navigate('/login', { state: { from: { pathname: `/shop/${shop.id}` } } });
+      return;
+    }
+
     setIsSubmitting(true);
     setBookingError(null);
 
@@ -159,7 +165,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
       shopPhone: shop.phone,
       service: selectedService,
       slot: selectedSlot,
-      customerId: user?.id || 'cust-demo-guest',
+      customerId: user.id,
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
       notes: notes.trim(),
@@ -322,9 +328,8 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                   role="radio"
                   aria-checked={isSelected}
                   disabled={!isAvailable || isSubmitting}
-                  className={`vaango-slot-btn ${
-                    isSelected ? 'vaango-slot-btn--selected' : ''
-                  } ${!isAvailable ? 'vaango-slot-btn--booked' : ''}`}
+                  className={`vaango-slot-btn ${isSelected ? 'vaango-slot-btn--selected' : ''
+                    } ${!isAvailable ? 'vaango-slot-btn--booked' : ''}`}
                   onClick={() => {
                     if (isAvailable) {
                       setSelectedSlotId(slot.id);

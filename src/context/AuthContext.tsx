@@ -1,12 +1,15 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { getAuthRedirectUrl, supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, getAuthRedirectUrl } from '../lib/supabase';
 import { Profile, UserRole } from '../types/database';
 
-export interface EmailOtpMetadata {
-  fullName?: string;
-  role?: UserRole;
-  phone?: string;
-}
+export const isCustomerProfileComplete = (profile: Profile | null): boolean => {
+  if (!profile) return false;
+  if (profile.role !== 'customer') return true;
+  const hasName = Boolean(profile.full_name && profile.full_name.trim().length > 0);
+  const hasPhone = Boolean(profile.phone && profile.phone.trim().length >= 7);
+  const hasAddress = Boolean(profile.address && profile.address.trim().length > 0);
+  return hasName && hasPhone && hasAddress;
+};
 
 export interface AuthContextType {
   user: Profile | null;
@@ -15,19 +18,18 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   isSupabaseLive: boolean;
   isEmailVerified: boolean;
-  requestEmailOtp: (
-    email: string,
-    metadata?: EmailOtpMetadata
-  ) => Promise<{ success: boolean; error?: string; message?: string }>;
-  verifyEmailOtp: (
-    email: string,
-    token: string
-  ) => Promise<{ success: boolean; error?: string; user?: Profile }>;
-  loginWithEmail: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
-  signUpWithEmail: (email: string, password: string, fullName: string, role?: UserRole, phone?: string) => Promise<{ success: boolean; error?: string; message?: string }>;
+  isProfileComplete: boolean;
+  signInWithGoogle: (redirectPath?: string) => Promise<{ success: boolean; error?: string }>;
+  updateCustomerProfile: (data: {
+    full_name: string;
+    phone: string;
+    address: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  loginWithEmail: (email: string, password?: string) => Promise<{ success: boolean; error?: string; isEmailUnconfirmed?: boolean }>;
+  signUpWithEmail: (email: string, password: string, fullName: string, role?: UserRole, phone?: string, redirectPath?: string) => Promise<{ success: boolean; error?: string; requiresEmailConfirmation?: boolean; message?: string }>;
   resendEmailConfirmation: (email: string) => Promise<{ success: boolean; error?: string }>;
-  requestPhoneOtp: (phone: string) => Promise<{ success: boolean; error?: string }>;
-  verifyPhoneOtp: (phone: string, token: string) => Promise<{ success: boolean; error?: string }>;
+  resetPasswordForEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
+  updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   switchDemoRole: (role: UserRole) => void;
 }
@@ -42,6 +44,7 @@ const DEMO_PROFILES: Record<UserRole, Profile> = {
     full_name: 'Ananya Raman',
     phone: '+91 98765 43210',
     email: 'ananya.customer@example.com',
+    address: '14 Cutcherry Street, Kangeyam',
     avatar_url: null,
     preferred_location_id: '11111111-1111-1111-1111-111111111111',
     is_verified: true,
@@ -93,16 +96,25 @@ export function mapSupabaseAuthError(err: unknown, defaultMessage = 'Unable to v
     return 'Too many attempts. Please wait and try again.';
   }
   if (msg.includes('expired') || msg.includes('otp_expired')) {
-    return 'This confirmation link has expired. Request a new confirmation email.';
+    return 'This verification code has expired. Request a new code.';
   }
   if (msg.includes('invalid') || msg.includes('token') || msg.includes('incorrect') || msg.includes('invalid_grant')) {
-    return 'This confirmation link is invalid or has expired. Request a new confirmation email.';
+    return 'That verification code is invalid or has expired. Request a new code.';
+  }
+  if (msg.includes('email not confirmed') || msg.includes('not confirmed') || msg.includes('email_not_confirmed')) {
+    return 'Your email address has not been verified yet. Please check your inbox or request a new verification email.';
+  }
+  if (msg.includes('invalid login credentials') || msg.includes('invalid_credentials')) {
+    return 'Incorrect email or password. Please check your credentials and try again.';
+  }
+  if (msg.includes('user already registered') || msg.includes('already registered')) {
+    return 'An account with this email already exists. Please sign in instead.';
   }
   if (msg.includes('already') && (msg.includes('confirmed') || msg.includes('verified'))) {
     return 'This email address is already verified. You can sign in.';
   }
   if (msg.includes('network') || msg.includes('fetch') || msg.includes('connection') || msg.includes('offline')) {
-    return 'Unable to verify your email right now. Please try again.';
+    return 'Unable to connect to the authentication service. Please check your internet connection.';
   }
   return defaultMessage;
 }
@@ -110,15 +122,6 @@ export function mapSupabaseAuthError(err: unknown, defaultMessage = 'Unable to v
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // In-memory simulator cache for local preview mode
-  const [demoPendingOtp, setDemoPendingOtp] = useState<{
-    email: string;
-    code: string;
-    metadata?: EmailOtpMetadata;
-    expiresAt: number;
-  } | null>(null);
-  const [demoPendingPhone, setDemoPendingPhone] = useState<string | null>(null);
 
   // Initialize session
   useEffect(() => {
@@ -130,34 +133,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user && mounted) {
             // Authoritative email verification status from Supabase Auth
-            const isEmailConfirmed = Boolean(session.user.email_confirmed_at || session.user.confirmed_at);
+            const isGoogleOAuth = session.user.app_metadata?.provider === 'google' ||
+              Boolean(session.user.identities?.some((id: { provider?: string }) => id.provider === 'google'));
+            const isEmailConfirmed = Boolean(session.user.email_confirmed_at || session.user.confirmed_at || isGoogleOAuth);
 
             // Fetch profile
             const { data: profile } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
 
             if (profile) {
+              const profileData = profile as Profile;
               setUser({
-                ...(profile as Profile),
-                // Ensure authoritative email verification from Supabase Auth
+                ...profileData,
+                address: profileData.address || null,
                 is_verified: isEmailConfirmed,
               });
             } else {
-              // Fallback basic profile from auth user metadata
+              // Initial customer profile fallback when row does not exist yet.
+              // Authoritative role is strictly 'customer' (never derived from client-writable user_metadata).
               setUser({
                 id: session.user.id,
-                role: (session.user.user_metadata?.role as UserRole) || 'customer',
-                full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+                role: 'customer',
+                full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Customer',
                 phone: session.user.phone || null,
                 email: session.user.email || null,
-                avatar_url: null,
+                address: null,
+                avatar_url: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null,
                 preferred_location_id: null,
                 is_verified: isEmailConfirmed,
-                created_at: session.user.created_at,
-                updated_at: session.user.created_at,
+                created_at: session.user.created_at || new Date().toISOString(),
+                updated_at: session.user.created_at || new Date().toISOString(),
               });
             }
           }
@@ -196,27 +204,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isSupabaseConfigured) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
         if (session?.user) {
-          const isEmailConfirmed = Boolean(session.user.email_confirmed_at || session.user.confirmed_at);
+          const isGoogleOAuth = session.user.app_metadata?.provider === 'google' ||
+            Boolean(session.user.identities?.some((id: { provider?: string }) => id.provider === 'google'));
+          const isEmailConfirmed = Boolean(session.user.email_confirmed_at || session.user.confirmed_at || isGoogleOAuth);
 
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .single();
+            .maybeSingle();
 
           if (profile) {
+            const profileData = profile as Profile;
             setUser({
-              ...(profile as Profile),
+              ...profileData,
+              address: profileData.address || null,
               is_verified: isEmailConfirmed,
             });
           } else {
             setUser({
               id: session.user.id,
-              role: (session.user.user_metadata?.role as UserRole) || 'customer',
-              full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+              role: 'customer',
+              full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Customer',
               phone: session.user.phone || null,
               email: session.user.email || null,
-              avatar_url: null,
+              address: null,
+              avatar_url: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null,
               preferred_location_id: null,
               is_verified: isEmailConfirmed,
               created_at: session.user.created_at || new Date().toISOString(),
@@ -240,65 +253,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // -------------------------------------------------------------
-  // EMAIL OTP REQUEST
-  // -------------------------------------------------------------
-  const requestEmailOtp = async (
-    email: string,
-    metadata?: EmailOtpMetadata
-  ): Promise<{ success: boolean; error?: string; message?: string }> => {
-    const cleanEmail = email.trim().toLowerCase();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
-      return { success: false, error: 'Please enter a valid email address.' };
-    }
-
-    if (isSupabaseConfigured) {
-      try {
-        const { error } = await supabase.auth.signInWithOtp({
-          email: cleanEmail,
-          options: {
-            shouldCreateUser: true,
-            data: metadata
-              ? { full_name: metadata.fullName, role: metadata.role, phone: metadata.phone }
-              : undefined,
-          },
-        });
-
-        if (error) {
-          console.error('[OTP] signInWithOtp error:', error.message, error);
-          return { success: false, error: error.message || 'Failed to send verification code.' };
-        }
-
-        console.log('[OTP] signInWithOtp succeeded - Supabase accepted the request.');
-
-        return { success: true, message: 'Verification code sent to your email.' };
-      } catch (err) {
-        return { success: false, error: mapSupabaseAuthError(err, 'Unable to verify your email right now. Please try again.') };
-      }
-    } else {
-      // Local preview / evaluation mode:
-      // Generate a demo 6-digit OTP code valid for 10 minutes
-      const demoCode = '123456';
-      setDemoPendingOtp({
-        email: cleanEmail,
-        code: demoCode,
-        metadata,
-        expiresAt: Date.now() + 10 * 60 * 1000,
-      });
-
-      console.info(
-        `[Vaango Preview Auth] Verification code for ${cleanEmail}: ${demoCode} (Valid in local architecture mode)`
-      );
-
-      return {
-        success: true,
-        message: 'Verification code sent to your email.',
-      };
-    }
-  };
-
-  // -------------------------------------------------------------
-  // EMAIL CONFIRMATION RESEND
+  // EMAIL CONFIRMATION RESEND (Used by Auth Callback)
   // -------------------------------------------------------------
   const resendEmailConfirmation = async (email: string) => {
     const cleanEmail = email.trim().toLowerCase();
@@ -308,167 +263,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: cleanEmail,
-      options: { emailRedirectTo: getAuthRedirectUrl() },
     });
     return error
-      ? { success: false, error: mapSupabaseAuthError(error, 'Unable to send a new confirmation email.') }
+      ? { success: false, error: mapSupabaseAuthError(error, 'Unable to send a new verification code.') }
       : { success: true };
   };
 
   // -------------------------------------------------------------
-  // EMAIL OTP VERIFY
+  // PASSWORD LOGIN (Unified for Customers & Merchants)
   // -------------------------------------------------------------
-  const verifyEmailOtp = async (
-    email: string,
-    token: string
-  ): Promise<{ success: boolean; error?: string; user?: Profile }> => {
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanToken = token.trim();
-
-    if (!cleanToken || cleanToken.length !== 6) {
-      return { success: false, error: 'That code is incorrect or has expired.' };
+  const loginWithEmail = async (email: string, password?: string): Promise<{ success: boolean; error?: string; isEmailUnconfirmed?: boolean }> => {
+    if (!email || email.trim().length === 0) {
+      return { success: false, error: 'Email is required.' };
     }
-
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase.auth.verifyOtp({
-          email: cleanEmail,
-          token: cleanToken,
-          type: 'email',
-        });
-
-        if (error || !data.session?.user) {
-          return {
-            success: false,
-            error: mapSupabaseAuthError(error, 'That code is incorrect or has expired.'),
-          };
-        }
-
-        const authUser = data.session.user;
-        const isEmailConfirmed = Boolean(authUser.email_confirmed_at || authUser.confirmed_at);
-
-        // Fetch or create profile
-        let userProfile: Profile | null = null;
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .single();
-
-        if (profile) {
-          userProfile = {
-            ...(profile as Profile),
-            is_verified: isEmailConfirmed,
-          };
-        } else {
-          // Construct and persist profile
-          const rawMetaRole = authUser.user_metadata?.role as string | undefined;
-          const metaRole: UserRole = ['customer', 'shopkeeper'].includes(rawMetaRole ?? '')
-            ? (rawMetaRole as UserRole)
-            : 'customer';
-          const metaName = authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User';
-
-          userProfile = {
-            id: authUser.id,
-            role: metaRole,
-            full_name: metaName,
-            phone: authUser.phone || (authUser.user_metadata?.phone as string | undefined) || null,
-            email: authUser.email || cleanEmail,
-            avatar_url: null,
-            preferred_location_id: null,
-            is_verified: isEmailConfirmed,
-            created_at: authUser.created_at || new Date().toISOString(),
-            updated_at: authUser.created_at || new Date().toISOString(),
-          };
-
-          // Attempt safe profile creation
-          try {
-            await supabase.from('profiles').insert([
-              {
-                id: userProfile.id,
-                role: userProfile.role,
-                full_name: userProfile.full_name,
-                email: userProfile.email,
-                phone: authUser.phone || (authUser.user_metadata?.phone as string | undefined) || null,
-                is_verified: isEmailConfirmed,
-              },
-            ]);
-          } catch (insertErr) {
-            console.warn('Could not insert profile row (handled gracefully):', insertErr);
-          }
-        }
-
-        setUser(userProfile);
-        return { success: true, user: userProfile };
-      } catch (err) {
-        return {
-          success: false,
-          error: mapSupabaseAuthError(err, 'Unable to verify your email right now. Please try again.'),
-        };
-      }
-    } else {
-      // Local preview / evaluation mode:
-      if (!demoPendingOtp || demoPendingOtp.email !== cleanEmail) {
-        // Allow universal 123456 code in preview mode
-        if (cleanToken !== '123456') {
-          return { success: false, error: 'That code is incorrect or has expired.' };
-        }
-      } else {
-        if (Date.now() > demoPendingOtp.expiresAt) {
-          return { success: false, error: 'This verification code has expired. Request a new code.' };
-        }
-        if (cleanToken !== demoPendingOtp.code && cleanToken !== '123456') {
-          return { success: false, error: 'That code is incorrect or has expired.' };
-        }
-      }
-
-      // Determine persona
-      const metadata = demoPendingOtp?.metadata;
-      let matchedRole: UserRole = metadata?.role || 'customer';
-      if (!metadata?.role) {
-        if (cleanEmail.includes('admin')) {
-          matchedRole = 'admin';
-        } else if (cleanEmail.includes('shop') || cleanEmail.includes('store')) {
-          matchedRole = 'shopkeeper';
-        }
-      }
-
-      const verifiedProfile: Profile = {
-        id: `demo-usr-${Date.now()}`,
-        role: matchedRole,
-        full_name: metadata?.fullName || (cleanEmail.split('@')[0].replace('.', ' ').replace(/^./, (s) => s.toUpperCase())),
-        email: cleanEmail,
-        phone: null,
-        avatar_url: null,
-        preferred_location_id: '11111111-1111-1111-1111-111111111111',
-        is_verified: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      setUser(verifiedProfile);
-      localStorage.setItem(LOCAL_STORAGE_DEMO_KEY, matchedRole);
-      localStorage.setItem(LOCAL_STORAGE_DEMO_USER, JSON.stringify(verifiedProfile));
-      setDemoPendingOtp(null);
-
-      return { success: true, user: verifiedProfile };
-    }
-  };
-
-  // -------------------------------------------------------------
-  // PASSWORD LOGIN (Retained for Administrator / Staff Accounts)
-  // -------------------------------------------------------------
-  const loginWithEmail = async (email: string, password?: string) => {
     if (!password || password.trim().length === 0) {
-      return { success: false, error: 'Password is required for staff login.' };
+      return { success: false, error: 'Password is required.' };
     }
 
     setIsLoading(true);
     try {
       if (isSupabaseConfigured) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
         if (error) {
-          return { success: false, error: error.message };
+          const isUnconfirmed = error.message.toLowerCase().includes('email not confirmed') ||
+                                error.message.toLowerCase().includes('not confirmed');
+          return {
+            success: false,
+            error: mapSupabaseAuthError(error, error.message),
+            isEmailUnconfirmed: isUnconfirmed,
+          };
         }
         const isEmailConfirmed = Boolean(data.user?.email_confirmed_at || data.user?.confirmed_at);
         if (data.user) {
@@ -476,23 +299,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .from('profiles')
             .select('*')
             .eq('id', data.user.id)
-            .single();
+            .maybeSingle();
 
           if (profile) {
             setUser({
               ...(profile as Profile),
               is_verified: isEmailConfirmed,
             });
+          } else {
+            setUser({
+              id: data.user.id,
+              role: 'customer',
+              full_name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Customer',
+              phone: data.user.phone || null,
+              email: data.user.email || null,
+              address: null,
+              avatar_url: data.user.user_metadata?.avatar_url || null,
+              preferred_location_id: null,
+              is_verified: isEmailConfirmed,
+              created_at: data.user.created_at || new Date().toISOString(),
+              updated_at: data.user.created_at || new Date().toISOString(),
+            });
           }
         }
         return { success: true };
       } else {
-        // Preview mode login
+        // Preview mode login for development evaluation
         const matchedRole: UserRole = email.includes('admin')
           ? 'admin'
           : email.includes('shop')
-          ? 'shopkeeper'
-          : 'customer';
+            ? 'shopkeeper'
+            : 'customer';
         setUser(DEMO_PROFILES[matchedRole]);
         localStorage.setItem(LOCAL_STORAGE_DEMO_KEY, matchedRole);
         localStorage.removeItem(LOCAL_STORAGE_DEMO_USER);
@@ -507,75 +344,239 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // -------------------------------------------------------------
-  // SIGN UP WITH EMAIL (Supabase confirmation-link flow)
+  // SIGN UP WITH EMAIL (Unified Customer Registration)
   // -------------------------------------------------------------
   const signUpWithEmail = async (
     email: string,
     password: string,
     fullName: string,
     role: UserRole = 'customer',
-    phone?: string
-  ) => {
-    if (!isSupabaseConfigured) return requestEmailOtp(email, { fullName, role, phone });
+    phone?: string,
+    redirectPath?: string
+  ): Promise<{ success: boolean; error?: string; requiresEmailConfirmation?: boolean; message?: string }> => {
+    if (!isSupabaseConfigured) {
+      return { success: false, error: 'Supabase authentication is not configured.' };
+    }
 
-    const { error } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-      options: {
-        emailRedirectTo: getAuthRedirectUrl(),
-        data: { full_name: fullName.trim(), role, phone: phone?.trim() || null },
-      },
-    });
-    return error
-      ? { success: false, error: mapSupabaseAuthError(error, 'Registration request failed. Please try again.') }
-      : { success: true };
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = fullName.trim();
+
+    if (!cleanEmail) {
+      return { success: false, error: 'Please enter your email address.' };
+    }
+    if (!cleanName) {
+      return { success: false, error: 'Please enter your full name.' };
+    }
+    if (!password || password.length < 6) {
+      return { success: false, error: 'Password must be at least 6 characters long.' };
+    }
+
+    setIsLoading(true);
+    try {
+      const emailRedirectTo = getAuthRedirectUrl(redirectPath);
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: { full_name: cleanName, role: role || 'customer', phone: phone?.trim() || null },
+          emailRedirectTo,
+        },
+      });
+
+      if (error) {
+        return { success: false, error: mapSupabaseAuthError(error, error.message) };
+      }
+
+      // Check if session was returned or if email confirmation is required
+      if (data.session && data.user) {
+        const isEmailConfirmed = Boolean(data.user.email_confirmed_at || data.user.confirmed_at);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .maybeSingle();
+
+        if (profile) {
+          setUser({ ...(profile as Profile), is_verified: isEmailConfirmed });
+        } else {
+          setUser({
+            id: data.user.id,
+            role: 'customer',
+            full_name: cleanName,
+            phone: phone?.trim() || null,
+            email: cleanEmail,
+            address: null,
+            avatar_url: null,
+            preferred_location_id: null,
+            is_verified: isEmailConfirmed,
+            created_at: data.user.created_at || new Date().toISOString(),
+            updated_at: data.user.created_at || new Date().toISOString(),
+          });
+        }
+        return { success: true, requiresEmailConfirmation: false };
+      } else {
+        // Email confirmation is required by Supabase
+        return {
+          success: true,
+          requiresEmailConfirmation: true,
+          message: 'Account created! Please check your email inbox to verify your account before signing in.',
+        };
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Registration failed';
+      return { success: false, error: message };
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // -------------------------------------------------------------
-  // PHONE OTP (Preserves isolated hook architecture)
+  // PASSWORD RESET & RECOVERY
   // -------------------------------------------------------------
-  const requestPhoneOtp = async (phone: string) => {
-    const cleanPhone = phone.trim();
-    if (!cleanPhone) {
-      return { success: false, error: 'Please enter a valid phone number.' };
+  const resetPasswordForEmail = async (email: string): Promise<{ success: boolean; error?: string }> => {
+    if (!isSupabaseConfigured) return { success: true };
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      return { success: false, error: 'Please enter your email address.' };
     }
-
-    if (isSupabaseConfigured) {
-      const { error } = await supabase.auth.signInWithOtp({ phone: cleanPhone });
-      if (error) return { success: false, error: error.message };
-      return { success: true };
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: `${window.location.origin}/login?mode=recovery`,
+      });
+      return error ? { success: false, error: mapSupabaseAuthError(error, error.message) } : { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Password reset failed' };
     }
-
-    setDemoPendingPhone(cleanPhone);
-    console.info(`[Vaango Preview Auth] Verification code for ${cleanPhone}: 123456`);
-    return { success: true };
   };
 
-  const verifyPhoneOtp = async (phone: string, token: string) => {
-    if (isSupabaseConfigured) {
-      const { error } = await supabase.auth.verifyOtp({ phone: phone.trim(), token: token.trim(), type: 'sms' });
-      if (error) return { success: false, error: error.message };
+  const updatePassword = async (password: string): Promise<{ success: boolean; error?: string }> => {
+    if (!isSupabaseConfigured) return { success: true };
+    if (!password || password.length < 6) {
+      return { success: false, error: 'Password must be at least 6 characters long.' };
+    }
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      return error ? { success: false, error: mapSupabaseAuthError(error, error.message) } : { success: true };
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Password update failed' };
+    }
+  };
+
+  // -------------------------------------------------------------
+  // GOOGLE OAUTH AUTHENTICATION (Customer Primary Auth Flow)
+  // -------------------------------------------------------------
+  const signInWithGoogle = async (redirectPath?: string): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true);
+    try {
+      if (!isSupabaseConfigured) {
+        return {
+          success: false,
+          error: 'Supabase authentication is not configured. Please check your environment variables.',
+        };
+      }
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: getAuthRedirectUrl(redirectPath),
+        },
+      });
+      if (error) {
+        return { success: false, error: error.message };
+      }
       return { success: true };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Google authentication failed';
+      return { success: false, error: message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // CUSTOMER PROFILE ONBOARDING & UPDATES
+  // -------------------------------------------------------------
+  const updateCustomerProfile = async (data: {
+    full_name: string;
+    phone: string;
+    address: string;
+  }): Promise<{ success: boolean; error?: string }> => {
+    const cleanName = data.full_name.trim();
+    const cleanPhone = data.phone.trim();
+    const cleanAddress = data.address.trim();
+
+    if (!cleanName) {
+      return { success: false, error: 'Please enter your full name.' };
+    }
+    if (!cleanPhone || cleanPhone.length < 10) {
+      return { success: false, error: 'Please enter a valid 10-digit phone number.' };
+    }
+    if (!cleanAddress || cleanAddress.length < 5) {
+      return { success: false, error: 'Please enter your full delivery address.' };
     }
 
-    if (demoPendingPhone !== phone.trim() || token.trim() !== '123456') {
-      return { success: false, error: 'That code is incorrect or has expired.' };
+    if (!isSupabaseConfigured) {
+      return {
+        success: false,
+        error: 'Supabase database is not configured. Profile cannot be saved.',
+      };
     }
 
-    const verifiedProfile: Profile = {
-      ...DEMO_PROFILES.customer,
-      id: `demo-phone-${Date.now()}`,
-      phone: phone.trim(),
-      email: null,
-      is_verified: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setUser(verifiedProfile);
-    setDemoPendingPhone(null);
-    localStorage.setItem(LOCAL_STORAGE_DEMO_KEY, 'customer');
-    localStorage.setItem(LOCAL_STORAGE_DEMO_USER, JSON.stringify(verifiedProfile));
-    return { success: true };
+    // Derive the authenticated user strictly from the active Supabase Auth session
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const authenticatedUserId = sessionData?.session?.user?.id;
+
+    if (sessionError || !authenticatedUserId) {
+      return { success: false, error: 'Active authentication session not found. Please sign in again.' };
+    }
+
+    setIsLoading(true);
+    try {
+      // Authoritative update directly on the user's own public.profiles row.
+      // Must not report successful persistence if the database update failed.
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: cleanName,
+          phone: cleanPhone,
+          address: cleanAddress,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', authenticatedUserId);
+
+      if (profileError) {
+        console.error('[Profile] Failed to update public.profiles:', profileError.message);
+        return {
+          success: false,
+          error: profileError.message || 'Failed to update profile in database.',
+        };
+      }
+
+      // Reload updated authoritative profile directly from database
+      const { data: refreshedProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authenticatedUserId)
+        .single();
+
+      if (fetchError || !refreshedProfile) {
+        return {
+          success: false,
+          error: fetchError?.message || 'Profile saved, but failed to reload updated record.',
+        };
+      }
+
+      setUser({
+        ...(refreshedProfile as Profile),
+        is_verified: Boolean(sessionData?.session?.user?.email_confirmed_at || sessionData?.session?.user?.confirmed_at),
+      });
+
+      return { success: true };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update profile';
+      return { success: false, error: message };
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // -------------------------------------------------------------
@@ -612,13 +613,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: Boolean(user),
         isSupabaseLive: isSupabaseConfigured,
         isEmailVerified: Boolean(user?.is_verified),
-        requestEmailOtp,
-        verifyEmailOtp,
+        isProfileComplete: isCustomerProfileComplete(user),
+        signInWithGoogle,
+        updateCustomerProfile,
         resendEmailConfirmation,
         loginWithEmail,
         signUpWithEmail,
-        requestPhoneOtp,
-        verifyPhoneOtp,
+        resetPasswordForEmail,
+        updatePassword,
         signOut,
         switchDemoRole,
       }}

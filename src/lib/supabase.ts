@@ -17,14 +17,19 @@ export const supabase = createClient(
   supabasePublishableKey
 );
 
-export const getAuthRedirectUrl = (): string => {
+export const getAuthRedirectUrl = (redirectPath?: string): string => {
   const browserOrigin = typeof window !== 'undefined' ? window.location.origin : '';
   const isWebOrigin = browserOrigin.startsWith('http://') || browserOrigin.startsWith('https://');
-  const isLocalBrowserOrigin = /https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(browserOrigin);
-  const appUrl = isWebOrigin && !isLocalBrowserOrigin
+  // Always favor the current active browser origin so dynamic local dev ports (3000, 3001) and staging work seamlessly
+  const baseAppUrl = isWebOrigin
     ? browserOrigin
-    : configuredAppUrl || browserOrigin;
-  return `${appUrl}/auth/callback`;
+    : (configuredAppUrl || 'https://vaangly.vercel.app');
+
+  const callbackUrl = `${baseAppUrl}/auth/callback`;
+  if (redirectPath && redirectPath !== '/') {
+    return `${callbackUrl}?redirect=${encodeURIComponent(redirectPath)}`;
+  }
+  return callbackUrl;
 };
 
 export const isSupabaseConfigured = Boolean(

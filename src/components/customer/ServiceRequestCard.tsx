@@ -75,6 +75,12 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
       return;
     }
 
+    if (!user) {
+      toastError('Please sign in with Google to submit a service request.');
+      navigate('/login', { state: { from: { pathname: `/shop/${shop.id}` } } });
+      return;
+    }
+
     setIsSubmitting(true);
     setServiceError(null);
 
@@ -84,7 +90,7 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
       shopAddress: shop.address_line,
       shopPhone: shop.phone,
       service: selectedService,
-      customerId: user?.id || 'cust-demo-guest',
+      customerId: user.id,
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
       notes: notes.trim(),
@@ -126,9 +132,8 @@ export const ServiceRequestCard: React.FC<ServiceRequestCardProps> = ({ shop }) 
                   role="radio"
                   aria-checked={isSelected}
                   disabled={!srv.is_available}
-                  className={`vaango-service-item ${isSelected ? 'vaango-service-item--selected' : ''} ${
-                    !srv.is_available ? 'vaango-service-item--disabled' : ''
-                  }`}
+                  className={`vaango-service-item ${isSelected ? 'vaango-service-item--selected' : ''} ${!srv.is_available ? 'vaango-service-item--disabled' : ''
+                    }`}
                   onClick={() => setSelectedServiceId(srv.id)}
                 >
                   <div className="vaango-service-item__top">

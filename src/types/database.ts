@@ -11,6 +11,7 @@ export interface Profile {
   phone: string | null;
   email: string | null;
   avatar_url: string | null;
+  address?: string | null;
   preferred_location_id: string | null;
   is_verified: boolean;
   created_at: string;
@@ -273,18 +274,17 @@ export interface AdminAuditLog {
   admin_id: string;
   admin_name?: string;
   action_type:
-    | 'application_approved'
-    | 'application_rejected'
-    | 'shop_suspended'
-    | 'shop_reactivated'
-    | 'location_created'
-    | 'location_updated'
-    | 'location_deactivated'
-    | 'payment_recorded'
-    | 'subscription_status_changed';
+  | 'application_approved'
+  | 'application_rejected'
+  | 'shop_suspended'
+  | 'shop_reactivated'
+  | 'location_created'
+  | 'location_updated'
+  | 'location_deactivated'
+  | 'payment_recorded'
+  | 'subscription_status_changed';
   entity_type: 'shop_application' | 'shop' | 'location' | 'subscription' | 'payment';
   entity_id: string;
   details: Record<string, unknown>;
   created_at: string;
 }
-

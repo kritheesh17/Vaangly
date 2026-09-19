@@ -1,234 +1,1544 @@
-.vaango-home {
+/* Vaangly Landing Page — Official Design System Styles */
+
+.vaangly-landing {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  width: 100%;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  overflow-x: hidden;
 }
 
-.vaango-home__location-banner {
+/* 1. Location Bar */
+.vaangly-location-bar {
   background-color: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
-  padding: var(--space-3) 0;
+  padding: 10px 0;
 }
 
-.vaango-home__location-inner {
+.vaangly-location-bar__inner {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
 }
 
-.vaango-home__location-chip {
+.vaangly-location-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: 6px var(--space-3);
-  border-radius: var(--radius-full);
+  gap: var(--space-2);
+  padding: 6px 14px;
   background-color: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
   cursor: pointer;
   transition: all var(--transition-fast);
-  text-align: left;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
 }
 
-.vaango-home__location-chip:hover {
+.vaangly-location-chip:hover {
   border-color: var(--brand-primary);
   background-color: var(--brand-primary-light);
 }
 
-.vaango-home__location-icon {
+.vaangly-location-icon {
   color: var(--brand-primary);
-  flex-shrink: 0;
 }
 
-.vaango-home__location-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.vaango-home__location-prefix {
-  font-size: 11px;
-  color: var(--color-text-muted);
-  line-height: 1;
-}
-
-.vaango-home__location-title {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  font-weight: var(--font-weight-bold);
-}
-
-.vaango-home__location-change {
+.vaangly-location-label {
+  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
+}
+
+.vaangly-location-name {
   color: var(--brand-primary);
-  margin-left: var(--space-1);
+  font-weight: 700;
 }
 
-.vaango-home__hero {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding-top: var(--space-2);
+.vaangly-location-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-xs);
+  color: var(--brand-accent);
+  font-weight: 600;
+  background-color: var(--brand-accent-light);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
 }
 
-.vaango-home__hero-header {
+.vaangly-location-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--brand-accent);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+/* 2. Hero Section */
+.vaangly-hero {
+  padding: var(--space-12) 0;
+  background: radial-gradient(circle at 10% 20%, rgba(27, 77, 62, 0.05) 0%, transparent 50%),
+              radial-gradient(circle at 90% 80%, rgba(46, 125, 50, 0.05) 0%, transparent 50%);
+}
+
+.vaangly-hero__container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-10);
+  align-items: center;
+}
+
+@media (min-width: 960px) {
+  .vaangly-hero__container {
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: var(--space-12);
+  }
+}
+
+.vaangly-hero__content {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--space-2);
-  max-width: var(--max-readable-width);
 }
 
-.vaango-home__headline {
-  font-size: 2rem;
-  font-weight: var(--font-weight-extrabold);
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-@media (min-width: 640px) {
-  .vaango-home__headline {
-    font-size: 2.75rem;
-  }
-}
-
-.vaango-home__subheadline {
-  font-size: var(--font-size-base);
-  color: var(--color-text-secondary);
-  line-height: 1.5;
-}
-
-.vaango-actions-grid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  margin-top: var(--space-2);
-}
-
-@media (min-width: 768px) {
-  .vaango-actions-grid {
-    grid-template-columns: repeat(3, 1fr);
-    display: grid;
-  }
-}
-
-.vaango-home__categories-sec {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  margin-top: var(--space-2);
-}
-
-.vaango-home__sec-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-}
-
-.vaango-home__sec-title {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-}
-
-.vaango-home__sec-subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.vaango-home__see-all-btn {
+.vaangly-hero__pill {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
+  gap: var(--space-2);
+  padding: 6px 14px;
+  background-color: var(--brand-primary-light);
   color: var(--brand-primary);
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-.vaango-home__see-all-btn:hover {
-  text-decoration: underline;
-}
-
-.vaango-category-chips {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  overflow-x: auto;
-  padding-bottom: var(--space-2);
-  -webkit-overflow-scrolling: touch;
-}
-
-.vaango-cat-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background-color: var(--color-surface);
-  border: 1.5px solid var(--color-border);
   border-radius: var(--radius-full);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  box-shadow: var(--shadow-sm);
-}
-
-.vaango-cat-chip:hover {
-  border-color: var(--brand-primary);
-  color: var(--brand-primary);
-  transform: translateY(-1px);
-}
-
-.vaango-cat-chip__emoji {
-  font-size: 1.2rem;
-}
-
-.vaango-home__value-sec {
-  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
   margin-bottom: var(--space-4);
 }
 
-.vaango-value-card {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-5);
-  background-color: var(--color-surface-elevated);
+.vaangly-hero__title {
+  font-size: 2.35rem;
+  line-height: 1.2;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  letter-spacing: -0.025em;
+  margin-bottom: var(--space-4);
 }
 
 @media (min-width: 768px) {
-  .vaango-value-card {
+  .vaangly-hero__title {
+    font-size: 3.25rem;
+  }
+}
+
+.vaangly-hero__title--highlight {
+  color: var(--brand-primary);
+  display: inline-block;
+  position: relative;
+}
+
+.vaangly-hero__title--highlight::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 4px;
+  width: 100%;
+  height: 8px;
+  background-color: var(--brand-accent-light);
+  z-index: -1;
+  border-radius: 4px;
+}
+
+.vaangly-hero__subtitle {
+  font-size: var(--font-size-lg);
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-8);
+  max-width: 560px;
+}
+
+.vaangly-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
+  width: 100%;
+}
+
+@media (min-width: 500px) {
+  .vaangly-hero__actions {
+    width: auto;
+  }
+}
+
+.vaangly-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 12px 24px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1.5px solid transparent;
+}
+
+.vaangly-btn--lg {
+  padding: 14px 28px;
+  font-size: var(--font-size-lg);
+}
+
+.vaangly-btn--primary {
+  background-color: var(--brand-primary);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(27, 77, 62, 0.25);
+}
+
+.vaangly-btn--primary:hover {
+  background-color: var(--brand-primary-hover);
+  box-shadow: 0 6px 20px rgba(27, 77, 62, 0.35);
+  transform: translateY(-2px);
+}
+
+.vaangly-btn--outline {
+  background-color: transparent;
+  color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.vaangly-btn--outline:hover {
+  background-color: var(--brand-primary-light);
+}
+
+.vaangly-btn--white {
+  background-color: #FFFFFF;
+  color: var(--brand-primary);
+  border-color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.vaangly-btn--white:hover {
+  background-color: var(--brand-primary-light);
+  transform: translateY(-2px);
+}
+
+.vaangly-hero__features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.vaangly-hero__feature-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.vaangly-hero__check {
+  color: var(--brand-accent);
+}
+
+/* Hero Ecosystem Showcase Card */
+.vaangly-hero__visual {
+  width: 100%;
+}
+
+.vaangly-ecosystem-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  position: relative;
+}
+
+.vaangly-mini-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.vaangly-mini-card:hover {
+  transform: translateX(4px);
+  box-shadow: var(--shadow-sm);
+}
+
+.vaangly-mini-card__icon {
+  font-size: 26px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: #FFFFFF;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.vaangly-mini-card__details {
+  flex: 1;
+}
+
+.vaangly-mini-card__details h4 {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 2px 0;
+}
+
+.vaangly-mini-card__details p {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: 0 0 4px 0;
+}
+
+.vaangly-mini-card__status {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--brand-accent);
+  background: var(--brand-accent-light);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.vaangly-mini-card__price {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--brand-warmth);
+  background: var(--brand-warmth-light);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.vaangly-mini-card__slot {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0284C7;
+  background: #F0F9FF;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.vaangly-ecosystem-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  color: var(--brand-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+/* Sections Shared Styles */
+.vaangly-section {
+  padding: var(--space-12) 0;
+}
+
+.vaangly-section--alt {
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.vaangly-section--warm {
+  background-color: #FAF9F5;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.vaangly-section--business {
+  background: linear-gradient(135deg, #F4F7F5 0%, #EBF2EE 100%);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.vaangly-section__header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-8);
+  gap: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .vaangly-section__header {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+}
+
+.vaangly-section__header--center {
+  text-align: center;
+  align-items: center;
+  margin-bottom: var(--space-10);
+}
+
+.vaangly-section__title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+  letter-spacing: -0.02em;
+}
+
+@media (min-width: 768px) {
+  .vaangly-section__title {
+    font-size: 2.25rem;
+  }
+}
+
+.vaangly-section__subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  max-width: 600px;
+  line-height: 1.6;
+}
+
+.vaangly-link-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--brand-primary);
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  transition: gap var(--transition-fast);
+}
+
+.vaangly-link-action:hover {
+  gap: 8px;
+}
+
+.vaangly-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background-color: var(--brand-primary-light);
+  color: var(--brand-primary);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  margin-bottom: var(--space-3);
+}
+
+.vaangly-badge-pill--accent {
+  background-color: var(--brand-accent-light);
+  color: var(--brand-accent);
+}
+
+/* 3. Category Chips Bar */
+.vaangly-category-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-6);
+  scrollbar-width: none;
+}
+
+.vaangly-category-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.vaangly-category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaangly-category-pill:hover {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-light);
+}
+
+.vaangly-category-pill--active {
+  background-color: var(--brand-primary);
+  color: #FFFFFF;
+  border-color: var(--brand-primary);
+}
+
+/* Cards Grid for Businesses */
+.vaangly-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+}
+
+@media (min-width: 640px) {
+  .vaangly-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .vaangly-cards-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
-.vaango-value-item {
+.vaangly-shop-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.vaangly-shop-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--brand-primary);
+}
+
+.vaangly-shop-card__image-wrap {
+  position: relative;
+  width: 100%;
+  height: 190px;
+  overflow: hidden;
+}
+
+.vaangly-shop-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-normal);
+}
+
+.vaangly-shop-card:hover .vaangly-shop-card__img {
+  transform: scale(1.04);
+}
+
+.vaangly-shop-card__badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--brand-primary);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.vaangly-shop-card__body {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.vaangly-shop-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+}
+
+.vaangly-shop-card__category {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--brand-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vaangly-shop-card__rating {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.vaangly-shop-card__name {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 4px;
+}
+
+.vaangly-shop-card__tagline {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-4);
+  flex: 1;
+}
+
+.vaangly-shop-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.vaangly-shop-card__distance {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.vaangly-shop-card__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--brand-primary-light);
+  color: var(--brand-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.vaangly-shop-card__btn:hover {
+  background: var(--brand-primary);
+  color: #FFFFFF;
+}
+
+/* 4. How Vaangly Works */
+.vaangly-steps-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+}
+
+@media (min-width: 640px) {
+  .vaangly-steps-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .vaangly-steps-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.vaangly-step-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.vaangly-step-card:hover {
+  border-color: var(--brand-primary);
+  transform: translateY(-2px);
+}
+
+.vaangly-step-card__number {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--brand-accent);
+  margin-bottom: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--brand-accent-light);
+}
+
+.vaangly-step-card__title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.vaangly-step-card__desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+/* 5. Product Discovery */
+.vaangly-products-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+}
+
+@media (min-width: 640px) {
+  .vaangly-products-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .vaangly-products-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.vaangly-product-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  transition: all var(--transition-fast);
+}
+
+.vaangly-product-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--brand-primary);
+}
+
+.vaangly-product-card__image-box {
+  width: 100%;
+  height: 170px;
+  overflow: hidden;
+  background-color: var(--color-surface-sunken);
+}
+
+.vaangly-product-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-normal);
+}
+
+.vaangly-product-card:hover .vaangly-product-card__img {
+  transform: scale(1.05);
+}
+
+.vaangly-product-card__content {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.vaangly-product-card__shop {
+  font-size: var(--font-size-xs);
+  color: var(--brand-primary);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.vaangly-product-card__title {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-3);
+  line-height: 1.3;
+}
+
+.vaangly-product-card__variants {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--space-4);
+}
+
+.vaangly-variant-chip {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaangly-variant-chip:hover {
+  border-color: var(--brand-primary);
+}
+
+.vaangly-variant-chip--active {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-light);
+  color: var(--brand-primary);
+  font-weight: 700;
+}
+
+.vaangly-product-card__bottom {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.vaangly-product-card__price {
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.vaangly-product-card__add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  background: var(--brand-primary);
+  color: #FFFFFF;
+  border: none;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaangly-product-card__add-btn:hover {
+  background: var(--brand-primary-hover);
+  transform: scale(1.02);
+}
+
+/* 6. Services & Appointments ("More Than Shopping") */
+.vaangly-services-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+}
+
+@media (min-width: 640px) {
+  .vaangly-services-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .vaangly-services-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.vaangly-service-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+
+.vaangly-service-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--brand-accent);
+}
+
+.vaangly-service-card__image-wrap {
+  position: relative;
+  width: 100%;
+  height: 160px;
+}
+
+.vaangly-service-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vaangly-service-card__icon-badge {
+  position: absolute;
+  bottom: -16px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--brand-accent);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.3);
+}
+
+.vaangly-service-card__body {
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.vaangly-service-card__business {
+  font-size: var(--font-size-xs);
+  color: var(--brand-accent);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.vaangly-service-card__title {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.vaangly-service-card__info {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-4);
+  flex: 1;
+}
+
+.vaangly-service-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.vaangly-service-card__duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.vaangly-service-card__book-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--brand-accent-light);
+  color: var(--brand-accent);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaangly-service-card__book-btn:hover {
+  background: var(--brand-accent);
+  color: #FFFFFF;
+}
+
+/* 7. For Business Owners */
+.vaangly-business__container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-10);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .vaangly-business__container {
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: var(--space-12);
+  }
+}
+
+.vaangly-business__title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-3);
+  line-height: 1.2;
+}
+
+.vaangly-business__subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-6);
+}
+
+.vaangly-business__benefits {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-8) 0;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
 }
 
-.vaango-value-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-md);
-  background-color: var(--brand-primary-light);
-  color: var(--brand-primary);
+.vaangly-business__benefits li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.vaangly-benefit-check {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.vaango-value-title {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-bold);
-  margin-bottom: 2px;
+.vaangly-merchant-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
 }
 
-.vaango-value-desc {
+.vaangly-merchant-card__top {
+  position: relative;
+  height: 240px;
+}
+
+.vaangly-merchant-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vaangly-merchant-card__badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: #FFFFFF;
+  color: var(--brand-primary);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--font-size-xs);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+.vaangly-merchant-card__content {
+  padding: var(--space-6);
+}
+
+.vaangly-merchant-card__content h3 {
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  margin: 0 0 2px 0;
+}
+
+.vaangly-merchant-card__content p {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.vaangly-merchant-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  text-align: center;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.vaangly-merchant-stat strong {
+  display: block;
+  font-size: var(--font-size-base);
+  font-weight: 800;
+  color: var(--brand-primary);
+}
+
+.vaangly-merchant-stat span {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* 8. Trust Section */
+.vaangly-trust-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+}
+
+@media (min-width: 768px) {
+  .vaangly-trust-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.vaangly-trust-item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.vaangly-trust-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--brand-primary-light);
+  color: var(--brand-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-4);
+}
+
+.vaangly-trust-item h3 {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+}
+
+.vaangly-trust-item p {
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
-  line-height: 1.5;
+  line-height: 1.6;
+}
+
+/* 9. Mobile App Section */
+.vaangly-app-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-10);
+  align-items: center;
+}
+
+@media (min-width: 860px) {
+  .vaangly-app-section {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.vaangly-app-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-6) 0 var(--space-8);
+}
+
+.vaangly-app-feature {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.vaangly-app-feature__bullet {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand-accent);
+}
+
+.vaangly-app-ctas {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+
+.vaangly-store-badges {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.vaangly-store-badge {
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.vaangly-store-badge__sub {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.vaangly-store-badge__name {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.vaangly-app-section__mockup {
+  display: flex;
+  justify-content: center;
+}
+
+.vaangly-phone-frame {
+  width: 290px;
+  height: 480px;
+  border: 10px solid #1F2937;
+  border-radius: 36px;
+  background: #FFFFFF;
+  box-shadow: var(--shadow-elevated);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.vaangly-phone-header {
+  height: 24px;
+  background: #1F2937;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.vaangly-phone-notch {
+  width: 70px;
+  height: 8px;
+  background: #111827;
+  border-radius: var(--radius-full);
+}
+
+.vaangly-phone-screen {
+  flex: 1;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.vaangly-phone-appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--brand-primary);
+  color: #FFFFFF;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+}
+
+.vaangly-phone-badge {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+}
+
+.vaangly-phone-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vaangly-phone-card {
+  background: #FFFFFF;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.vaangly-phone-card__title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--brand-primary);
+  display: block;
+}
+
+.vaangly-phone-card p {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  margin: 2px 0 4px;
+}
+
+.vaangly-phone-pill {
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--brand-accent-light);
+  color: var(--brand-accent);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+}
+
+.vaangly-phone-card--slot {
+  background: #F0F9FF;
+  border-color: #BAE6FD;
+}
+
+.vaangly-phone-card--slot .vaangly-phone-card__title {
+  color: #0284C7;
+}
+
+.vaangly-phone-quick-shops {
+  display: flex;
+  gap: 6px;
+}
+
+.vaangly-phone-thumb {
+  flex: 1;
+  background: #FFFFFF;
+  border: 1px solid var(--color-border);
+  padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* 10. Testimonials */
+.vaangly-testimonials-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .vaangly-testimonials-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.vaangly-testimonial-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.vaangly-testimonial-card--merchant {
+  background: #FAFBF9;
+  border-color: rgba(27, 77, 62, 0.2);
+}
+
+.vaangly-testimonial-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--brand-accent);
+  background: var(--brand-accent-light);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-4);
+  width: fit-content;
+}
+
+.vaangly-testimonial-badge--merchant {
+  color: var(--brand-primary);
+  background: var(--brand-primary-light);
+}
+
+.vaangly-testimonial-quote {
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  font-style: italic;
+  margin-bottom: var(--space-6);
+  flex: 1;
+}
+
+.vaangly-testimonial-author {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.vaangly-testimonial-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--brand-accent);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--font-size-base);
+}
+
+.vaangly-testimonial-avatar--merchant {
+  background: var(--brand-primary);
+}
+
+.vaangly-testimonial-author strong {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.vaangly-testimonial-author span {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* 11. FAQ Accordion */
+.vaangly-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.vaangly-accordion__item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all var(--transition-fast);
+}
+
+.vaangly-accordion__item--open {
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.vaangly-accordion__trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  background: transparent;
+  border: none;
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  gap: var(--space-3);
+}
+
+.vaangly-accordion__arrow {
+  color: var(--color-text-muted);
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.vaangly-accordion__item--open .vaangly-accordion__arrow {
+  transform: rotate(180deg);
+  color: var(--brand-primary);
+}
+
+.vaangly-accordion__content {
+  padding: 0 var(--space-5) var(--space-5);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+/* 12. Final CTA */
+.vaangly-final-cta {
+  padding: var(--space-12) 0;
+  background: linear-gradient(135deg, #1B4D3E 0%, #143B30 100%);
+  color: #FFFFFF;
+  text-align: center;
+}
+
+.vaangly-final-cta__inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.vaangly-final-cta__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+}
+
+.vaangly-final-cta__title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-3);
+}
+
+@media (min-width: 768px) {
+  .vaangly-final-cta__title {
+    font-size: 2.85rem;
+  }
+}
+
+.vaangly-final-cta__subtitle {
+  font-size: var(--font-size-lg);
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.6;
+  margin-bottom: var(--space-8);
+}
+
+.vaangly-final-cta__actions {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  justify-content: center;
 }

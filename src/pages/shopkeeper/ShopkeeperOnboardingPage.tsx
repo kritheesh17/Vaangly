@@ -10,6 +10,7 @@ import {
   XCircle,
   Clock,
   ArrowRight,
+  ArrowLeft,
   X,
   Plus,
   ImagePlus,
@@ -23,8 +24,9 @@ import {
   submitShopApplication,
   getLatestApplication,
   simulateApplicationReview,
+  fetchShopTypes,
 } from '../../lib/shopkeeperApi';
-import { ShopApplication } from '../../types/database';
+import { ShopApplication, ShopType } from '../../types/database';
 import { GPSLocationPicker } from '../../components/shopkeeper/GPSLocationPicker';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -45,14 +47,33 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
     SERVICE: 'Group C - Quote/Service',
   } as const;
 
+  type OnboardingStep = 'basic' | 'verification' | 'review';
+  const [step, setStep] = useState<OnboardingStep>('basic');
+
   const [existingApp, setExistingApp] = useState<ShopApplication | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Form Fields
+  // Form Fields - Pre-filled from authenticated user profile
   const [shopName, setShopName] = useState('');
   const [ownerName, setOwnerName] = useState(user?.full_name || '');
   const [contactPhone, setContactPhone] = useState(user?.phone || '');
+  const [shopTypes, setShopTypes] = useState<ShopType[]>(MOCK_SHOP_TYPES);
   const [shopTypeId, setShopTypeId] = useState(MOCK_SHOP_TYPES[0]?.id || '');
+
+  // Load canonical shop types from Supabase
+  useEffect(() => {
+    fetchShopTypes().then((types) => {
+      if (types && types.length > 0) {
+        setShopTypes(types);
+        setShopTypeId((prev) => {
+          if (!prev || !types.some((t) => t.id === prev)) {
+            return types[0].id;
+          }
+          return prev;
+        });
+      }
+    });
+  }, []);
   const [description, setDescription] = useState('');
   const [shopPhotos, setShopPhotos] = useState<File[]>([]);
   const [upiQrFile, setUpiQrFile] = useState<File | null>(null);
@@ -62,6 +83,56 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Keep owner name and contact phone in sync with authenticated user
+  useEffect(() => {
+    if (user) {
+      if (!ownerName && user.full_name) setOwnerName(user.full_name);
+      if (!contactPhone && user.phone) setContactPhone(user.phone);
+    }
+  }, [user]);
+
+  const handleContinueToVerification = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    if (!shopName.trim()) {
+      setFormError('Shop name is required.');
+      return;
+    }
+    if (!ownerName.trim()) {
+      setFormError('Owner / Proprietor name is required.');
+      return;
+    }
+    if (!contactPhone.trim() || contactPhone.trim().length < 10) {
+      setFormError('Please enter a valid 10-digit contact phone number.');
+      return;
+    }
+    if (!shopTypeId) {
+      setFormError('Please select a shop category.');
+      return;
+    }
+    setStep('verification');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleContinueToReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    if (shopPhotos.length < 4 || shopPhotos.length > 10) {
+      setFormError('Please upload between 4 and 10 storefront photos (mandatory for business verification).');
+      return;
+    }
+    if (!gpsCoords) {
+      setFormError('Please capture your storefront live GPS coordinates.');
+      return;
+    }
+    if (!idProofFile) {
+      setFormError('Government identity proof document is required.');
+      return;
+    }
+    setStep('review');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Refs for file uploads
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -252,15 +323,24 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      let activeUserId = user.id;
+      if (isSupabaseConfigured) {
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData?.user) {
+          throw new Error('Please sign in to submit your partner application.');
+        }
+        activeUserId = authData.user.id;
+      }
+
       const photoUrls = await Promise.all(
-        shopPhotos.map((file, index) => uploadFile('shop-photos', `shop-photos/${user.id}/photos/${Date.now()}_${index}.jpg`, file))
+        shopPhotos.map((file, index) => uploadFile('shop-photos', `${activeUserId}/photos/${Date.now()}_${index}.jpg`, file))
       );
-      const idProofPath = await uploadFile('shop-documents', `${user.id}/id_proof_${Date.now()}${idProofFile.name.toLowerCase().endsWith('.pdf') ? '.pdf' : '.jpg'}`, idProofFile);
+      const idProofPath = await uploadFile('shop-documents', `${activeUserId}/id_proof_${Date.now()}${idProofFile.name.toLowerCase().endsWith('.pdf') ? '.pdf' : '.jpg'}`, idProofFile);
       const upiQrUrl = upiQrFile
-        ? await uploadFile('shop-photos', `shop-photos/${user.id}/upi_qr.jpg`, upiQrFile)
+        ? await uploadFile('shop-photos', `${activeUserId}/upi-qr/upi_qr_${Date.now()}.jpg`, upiQrFile)
         : null;
       const res = await submitShopApplication({
-        applicant_id: user.id,
+        applicant_id: activeUserId,
         shop_name: shopName.trim(),
         owner_name: ownerName.trim(),
         description: description.trim() || null,
@@ -287,6 +367,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error submitting application';
       setFormError(msg);
+      toastError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -434,7 +515,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         </Card>
       </div>
     );
-  }
+  }  const selectedType = shopTypes.find((t) => t.id === shopTypeId) || shopTypes[0];
 
   return (
     <div className="container vaango-onboarding">
@@ -446,7 +527,69 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="vaango-onboarding__form">
+      {/* 3-Step Breadcrumb Progress Indicator */}
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--space-2)' }}>
+        <button
+          type="button"
+          onClick={() => { if (step !== 'basic') setStep('basic'); }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 14px',
+            borderRadius: 'var(--radius-full, 9999px)',
+            background: step === 'basic' ? 'var(--color-primary)' : 'var(--color-surface)',
+            color: step === 'basic' ? '#fff' : 'var(--color-text-secondary)',
+            fontSize: 'var(--font-size-xs)',
+            fontWeight: 600,
+            border: '1px solid var(--color-border)',
+            cursor: step !== 'basic' ? 'pointer' : 'default',
+          }}
+        >
+          <span>1. Basic Details</span>
+          {step !== 'basic' && <Check size={14} className="text-success" />}
+        </button>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>→</span>
+        <button
+          type="button"
+          onClick={() => { if (step === 'review') setStep('verification'); }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 14px',
+            borderRadius: 'var(--radius-full, 9999px)',
+            background: step === 'verification' ? 'var(--color-primary)' : 'var(--color-surface)',
+            color: step === 'verification' ? '#fff' : 'var(--color-text-secondary)',
+            fontSize: 'var(--font-size-xs)',
+            fontWeight: 600,
+            border: '1px solid var(--color-border)',
+            cursor: step === 'review' ? 'pointer' : 'default',
+          }}
+        >
+          <span>2. Shop Verification</span>
+          {step === 'review' && <Check size={14} className="text-success" />}
+        </button>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>→</span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 14px',
+            borderRadius: 'var(--radius-full, 9999px)',
+            background: step === 'review' ? 'var(--color-primary)' : 'var(--color-surface)',
+            color: step === 'review' ? '#fff' : 'var(--color-text-secondary)',
+            fontSize: 'var(--font-size-xs)',
+            fontWeight: 600,
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          <span>3. Review & Submit</span>
+        </div>
+      </div>
+
+      <div className="vaango-onboarding__form">
         {formError && (
           <div className="vaango-form-error-alert" role="alert">
             <AlertCircle size={18} />
@@ -454,411 +597,469 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
           </div>
         )}
 
-        {/* 1. Shop & Owner Details */}
-        <Card variant="default" padding="lg" className="vaango-onboarding-card">
-          <div className="vaango-onboarding-card__header">
-            <Store size={20} className="text-primary" />
-            <h2 className="vaango-onboarding-card__title">Basic Store Information</h2>
-          </div>
-
-          <div className="vaango-form-group">
-            <label className="vaango-form-label" htmlFor="app-shop-name">
-              Shop Name <span className="vaango-required">*</span>
-            </label>
-            <Input
-              id="app-shop-name"
-              placeholder="e.g. Murugan Supermarket & Spices"
-              value={shopName}
-              onChange={(e) => setShopName(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-            <div className="vaango-form-group">
-              <label className="vaango-form-label" htmlFor="app-owner-name">
-                Owner / Proprietor Name <span className="vaango-required">*</span>
-              </label>
-              <Input
-                id="app-owner-name"
-                placeholder="e.g. Murugan S."
-                value={ownerName}
-                onChange={(e) => setOwnerName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="vaango-form-group">
-              <label className="vaango-form-label" htmlFor="app-phone">
-                Contact Phone Number <span className="vaango-required">*</span>
-              </label>
-              <Input
-                id="app-phone"
-                type="tel"
-                placeholder="+91 98765 12345"
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="vaango-form-group mt-3">
-            <label className="vaango-form-label" htmlFor="app-type">
-              Shop Category / Group <span className="vaango-required">*</span>
-            </label>
-            <select
-              id="app-type"
-              className="vaango-select-input"
-              value={shopTypeId}
-              onChange={(e) => setShopTypeId(e.target.value)}
-            >
-              {MOCK_SHOP_TYPES.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({groupLabels[t.workflow_group_code]})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="vaango-form-group mt-3">
-            <label className="vaango-form-label" htmlFor="app-desc">
-              Short Description / Specialties
-            </label>
-            <textarea
-              id="app-desc"
-              className="vaango-textarea"
-              rows={2}
-              placeholder="e.g. Fresh country vegetables, pulses, spices, and Kongu grocery items."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-        </Card>
-
-        {/* 2. Device GPS Location (Required by Specification) */}
-        <Card variant="default" padding="lg" className="vaango-onboarding-card">
-          <div className="vaango-onboarding-card__header">
-            <MapPin size={20} className="text-primary" />
-            <h2 className="vaango-onboarding-card__title">Storefront Device GPS Location</h2>
-          </div>
-
-          <GPSLocationPicker
-            onLocationCaptured={(coords) => setGpsCoords({ lat: coords.lat, lng: coords.lng })}
-          />
-        </Card>
-
-        {/* 3. Storefront Photo & Private ID Proof */}
-        <Card variant="default" padding="lg" className="vaango-onboarding-card">
-          <div className="vaango-onboarding-card__header">
-            <Camera size={20} className="text-primary" />
-            <h2 className="vaango-onboarding-card__title">Storefront Photo & ID Proof</h2>
-          </div>
-
-          {/* 3. Storefront Photos Multi-Uploader (4-10 Photos) */}
-          <div className="vaango-photo-uploader">
-            <div className="vaango-photo-uploader__header">
-              <label className="vaango-form-label mb-0" htmlFor="app-photo">
-                Storefront Photos (4–10) <span className="vaango-required">*</span>
-              </label>
-
-              {shopPhotos.length === 0 ? (
-                <Badge variant="neutral" size="sm">
-                  0 / 10 photos • Min 4 Required
-                </Badge>
-              ) : shopPhotos.length < 4 ? (
-                <Badge variant="warning" size="sm">
-                  {shopPhotos.length} / 10 photos • {4 - shopPhotos.length} more needed
-                </Badge>
-              ) : (
-                <Badge variant="success" size="sm" withDot>
-                  {shopPhotos.length} / 10 photos • Requirement Met
-                </Badge>
-              )}
-            </div>
-
-            {/* Progress bar towards 4 min / 10 max */}
-            <div className="vaango-photo-progress-track">
-              <div
-                className={`vaango-photo-progress-bar ${shopPhotos.length >= 4 ? 'vaango-photo-progress-bar--complete' : ''}`}
-                style={{ width: `${Math.min(100, (shopPhotos.length / 10) * 100)}%` }}
-              />
-            </div>
-
-            {/* Suggested Photo Guide for quick verification */}
-            <div className="vaango-photo-guide">
-              <div className="vaango-photo-guide__title">
-                <Camera size={14} className="text-primary" />
-                <span>Recommended 4 photos for fast approval:</span>
+        {/* STEP 1: BASIC BUSINESS / OWNER DETAILS */}
+        {step === 'basic' && (
+          <>
+            <Card variant="default" padding="lg" className="vaango-onboarding-card">
+              <div className="vaango-onboarding-card__header">
+                <Store size={20} className="text-primary" />
+                <h2 className="vaango-onboarding-card__title">Step 1 — Basic Store Information</h2>
               </div>
-              <ul className="vaango-photo-guide__list">
-                <li className="vaango-photo-guide__item">
-                  <Check size={12} className={shopPhotos.length >= 1 ? 'text-success' : 'text-secondary'} />
-                  1. Shop Name & Board
-                </li>
-                <li className="vaango-photo-guide__item">
-                  <Check size={12} className={shopPhotos.length >= 2 ? 'text-success' : 'text-secondary'} />
-                  2. Entrance / Street View
-                </li>
-                <li className="vaango-photo-guide__item">
-                  <Check size={12} className={shopPhotos.length >= 3 ? 'text-success' : 'text-secondary'} />
-                  3. Main Shelves / Racks
-                </li>
-                <li className="vaango-photo-guide__item">
-                  <Check size={12} className={shopPhotos.length >= 4 ? 'text-success' : 'text-secondary'} />
-                  4. Billing / Checkout Area
-                </li>
-              </ul>
-            </div>
 
-            {/* Hidden multi-file input (supports selecting multiple or one-by-one) */}
-            <input
-              ref={photoInputRef}
-              id="app-photo"
-              type="file"
-              accept="image/*"
-              multiple
-              style={{ display: 'none' }}
-              onChange={(e) => handleAddPhotos(e.target.files)}
-            />
+              <div className="vaango-form-group">
+                <label className="vaango-form-label" htmlFor="app-shop-name">
+                  Shop Name <span className="vaango-required">*</span>
+                </label>
+                <Input
+                  id="app-shop-name"
+                  placeholder="e.g. Murugan Supermarket & Spices"
+                  value={shopName}
+                  onChange={(e) => setShopName(e.target.value)}
+                  required
+                />
+              </div>
 
-            {/* If no photos yet, show large interactive dropzone */}
-            {photoPreviews.length === 0 ? (
-              <div
-                className={`vaango-photo-dropzone ${isPhotoDragging ? 'vaango-photo-dropzone--active' : ''}`}
-                onClick={() => photoInputRef.current?.click()}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsPhotoDragging(true);
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  setIsPhotoDragging(false);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsPhotoDragging(false);
-                  if (e.dataTransfer.files) handleAddPhotos(e.dataTransfer.files);
-                }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    photoInputRef.current?.click();
-                  }
-                }}
-              >
-                <div className="vaango-photo-dropzone__icon">
-                  <ImagePlus size={24} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                <div className="vaango-form-group">
+                  <label className="vaango-form-label" htmlFor="app-owner-name">
+                    Owner / Proprietor Name <span className="vaango-required">*</span>
+                  </label>
+                  <Input
+                    id="app-owner-name"
+                    placeholder="e.g. Murugan S."
+                    value={ownerName}
+                    onChange={(e) => setOwnerName(e.target.value)}
+                    required
+                  />
                 </div>
-                <h4 className="vaango-photo-dropzone__title">Click to Upload Storefront Photos</h4>
-                <p className="vaango-photo-dropzone__subtitle">
-                  Select 4 to 10 photos together, or add them one by one. JPG, PNG, WebP supported.
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="mt-1"
-                  leftIcon={<Plus size={14} />}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    photoInputRef.current?.click();
-                  }}
-                >
-                  Choose 4–10 Photos
-                </Button>
-              </div>
-            ) : (
-              <div>
-                {/* Thumbnails grid */}
-                <div className="vaango-photos-grid">
-                  {photoPreviews.map((p, idx) => (
-                    <div key={p.id} className="vaango-photo-card">
-                      <img src={p.url} alt={`Storefront photo ${idx + 1}`} className="vaango-photo-card__img" />
-                      <span className="vaango-photo-card__badge">
-                        #{idx + 1} {idx === 0 ? 'Cover' : ''}
-                      </span>
-                      <button
-                        type="button"
-                        className="vaango-photo-card__remove-btn"
-                        onClick={() => handleRemovePhoto(idx)}
-                        title="Remove photo"
-                        aria-label={`Remove photo ${idx + 1}`}
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
 
-                  {/* Add more button tile if under 10 photos */}
-                  {shopPhotos.length < 10 && (
-                    <button
-                      type="button"
-                      className="vaango-photo-card--add-btn"
-                      onClick={() => photoInputRef.current?.click()}
-                      title="Add more photos"
-                    >
-                      <Plus size={22} />
-                      <span>Add Photo</span>
-                      <small>({10 - shopPhotos.length} left)</small>
-                    </button>
+                <div className="vaango-form-group">
+                  <label className="vaango-form-label" htmlFor="app-phone">
+                    Contact Phone Number <span className="vaango-required">*</span>
+                  </label>
+                  <Input
+                    id="app-phone"
+                    type="tel"
+                    placeholder="+91 98765 12345"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="vaango-form-group mt-3">
+                <label className="vaango-form-label" htmlFor="app-type">
+                  Shop Category / Group <span className="vaango-required">*</span>
+                </label>
+                <select
+                  id="app-type"
+                  className="vaango-select-input"
+                  value={shopTypeId}
+                  onChange={(e) => setShopTypeId(e.target.value)}
+                >
+                  {shopTypes.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({groupLabels[t.workflow_group_code as keyof typeof groupLabels] || t.workflow_group_code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="vaango-form-group mt-3">
+                <label className="vaango-form-label" htmlFor="app-desc">
+                  Short Description / Specialties
+                </label>
+                <textarea
+                  id="app-desc"
+                  className="vaango-textarea"
+                  rows={2}
+                  placeholder="e.g. Fresh country vegetables, pulses, spices, and Kongu grocery items."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+            </Card>
+
+            <div className="vaango-onboarding__submit-bar" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                type="button"
+                variant="primary"
+                size="lg"
+                onClick={handleContinueToVerification}
+                rightIcon={<ArrowRight size={18} />}
+              >
+                Continue to Shop Verification
+              </Button>
+            </div>
+          </>
+        )}
+
+        {/* STEP 2: SHOP VERIFICATION DETAILS & DOCUMENT UPLOADS */}
+        {step === 'verification' && (
+          <>
+            {/* Storefront Photos Multi-Uploader (4-10 Photos) */}
+            <Card variant="default" padding="lg" className="vaango-onboarding-card">
+              <div className="vaango-onboarding-card__header">
+                <Camera size={20} className="text-primary" />
+                <h2 className="vaango-onboarding-card__title">Storefront Photos (4–10 Photos Required)</h2>
+              </div>
+
+              <div className="vaango-photo-uploader">
+                <div className="vaango-photo-uploader__header">
+                  <label className="vaango-form-label mb-0" htmlFor="app-photo">
+                    Upload Photos of Your Storefront <span className="vaango-required">*</span>
+                  </label>
+
+                  {shopPhotos.length === 0 ? (
+                    <Badge variant="neutral" size="sm">
+                      0 / 10 photos • Min 4 Required
+                    </Badge>
+                  ) : shopPhotos.length < 4 ? (
+                    <Badge variant="warning" size="sm">
+                      {shopPhotos.length} / 10 photos • Need {4 - shopPhotos.length} more
+                    </Badge>
+                  ) : (
+                    <Badge variant="success" size="sm">
+                      {shopPhotos.length} / 10 photos • Requirement Met
+                    </Badge>
                   )}
                 </div>
 
-                {/* Status banner under grid */}
-                {shopPhotos.length < 4 ? (
-                  <div className="vaango-photo-status-banner vaango-photo-status-banner--warning">
-                    <span>
-                      ⚠️ <strong>{4 - shopPhotos.length} more photo{4 - shopPhotos.length > 1 ? 's' : ''} required.</strong> Minimum 4 storefront photos needed to submit your application.
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      leftIcon={<Plus size={14} />}
-                      onClick={() => photoInputRef.current?.click()}
-                    >
-                      Add Photo
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="vaango-photo-status-banner vaango-photo-status-banner--success">
-                    <span>
-                      ✓ <strong>{shopPhotos.length} photos ready.</strong> Minimum requirement satisfied.
-                    </span>
+                <div className="vaango-photo-guide">
+                  <span className="vaango-photo-guide__title">
+                    <Check size={14} className="text-primary" />
+                    Recommended Verification Photos for Admin Approval:
+                  </span>
+                  <ul className="vaango-photo-guide__list">
+                    <li className="vaango-photo-guide__item">1. Full shop entrance & signboard</li>
+                    <li className="vaango-photo-guide__item">2. Street / road view from store</li>
+                    <li className="vaango-photo-guide__item">3. Main counter / checkout</li>
+                    <li className="vaango-photo-guide__item">4. Product display or work area</li>
+                  </ul>
+                </div>
+
+                <div
+                  className={`vaango-photo-dropzone ${isPhotoDragging ? 'vaango-photo-dropzone--active' : ''}`}
+                  onDragOver={(e) => { e.preventDefault(); setIsPhotoDragging(true); }}
+                  onDragLeave={(e) => { e.preventDefault(); setIsPhotoDragging(false); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsPhotoDragging(false);
+                    handleAddPhotos(e.dataTransfer.files);
+                  }}
+                  onClick={() => photoInputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Upload Storefront Photos"
+                >
+                  <input
+                    ref={photoInputRef}
+                    id="app-photo"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={(e) => handleAddPhotos(e.target.files)}
+                  />
+                  <ImagePlus size={32} className="text-primary" />
+                  <span className="vaango-photo-dropzone__label">
+                    Click to browse or drag & drop storefront photos
+                  </span>
+                  <span className="vaango-photo-dropzone__hint">
+                    JPG, PNG, or WebP • Min 4, Max 10 photos
+                  </span>
+                </div>
+
+                {photoPreviews.length > 0 && (
+                  <div className="vaango-photo-gallery">
+                    {photoPreviews.map((item, idx) => (
+                      <div key={item.id} className="vaango-photo-tile">
+                        <img src={item.url} alt={`Storefront Preview ${idx + 1}`} className="vaango-photo-tile__img" />
+                        <span className="vaango-photo-tile__badge">
+                          {idx === 0 ? 'Primary' : `#${idx + 1}`}
+                        </span>
+                        <button
+                          type="button"
+                          className="vaango-photo-tile__remove"
+                          onClick={() => handleRemovePhoto(idx)}
+                          title="Remove photo"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
                     {shopPhotos.length < 10 && (
-                      <Button
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="sm"
-                        leftIcon={<Plus size={14} />}
+                        className="vaango-photo-tile vaango-photo-tile--add"
                         onClick={() => photoInputRef.current?.click()}
+                        title="Add another photo"
                       >
-                        Add more ({10 - shopPhotos.length} slots left)
-                      </Button>
+                        <Plus size={24} />
+                        <span>Add Photo</span>
+                      </button>
                     )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            </Card>
 
-          <div className="vaango-form-group mt-4">
-            <label className="vaango-form-label" htmlFor="app-upi">Shop UPI ID / VPA (for customer payments)</label>
-            <Input id="app-upi" type="text" placeholder="e.g. shopname@okaxis or 9876512345@upi" value={upiId} onChange={(e) => setUpiId(e.target.value)} />
-            <span className="text-xs text-secondary mt-1">Customers will see this to pay you directly. Vaango never touches your money.</span>
-          </div>
+            {/* Storefront Device GPS Location */}
+            <Card variant="default" padding="lg" className="vaango-onboarding-card">
+              <div className="vaango-onboarding-card__header">
+                <MapPin size={20} className="text-primary" />
+                <h2 className="vaango-onboarding-card__title">Storefront Device GPS Location</h2>
+              </div>
 
-          <div className="vaango-form-group mt-4">
-            <label className="vaango-form-label" htmlFor="app-upi-qr">UPI QR Photo (optional)</label>
-            <input
-              ref={upiQrInputRef}
-              id="app-upi-qr"
-              type="file"
-              accept="image/*"
-              className="vaango-file-input"
-              onChange={(e) => setUpiQrFile(e.target.files?.[0] || null)}
-            />
-            {upiQrFile && upiQrPreview && (
-              <div className="vaango-file-preview-card">
-                <div className="vaango-file-preview-card__left">
-                  <img src={upiQrPreview} alt="UPI QR Preview" className="vaango-file-preview-card__thumb" />
-                  <div className="vaango-file-preview-card__info">
-                    <span className="vaango-file-preview-card__name">{upiQrFile.name}</span>
-                    <span className="vaango-file-preview-card__meta">{(upiQrFile.size / 1024).toFixed(1)} KB</span>
+              <GPSLocationPicker
+                onLocationCaptured={(coords) => setGpsCoords({ lat: coords.lat, lng: coords.lng })}
+              />
+
+              <div className="vaango-gmaps-alt">
+                <p className="vaango-gmaps-alt__label">OR — Already on Google Maps? (Optional)</p>
+                <p className="text-xs text-secondary mb-2">Paste your Google Maps profile URL to assist admin location verification.</p>
+                <Input
+                  id="app-gmaps-url"
+                  type="url"
+                  placeholder="https://maps.google.com/maps?q=your+shop+name"
+                  value={googleMapsUrl}
+                  onChange={(e) => setGoogleMapsUrl(e.target.value)}
+                  leftIcon={<MapPin size={16} />}
+                />
+              </div>
+            </Card>
+
+            {/* Government ID & Payments */}
+            <Card variant="default" padding="lg" className="vaango-onboarding-card">
+              <div className="vaango-onboarding-card__header">
+                <ShieldCheck size={20} className="text-primary" />
+                <h2 className="vaango-onboarding-card__title">Identity & Payment Verification</h2>
+              </div>
+
+              <div className="vaango-form-group">
+                <label className="vaango-form-label" htmlFor="app-id-proof">
+                  Government ID Proof (Aadhaar / Trade License) <span className="vaango-required">*</span>
+                </label>
+                <div className="vaango-id-proof-field">
+                  <input
+                    ref={idProofInputRef}
+                    id="app-id-proof"
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    className="vaango-file-input"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) setIdProofFile(file);
+                    }}
+                  />
+                  {idProofFile && (
+                    <div className="vaango-file-preview-card">
+                      <div className="vaango-file-preview-card__left">
+                        {idProofPreview?.isImage && idProofPreview.url ? (
+                          <img src={idProofPreview.url} alt="ID Proof Preview" className="vaango-file-preview-card__thumb" />
+                        ) : (
+                          <div className="vaango-file-preview-card__icon">
+                            <FileText size={20} />
+                          </div>
+                        )}
+                        <div className="vaango-file-preview-card__info">
+                          <span className="vaango-file-preview-card__name">{idProofFile.name}</span>
+                          <span className="vaango-file-preview-card__meta">{(idProofFile.size / 1024).toFixed(1)} KB</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="vaango-file-preview-card__remove-btn"
+                        onClick={() => {
+                          setIdProofFile(null);
+                          if (idProofInputRef.current) idProofInputRef.current.value = '';
+                        }}
+                        title="Remove ID Proof"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
+                  <div className="vaango-id-proof-notice">
+                    <ShieldCheck size={16} className="text-success" />
+                    <span>
+                      <strong>Strict Privacy:</strong> ID documents are uploaded to private restricted storage (<code className="text-xs">shop-documents</code>) and will NEVER be publicly accessible or shared with customers.
+                    </span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="vaango-file-preview-card__remove-btn"
-                  onClick={() => {
-                    setUpiQrFile(null);
-                    if (upiQrInputRef.current) upiQrInputRef.current.value = '';
-                  }}
-                  title="Remove UPI QR"
-                >
-                  <X size={16} />
-                </button>
               </div>
-            )}
-          </div>
 
-          <div className="vaango-form-group mt-4">
-            <label className="vaango-form-label" htmlFor="app-id-proof">
-              Government ID Proof (Aadhaar / Trade License) <span className="vaango-required">*</span>
-            </label>
-            <div className="vaango-id-proof-field">
-              <input
-                ref={idProofInputRef}
-                id="app-id-proof"
-                type="file"
-                accept=".jpg,.jpeg,.png,.pdf"
-                className="vaango-file-input"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) setIdProofFile(file);
-                }}
-              />
-              {idProofFile && (
-                <div className="vaango-file-preview-card">
-                  <div className="vaango-file-preview-card__left">
-                    {idProofPreview?.isImage && idProofPreview.url ? (
-                      <img src={idProofPreview.url} alt="ID Proof Preview" className="vaango-file-preview-card__thumb" />
-                    ) : (
-                      <div className="vaango-file-preview-card__icon">
-                        <FileText size={20} />
+              <div className="vaango-form-group mt-4">
+                <label className="vaango-form-label" htmlFor="app-upi">Shop UPI ID / VPA (Optional)</label>
+                <Input
+                  id="app-upi"
+                  type="text"
+                  placeholder="e.g. shopname@okaxis or 9876512345@upi"
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value)}
+                />
+                <span className="text-xs text-secondary mt-1">Customers will see this to pay you directly. Vaango never touches your money.</span>
+              </div>
+
+              <div className="vaango-form-group mt-4">
+                <label className="vaango-form-label" htmlFor="app-upi-qr">UPI QR Photo (Optional)</label>
+                <input
+                  ref={upiQrInputRef}
+                  id="app-upi-qr"
+                  type="file"
+                  accept="image/*"
+                  className="vaango-file-input"
+                  onChange={(e) => setUpiQrFile(e.target.files?.[0] || null)}
+                />
+                {upiQrFile && upiQrPreview && (
+                  <div className="vaango-file-preview-card">
+                    <div className="vaango-file-preview-card__left">
+                      <img src={upiQrPreview} alt="UPI QR Preview" className="vaango-file-preview-card__thumb" />
+                      <div className="vaango-file-preview-card__info">
+                        <span className="vaango-file-preview-card__name">{upiQrFile.name}</span>
+                        <span className="vaango-file-preview-card__meta">{(upiQrFile.size / 1024).toFixed(1)} KB</span>
                       </div>
-                    )}
-                    <div className="vaango-file-preview-card__info">
-                      <span className="vaango-file-preview-card__name">{idProofFile.name}</span>
-                      <span className="vaango-file-preview-card__meta">{(idProofFile.size / 1024).toFixed(1)} KB</span>
                     </div>
+                    <button
+                      type="button"
+                      className="vaango-file-preview-card__remove-btn"
+                      onClick={() => {
+                        setUpiQrFile(null);
+                        if (upiQrInputRef.current) upiQrInputRef.current.value = '';
+                      }}
+                      title="Remove UPI QR"
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="vaango-file-preview-card__remove-btn"
-                    onClick={() => {
-                      setIdProofFile(null);
-                      if (idProofInputRef.current) idProofInputRef.current.value = '';
-                    }}
-                    title="Remove ID Proof"
-                  >
-                    <X size={16} />
-                  </button>
+                )}
+              </div>
+            </Card>
+
+            <div className="vaango-onboarding__submit-bar" style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => { setStep('basic'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                leftIcon={<ArrowLeft size={18} />}
+              >
+                Back to Basic Details
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="lg"
+                onClick={handleContinueToReview}
+                rightIcon={<ArrowRight size={18} />}
+              >
+                Continue to Review
+              </Button>
+            </div>
+          </>
+        )}
+
+        {/* STEP 3: REVIEW / CONFIRMATION & ADMIN SUBMISSION */}
+        {step === 'review' && (
+          <>
+            <Card variant="default" padding="lg" className="vaango-onboarding-card">
+              <div className="vaango-onboarding-card__header">
+                <CheckCircle2 size={20} className="text-primary" />
+                <h2 className="vaango-onboarding-card__title">Step 3 — Review Your Application</h2>
+              </div>
+              <p className="text-xs text-secondary" style={{ marginTop: '-4px', marginBottom: 'var(--space-3)' }}>
+                Please confirm your business details and verification attachments before submitting for human admin review.
+              </p>
+
+              {/* Summary Sections */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-4)' }}>
+                {/* Store Profile */}
+                <div style={{ padding: 'var(--space-3)', background: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+                  <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase' }}>
+                    Business Profile
+                  </span>
+                  <div style={{ marginTop: 'var(--space-2)', fontSize: 'var(--font-size-sm)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div><strong>Shop Name:</strong> {shopName}</div>
+                    <div><strong>Owner / Proprietor:</strong> {ownerName}</div>
+                    <div><strong>Contact Phone:</strong> {contactPhone}</div>
+                    <div><strong>Category:</strong> {selectedType?.name || 'General'}</div>
+                    <div><strong>Town:</strong> {selectedLocation.name}</div>
+                    {description && <div><strong>Description:</strong> {description}</div>}
+                  </div>
+                </div>
+
+                {/* Verification Documents */}
+                <div style={{ padding: 'var(--space-3)', background: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+                  <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase' }}>
+                    Verification Attachments
+                  </span>
+                  <div style={{ marginTop: 'var(--space-2)', fontSize: 'var(--font-size-sm)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div><strong>Storefront Photos:</strong> {shopPhotos.length} photos attached</div>
+                    <div><strong>GPS Coordinates:</strong> {gpsCoords ? `${gpsCoords.lat.toFixed(5)}, ${gpsCoords.lng.toFixed(5)}` : 'Captured'}</div>
+                    <div><strong>ID Document:</strong> {idProofFile?.name || 'Attached'} (Private KYC)</div>
+                    <div><strong>Payment Info:</strong> {upiId ? `UPI: ${upiId}` : 'Not provided'}</div>
+                    {googleMapsUrl && <div><strong>Google Maps:</strong> Linked</div>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Photo Thumbnails Preview */}
+              {photoPreviews.length > 0 && (
+                <div style={{ marginTop: 'var(--space-4)' }}>
+                  <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+                    Attached Storefront Photos ({photoPreviews.length}):
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+                    {photoPreviews.map((item, idx) => (
+                      <img
+                        key={item.id}
+                        src={item.url}
+                        alt={`Thumbnail ${idx + 1}`}
+                        style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
-              <div className="vaango-id-proof-notice">
-                <ShieldCheck size={16} className="text-success" />
-                <span>
-                  <strong>Strict Privacy:</strong> ID documents are uploaded to private restricted storage (<code className="text-xs">shop-documents</code>) and will NEVER be publicly accessible or shared with customers.
-                </span>
+
+              {/* Admin Review Explanatory Notice */}
+              <div style={{ marginTop: 'var(--space-4)', padding: 'var(--space-3)', background: 'rgba(230, 81, 0, 0.08)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(230, 81, 0, 0.2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <Clock size={16} className="text-primary" />
+                  <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700 }}>Human Admin Verification Process</span>
+                </div>
+                <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                  Once submitted, the Vaangly administration team verifies your storefront photos, GPS location, and government ID. Verified merchants receive approval and access to the catalogue and shopkeeper dashboard.
+                </p>
               </div>
+            </Card>
+
+            <div className="vaango-onboarding__submit-bar" style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => { setStep('verification'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                leftIcon={<ArrowLeft size={18} />}
+              >
+                Back to Edit
+              </Button>
+
+              <Button
+                type="button"
+                variant="primary"
+                size="lg"
+                isLoading={isSubmitting}
+                onClick={(e) => handleSubmit(e)}
+                leftIcon={<ShieldCheck size={18} />}
+              >
+                Submit Application for Admin Review
+              </Button>
             </div>
-          </div>
-
-          <div className="vaango-gmaps-alt">
-            <p className="vaango-gmaps-alt__label">OR - Already on Google Maps?</p>
-            <p className="text-xs text-secondary mb-2">Paste your Google Maps profile URL so the admin can quickly verify your shop.</p>
-            <Input id="app-gmaps-url" type="url" placeholder="https://maps.google.com/maps?q=your+shop+name" value={googleMapsUrl} onChange={(e) => setGoogleMapsUrl(e.target.value)} leftIcon={<MapPin size={16} />} />
-            <p className="text-xs text-secondary mt-1">This is an extra verification signal and does not replace the four-photo requirement.</p>
-          </div>
-        </Card>
-
-        {/* Submit */}
-        <div className="vaango-onboarding__submit-bar">
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            isLoading={isSubmitting}
-            leftIcon={<ShieldCheck size={18} />}
-          >
-            Submit Shop Application
-          </Button>
-        </div>
-      </form>
+          </>
+        )}
+      </div>
     </div>
   );
 };

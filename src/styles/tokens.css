@@ -1,29 +1,37 @@
-/* Vaango Design System — Tokens */
+/* Vaangly Design System — Tokens */
 :root {
-  /* Brand Core Colors */
-  --brand-primary: #0A7B83;
-  --brand-primary-hover: #08666D;
-  --brand-primary-active: #065056;
-  --brand-primary-light: #E6F5F6;
-  --brand-primary-subtle: rgba(10, 123, 131, 0.12);
+  /* Brand Core Colors (Natural Green Visual Identity) */
+  --brand-primary: #1B4D3E;          /* Natural deep forest green */
+  --brand-primary-hover: #143B30;
+  --brand-primary-active: #0E2922;
+  --brand-primary-light: #EBF4F0;    /* Soft fresh green tint */
+  --brand-primary-subtle: rgba(27, 77, 62, 0.08);
 
-  --brand-accent: #F59E0B;
-  --brand-accent-hover: #D97706;
-  --brand-accent-light: #FEF3C7;
-  --brand-accent-subtle: rgba(245, 158, 11, 0.12);
+  /* Color Compatibility Aliases */
+  --color-primary: var(--brand-primary);
+  --color-primary-hover: var(--brand-primary-hover);
+
+  --brand-accent: #2E7D32;           /* Fresh medium green */
+  --brand-accent-hover: #236327;
+  --brand-accent-light: #EDF7EE;
+  --brand-accent-subtle: rgba(46, 125, 50, 0.1);
+
+  /* Warm Accent (for highlights / badges) */
+  --brand-warmth: #D97706;
+  --brand-warmth-light: #FEF3C7;
 
   /* Semantic Feedback */
-  --color-success: #10B981;
-  --color-success-bg: #ECFDF5;
-  --color-warning: #F59E0B;
+  --color-success: #16A34A;
+  --color-success-bg: #F0FDF4;
+  --color-warning: #D97706;
   --color-warning-bg: #FFFBEB;
-  --color-error: #EF4444;
+  --color-error: #DC2626;
   --color-error-bg: #FEF2F2;
   --color-info: #0284C7;
   --color-info-bg: #F0F9FF;
 
   /* Typography */
-  --font-family-base: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-base: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-size-xs: 0.75rem;    /* 12px */
   --font-size-sm: 0.875rem;   /* 14px */
   --font-size-base: 1rem;     /* 16px */
@@ -49,6 +57,13 @@
   --space-10: 2.5rem;  /* 40px */
   --space-12: 3rem;    /* 48px */
 
+  /* Spacing Compatibility Aliases */
+  --spacing-xs: var(--space-1);
+  --spacing-sm: var(--space-2);
+  --spacing-md: var(--space-4);
+  --spacing-lg: var(--space-6);
+  --spacing-xl: var(--space-8);
+
   /* Radii */
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -60,9 +75,9 @@
   --min-touch-target: 52px;
 
   /* Layout Constraints */
-  --header-height: 64px;
+  --header-height: 68px;
   --bottom-nav-height: 72px;
-  --max-content-width: 1200px;
+  --max-content-width: 1240px;
   --max-readable-width: 768px;
 
   /* Transitions */
@@ -70,31 +85,31 @@
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Light Theme Specific Tokens */
-  --color-bg: #F8FAFC;
+  /* Light Theme Specific Tokens — Natural Green & Warm Cream */
+  --color-bg: #FBFBF9;
   --color-surface: #FFFFFF;
   --color-surface-elevated: #FFFFFF;
-  --color-surface-sunken: #F1F5F9;
+  --color-surface-sunken: #F4F5F0;
 
-  --color-text-primary: #0F172A;
-  --color-text-secondary: #475569;
-  --color-text-muted: #64748B;
+  --color-text-primary: #1F2937;     /* Dark charcoal */
+  --color-text-secondary: #4B5563;
+  --color-text-muted: #6B7280;
   --color-text-inverse: #FFFFFF;
 
-  --color-border: #E2E8F0;
-  --color-border-subtle: #F1F5F9;
-  --color-border-focus: #0A7B83;
+  --color-border: #E5E7EB;
+  --color-border-subtle: #F3F4F6;
+  --color-border-focus: #1B4D3E;
 
-  --color-disabled-bg: #E2E8F0;
-  --color-disabled-text: #94A3B8;
+  --color-disabled-bg: #E5E7EB;
+  --color-disabled-text: #9CA3AF;
 
-  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
-  --shadow-elevated: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 1px 2px 0 rgba(31, 41, 55, 0.04);
+  --shadow-md: 0 4px 8px -1px rgba(31, 41, 55, 0.06), 0 2px 4px -2px rgba(31, 41, 55, 0.04);
+  --shadow-lg: 0 12px 20px -4px rgba(31, 41, 55, 0.07), 0 4px 6px -2px rgba(31, 41, 55, 0.03);
+  --shadow-elevated: 0 20px 25px -5px rgba(31, 41, 55, 0.09), 0 8px 10px -6px rgba(31, 41, 55, 0.04);
 
-  --focus-ring: 0 0 0 3px rgba(10, 123, 131, 0.35);
-  --focus-ring-accent: 0 0 0 3px rgba(245, 158, 11, 0.4);
+  --focus-ring: 0 0 0 3px rgba(27, 77, 62, 0.25);
+  --focus-ring-accent: 0 0 0 3px rgba(46, 125, 50, 0.3);
 }
 
 /* Dark Theme Tokens (Deep Navy #0F1828 as base background) */

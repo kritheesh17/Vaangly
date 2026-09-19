@@ -318,23 +318,23 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
         <div className="vaango-req-header__top">
           <div>
 
-          {request.payment_screenshot_url && (
-            <Card variant="outlined" padding="md" className="vaango-payment-review-card">
-              <h2 className="vaango-proof-review__title">{request.customer_paid ? 'Payment Verified' : 'Customer Payment Screenshot'}</h2>
-              {paymentProofUrl ? (
-                <a href={paymentProofUrl} target="_blank" rel="noopener noreferrer"><img src={paymentProofUrl} alt="Customer payment proof" className="vaango-payment-proof-preview" /></a>
-              ) : (
-                <p className="text-secondary text-sm">Payment proof is unavailable. Refresh and try again.</p>
-              )}
-              {!request.customer_paid ? <div className="vaango-req-action-card__btn-group"><Button variant="primary" onClick={() => void handleMarkPaid()} leftIcon={<CheckCircle size={16} />}>Confirm Payment Received</Button><Button variant="outline" onClick={() => toastError('Payment marked for review. Contact the customer before completing this request.')} leftIcon={<AlertTriangle size={16} />}>Payment Looks Wrong</Button></div> : <p className="vaango-proof-verified-note">Payment confirmed. Screenshot kept for your records.</p>}
-            </Card>
-          )}
+            {request.payment_screenshot_url && (
+              <Card variant="outlined" padding="md" className="vaango-payment-review-card">
+                <h2 className="vaango-proof-review__title">{request.customer_paid ? 'Payment Verified' : 'Customer Payment Screenshot'}</h2>
+                {paymentProofUrl ? (
+                  <a href={paymentProofUrl} target="_blank" rel="noopener noreferrer"><img src={paymentProofUrl} alt="Customer payment proof" className="vaango-payment-proof-preview" /></a>
+                ) : (
+                  <p className="text-secondary text-sm">Payment proof is unavailable. Refresh and try again.</p>
+                )}
+                {!request.customer_paid ? <div className="vaango-req-action-card__btn-group"><Button variant="primary" onClick={() => void handleMarkPaid()} leftIcon={<CheckCircle size={16} />}>Confirm Payment Received</Button><Button variant="outline" onClick={() => toastError('Payment marked for review. Contact the customer before completing this request.')} leftIcon={<AlertTriangle size={16} />}>Payment Looks Wrong</Button></div> : <p className="vaango-proof-verified-note">Payment confirmed. Screenshot kept for your records.</p>}
+              </Card>
+            )}
             <span className="vaango-req-header__kicker">
               {groupCode === 'APPOINTMENT'
                 ? 'Appointment Slot Request'
                 : groupCode === 'SERVICE'
-                ? 'Service & Repair Request'
-                : 'Customer Order'}
+                  ? 'Service & Repair Request'
+                  : 'Customer Order'}
             </span>
             <h1 className="vaango-req-header__ref">{request.reference_code}</h1>
           </div>
@@ -344,10 +344,10 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
               ['READY', 'CONFIRMED', 'COMPLETED'].includes(request.current_state)
                 ? 'success'
                 : request.current_state === 'DELAYED'
-                ? 'warning'
-                : ['REJECTED', 'CANCELLED', 'NO_SHOW'].includes(request.current_state)
-                ? 'error'
-                : 'primary'
+                  ? 'warning'
+                  : ['REJECTED', 'CANCELLED', 'NO_SHOW'].includes(request.current_state)
+                    ? 'error'
+                    : 'primary'
             }
             size="md"
             withDot
@@ -411,8 +411,8 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
             {groupCode === 'APPOINTMENT'
               ? 'Appointment Action'
               : groupCode === 'SERVICE'
-              ? 'Service Action'
-              : 'Order Action'}
+                ? 'Service Action'
+                : 'Order Action'}
           </h2>
           <span className="vaango-req-action-card__hint">
             Advancing status immediately communicates real-time updates to the customer.

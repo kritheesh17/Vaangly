@@ -404,6 +404,18 @@ export async function fetchAdminApplications(
 }
 
 export async function fetchApplicationDetail(applicationId: string): Promise<ShopApplication | null> {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('shop_applications')
+        .select('*')
+        .eq('id', applicationId)
+        .maybeSingle();
+      if (!error && data) return data as ShopApplication;
+    } catch (err) {
+      console.error('Failed to fetch application detail from Supabase:', err);
+    }
+  }
   const apps = await fetchAdminApplications();
   return apps.find((a) => a.id === applicationId) || null;
 }
