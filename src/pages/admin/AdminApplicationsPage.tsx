@@ -16,11 +16,13 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { useLanguage } from '../../context/LanguageContext';
 import './AdminApplicationsPage.css';
 
 export const AdminApplicationsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { t } = useLanguage();
 
   const [applications, setApplications] = useState<ShopApplication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,7 +71,7 @@ export const AdminApplicationsPage: React.FC = () => {
             aria-label="Back to dashboard"
           >
             <ArrowLeft size={16} />
-            <span>Dashboard</span>
+            <span>{t('adminDashboard')}</span>
           </button>
           <h1 className="vaango-admin-apps__title">Shop Onboarding Applications</h1>
           <p className="vaango-admin-apps__subtitle">
@@ -86,28 +88,28 @@ export const AdminApplicationsPage: React.FC = () => {
             className={`vaango-admin-tab ${activeStatus === 'all' ? 'vaango-admin-tab--active' : ''}`}
             onClick={() => handleStatusFilter('all')}
           >
-            All Applications
+            {t('allApplications')}
           </button>
           <button
             type="button"
             className={`vaango-admin-tab ${activeStatus === 'submitted' ? 'vaango-admin-tab--active' : ''}`}
             onClick={() => handleStatusFilter('submitted')}
           >
-            Pending Verification
+            {t('pendingVerification')}
           </button>
           <button
             type="button"
             className={`vaango-admin-tab ${activeStatus === 'approved' ? 'vaango-admin-tab--active' : ''}`}
             onClick={() => handleStatusFilter('approved')}
           >
-            Approved
+            {t('approvedStatus')}
           </button>
           <button
             type="button"
             className={`vaango-admin-tab ${activeStatus === 'rejected' ? 'vaango-admin-tab--active' : ''}`}
             onClick={() => handleStatusFilter('rejected')}
           >
-            Rejected
+            {t('rejectedStatus')}
           </button>
         </div>
       </div>
@@ -121,7 +123,7 @@ export const AdminApplicationsPage: React.FC = () => {
         </div>
       ) : applications.length === 0 ? (
         <Card variant="outlined" padding="lg" style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>
-          No storefront applications found matching the selected filter.
+          {t('noApplicationsFound')}
         </Card>
       ) : (
         <div className="vaango-admin-apps__grid">

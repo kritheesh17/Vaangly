@@ -8,7 +8,6 @@ import { searchLocationCatalog } from '../lib/search';
 import { ShopCard } from '../components/customer/ShopCard';
 import { Input } from '../components/ui/Input';
 import { EmptyState } from '../components/ui/EmptyState';
-import { CartBar } from '../components/customer/CartBar';
 import { WorkflowGroupCode } from '../types/workflow';
 import { resetDemoData } from '../lib/demoData';
 import './BrowseShopsPage.css';
@@ -155,7 +154,7 @@ export const BrowseShopsPage: React.FC = () => {
       {searchQuery.trim() && matchingProducts.length > 0 && (
         <div className="vaango-browse__item-matches">
           <span className="vaango-browse__item-matches-title">
-            {language === 'ta' ? `கிடைத்த பொருட்கள்: "${searchQuery}"` : `Items found matching "${searchQuery}":`}
+            {t('itemsFoundMatching', { query: searchQuery })}
           </span>
           <div className="vaango-browse__item-pills">
             {matchingProducts.slice(0, 4).map(({ product, shop }) => (
@@ -167,7 +166,7 @@ export const BrowseShopsPage: React.FC = () => {
               >
                 <span>{product.name}</span>
                 <span className="vaango-item-pill__price">₹{product.price}</span>
-                <span className="vaango-item-pill__shop">at {shop.name}</span>
+                <span className="vaango-item-pill__shop">{t('atShop', { shop: shop.name })}</span>
               </button>
             ))}
           </div>
@@ -178,7 +177,7 @@ export const BrowseShopsPage: React.FC = () => {
       {searchQuery.trim() && matchingServices && matchingServices.length > 0 && (
         <div className="vaango-browse__item-matches">
           <span className="vaango-browse__item-matches-title">
-            {language === 'ta' ? `கிடைத்த சேவைகள்: "${searchQuery}"` : `Services found matching "${searchQuery}":`}
+            {t('servicesFoundMatching', { query: searchQuery })}
           </span>
           <div className="vaango-browse__item-pills">
             {matchingServices.slice(0, 4).map(({ service, shop }) => (
@@ -195,7 +194,7 @@ export const BrowseShopsPage: React.FC = () => {
                     ? `₹${service.min_price}–₹${service.max_price}`
                     : `₹${service.base_price}`}
                 </span>
-                <span className="vaango-item-pill__shop">at {shop.name}</span>
+                <span className="vaango-item-pill__shop">{t('atShop', { shop: shop.name })}</span>
               </button>
             ))}
           </div>
@@ -221,18 +220,17 @@ export const BrowseShopsPage: React.FC = () => {
         <div className="vaango-browse__empty">
           <EmptyState
             icon={<Store size={44} />}
-            title={language === 'ta' ? 'கடைகள் எதுவும் கிடைக்கவில்லை' : 'No shops found in this area'}
-            description={
-              language === 'ta'
-                ? `தேடலுக்குரிய கடைகள் எதுவும் ${selectedLocation.name} பகுதியில் தற்போது செயலில் இல்லை.`
-                : `We could not find any active shops matching "${searchQuery || activeShopType?.name || 'criteria'}" in ${selectedLocation.name}.`
-            }
+            title={t('noShopsFound')}
+            description={t('noShopsFoundDesc', {
+              query: searchQuery || activeShopType?.name || '',
+              location: selectedLocation.name,
+            })}
             actionLabel={t('viewAllShops')}
             onAction={() => {
               setSearchQuery('');
               handleCategorySelect('all');
             }}
-            secondaryActionLabel={language === 'ta' ? 'மாதிரி கடைகளை மீட்டெடு' : 'Restore Sample Shops'}
+            secondaryActionLabel={t('restoreSampleShops')}
             onSecondaryAction={() => {
               resetDemoData();
               setSearchQuery('');
@@ -241,9 +239,6 @@ export const BrowseShopsPage: React.FC = () => {
           />
         </div>
       )}
-
-      {/* Floating Cart Bar (for Order workflows) */}
-      <CartBar />
     </div>
   );
 };

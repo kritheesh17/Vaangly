@@ -1,20 +1,20 @@
 .vaango-cart-bar {
   position: fixed;
-  bottom: calc(var(--bottom-nav-height) + var(--space-3));
-  left: 0;
-  right: 0;
-  z-index: 85;
-  padding: 0 var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 20px);
+  max-width: 520px;
+  z-index: 95;
   pointer-events: none;
-  animation: slideUp 200ms ease-out;
+  animation: cartBarSlideUp 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* On mobile with BottomNav, float safely above BottomNav (60px) + gap + safe-area */
+  bottom: calc(var(--bottom-nav-height, 60px) + 10px + env(safe-area-inset-bottom, 0px));
 }
 
 @media (min-width: 820px) {
   .vaango-cart-bar {
-    bottom: var(--space-4);
-    max-width: 540px;
-    margin: 0 auto;
-    padding: 0;
+    /* BottomNav is hidden on desktop/tablet, float just above screen bottom */
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -23,18 +23,22 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: var(--brand-primary);
-  color: var(--color-text-inverse);
-  padding: var(--space-3) var(--space-5);
-  border-radius: var(--radius-xl);
-  box-shadow: 0 10px 25px -5px rgba(10, 123, 131, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  min-height: 56px;
+  background-color: var(--brand-primary, #0A7B83);
+  color: #FFFFFF;
+  padding: 0 var(--space-4, 16px);
+  height: 58px;
+  border-radius: var(--radius-xl, 16px);
+  box-shadow: 0 10px 25px -5px rgba(10, 123, 131, 0.5), 0 6px 14px -3px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-sizing: border-box;
 }
 
-.vaango-cart-bar__info {
+.vaango-cart-bar__left {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-3, 12px);
+  min-width: 0;
+  flex: 1;
 }
 
 .vaango-cart-bar__icon-wrap {
@@ -42,49 +46,159 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 36px;
+  height: 36px;
+  background-color: rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-full, 9999px);
+  flex-shrink: 0;
+}
+
+.vaango-cart-bar__icon {
+  color: #FFFFFF;
 }
 
 .vaango-cart-bar__badge {
   position: absolute;
-  top: -8px;
-  right: -10px;
-  background-color: var(--brand-accent);
+  top: -4px;
+  right: -6px;
+  background-color: var(--brand-accent, #F4A261);
   color: #0F172A;
   font-size: 11px;
-  font-weight: var(--font-weight-extrabold);
-  padding: 1px 6px;
-  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-extrabold, 800);
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: var(--radius-full, 9999px);
+  border: 1.5px solid var(--brand-primary, #0A7B83);
+}
+
+.vaango-cart-bar__details {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.vaango-cart-bar__primary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-base, 1rem);
+  font-weight: var(--font-weight-bold, 700);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.vaango-cart-bar__count {
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: var(--font-weight-medium, 500);
+  opacity: 0.95;
+}
+
+.vaango-cart-bar__divider {
+  opacity: 0.5;
+  font-size: var(--font-size-xs, 0.75rem);
 }
 
 .vaango-cart-bar__total {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-extrabold);
+  font-size: var(--font-size-base, 1rem);
+  font-weight: var(--font-weight-extrabold, 800);
+  letter-spacing: -0.01em;
 }
 
 .vaango-cart-bar__shop-name {
-  font-size: var(--font-size-xs);
-  opacity: 0.88;
-  max-width: 170px;
+  font-size: var(--font-size-xs, 0.75rem);
+  opacity: 0.82;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 180px;
 }
 
 .vaango-cart-bar__btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  background-color: rgba(255, 255, 255, 0.2);
-  color: #FFFFFF;
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
+  gap: var(--space-2, 8px);
+  background-color: #FFFFFF;
+  color: var(--brand-primary, #0A7B83);
+  padding: 7px 15px;
+  border-radius: var(--radius-full, 9999px);
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: var(--font-weight-bold, 700);
   text-decoration: none;
-  transition: background-color var(--transition-fast);
+  flex-shrink: 0;
+  transition: all var(--transition-fast, 150ms ease);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  min-height: 36px;
 }
 
 .vaango-cart-bar__btn:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-  color: #FFFFFF;
+  background-color: rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  color: var(--brand-primary-hover, #086369);
+}
+
+.vaango-cart-bar__btn:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 480px) {
+  .vaango-cart-bar {
+    width: calc(100% - 16px);
+  }
+
+  .vaango-cart-bar__inner {
+    height: 56px;
+    padding: 0 12px;
+  }
+
+  .vaango-cart-bar__left {
+    gap: 8px;
+  }
+
+  .vaango-cart-bar__shop-name {
+    display: none;
+  }
+
+  .vaango-cart-bar__count {
+    font-size: 0.8rem;
+  }
+
+  .vaango-cart-bar__total {
+    font-size: 0.9rem;
+  }
+
+  .vaango-cart-bar__btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    min-height: 32px;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 340px) {
+  .vaango-cart-bar__icon-wrap {
+    width: 30px;
+    height: 30px;
+  }
+
+  .vaango-cart-bar__icon-wrap svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .vaango-cart-bar__btn span {
+    font-size: 0.75rem;
+  }
+}
+
+@keyframes cartBarSlideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }

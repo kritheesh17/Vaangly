@@ -47,7 +47,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { success, error: toastError, info } = useToast();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
 
   const [shop, setShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<ShopProduct[]>([]);
@@ -112,9 +112,9 @@ export const ShopkeeperCataloguePage: React.FC = () => {
       const res = await toggleProductStock(shop.id, productId, nextStock);
       if (res.success) {
         if (nextStock) {
-          success(language === 'ta' ? 'பொருள் இருப்பில் உள்ளது என மாற்றப்பட்டது.' : 'Item marked In Stock.');
+          success(t('itemMarkedInStock'));
         } else {
-          info(language === 'ta' ? 'பொருள் இருப்பில் இல்லை என மாற்றப்பட்டது.' : 'Item marked Out of Stock.');
+          info(t('itemMarkedOutOfStock'));
         }
       } else {
         setProducts((prev) =>
@@ -147,9 +147,9 @@ export const ShopkeeperCataloguePage: React.FC = () => {
 
       if (res.success) {
         if (nextAvailable) {
-          success(language === 'ta' ? 'சேவை உள்ளது என மாற்றப்பட்டது.' : 'Service marked Available.');
+          success(t('serviceMarkedAvailable'));
         } else {
-          info(language === 'ta' ? 'சேவை நிறுத்தி வைக்கப்பட்டுள்ளது.' : 'Service marked Unavailable for new bookings.');
+          info(t('serviceMarkedUnavailable'));
         }
       } else {
         setServices((prev) =>
@@ -238,7 +238,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
           }
           return [res.service!, ...prev];
         });
-        success(language === 'ta' ? `"${serviceData.name}" சேவை சேமிக்கப்பட்டது!` : `Service "${serviceData.name}" saved!`);
+        success(t('serviceSavedSuccess', { name: serviceData.name }));
         return { success: true };
       }
       return { success: false, error: res.error || t('genericError') };
@@ -265,7 +265,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
         const res = await deleteShopService(shop.id, itemId);
         if (res.success) {
           setServices((prev) => prev.filter((s) => s.id !== itemId));
-          success(language === 'ta' ? 'சேவை நீக்கப்பட்டது.' : 'Service removed.');
+          success(t('serviceRemovedSuccess'));
         } else {
           toastError(res.error || t('genericError'));
         }
@@ -284,7 +284,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
       const res = await toggleShopLive(shop.id, true);
       if (res.success && res.shop) {
         setShop(res.shop);
-        success(language === 'ta' ? '🎉 உங்கள் கடை இப்போது நேரலையில் உள்ளது!' : '🎉 Your shop is now LIVE! Customers can now discover and book.');
+        success(t('shopNowLiveServices'));
       } else {
         toastError(res.error || t('genericError'));
       }
@@ -403,16 +403,16 @@ export const ShopkeeperCataloguePage: React.FC = () => {
         <div className="vaango-catalogue__golive-alert">
           <AlertTriangle size={20} className="vaango-alert-icon" />
           <div className="vaango-catalogue__golive-text">
-            <strong>Approved — Catalogue Incomplete</strong>
+            <strong>{t('catalogueIncomplete')}</strong>
             <span>
               {totalItemCount === 0
-                ? 'Your catalogue is empty. Add your first service or product to unlock Go Live visibility.'
-                : 'You have services/products in your catalogue! You can now make your shop visible to customers.'}
+                ? t('catalogueEmptyHint')
+                : t('catalogueReadyHint')}
             </span>
           </div>
           {totalItemCount > 0 && (
             <Button variant="primary" size="sm" onClick={handleGoLive}>
-              Make Shop Live
+              {t('makeShopLive')}
             </Button>
           )}
         </div>
@@ -706,19 +706,19 @@ export const ShopkeeperCataloguePage: React.FC = () => {
       {deleteConfirmId && (
         <div className="vaango-modal-overlay" role="dialog" aria-modal="true">
           <div className="vaango-delete-modal">
-            <h3 className="vaango-modal-title">Confirm Removal</h3>
+            <h3 className="vaango-modal-title">{t('confirmRemoval')}</h3>
             <p className="vaango-modal-desc">
-              Are you sure you want to remove this item? It will no longer be visible in your catalogue.
+              {t('confirmRemovalDesc')}
             </p>
             <div className="vaango-modal-actions mt-4">
               <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
-                Cancel
+                {t('cancelBtn')}
               </Button>
               <Button
                 variant="danger"
                 onClick={() => handleDeleteItem(deleteConfirmId)}
               >
-                Delete Item
+                {t('deleteItem')}
               </Button>
             </div>
           </div>

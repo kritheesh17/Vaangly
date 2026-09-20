@@ -10,6 +10,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import './RequestConfirmationPage.css';
 import { registerPushSubscription } from '../lib/pushNotifications';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 
 interface DecodedNotes {
   items?: { product_id: string; name: string; price: number; unit: string; quantity: number; subtotal: number }[];
@@ -23,6 +24,7 @@ export const RequestConfirmationPage: React.FC = () => {
   const { requestId } = useParams<{ requestId: string }>();
   const navigate = useNavigate();
   const { success } = useToast();
+  const { t } = useLanguage();
 
   const [request, setRequest] = useState<Request | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -105,18 +107,18 @@ export const RequestConfirmationPage: React.FC = () => {
           <CheckCircle2 size={48} />
         </div>
 
-        <h1 className="vaango-confirm-title">Request Sent!</h1>
+        <h1 className="vaango-confirm-title">{t('requestSentTitle')}</h1>
         <p className="vaango-confirm-subtitle">
-          Your pre-order has been successfully submitted to <strong>{shopName}</strong>.
+          {t('requestSentSubtitle', { shopName })}
         </p>
 
         {request && (
           <div className="vaango-confirm-ref-box">
-            <span className="vaango-confirm-ref-label">Order Reference Code</span>
+            <span className="vaango-confirm-ref-label">{t('orderRefCodeLabel')}</span>
             <span className="vaango-confirm-ref-code">{request.reference_code}</span>
             <div className="vaango-confirm-status-pill">
               <Badge variant="primary" size="sm" withDot>
-                Status: REQUESTED (Awaiting Shop Acceptance)
+                {t('statusRequestedPill')}
               </Badge>
             </div>
           </div>
@@ -125,7 +127,7 @@ export const RequestConfirmationPage: React.FC = () => {
         <div className="vaango-confirm-info-banner">
           <Clock size={20} className="vaango-confirm-banner-icon" />
           <p>
-            <strong>What happens next?</strong> The shopkeeper has received your pre-order request. They will confirm availability and start preparing your items shortly.
+            <strong>{t('whatHappensNextTitle')}</strong> {t('whatHappensNextDesc')}
           </p>
         </div>
 
@@ -138,7 +140,7 @@ export const RequestConfirmationPage: React.FC = () => {
               onClick={() => navigate(`/request/${request.id}`)}
               rightIcon={<ArrowRight size={18} />}
             >
-              Track Live Request Status
+              {t('trackLiveRequestBtn')}
             </Button>
           )}
           <Button
@@ -147,7 +149,7 @@ export const RequestConfirmationPage: React.FC = () => {
             onClick={() => navigate('/orders')}
             leftIcon={<ListOrdered size={18} />}
           >
-            View All Requests
+            {t('viewAllRequestsBtn')}
           </Button>
         </div>
       </div>
@@ -156,9 +158,9 @@ export const RequestConfirmationPage: React.FC = () => {
       {items.length > 0 && (
         <Card variant="default" padding="lg" className="vaango-confirm-items-card">
           <div className="vaango-confirm-items-header">
-            <h2 className="vaango-confirm-items-title">Requested Items ({items.length})</h2>
+            <h2 className="vaango-confirm-items-title">{t('requestedItemsTitle', { count: items.length })}</h2>
             <span className="vaango-confirm-items-total">
-              Estimated: ₹{request?.total_estimate}
+              {t('estimatedAmount', { amount: request?.total_estimate || 0 })}
             </span>
           </div>
 
@@ -181,7 +183,7 @@ export const RequestConfirmationPage: React.FC = () => {
 
           <div className="vaango-confirm-direct-pay">
             <ShieldCheck size={16} />
-            <span>Pay directly to shopkeeper upon pickup or delivery.</span>
+            <span>{t('directPaymentNotice')}</span>
           </div>
         </Card>
       )}

@@ -22,6 +22,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { useLanguage } from '../../context/LanguageContext';
 import './AdminShopsPage.css';
 
 export const AdminShopsPage: React.FC = () => {
@@ -29,6 +30,7 @@ export const AdminShopsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { success, error: toastError } = useToast();
+  const { t } = useLanguage();
 
   const [shops, setShops] = useState<Shop[]>([]);
   const [subscriptions, setSubscriptions] = useState<ShopSubscription[]>([]);
@@ -100,15 +102,19 @@ export const AdminShopsPage: React.FC = () => {
     }
 
     setIsSuspending(true);
-    const res = await suspendShop(targetShopToSuspend.id, user.id, suspendReason.trim());
-    setIsSuspending(false);
-
-    if (res.success) {
-      success(`${targetShopToSuspend.name} has been suspended and hidden from customer discovery.`);
-      setSuspendModalOpen(false);
-      loadShopsData();
-    } else {
-      setSuspendError(res.error || 'Failed to suspend shop.');
+    try {
+      const res = await suspendShop(targetShopToSuspend.id, user.id, suspendReason.trim());
+      if (res.success) {
+        success(t('shopSuspendedSuccess', { name: targetShopToSuspend.name }));
+        setSuspendModalOpen(false);
+        loadShopsData();
+      } else {
+        setSuspendError(res.error || t('failedSuspendShop'));
+      }
+    } catch (err: unknown) {
+      setSuspendError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setIsSuspending(false);
     }
   };
 
@@ -121,15 +127,20 @@ export const AdminShopsPage: React.FC = () => {
   const handleConfirmReactivate = async () => {
     if (!targetShopToReactivate || !user) return;
     setIsReactivating(true);
-    const res = await reactivateShop(targetShopToReactivate.id, user.id);
-    setIsReactivating(false);
-    setReactivateModalOpen(false);
+    try {
+      const res = await reactivateShop(targetShopToReactivate.id, user.id);
+      setReactivateModalOpen(false);
 
-    if (res.success) {
-      success(`${targetShopToReactivate.name} reactivated.`);
-      loadShopsData();
-    } else {
-      toastError(res.error || 'Failed to reactivate shop.');
+      if (res.success) {
+        success(t('shopReactivatedSuccess', { name: targetShopToReactivate.name }));
+        loadShopsData();
+      } else {
+        toastError(res.error || t('failedReactivateShop'));
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setIsReactivating(false);
     }
   };
 
@@ -145,7 +156,7 @@ export const AdminShopsPage: React.FC = () => {
             aria-label="Back to dashboard"
           >
             <ArrowLeft size={16} />
-            <span>Dashboard</span>
+            <span>{t('adminDashboard')}</span>
           </button>
           <h1 className="vaango-admin-shops__title">Shop Directory & Lifecycle</h1>
           <p className="vaango-admin-shops__subtitle">
@@ -215,7 +226,7 @@ export const AdminShopsPage: React.FC = () => {
         </div>
       ) : shops.length === 0 ? (
         <Card variant="outlined" padding="lg" style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>
-          No shops found matching the selected search query or filters.
+          {t('noShopsFound')}
         </Card>
       ) : (
         <div className="vaango-admin-shops__list">

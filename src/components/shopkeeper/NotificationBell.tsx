@@ -23,7 +23,7 @@ interface NotificationBellProps {
 }
 
 export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -31,8 +31,12 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
 
   const loadNotifs = async () => {
     if (!user) return;
-    const list = await fetchShopNotifications(user.id, shopId);
-    setNotifications(list);
+    try {
+      const list = await fetchShopNotifications(user.id, shopId);
+      setNotifications(list);
+    } catch (err) {
+      console.error('Failed to load notifications:', err);
+    }
   };
 
   useEffect(() => {
@@ -63,26 +67,42 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   const handleNotificationClick = async (notif: Notification) => {
-    if (!notif.is_read) {
-      await markNotificationAsRead(notif.id);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n))
-      );
-    }
-    setIsOpen(false);
-
-    if (notif.reference_id) {
-      navigate(`/shopkeeper/requests/${notif.reference_id}`);
-    } else {
-      navigate('/shopkeeper/requests');
+    try {
+      if (!notif.is_read) {
+        await markNotificationAsRead(notif.id);
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n))
+        );
+      }
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    } finally {
+      setIsOpen(false);
+      if (role === 'shopkeeper') {
+        if (notif.reference_id) {
+          navigate(`/shopkeeper/requests/${notif.reference_id}`);
+        } else {
+          navigate('/shopkeeper/requests');
+        }
+      } else {
+        if (notif.reference_id) {
+          navigate(`/request/${notif.reference_id}`);
+        } else {
+          navigate('/orders');
+        }
+      }
     }
   };
 
   const handleMarkAll = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) return;
-    await markAllNotificationsAsRead(user.id);
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    try {
+      await markAllNotificationsAsRead(user.id);
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    } catch (err) {
+      console.error('Failed to mark all notifications as read:', err);
+    }
   };
 
   const formatTimeAgo = (dateStr: string) => {

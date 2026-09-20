@@ -20,12 +20,14 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { useLanguage } from '../../context/LanguageContext';
 import './AdminLocationsPage.css';
 
 export const AdminLocationsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { success, error: toastError } = useToast();
+  const { t } = useLanguage();
 
   const [locations, setLocations] = useState<AdminLocationWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -96,26 +98,32 @@ export const AdminLocationsPage: React.FC = () => {
     }
 
     setIsSaving(true);
-    const res = await saveLocation(
-      {
-        id: editingLoc?.id,
-        name: name.trim(),
-        state: stateName.trim(),
-        pincode: pincode.trim(),
-        is_launch_town: isLaunchTown,
-        is_active: editingLoc ? editingLoc.is_active : true,
-      },
-      user.id
-    );
-    setIsSaving(false);
+    try {
+      const res = await saveLocation(
+        {
+          id: editingLoc?.id,
+          name: name.trim(),
+          state: stateName.trim(),
+          pincode: pincode.trim(),
+          is_launch_town: isLaunchTown,
+          is_active: editingLoc ? editingLoc.is_active : true,
+        },
+        user.id
+      );
 
-    if (res.success) {
-      success(editingLoc ? 'Location updated successfully.' : 'New operating town registered.');
-      setModalOpen(false);
-      loadLocations();
-    } else {
-      setFormError(res.error || 'Failed to save location.');
-      toastError(res.error || 'Failed to save location.');
+      if (res.success) {
+        success(editingLoc ? t('locationUpdatedSuccess') : t('locationCreatedSuccess'));
+        setModalOpen(false);
+        loadLocations();
+      } else {
+        setFormError(res.error || t('failedSaveLocation'));
+        toastError(res.error || t('failedSaveLocation'));
+      }
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : t('genericError'));
+      toastError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -129,19 +137,24 @@ export const AdminLocationsPage: React.FC = () => {
     setIsToggling(true);
     const newStatus = !targetLocToToggle.is_active;
 
-    const res = await toggleLocationActive(targetLocToToggle.id, newStatus, user.id);
-    setIsToggling(false);
-    setDeactivateModalOpen(false);
+    try {
+      const res = await toggleLocationActive(targetLocToToggle.id, newStatus, user.id);
+      setDeactivateModalOpen(false);
 
-    if (res.success) {
-      success(
-        newStatus
-          ? `${targetLocToToggle.name} reactivated for customer discovery.`
-          : `${targetLocToToggle.name} deactivated. Historical order records remain safe.`
-      );
-      loadLocations();
-    } else {
-      toastError(res.error || 'Failed to update location status.');
+      if (res.success) {
+        success(
+          newStatus
+            ? `${targetLocToToggle.name} reactivated for customer discovery.`
+            : `${targetLocToToggle.name} deactivated. Historical order records remain safe.`
+        );
+        loadLocations();
+      } else {
+        toastError(res.error || t('genericError'));
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setIsToggling(false);
     }
   };
 
@@ -157,7 +170,7 @@ export const AdminLocationsPage: React.FC = () => {
             aria-label="Back to dashboard"
           >
             <ArrowLeft size={16} />
-            <span>Dashboard</span>
+            <span>{t('adminDashboard')}</span>
           </button>
           <h1 className="vaango-admin-locs__title">Hometowns & Operating Locations</h1>
           <p className="vaango-admin-locs__subtitle">
@@ -166,7 +179,7 @@ export const AdminLocationsPage: React.FC = () => {
         </div>
 
         <Button variant="primary" size="sm" onClick={handleOpenAdd} leftIcon={<Plus size={16} />}>
-          Add New Location
+          {t('addLocation')}
         </Button>
       </div>
 

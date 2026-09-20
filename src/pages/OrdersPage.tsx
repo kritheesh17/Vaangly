@@ -41,7 +41,7 @@ type StatusFilter = 'active' | 'completed' | 'all';
 
 export const OrdersPage: React.FC = () => {
   const { user } = useAuth();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   const [requests, setRequests] = useState<Request[]>([]);
@@ -138,14 +138,14 @@ export const OrdersPage: React.FC = () => {
         <div className="vaango-merchant-notice-banner mb-4">
           <div className="flex items-center gap-2">
             <Store size={18} className="text-primary" />
-            <span className="text-sm font-semibold">{language === 'ta' ? 'நீங்கள் கடைக்காரராக உள்நுழைந்துள்ளீர்கள்.' : 'You are logged in as a Merchant.'}</span>
+            <span className="text-sm font-semibold">{t('merchantNoticeLoggedIn')}</span>
           </div>
           <button
             type="button"
             className="vaango-btn vaango-btn--primary vaango-btn--sm"
             onClick={() => navigate('/shopkeeper/requests')}
           >
-            {language === 'ta' ? 'கடைக்காரர் ஆர்டர்கள் →' : 'Go to Merchant Inbox →'}
+            {t('goToMerchantInbox')}
           </button>
         </div>
       )}
@@ -238,7 +238,7 @@ export const OrdersPage: React.FC = () => {
             }
 
             const reqGroup = (req.workflow_group_code || 'ORDER') as WorkflowGroupCode;
-            const shopName = decoded.shop_name || 'Local Store';
+            const shopName = decoded.shop_name || t('localStoreFallback');
             const items = decoded.items || [];
 
             return (
@@ -286,11 +286,11 @@ export const OrdersPage: React.FC = () => {
                       {decoded.service_category && <span> ({decoded.service_category})</span>}
                       {decoded.confirmed_price ? (
                         <div className="text-xs text-success font-semibold mt-1">
-                          Confirmed: ₹{decoded.confirmed_price}
+                          {t('confirmedLabel')}: ₹{decoded.confirmed_price}
                         </div>
                       ) : decoded.price_type === 'range' ? (
                         <div className="text-xs text-accent mt-1">
-                          Estimated: ₹{decoded.min_price} – ₹{decoded.max_price}
+                          {t('estimatedLabel')}: ₹{decoded.min_price} – ₹{decoded.max_price}
                         </div>
                       ) : null}
                     </div>
@@ -320,10 +320,10 @@ export const OrdersPage: React.FC = () => {
                         ? `₹${decoded.confirmed_price}`
                         : req.total_estimate
                         ? `₹${req.total_estimate}`
-                        : 'Price upon confirmation'}
+                        : t('priceUponConfirmation')}
                     </span>
                     <span className="vaango-order-card__track-arrow">
-                      <span>Details</span>
+                      <span>{t('detailsBtn')}</span>
                       <ArrowRight size={16} />
                     </span>
                   </div>
@@ -336,15 +336,15 @@ export const OrdersPage: React.FC = () => {
         <div className="vaango-orders-empty">
           <EmptyState
             icon={<ClipboardList size={48} />}
-            title={statusFilter === 'active' ? 'No Active Activity' : 'No Activity Found'}
+            title={statusFilter === 'active' ? t('noActiveActivityTitle') : t('noActivityFoundTitle')}
             description={
               statusFilter === 'active'
-                ? 'You do not have any requests or appointments in progress right now.'
-                : 'You have not submitted any orders, appointments or services yet.'
+                ? t('noActiveActivityDesc')
+                : t('noActivityFoundDesc')
             }
-            actionLabel="Discover Local Services"
+            actionLabel={t('discoverLocalServices')}
             onAction={() => navigate('/shops')}
-            secondaryActionLabel="Restore Sample Orders & Appointments"
+            secondaryActionLabel={t('restoreSampleOrders')}
             onSecondaryAction={() => {
               resetDemoData();
               setRequests(getStoredDemoRequests());

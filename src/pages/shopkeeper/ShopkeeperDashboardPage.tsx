@@ -38,12 +38,14 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { resetDemoData } from '../../lib/demoData';
+import { useLanguage } from '../../context/LanguageContext';
 import './ShopkeeperDashboardPage.css';
 
 export const ShopkeeperDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { success, error: toastError, info } = useToast();
+  const { t } = useLanguage();
 
   const [shop, setShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<ShopProduct[]>([]);
@@ -106,18 +108,23 @@ export const ShopkeeperDashboardPage: React.FC = () => {
     if (!shop) return;
     setIsTogglingLive(true);
 
-    const res = await toggleShopLive(shop.id, targetLive);
-    if (res.success && res.shop) {
-      setShop(res.shop);
-      if (res.shop.is_live) {
-        success('🎉 Your shop is now LIVE! Customers in town can discover and send pre-orders.');
+    try {
+      const res = await toggleShopLive(shop.id, targetLive);
+      if (res.success && res.shop) {
+        setShop(res.shop);
+        if (res.shop.is_live) {
+          success(t('shopNowLive'));
+        } else {
+          info(t('storeSetOffline'));
+        }
       } else {
-        info('Store set to Offline. Customers cannot place new orders until re-enabled.');
+        toastError(res.error || t('genericError'));
       }
-    } else {
-      toastError(res.error || 'Failed to toggle live state.');
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setIsTogglingLive(false);
     }
-    setIsTogglingLive(false);
   };
 
   // Quick transition from dashboard
@@ -125,28 +132,33 @@ export const ShopkeeperDashboardPage: React.FC = () => {
     if (!user) return;
     setActionLoadingId(req.id);
 
-    let note = 'Transitioned by merchant.';
-    if (nextState === 'CONFIRMED') note = 'Appointment confirmed by shopkeeper.';
-    if (nextState === 'ACCEPTED') note = 'Request accepted by merchant.';
-    if (nextState === 'IN_PROGRESS') note = 'Work / appointment in progress.';
-    if (nextState === 'READY') note = 'Order / service is ready for customer.';
-    if (nextState === 'COMPLETED') note = 'Completed.';
+    try {
+      let note = 'Transitioned by merchant.';
+      if (nextState === 'CONFIRMED') note = 'Appointment confirmed by shopkeeper.';
+      if (nextState === 'ACCEPTED') note = 'Request accepted by merchant.';
+      if (nextState === 'IN_PROGRESS') note = 'Work / appointment in progress.';
+      if (nextState === 'READY') note = 'Order / service is ready for customer.';
+      if (nextState === 'COMPLETED') note = 'Completed.';
 
-    const res = await transitionRequestState(
-      req.id,
-      req.current_state,
-      nextState,
-      user.id,
-      note
-    );
+      const res = await transitionRequestState(
+        req.id,
+        req.current_state,
+        nextState,
+        user.id,
+        note
+      );
 
-    if (res.success && res.request) {
-      setRequests((prev) => prev.map((r) => (r.id === req.id ? res.request! : r)));
-      success(`Request #${req.reference_code} updated to ${nextState}`);
-    } else {
-      toastError(res.error || 'Failed to update request state.');
+      if (res.success && res.request) {
+        setRequests((prev) => prev.map((r) => (r.id === req.id ? res.request! : r)));
+        success(`Request #${req.reference_code} updated to ${nextState}`);
+      } else {
+        toastError(res.error || t('genericError'));
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setActionLoadingId(null);
     }
-    setActionLoadingId(null);
   };
 
   if (isLoading) {
@@ -168,15 +180,15 @@ export const ShopkeeperDashboardPage: React.FC = () => {
     return (
       <div className="vaango-pending-screen">
         <div className="vaango-pending-screen__icon">⏳</div>
-        <h2 className="vaango-pending-screen__title">Waiting for Admin Approval</h2>
-        <p className="vaango-pending-screen__desc">Your shop application has been submitted successfully. The Vaango admin will review your details and photos and notify you once approved.</p>
+        <h2 className="vaango-pending-screen__title">{t('waitingForApproval')}</h2>
+        <p className="vaango-pending-screen__desc">{t('waitingApprovalDesc')}</p>
         <div className="vaango-pending-screen__steps">
-          <div className="vaango-pending-step vaango-pending-step--done"><span className="vaango-pending-step__icon">✓</span><span>Application submitted</span></div>
-          <div className="vaango-pending-step vaango-pending-step--active"><span className="vaango-pending-step__icon">⏳</span><span>Admin review in progress</span></div>
-          <div className="vaango-pending-step"><span className="vaango-pending-step__icon">○</span><span>Approved - set up your catalogue</span></div>
-          <div className="vaango-pending-step"><span className="vaango-pending-step__icon">○</span><span>Go live and receive orders</span></div>
+          <div className="vaango-pending-step vaango-pending-step--done"><span className="vaango-pending-step__icon">✓</span><span>{t('stepAppSubmitted')}</span></div>
+          <div className="vaango-pending-step vaango-pending-step--active"><span className="vaango-pending-step__icon">⏳</span><span>{t('stepReviewInProgress')}</span></div>
+          <div className="vaango-pending-step"><span className="vaango-pending-step__icon">○</span><span>{t('stepApprovedCatalogue')}</span></div>
+          <div className="vaango-pending-step"><span className="vaango-pending-step__icon">○</span><span>{t('stepGoLiveOrders')}</span></div>
         </div>
-        <p className="vaango-pending-screen__note">Approval typically takes 24-48 hours. Make sure your phone number is reachable.</p>
+        <p className="vaango-pending-screen__note">{t('approvalTakesHours')}</p>
         <Button
           variant="primary"
           size="md"
@@ -187,7 +199,7 @@ export const ShopkeeperDashboardPage: React.FC = () => {
             success('Demo live shop, catalogue & orders restored!');
           }}
         >
-          Load Verified Demo Shop & Orders
+          {t('loadDemoShop')}
         </Button>
       </div>
     );
@@ -240,9 +252,9 @@ export const ShopkeeperDashboardPage: React.FC = () => {
       {/* Header Welcome Bar */}
       <div className="vaango-shop-dash__welcome">
         <div>
-          <span className="vaango-shop-dash__kicker">Merchant Control Center</span>
+          <span className="vaango-shop-dash__kicker">{t('merchantControlCenter')}</span>
           <h1 className="vaango-shop-dash__title">
-            {shop ? shop.name : user?.full_name || 'Merchant Dashboard'}
+            {shop ? shop.name : user?.full_name || t('merchantDashboard')}
           </h1>
         </div>
 
@@ -295,34 +307,34 @@ export const ShopkeeperDashboardPage: React.FC = () => {
       <div className="vaango-daily-stats-section">
         <div className="vaango-daily-stats-header">
           <h3>
-            <Clock size={16} /> Today's Operations ({new Date().toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })})
+            <Clock size={16} /> {t('todaysOperations')} ({new Date().toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })})
           </h3>
-          <span className="vaango-daily-stats-sub">Free Shopkeeper Operational Metrics</span>
+          <span className="vaango-daily-stats-sub">{t('freeOpsMetrics')}</span>
         </div>
         <div className="vaango-daily-stats-grid">
           <div className="vaango-daily-stat-card">
-            <span className="vaango-daily-stat-card__label">Today's Orders</span>
+            <span className="vaango-daily-stat-card__label">{t('todaysOrders')}</span>
             <span className="vaango-daily-stat-card__value">{todaysOrdersCount}</span>
-            <span className="vaango-daily-stat-card__sub">Incoming today</span>
+            <span className="vaango-daily-stat-card__sub">{t('incomingToday')}</span>
           </div>
           <div className="vaango-daily-stat-card">
-            <span className="vaango-daily-stat-card__label">Today's Requests</span>
+            <span className="vaango-daily-stat-card__label">{t('todaysRequests')}</span>
             <span className="vaango-daily-stat-card__value">{todaysOrdersCount}</span>
-            <span className="vaango-daily-stat-card__sub">Total received</span>
+            <span className="vaango-daily-stat-card__sub">{t('totalReceived')}</span>
           </div>
           <div className="vaango-daily-stat-card">
-            <span className="vaango-daily-stat-card__label">Today's Pending</span>
+            <span className="vaango-daily-stat-card__label">{t('todaysPending')}</span>
             <span className="vaango-daily-stat-card__value" style={{ color: todaysPendingCount > 0 ? 'var(--color-primary)' : 'inherit' }}>
               {todaysPendingCount}
             </span>
-            <span className="vaango-daily-stat-card__sub">Action required</span>
+            <span className="vaango-daily-stat-card__sub">{t('actionRequired')}</span>
           </div>
           <div className="vaango-daily-stat-card">
-            <span className="vaango-daily-stat-card__label">Today's Completed</span>
+            <span className="vaango-daily-stat-card__label">{t('todaysCompleted')}</span>
             <span className="vaango-daily-stat-card__value" style={{ color: 'var(--color-success)' }}>
               {todaysCompletedCount}
             </span>
-            <span className="vaango-daily-stat-card__sub">Fulfilled sales</span>
+            <span className="vaango-daily-stat-card__sub">{t('fulfilledSales')}</span>
           </div>
         </div>
       </div>
@@ -335,9 +347,9 @@ export const ShopkeeperDashboardPage: React.FC = () => {
           </div>
           <div>
             <div className="vaango-analytics-teaser__title-row">
-              <h3>Business Analytics</h3>
+              <h3>{t('businessAnalytics')}</h3>
               <Badge variant={isPro ? 'primary' : 'neutral'} size="sm">
-                {isPro ? 'PRO TIER ACTIVE' : 'FREE TIER (PRO PREVIEW)'}
+                {isPro ? t('proTierActive') : t('freeTierPreview')}
               </Badge>
             </div>
             <p className="vaango-analytics-teaser__desc">
@@ -359,7 +371,7 @@ export const ShopkeeperDashboardPage: React.FC = () => {
             onClick={handleToggleTier}
             title="Toggle between Free locked state and Pro unlocked state for evaluation"
           >
-            {isPro ? 'Test as Free Tier' : 'Test as Pro Tier'}
+            {isPro ? t('testAsFreeTier') : t('testAsProTier')}
           </Button>
           <Button
             variant="primary"
@@ -367,7 +379,7 @@ export const ShopkeeperDashboardPage: React.FC = () => {
             onClick={() => navigate('/shopkeeper/analytics')}
             leftIcon={<TrendingUp size={16} />}
           >
-            {isPro ? 'Open Pro Analytics' : 'Explore Pro Analytics'}
+            {isPro ? t('openProAnalytics') : t('exploreProAnalytics')}
           </Button>
         </div>
       </div>
@@ -501,9 +513,9 @@ export const ShopkeeperDashboardPage: React.FC = () => {
       <div className="vaango-shop-dash__section">
         <div className="vaango-shop-dash__section-header">
           <div>
-            <h2 className="vaango-shop-dash__section-title">Active Orders Needing Attention</h2>
+            <h2 className="vaango-shop-dash__section-title">{t('activeOrdersAttention')}</h2>
             <p className="vaango-shop-dash__section-subtitle">
-              Prioritized list of customer pre-orders waiting to be accepted or packed.
+              {t('activeOrdersSubtitle')}
             </p>
           </div>
           {requests.length > 0 && (
@@ -521,11 +533,11 @@ export const ShopkeeperDashboardPage: React.FC = () => {
         {requests.length === 0 ? (
           <Card variant="default" padding="lg" className="vaango-shop-dash__empty">
             <ShoppingBag size={48} className="vaango-empty-icon" />
-            <h3 className="vaango-empty-title">No customer requests yet</h3>
+            <h3 className="vaango-empty-title">{t('noCustomerRequestsYet')}</h3>
             <p className="vaango-empty-desc">
               {shop?.is_live
-                ? 'Your shop is LIVE. Customer requests will appear here in realtime as soon as they are placed.'
-                : 'Turn your shop LIVE above so neighborhood customers can discover your catalogue and send pre-orders.'}
+                ? t('shopLiveRealtimeHint')
+                : t('turnShopLiveHint')}
             </p>
             <Button
               variant="outline"
@@ -537,7 +549,7 @@ export const ShopkeeperDashboardPage: React.FC = () => {
                 success('Sample orders and appointments loaded!');
               }}
             >
-              Load Sample Orders & Appointments
+              {t('loadSampleOrders')}
             </Button>
           </Card>
         ) : (
@@ -567,9 +579,9 @@ export const ShopkeeperDashboardPage: React.FC = () => {
             <Package size={24} />
           </div>
           <div className="vaango-quick-card__content">
-            <h3 className="vaango-quick-card__title">Manage Catalogue</h3>
+            <h3 className="vaango-quick-card__title">{t('manageCatalogue')}</h3>
             <p className="vaango-quick-card__desc">
-              Add products, update rates, or toggle out-of-stock items ({products.length} products).
+              {t('manageCatalogueDesc', { count: products.length })}
             </p>
           </div>
           <ArrowRight size={18} className="vaango-quick-card__arrow" />
@@ -585,9 +597,9 @@ export const ShopkeeperDashboardPage: React.FC = () => {
             <Sparkles size={24} />
           </div>
           <div className="vaango-quick-card__content">
-            <h3 className="vaango-quick-card__title">Shop Settings & Delivery</h3>
+            <h3 className="vaango-quick-card__title">{t('shopSettingsDelivery')}</h3>
             <p className="vaango-quick-card__desc">
-              Configure delivery fee, direct UPI ID, operating hours & storefront GPS.
+              {t('shopSettingsDeliveryDesc')}
             </p>
           </div>
           <ArrowRight size={18} className="vaango-quick-card__arrow" />

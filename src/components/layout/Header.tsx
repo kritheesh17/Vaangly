@@ -13,6 +13,7 @@ import { resetDemoData } from '../../lib/demoData';
 import { NotificationBell } from '../shopkeeper/NotificationBell';
 import './Header.css';
 import { useLanguage } from '../../context/LanguageContext';
+import { LanguageToggle } from '../common/LanguageToggle';
 
 export const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -27,7 +28,7 @@ export const Header: React.FC = () => {
   const { itemCount } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
-  const { language, setLanguage, t } = useLanguage();
+  const { t } = useLanguage();
   const { success } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -89,7 +90,7 @@ export const Header: React.FC = () => {
                 <Link to="/admin/applications" className="vaango-header__nav-link">{t('adminAppsTitle')}</Link>
                 <Link to="/admin/shops" className="vaango-header__nav-link">{t('adminShopsTitle')}</Link>
                 <Link to="/admin/locations" className="vaango-header__nav-link">{t('adminLocationsTitle')}</Link>
-                <Link to="/admin/audit" className="vaango-header__nav-link">Audit</Link>
+                <Link to="/admin/audit" className="vaango-header__nav-link">{t('navAudit')}</Link>
               </>
             ) : role === 'shopkeeper' ? (
               <>
@@ -178,23 +179,16 @@ export const Header: React.FC = () => {
                   type="button"
                   className="vaango-header__reset-btn"
                   onClick={handleResetDemoData}
-                  title="Restore Sample Shops & Appointments"
-                  aria-label="Restore Sample Shops & Appointments"
+                  title={t('restoreSampleBtn')}
+                  aria-label={t('restoreSampleBtn')}
                 >
                   <RotateCcw size={15} />
                 </button>
               </>
             )}
 
-            <button
-              type="button"
-              className="vaango-header__lang-btn"
-              onClick={() => setLanguage(language === 'en' ? 'ta' : 'en')}
-              aria-label={language === 'en' ? 'Switch to Tamil' : 'Switch to English'}
-              title={language === 'en' ? 'தமிழில் காண' : 'View in English'}
-            >
-              {language === 'en' ? 'தமிழ்' : 'EN'}
-            </button>
+            {/* Two-Way Segmented Language Toggle (EN | தமிழ்) */}
+            <LanguageToggle size="sm" />
 
             {/* Theme Toggle Button */}
             <button
@@ -288,6 +282,25 @@ export const Header: React.FC = () => {
             </nav>
 
             <div className="vaango-mobile-menu__footer">
+              <div className="vaango-mobile-menu__lang-row">
+                <span className="vaango-mobile-menu__lang-label">{t('language') || 'Language'}:</span>
+                <LanguageToggle size="md" />
+              </div>
+
+              <div className="vaango-mobile-menu__theme-row">
+                <span className="vaango-mobile-menu__theme-label">
+                  {theme === 'dark' ? t('darkThemeActive') : t('lightThemeActive')}
+                </span>
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className="vaango-mobile-menu__theme-btn"
+                  aria-label="Toggle display theme"
+                >
+                  {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                </button>
+              </div>
+
               {!user ? (
                 <div className="vaango-mobile-menu__auth-actions">
                   <Link to="/login" className="vaango-mobile-menu__btn-login" onClick={closeMobileMenu}>

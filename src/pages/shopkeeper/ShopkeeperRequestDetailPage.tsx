@@ -59,7 +59,7 @@ interface DecodedPayload {
 export const ShopkeeperRequestDetailPage: React.FC = () => {
   const { requestId } = useParams<{ requestId: string }>();
   const { user } = useAuth();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { success, error: toastError } = useToast();
 
@@ -247,7 +247,7 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
     if (!request || !user) return;
     const numPrice = parseFloat(priceInput);
     if (isNaN(numPrice) || numPrice <= 0) {
-      toastError(language === 'ta' ? 'சரியான தொகையை உள்ளிடுக.' : 'Please enter a valid price greater than 0.');
+      toastError(t('validPriceRequired'));
       return;
     }
 

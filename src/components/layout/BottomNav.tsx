@@ -11,19 +11,19 @@ export const BottomNav: React.FC = () => {
 
   if (role === 'admin') {
     return (
-      <nav className="vaango-bottom-nav" aria-label="Admin Navigation">
+      <nav className="vaango-bottom-nav" aria-label={t('operationsConsole')}>
         <div className="vaango-bottom-nav__inner">
           <NavLink
             to="/admin/dashboard"
             className={({ isActive }) =>
               `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
             }
-            aria-label="Dashboard"
+            aria-label={t('adminDashboard')}
           >
             <div className="vaango-bottom-nav__icon-wrap">
               <LayoutDashboard size={22} />
             </div>
-            <span className="vaango-bottom-nav__label">Overview</span>
+            <span className="vaango-bottom-nav__label">{t('adminDashboard')}</span>
           </NavLink>
 
           <NavLink
@@ -31,12 +31,12 @@ export const BottomNav: React.FC = () => {
             className={({ isActive }) =>
               `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
             }
-            aria-label="Applications"
+            aria-label={t('adminApplications')}
           >
             <div className="vaango-bottom-nav__icon-wrap">
               <FileCheck2 size={22} />
             </div>
-            <span className="vaango-bottom-nav__label">Apps</span>
+            <span className="vaango-bottom-nav__label">{t('adminApplications')}</span>
           </NavLink>
 
           <NavLink
@@ -44,12 +44,12 @@ export const BottomNav: React.FC = () => {
             className={({ isActive }) =>
               `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
             }
-            aria-label="Shops"
+            aria-label={t('adminShops')}
           >
             <div className="vaango-bottom-nav__icon-wrap">
               <Store size={22} />
             </div>
-            <span className="vaango-bottom-nav__label">Shops</span>
+            <span className="vaango-bottom-nav__label">{t('adminShops')}</span>
           </NavLink>
 
           <NavLink
@@ -57,12 +57,12 @@ export const BottomNav: React.FC = () => {
             className={({ isActive }) =>
               `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
             }
-            aria-label="Subscriptions"
+            aria-label={t('adminSubscriptions')}
           >
             <div className="vaango-bottom-nav__icon-wrap">
               <CreditCard size={22} />
             </div>
-            <span className="vaango-bottom-nav__label">Billing</span>
+            <span className="vaango-bottom-nav__label">{t('adminSubscriptions')}</span>
           </NavLink>
         </div>
       </nav>
@@ -71,19 +71,19 @@ export const BottomNav: React.FC = () => {
 
   if (role === 'shopkeeper') {
     return (
-      <nav className="vaango-bottom-nav" aria-label="Shopkeeper Navigation">
+      <nav className="vaango-bottom-nav" aria-label={t('navDashboard')}>
         <div className="vaango-bottom-nav__inner">
           <NavLink
             to="/shopkeeper/dashboard"
             className={({ isActive }) =>
               `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
             }
-            aria-label="Dashboard"
+            aria-label={t('navDashboard')}
           >
             <div className="vaango-bottom-nav__icon-wrap">
               <LayoutDashboard size={22} />
             </div>
-            <span className="vaango-bottom-nav__label">Dashboard</span>
+            <span className="vaango-bottom-nav__label">{t('navDashboard')}</span>
           </NavLink>
 
           <NavLink
@@ -91,12 +91,12 @@ export const BottomNav: React.FC = () => {
             className={({ isActive }) =>
               `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
             }
-            aria-label="Orders"
+            aria-label={t('navOrders')}
           >
             <div className="vaango-bottom-nav__icon-wrap">
               <ClipboardList size={22} />
             </div>
-            <span className="vaango-bottom-nav__label">Orders</span>
+            <span className="vaango-bottom-nav__label">{t('navOrders')}</span>
           </NavLink>
 
           <NavLink
@@ -104,12 +104,12 @@ export const BottomNav: React.FC = () => {
             className={({ isActive }) =>
               `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
             }
-            aria-label="Catalogue"
+            aria-label={t('navCatalogue')}
           >
             <div className="vaango-bottom-nav__icon-wrap">
               <Package size={22} />
             </div>
-            <span className="vaango-bottom-nav__label">Catalogue</span>
+            <span className="vaango-bottom-nav__label">{t('navCatalogue')}</span>
           </NavLink>
 
           <NavLink
@@ -117,12 +117,12 @@ export const BottomNav: React.FC = () => {
             className={({ isActive }) =>
               `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
             }
-            aria-label="Analytics"
+            aria-label={t('navAnalytics')}
           >
             <div className="vaango-bottom-nav__icon-wrap">
               <TrendingUp size={22} />
             </div>
-            <span className="vaango-bottom-nav__label">Analytics</span>
+            <span className="vaango-bottom-nav__label">{t('navAnalytics')}</span>
           </NavLink>
 
           <NavLink
@@ -130,22 +130,20 @@ export const BottomNav: React.FC = () => {
             className={({ isActive }) =>
               `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
             }
-            aria-label="Shop Settings"
+            aria-label={t('navSettings')}
           >
             <div className="vaango-bottom-nav__icon-wrap">
               <Store size={22} />
             </div>
-            <span className="vaango-bottom-nav__label">Shop</span>
+            <span className="vaango-bottom-nav__label">{t('navSettings')}</span>
           </NavLink>
         </div>
       </nav>
     );
   }
 
-  const getOrdersLabel = () => 'Requests';
-
   return (
-    <nav className="vaango-bottom-nav" aria-label="Mobile Navigation">
+    <nav className="vaango-bottom-nav" aria-label={t('home')}>
       <div className="vaango-bottom-nav__inner">
         <NavLink
           to="/"
@@ -153,12 +151,12 @@ export const BottomNav: React.FC = () => {
           className={({ isActive }) =>
             `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
           }
-          aria-label="Home"
+          aria-label={t('home')}
         >
           <div className="vaango-bottom-nav__icon-wrap">
             <Home size={22} />
           </div>
-            <span className="vaango-bottom-nav__label">{t('home')}</span>
+          <span className="vaango-bottom-nav__label">{t('home')}</span>
         </NavLink>
 
         <NavLink
@@ -166,12 +164,12 @@ export const BottomNav: React.FC = () => {
           className={({ isActive }) =>
             `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
           }
-          aria-label="Local Shops"
+          aria-label={t('shops')}
         >
           <div className="vaango-bottom-nav__icon-wrap">
             <Store size={22} />
           </div>
-            <span className="vaango-bottom-nav__label">{t('shops')}</span>
+          <span className="vaango-bottom-nav__label">{t('shops')}</span>
         </NavLink>
 
         <NavLink
@@ -179,12 +177,12 @@ export const BottomNav: React.FC = () => {
           className={({ isActive }) =>
             `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
           }
-          aria-label={getOrdersLabel()}
+          aria-label={t('requests')}
         >
           <div className="vaango-bottom-nav__icon-wrap">
             <ClipboardList size={22} />
           </div>
-            <span className="vaango-bottom-nav__label">{t('requests')}</span>
+          <span className="vaango-bottom-nav__label">{t('requests')}</span>
         </NavLink>
 
         <NavLink
@@ -192,7 +190,7 @@ export const BottomNav: React.FC = () => {
           className={({ isActive }) =>
             `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
           }
-          aria-label="My Account and settings"
+          aria-label={t('account')}
         >
           <div className="vaango-bottom-nav__icon-wrap">
             <User size={22} />

@@ -18,13 +18,13 @@ import { Textarea } from '../components/ui/Textarea';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 import { useToast } from '../context/ToastContext';
-import { MOCK_SHOP_TYPES } from '../data/mockData';
+import { MOCK_SHOP_TYPES, isValidUuid } from '../data/mockData';
 import { useLanguage } from '../context/LanguageContext';
 import './CartPage.css';
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const { user, signInWithGoogle, isSupabaseLive } = useAuth();
   const { error: toastError } = useToast();
 
@@ -44,6 +44,7 @@ export const CartPage: React.FC = () => {
     isSubmitting,
   } = useCart();
 
+  const isInvalidShopId = !isValidUuid(activeShop?.id);
   const shopType = MOCK_SHOP_TYPES.find((type) => type.id === activeShop?.shop_type_id);
   const offersDineIn = ['restaurant', 'hotel', 'bakery'].includes(shopType?.code || '');
 
@@ -70,6 +71,12 @@ export const CartPage: React.FC = () => {
   const handleProceed = async () => {
     setSubmissionError(null);
 
+    // Stale / Invalid Shop ID Check
+    if (isInvalidShopId) {
+      setSubmissionError(t('staleCartWarningDesc'));
+      return;
+    }
+
     // Authentication Check
     if (!user) {
       setAuthModalOpen(true);
@@ -77,8 +84,7 @@ export const CartPage: React.FC = () => {
     }
 
     if (offersDineIn && !fulfillmentType) {
-      const msg = language === 'ta' ? 'தயவுசெய்து பார்சல் அல்லது அங்கேயே சாப்பிட என்பதைத் தேர்ந்தெடுக்கவும்.' : 'Please choose Parcel or Eat there before submitting.';
-      setSubmissionError(msg);
+      setSubmissionError(t('chooseParcelOrDineIn'));
       return;
     }
 
@@ -104,18 +110,17 @@ export const CartPage: React.FC = () => {
     try {
       const result = await signInWithGoogle();
       if (!result.success) {
-        setAuthError(result.error || (language === 'ta' ? 'Google உள்நுழைவு தோல்வியடைந்தது.' : 'Google sign-in failed. Please try again.'));
-        setIsGoogleLoading(false);
+        setAuthError(result.error || t('googleSignInFailed'));
       } else {
-        setIsGoogleLoading(false);
         setAuthModalOpen(false);
         if (!isSupabaseLive) {
           navigate('/complete-profile', { state: { from: { pathname: '/cart' } } });
         }
       }
     } catch (err) {
+      setAuthError(err instanceof Error ? err.message : t('googleSignInFailed'));
+    } finally {
       setIsGoogleLoading(false);
-      setAuthError(err instanceof Error ? err.message : 'Google sign-in failed');
     }
   };
 
@@ -146,6 +151,38 @@ export const CartPage: React.FC = () => {
         </div>
       </div>
 
+      {isInvalidShopId && (
+        <div
+          className="vaango-cart-error-alert"
+          style={{
+            background: 'var(--color-warning-bg, #fffbeb)',
+            borderColor: 'var(--color-warning, #f59e0b)',
+            color: 'var(--color-text, #1e293b)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: 'var(--space-4)',
+          }}
+          role="alert"
+        >
+          <AlertCircle size={22} style={{ color: 'var(--color-warning, #f59e0b)', flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <strong style={{ display: 'block', marginBottom: 2 }}>{t('staleCartWarningTitle')}</strong>
+            <p style={{ margin: 0, fontSize: 'var(--font-size-sm)' }}>{t('staleCartWarningDesc')}</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              clearCart();
+              navigate('/shops?group=ORDER');
+            }}
+          >
+            {t('clearCartAndBrowse')}
+          </Button>
+        </div>
+      )}
+
       {submissionError && (
         <div className="vaango-cart-error-alert" role="alert">
           <AlertCircle size={18} />
@@ -163,7 +200,7 @@ export const CartPage: React.FC = () => {
             </div>
             <div>
               <div className="vaango-cart-shop-banner__label">
-                {language === 'ta' ? 'ஆர்டர் பெறும் கடை:' : 'Ordering from:'}
+                {t('orderingFromLabel')}
               </div>
               <h2 className="vaango-cart-shop-banner__name">{activeShop.name}</h2>
               <span className="vaango-cart-shop-banner__address">{activeShop.address_line}</span>
@@ -171,7 +208,7 @@ export const CartPage: React.FC = () => {
           </Card>
 
           {/* Line Items List */}
-          <div className="vaango-cart-items-list" role="list" aria-label="Items in cart">
+          <div className="vaango-cart-items-list" role="list" aria-label={t('items')}>
             {items.map((item) => {
               const { product, quantity } = item;
               const effectiveQuantity = getEffectiveQuantity(item);
@@ -185,16 +222,14 @@ export const CartPage: React.FC = () => {
                       </span>
                       {product.offer_type === 'bogo' && (
                         <div className="vaango-bogo-badge">
-                          {language === 'ta'
-                            ? `1 வாங்கினால் 1 இலவசம் - மொத்தம் ${effectiveQuantity} கிடைக்கும்`
-                            : `Buy ${quantity} Get ${quantity} Free - you receive ${effectiveQuantity} total`}
+                          {t('bogoNoticeWithCount', { quantity, effectiveQuantity })}
                         </div>
                       )}
                       <div className="vaango-cart-item-qty">
-                        {language === 'ta' ? `அளவு: ${quantity}` : `Qty: ${quantity}`}
+                        {t('quantityLabel', { quantity })}
                         {product.offer_type === 'bogo' && (
                           <span className="vaango-bogo-qty">
-                            {language === 'ta' ? `(${effectiveQuantity} வழங்கப்படும்)` : `(You'll receive ${effectiveQuantity})`}
+                            {t('bogoQtyBadge', { effectiveQuantity })}
                           </span>
                         )}
                       </div>
@@ -212,7 +247,7 @@ export const CartPage: React.FC = () => {
                         type="button"
                         className="vaango-qty-btn"
                         onClick={() => updateQuantity(product.id, quantity - 1)}
-                        aria-label="Decrease quantity"
+                        aria-label={t('decreaseQty')}
                       >
                         <Minus size={14} />
                       </button>
@@ -221,7 +256,7 @@ export const CartPage: React.FC = () => {
                         type="button"
                         className="vaango-qty-btn"
                         onClick={() => updateQuantity(product.id, quantity + 1)}
-                        aria-label="Increase quantity"
+                        aria-label={t('increaseQty')}
                       >
                         <Plus size={14} />
                       </button>
@@ -231,7 +266,7 @@ export const CartPage: React.FC = () => {
                       type="button"
                       className="vaango-cart-item__remove"
                       onClick={() => removeItem(product.id)}
-                      aria-label={`Remove ${product.name} from cart`}
+                      aria-label={`${t('deleteItem')} ${product.name}`}
                     >
                       <Trash2 size={16} />
                       <span>{t('deleteItem')}</span>
@@ -246,7 +281,7 @@ export const CartPage: React.FC = () => {
           {offersDineIn && (
             <Card variant="default" padding="md" className="vaango-cart-notes-card">
               <strong>{t('chooseFulfillment')}</strong>
-              <div className="vaango-fulfillment-toggle" role="radiogroup" aria-label="Fulfillment type">
+              <div className="vaango-fulfillment-toggle" role="radiogroup" aria-label={t('chooseFulfillment')}>
                 {(['parcel', 'dine_in'] as const).map((option) => (
                   <button
                     key={option}
@@ -267,7 +302,7 @@ export const CartPage: React.FC = () => {
             <div className="vaango-cart-notes-header">
               <FileText size={18} />
               <label htmlFor="cart-notes" className="vaango-cart-notes-title">
-                {language === 'ta' ? 'கடைக்காரருக்கான சிறப்பு குறிப்புகள்' : 'Special Instructions for Merchant'}
+                {t('specialInstructions')}
               </label>
             </div>
             <Textarea
@@ -284,12 +319,12 @@ export const CartPage: React.FC = () => {
         <div className="vaango-cart-summary-section">
           <Card variant="elevated" padding="lg" className="vaango-cart-summary-card">
             <h2 className="vaango-cart-summary__title">
-              {language === 'ta' ? 'கோரிக்கை விவரம்' : 'Request Summary'}
+              {t('orderSummary')}
             </h2>
 
             <div className="vaango-cart-summary__breakdown">
               <div className="vaango-summary-row">
-                <span>{language === 'ta' ? 'மொத்த பொருட்கள்' : 'Total Items'}</span>
+                <span>{t('totalItems')}</span>
                 <span>{itemCount} {t('items')}</span>
               </div>
 
@@ -306,7 +341,7 @@ export const CartPage: React.FC = () => {
                     : fulfillmentType === 'parcel'
                     ? t('parcelOption')
                     : offersDineIn
-                    ? (language === 'ta' ? 'ஒன்றைத் தேர்வு செய்க' : 'Choose one')
+                    ? t('chooseOneFulfillment')
                     : t('counterPickup')}
                 </span>
               </div>
@@ -362,8 +397,8 @@ export const CartPage: React.FC = () => {
           setAuthModalOpen(false);
           setAuthError(null);
         }}
-        title={language === 'ta' ? 'ஆர்டர் செய்ய உள்நுழையவும்' : 'Sign in to Order'}
-        description={language === 'ta' ? 'கடைக்காரருக்கு ஆர்டர் அனுப்ப உங்கள் கணக்கில் உள்நுழையுங்கள்.' : 'Authenticate to submit your order directly to the merchant.'}
+        title={t('signInToOrder')}
+        description={t('signInToOrderDesc')}
         maxWidth="sm"
         footer={
           <Button
@@ -377,9 +412,7 @@ export const CartPage: React.FC = () => {
       >
         <div style={{ textAlign: 'center', padding: 'var(--space-2) 0' }}>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', lineHeight: 1.6, marginBottom: 'var(--space-5)' }}>
-            {language === 'ta'
-              ? `${activeShop.name} கடையில் ஆர்டர் செய்ய Google மூலம் உள்நுழையுங்கள்.`
-              : `Sign in with Google to place your order with ${activeShop.name}.`}
+            {t('signInWithGoogleForShop', { shopName: activeShop.name })}
           </p>
 
           {authError && (

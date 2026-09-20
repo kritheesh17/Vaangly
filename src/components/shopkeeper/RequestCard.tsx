@@ -16,6 +16,7 @@ import { WorkflowGroupCode, WorkflowStateCode } from '../../types/workflow';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { useLanguage } from '../../context/LanguageContext';
 import './RequestCard.css';
 
 interface DecodedNotes {
@@ -48,6 +49,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
   isActionLoading = false,
 }) => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const groupCode: WorkflowGroupCode = (request.workflow_group_code || 'ORDER') as WorkflowGroupCode;
 
   // Decode items / services from request.notes
@@ -67,25 +69,26 @@ export const RequestCard: React.FC<RequestCardProps> = ({
   const getStatusBadge = () => {
     switch (request.current_state) {
       case 'REQUESTED':
-        return <Badge variant="primary" size="sm" withDot>New Request</Badge>;
+        return <Badge variant="primary" size="sm" withDot>{t('status_REQUESTED')}</Badge>;
       case 'CONFIRMED':
-        return <Badge variant="success" size="sm" withDot>Slot Confirmed</Badge>;
+        return <Badge variant="success" size="sm" withDot>{t('status_CONFIRMED')}</Badge>;
       case 'ACCEPTED':
-        return <Badge variant="accent" size="sm" withDot>Accepted</Badge>;
+        return <Badge variant="accent" size="sm" withDot>{t('status_ACCEPTED')}</Badge>;
       case 'PREPARING':
       case 'IN_PROGRESS':
-        return <Badge variant="accent" size="sm" withDot>In Progress</Badge>;
+        return <Badge variant="accent" size="sm" withDot>{t('status_IN_PROGRESS')}</Badge>;
       case 'DELAYED':
-        return <Badge variant="warning" size="sm" withDot>Delayed</Badge>;
+        return <Badge variant="warning" size="sm" withDot>{t('status_DELAYED')}</Badge>;
       case 'READY':
-        return <Badge variant="success" size="sm" withDot>Ready for Pickup</Badge>;
+        return <Badge variant="success" size="sm" withDot>{t('status_READY')}</Badge>;
       case 'COMPLETED':
-        return <Badge variant="success" size="sm">Completed</Badge>;
+        return <Badge variant="success" size="sm">{t('status_COMPLETED')}</Badge>;
       case 'NO_SHOW':
-        return <Badge variant="error" size="sm">No-Show</Badge>;
+        return <Badge variant="error" size="sm">{t('status_NO_SHOW')}</Badge>;
       case 'REJECTED':
+        return <Badge variant="error" size="sm">{t('status_REJECTED')}</Badge>;
       case 'CANCELLED':
-        return <Badge variant="error" size="sm">{request.current_state}</Badge>;
+        return <Badge variant="error" size="sm">{t('status_CANCELLED')}</Badge>;
       default:
         return <Badge variant="neutral" size="sm">{request.current_state}</Badge>;
     }
@@ -124,7 +127,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
       <div className="vaango-shop-req-card__customer">
         <div className="vaango-shop-req-card__cust-item">
           <User size={14} />
-          <span>{decoded.customer_name || 'Customer'}</span>
+          <span>{decoded.customer_name || t('customerLabel')}</span>
         </div>
         {decoded.customer_phone && (
           <div className="vaango-shop-req-card__cust-item">
@@ -139,10 +142,10 @@ export const RequestCard: React.FC<RequestCardProps> = ({
         <div className="vaango-shop-req-card__items-preview">
           <div className="vaango-shop-req-card__items-count">
             <Calendar size={14} className="text-primary" />
-            <strong className="text-primary">{decoded.service_name || 'Appointment'}</strong>
+            <strong className="text-primary">{decoded.service_name || t('appointmentFallback')}</strong>
           </div>
           <div className="text-xs text-muted mt-1">
-            {decoded.provider_name && <span>Stylist/Doctor: {decoded.provider_name} • </span>}
+            {decoded.provider_name && <span>{t('stylistDoctorLabel')} {decoded.provider_name} • </span>}
             📅 {decoded.slot_date} at ⏰ {decoded.start_time} – {decoded.end_time}
           </div>
         </div>
@@ -150,16 +153,16 @@ export const RequestCard: React.FC<RequestCardProps> = ({
         <div className="vaango-shop-req-card__items-preview">
           <div className="vaango-shop-req-card__items-count">
             <Wrench size={14} className="text-primary" />
-            <strong className="text-primary">{decoded.service_name || 'Service'}</strong>
+            <strong className="text-primary">{decoded.service_name || t('serviceFallback')}</strong>
             {decoded.service_category && <span> ({decoded.service_category})</span>}
           </div>
           {decoded.confirmed_price ? (
             <div className="text-xs text-success font-semibold mt-1">
-              Confirmed Price: ₹{decoded.confirmed_price}
+              {t('confirmedPriceLabel')} ₹{decoded.confirmed_price}
             </div>
           ) : decoded.price_type === 'range' ? (
             <div className="text-xs text-accent mt-1">
-              Estimated: ₹{decoded.min_price} – ₹{decoded.max_price}
+              {t('estimatedPriceLabel')} ₹{decoded.min_price} – ₹{decoded.max_price}
             </div>
           ) : null}
         </div>
@@ -168,7 +171,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
           <div className="vaango-shop-req-card__items-count">
             <ShoppingBag size={14} />
             <span>
-              {itemCount} {itemCount === 1 ? 'item' : 'items'}
+              {itemCount === 1 ? t('itemCount') : t('itemsCount', { count: itemCount })}
             </span>
           </div>
           <div className="vaango-shop-req-card__items-list">
@@ -178,7 +181,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
               </span>
             ))}
             {items.length > 3 && (
-              <span className="vaango-shop-req-card__item-more">+{items.length - 3} more</span>
+              <span className="vaango-shop-req-card__item-more">{t('moreItems', { count: items.length - 3 })}</span>
             )}
           </div>
         </div>
@@ -187,7 +190,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
       {/* Notes if any */}
       {decoded.notes && (
         <div className="vaango-shop-req-card__note">
-          <strong>Customer Note:</strong> &ldquo;{decoded.notes}&rdquo;
+          <strong>{t('customerNotePrefix')}</strong> &ldquo;{decoded.notes}&rdquo;
         </div>
       )}
 
@@ -195,13 +198,13 @@ export const RequestCard: React.FC<RequestCardProps> = ({
       <div className="vaango-shop-req-card__footer">
         <div className="vaango-shop-req-card__total">
           <span className="vaango-shop-req-card__total-label">
-            {decoded.confirmed_price ? 'Confirmed' : 'Estimate'}
+            {decoded.confirmed_price ? t('confirmedLabel') : t('estimateLabel')}
           </span>
           <span className="vaango-shop-req-card__total-amount">
             ₹{decoded.confirmed_price || request.total_estimate || 0}
           </span>
         </div>
-        {(request.customer_paid || request.payment_screenshot_url) && <Badge variant={request.customer_paid ? 'success' : 'warning'} size="sm">{request.customer_paid ? 'Paid' : 'Proof submitted'}</Badge>}
+        {(request.customer_paid || request.payment_screenshot_url) && <Badge variant={request.customer_paid ? 'success' : 'warning'} size="sm">{request.customer_paid ? t('paidBadge') : t('proofSubmittedBadge')}</Badge>}
 
         <div className="vaango-shop-req-card__actions">
           {/* Quick Primary Transition Buttons */}
@@ -215,7 +218,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                   onClick={() => onQuickTransition(request, 'CONFIRMED')}
                   leftIcon={<CheckCircle size={15} />}
                 >
-                  Confirm Slot
+                  {t('confirmSlotBtn')}
                 </Button>
               )}
               {request.current_state === 'CONFIRMED' && onQuickTransition && (
@@ -226,7 +229,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                   onClick={() => onQuickTransition(request, 'IN_PROGRESS')}
                   leftIcon={<Clock size={15} />}
                 >
-                  Start Service
+                  {t('startServiceBtn')}
                 </Button>
               )}
               {request.current_state === 'IN_PROGRESS' && onQuickTransition && (
@@ -237,7 +240,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                   onClick={() => onQuickTransition(request, 'COMPLETED')}
                   leftIcon={<CheckCircle size={15} />}
                 >
-                  Complete
+                  {t('completeBtn')}
                 </Button>
               )}
             </>
@@ -251,7 +254,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                   onClick={() => onQuickTransition(request, 'ACCEPTED')}
                   leftIcon={<CheckCircle size={15} />}
                 >
-                  Accept Service
+                  {t('acceptServiceBtn')}
                 </Button>
               )}
               {request.current_state === 'ACCEPTED' && onQuickTransition && (
@@ -262,7 +265,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                   onClick={() => onQuickTransition(request, 'IN_PROGRESS')}
                   leftIcon={<Wrench size={15} />}
                 >
-                  Start Work
+                  {t('startWorkBtn')}
                 </Button>
               )}
               {request.current_state === 'IN_PROGRESS' && onQuickTransition && (
@@ -273,7 +276,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                   onClick={() => onQuickTransition(request, 'READY')}
                   leftIcon={<Package size={15} />}
                 >
-                  Mark Ready
+                  {t('markReadyBtn')}
                 </Button>
               )}
               {request.current_state === 'READY' && onQuickTransition && (
@@ -284,7 +287,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                   onClick={() => onQuickTransition(request, 'COMPLETED')}
                   leftIcon={<CheckCircle size={15} />}
                 >
-                  Complete
+                  {t('completeBtn')}
                 </Button>
               )}
             </>
@@ -298,7 +301,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                   onClick={() => onQuickTransition(request, 'ACCEPTED')}
                   leftIcon={<CheckCircle size={15} />}
                 >
-                  Accept Order
+                  {t('acceptOrderBtn')}
                 </Button>
               )}
               {request.current_state === 'PREPARING' && onQuickTransition && (
@@ -309,7 +312,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                   onClick={() => onQuickTransition(request, 'READY')}
                   leftIcon={<Package size={15} />}
                 >
-                  Mark Ready
+                  {t('markReadyBtn')}
                 </Button>
               )}
               {request.current_state === 'READY' && onQuickTransition && (
@@ -320,7 +323,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                   onClick={() => onQuickTransition(request, 'COMPLETED')}
                   leftIcon={<CheckCircle size={15} />}
                 >
-                  Mark Completed
+                  {t('markCompletedBtn')}
                 </Button>
               )}
             </>
@@ -333,7 +336,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             onClick={() => navigate(`/shopkeeper/requests/${request.id}`)}
             rightIcon={<ArrowRight size={14} />}
           >
-            Details
+            {t('detailsBtn')}
           </Button>
         </div>
       </div>

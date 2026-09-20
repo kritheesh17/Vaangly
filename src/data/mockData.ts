@@ -2,6 +2,29 @@
 
 import { Shop, ShopProduct, ShopType, ShopService, AppointmentSlot } from '../types/database';
 
+export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export const isValidUuid = (val?: string | null): boolean => Boolean(val && UUID_REGEX.test(val));
+
+export const LEGACY_SHOP_ID_MAP: Record<string, string> = {
+  'shop-gobi-grocery-1': '30000000-0000-0000-0000-000000000001',
+  'shop-gobi-bakery-1': '30000000-0000-0000-0000-000000000002',
+  'shop-gobi-restaurant-1': '30000000-0000-0000-0000-000000000003',
+  'shop-gobi-pharmacy-1': '30000000-0000-0000-0000-000000000004',
+  'shop-gobi-stationery-1': '30000000-0000-0000-0000-000000000005',
+  'shop-gobi-salon-1': '30000000-0000-0000-0000-000000000006',
+  'shop-gobi-clinic-1': '30000000-0000-0000-0000-000000000007',
+  'shop-gobi-tailor-1': '30000000-0000-0000-0000-000000000008',
+  'shop-gobi-mechanic-1': '30000000-0000-0000-0000-000000000009',
+  'shop-gobi-repair-1': '30000000-0000-0000-0000-000000000010',
+  'shop-gobi-laundry-1': '30000000-0000-0000-0000-000000000011',
+  'shop-1': '30000000-0000-0000-0000-000000000001',
+  'shop-2': '30000000-0000-0000-0000-000000000002',
+  'shop-3': '30000000-0000-0000-0000-000000000008',
+  'shop-4': '30000000-0000-0000-0000-000000000004',
+  'shop-5': '30000000-0000-0000-0000-000000000006',
+  'shop-6': '30000000-0000-0000-0000-000000000009',
+};
+
 export const MOCK_SHOP_TYPES: ShopType[] = [
   // Group A: Order-based
   {
@@ -1027,7 +1050,11 @@ export const MOCK_PRODUCTS: Record<string, ShopProduct[]> = {
 
 // Fallback products for other shops
 export const getShopProducts = (shopId: string): ShopProduct[] => {
+  const resolvedId = LEGACY_SHOP_ID_MAP[shopId] || shopId;
+  const legacyId = Object.keys(LEGACY_SHOP_ID_MAP).find((k) => LEGACY_SHOP_ID_MAP[k] === shopId);
   if (MOCK_PRODUCTS[shopId]) return MOCK_PRODUCTS[shopId];
+  if (MOCK_PRODUCTS[resolvedId]) return MOCK_PRODUCTS[resolvedId];
+  if (legacyId && MOCK_PRODUCTS[legacyId]) return MOCK_PRODUCTS[legacyId];
 
   // Default fallback products if shop is from another town
   return [
@@ -1676,7 +1703,11 @@ export const MOCK_SERVICES: Record<string, ShopService[]> = {
 
 // Retrieve services for a shop
 export const getShopServices = (shopId: string): ShopService[] => {
+  const resolvedId = LEGACY_SHOP_ID_MAP[shopId] || shopId;
+  const legacyId = Object.keys(LEGACY_SHOP_ID_MAP).find((k) => LEGACY_SHOP_ID_MAP[k] === shopId);
   if (MOCK_SERVICES[shopId]) return MOCK_SERVICES[shopId];
+  if (MOCK_SERVICES[resolvedId]) return MOCK_SERVICES[resolvedId];
+  if (legacyId && MOCK_SERVICES[legacyId]) return MOCK_SERVICES[legacyId];
 
   // Generic fallback services for other shops
   return [

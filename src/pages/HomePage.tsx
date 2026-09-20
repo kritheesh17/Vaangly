@@ -62,7 +62,7 @@ export const HomePage: React.FC = () => {
   const handleQuickAdd = (id: string, name: string, price: number, shopName: string, imageUrl: string) => {
     const variant = selectedVariants[id];
     const demoShop: Shop = {
-      id: 'shop-gobi-grocery-1',
+      id: '30000000-0000-0000-0000-000000000001',
       owner_id: 's2222222-0000-0000-0000-000000000003',
       shop_type_id: '0f56b1ab-c358-4638-bf0c-4b510a15482f',
       location_id: selectedLocation.id,

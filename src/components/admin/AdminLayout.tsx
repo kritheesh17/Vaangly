@@ -10,9 +10,12 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Badge } from '../ui/Badge';
+import { useLanguage } from '../../context/LanguageContext';
 import './AdminLayout.css';
 
 export const AdminLayout: React.FC = () => {
+  const { t } = useLanguage();
+
   return (
     <div className="vaango-admin-layout">
       {/* Admin Subheader Navigation Bar */}
@@ -20,8 +23,8 @@ export const AdminLayout: React.FC = () => {
         <div className="container vaango-admin-bar__inner">
           <div className="vaango-admin-bar__brand">
             <ShieldCheck size={20} className="vaango-admin-bar__shield" />
-            <span className="vaango-admin-bar__title">Operations Console</span>
-            <Badge variant="primary" size="sm">Admin</Badge>
+            <span className="vaango-admin-bar__title">{t('operationsConsole')}</span>
+            <Badge variant="primary" size="sm">{t('roleAdmin')}</Badge>
           </div>
 
           <nav className="vaango-admin-bar__nav" aria-label="Admin console navigation">
@@ -32,7 +35,7 @@ export const AdminLayout: React.FC = () => {
               }
             >
               <LayoutDashboard size={16} />
-              <span>Dashboard</span>
+              <span>{t('adminDashboard')}</span>
             </NavLink>
 
             <NavLink
@@ -42,7 +45,7 @@ export const AdminLayout: React.FC = () => {
               }
             >
               <MapPin size={16} />
-              <span>Locations</span>
+              <span>{t('adminLocations')}</span>
             </NavLink>
 
             <NavLink
@@ -52,7 +55,7 @@ export const AdminLayout: React.FC = () => {
               }
             >
               <FileCheck2 size={16} />
-              <span>Applications</span>
+              <span>{t('adminApplications')}</span>
             </NavLink>
 
             <NavLink
@@ -62,7 +65,7 @@ export const AdminLayout: React.FC = () => {
               }
             >
               <Store size={16} />
-              <span>Shops</span>
+              <span>{t('adminShops')}</span>
             </NavLink>
 
             <NavLink
@@ -72,7 +75,7 @@ export const AdminLayout: React.FC = () => {
               }
             >
               <CreditCard size={16} />
-              <span>Subscriptions</span>
+              <span>{t('adminSubscriptions')}</span>
             </NavLink>
 
             <NavLink
@@ -82,7 +85,7 @@ export const AdminLayout: React.FC = () => {
               }
             >
               <History size={16} />
-              <span>Audit Log</span>
+              <span>{t('adminAuditLog')}</span>
             </NavLink>
           </nav>
         </div>

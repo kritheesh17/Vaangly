@@ -3,6 +3,7 @@ import { ShopProduct } from '../../types/database';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Plus, Minus, PackageX } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import './ProductCard.css';
 
 export interface ProductCardProps {
@@ -20,6 +21,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onIncrease,
   onDecrease,
 }) => {
+  const { t } = useLanguage();
   const [activeImageIndex, setActiveImageIndex] = React.useState(0);
   const [selectedVariantId, setSelectedVariantId] = React.useState<string | null>(null);
   const [selectedAttributes, setSelectedAttributes] = React.useState<Record<string, string>>({});
@@ -44,7 +46,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {!product.is_available && (
           <div className="vaango-prod-card__stock-overlay">
             <Badge variant="error" size="sm">
-              Out of stock
+              {t('outOfStock')}
             </Badge>
           </div>
         )}
@@ -68,15 +70,59 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Action: Add Button OR Quantity Controls */}
           <div className="vaango-prod-card__action">
-            {product.has_variants ? <div className="vaango-product-variants" role="group" aria-label={`Options for ${product.name}`}>
-              {product.variants?.map((variant) => <button key={variant.id} type="button" disabled={!variant.in_stock} className={selectedVariantId === variant.id ? 'active' : ''} onClick={() => setSelectedVariantId(variant.id)}>₹{variant.price} {variant.label}</button>)}
-              <Button variant="primary" size="md" disabled={!selectedVariant || !product.is_available} onClick={() => onAdd(selectedProduct)} leftIcon={<Plus size={16} />}>Add ₹{selectedProduct.price}</Button>
-            </div> : product.attribute_groups?.length ? <div className="vaango-product-variants">
-              {product.attribute_groups.map((group) => <select key={group.name} aria-label={group.name} value={selectedAttributes[group.name] || ''} onChange={(e) => setSelectedAttributes((current) => ({ ...current, [group.name]: e.target.value }))}><option value="">Choose {group.name}</option>{group.options.map((option) => <option key={option} value={option}>{option}</option>)}</select>)}
-              <Button variant="primary" size="md" disabled={!attributesReady || !product.is_available} onClick={() => onAdd({ ...product, unit: attributeUnit })} leftIcon={<Plus size={16} />}>Add to Cart</Button>
-            </div> : !product.is_available ? (
+            {product.has_variants ? (
+              <div className="vaango-product-variants" role="group" aria-label={product.name}>
+                {product.variants?.map((variant) => (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    disabled={!variant.in_stock}
+                    className={selectedVariantId === variant.id ? 'active' : ''}
+                    onClick={() => setSelectedVariantId(variant.id)}
+                  >
+                    ₹{variant.price} {variant.label}
+                  </button>
+                ))}
+                <Button
+                  variant="primary"
+                  size="md"
+                  disabled={!selectedVariant || !product.is_available}
+                  onClick={() => onAdd(selectedProduct)}
+                  leftIcon={<Plus size={16} />}
+                >
+                  {t('add')} ₹{selectedProduct.price}
+                </Button>
+              </div>
+            ) : product.attribute_groups?.length ? (
+              <div className="vaango-product-variants">
+                {product.attribute_groups.map((group) => (
+                  <select
+                    key={group.name}
+                    aria-label={group.name}
+                    value={selectedAttributes[group.name] || ''}
+                    onChange={(e) => setSelectedAttributes((current) => ({ ...current, [group.name]: e.target.value }))}
+                  >
+                    <option value="">{t('chooseOption')} {group.name}</option>
+                    {group.options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                ))}
+                <Button
+                  variant="primary"
+                  size="md"
+                  disabled={!attributesReady || !product.is_available}
+                  onClick={() => onAdd({ ...product, unit: attributeUnit })}
+                  leftIcon={<Plus size={16} />}
+                >
+                  {t('addToCart')}
+                </Button>
+              </div>
+            ) : !product.is_available ? (
               <Button variant="secondary" size="md" disabled leftIcon={<PackageX size={16} />}>
-                Out of stock
+                {t('outOfStock')}
               </Button>
             ) : quantityInCart === 0 ? (
               <Button
@@ -86,15 +132,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 leftIcon={<Plus size={16} />}
                 className="vaango-prod-card__add-btn"
               >
-                Add
+                {t('add')}
               </Button>
             ) : (
-              <div className="vaango-qty-control" role="group" aria-label={`Quantity for ${product.name}`}>
+              <div className="vaango-qty-control" role="group" aria-label={product.name}>
                 <button
                   type="button"
                   className="vaango-qty-btn"
                   onClick={onDecrease}
-                  aria-label="Decrease quantity"
+                  aria-label={t('decreaseQty')}
                 >
                   <Minus size={16} />
                 </button>
@@ -105,7 +151,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   type="button"
                   className="vaango-qty-btn"
                   onClick={onIncrease}
-                  aria-label="Increase quantity"
+                  aria-label={t('increaseQty')}
                 >
                   <Plus size={16} />
                 </button>
@@ -114,7 +160,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         </div>
         {product.offer_type === 'bogo' && quantityInCart > 0 && (
-          <p className="vaango-prod-card__offer-note">Buy 1 Get 1 - enter how many you want to PAY for; the free unit is added automatically.</p>
+          <p className="vaango-prod-card__offer-note">{t('bogoNotice')}</p>
         )}
       </div>
     </div>

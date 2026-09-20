@@ -19,7 +19,7 @@ export const ProfilePage: React.FC = () => {
   const { selectedLocation, setIsLocationModalOpen } = useLocationContext();
   const navigate = useNavigate();
 
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
 
   const handleLanguageChange = (newLang: Language) => {
     setLanguage(newLang);
@@ -33,20 +33,20 @@ export const ProfilePage: React.FC = () => {
   const getRoleDescription = (r?: UserRole | null) => {
     switch (r) {
       case 'shopkeeper':
-        return 'Can manage shop catalogue, accept pre-orders, and update request states.';
+        return t('roleDescShopkeeper');
       case 'admin':
-        return 'Platform governance, location onboarding, and merchant verification.';
+        return t('roleDescAdmin');
       default:
-        return 'Can discover shops, place pre-orders, book appointments, and request local services.';
+        return t('roleDescCustomer');
     }
   };
 
   return (
     <div className="container vaango-profile">
       <div className="vaango-profile__header">
-        <h1 className="vaango-profile__title">Account & Preferences</h1>
+        <h1 className="vaango-profile__title">{t('accountAndPreferences')}</h1>
         <p className="vaango-profile__subtitle">
-          Manage your customer identity, browsing hometown, language, and theme.
+          {t('accountSubtitle')}
         </p>
       </div>
 
@@ -59,16 +59,16 @@ export const ProfilePage: React.FC = () => {
             </div>
             <div>
               <div className="vaango-profile-card__name-row">
-                <h2 className="vaango-profile-card__name">{user?.full_name || 'Ananya Raman'}</h2>
+                <h2 className="vaango-profile-card__name">{user?.full_name || 'Customer'}</h2>
                 {user?.is_verified && (
                   <Badge variant="success" size="sm" withDot>
-                    Verified Customer
+                    {t('verifiedCustomer')}
                   </Badge>
                 )}
               </div>
               <div className="vaango-profile-card__role-tag">
                 <Shield size={14} />
-                <span>Active Persona: <strong>{role ? role.toUpperCase() : 'CUSTOMER'}</strong></span>
+                <span>{t('activePersona')} <strong>{role ? role.toUpperCase() : 'CUSTOMER'}</strong></span>
               </div>
             </div>
           </div>
@@ -80,7 +80,7 @@ export const ProfilePage: React.FC = () => {
             </div>
             <div className="vaango-profile-card__item">
               <Mail size={18} className="vaango-profile-card__item-icon" />
-              <span>{user?.email || 'ananya.customer@example.com'}</span>
+              <span>{user?.email || 'customer@vaangly.in'}</span>
             </div>
             <div className="vaango-profile-card__item" style={{ justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
@@ -88,7 +88,7 @@ export const ProfilePage: React.FC = () => {
                 <span>{selectedLocation.name}, {selectedLocation.state}</span>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setIsLocationModalOpen(true)}>
-                Change
+                {t('changeBtn')}
               </Button>
             </div>
           </div>
@@ -99,14 +99,14 @@ export const ProfilePage: React.FC = () => {
           <div className="vaango-profile-card__section-head">
             <Languages className="vaango-section-icon" />
             <div>
-              <h3 className="vaango-card-heading">Language Foundation</h3>
+              <h3 className="vaango-card-heading">{t('languageFoundation')}</h3>
               <p className="vaango-card-subheading">
-                Choose your preferred interface language:
+                {t('chooseLanguage')}
               </p>
             </div>
           </div>
 
-          <div className="vaango-role-selector" role="radiogroup" aria-label="Select language">
+          <div className="vaango-role-selector" role="radiogroup" aria-label={t('chooseLanguage')}>
             <button
               type="button"
               role="radio"
@@ -118,7 +118,7 @@ export const ProfilePage: React.FC = () => {
                 <span className="vaango-role-opt__title">English</span>
                 {language === 'en' && <CheckCircle2 size={18} className="vaango-role-opt__check" />}
               </div>
-              <p className="vaango-role-opt__desc">Default platform language</p>
+              <p className="vaango-role-opt__desc">{t('defaultLanguageDesc')}</p>
             </button>
 
             <button
@@ -132,7 +132,7 @@ export const ProfilePage: React.FC = () => {
                 <span className="vaango-role-opt__title">தமிழ் (Tamil)</span>
                 {language === 'ta' && <CheckCircle2 size={18} className="vaango-role-opt__check" />}
               </div>
-              <p className="vaango-role-opt__desc">தமிழ் மொழி இடைமுகம்</p>
+              <p className="vaango-role-opt__desc">{t('tamilLanguageDesc')}</p>
             </button>
           </div>
         </Card>
@@ -173,24 +173,24 @@ export const ProfilePage: React.FC = () => {
 
         {/* Appearance & System Settings */}
         <Card variant="default" padding="lg" className="vaango-profile-card">
-          <h3 className="vaango-card-heading">Appearance & Display</h3>
+          <h3 className="vaango-card-heading">{t('appearanceAndDisplay')}</h3>
           <p className="vaango-card-subheading">
-            Tailored high-contrast light and dark themes using Deep Teal and Deep Navy.
+            {t('appearanceSubtitle')}
           </p>
 
           <div style={{ marginTop: 'var(--space-4)' }}>
             <Switch
               checked={isDark}
               onChange={toggleTheme}
-              label={isDark ? 'Dark Theme Active (Deep Navy)' : 'Light Theme Active (Deep Teal)'}
-              description="Saves your preference in local storage with zero screen flash."
+              label={isDark ? t('darkThemeActive') : t('lightThemeActive')}
+              description={t('themeSavedNotice')}
             />
           </div>
 
           <div className="vaango-profile__theme-indicator">
-            <span className="vaango-theme-chip" style={{ backgroundColor: '#0A7B83' }}>Primary Deep Teal</span>
-            <span className="vaango-theme-chip" style={{ backgroundColor: '#F59E0B', color: '#000' }}>Warm Amber</span>
-            <span className="vaango-theme-chip" style={{ backgroundColor: '#0F1828', color: '#FFF' }}>Deep Navy</span>
+            <span className="vaango-theme-chip" style={{ backgroundColor: '#0A7B83' }}>{t('themeChipTeal')}</span>
+            <span className="vaango-theme-chip" style={{ backgroundColor: '#F59E0B', color: '#000' }}>{t('themeChipAmber')}</span>
+            <span className="vaango-theme-chip" style={{ backgroundColor: '#0F1828', color: '#FFF' }}>{t('themeChipNavy')}</span>
           </div>
         </Card>
 
@@ -203,7 +203,7 @@ export const ProfilePage: React.FC = () => {
             onClick={handleSignOut}
             leftIcon={<LogOut size={18} />}
           >
-            Sign Out of Vaango
+            {t('signOutPlatform')}
           </Button>
         </div>
       </div>

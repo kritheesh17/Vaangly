@@ -3,6 +3,7 @@ import { Shop } from '../../types/database';
 import { Badge } from '../ui/Badge';
 import { Clock, MapPin, Store, Truck } from 'lucide-react';
 import { StarRating } from '../ui/StarRating';
+import { useLanguage } from '../../context/LanguageContext';
 import './ShopCard.css';
 
 export interface ShopCardProps {
@@ -12,6 +13,7 @@ export interface ShopCardProps {
 }
 
 export const ShopCard: React.FC<ShopCardProps> = ({ shop, categoryName, onClick }) => {
+  const { t } = useLanguage();
   return (
     <div className="vaango-shop-card" onClick={onClick} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onClick()}>
       {/* Shop Image / Thumbnail */}
@@ -25,7 +27,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, categoryName, onClick 
         )}
         <div className="vaango-shop-card__status-tag">
           <Badge variant={shop.is_open_today ? 'success' : 'neutral'} size="sm" withDot>
-            {shop.is_open_today ? 'Open Today' : 'Closed'}
+            {shop.is_open_today ? t('openToday') : t('closed')}
           </Badge>
         </div>
       </div>
@@ -59,7 +61,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, categoryName, onClick 
             )}
             <div className="vaango-shop-card__delivery-badge">
               <Truck size={13} />
-              <span>Counter Pickup & Delivery</span>
+              <span>{t('counterPickupDelivery')}</span>
             </div>
           </div>
         </div>

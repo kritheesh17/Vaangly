@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Download, X } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { useLanguage } from '../../context/LanguageContext';
 import './InstallPrompt.css';
 
 type BeforeInstallPromptEvent = Event & {
@@ -14,6 +15,7 @@ const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
 
 export const InstallPrompt: React.FC = () => {
+  const { t } = useLanguage();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
   const [isIos, setIsIos] = useState(false);
@@ -53,9 +55,9 @@ export const InstallPrompt: React.FC = () => {
   return (
     <div className="vaango-install-prompt" role="status">
       <Download size={18} aria-hidden="true" />
-      <span>{isIos ? 'Tap Share -> Add to Home Screen to install.' : 'Install Vaango as an app for faster access.'}</span>
-      {!isIos && <Button type="button" size="sm" variant="primary" onClick={() => void install()}>Install</Button>}
-      <button type="button" className="vaango-install-prompt__close" aria-label="Dismiss install prompt" onClick={dismiss}><X size={18} /></button>
+      <span>{isIos ? t('installPromptIos') : t('installPromptApp')}</span>
+      {!isIos && <Button type="button" size="sm" variant="primary" onClick={() => void install()}>{t('installBtn')}</Button>}
+      <button type="button" className="vaango-install-prompt__close" aria-label={t('dismissInstallPrompt')} onClick={dismiss}><X size={18} /></button>
     </div>
   );
 };

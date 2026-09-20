@@ -43,15 +43,15 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
       d.setDate(today.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
       const dayName = i === 0
-        ? (language === 'ta' ? 'இன்று' : 'Today')
+        ? t('today')
         : i === 1
-        ? (language === 'ta' ? 'நாளை' : 'Tomorrow')
+        ? t('tomorrow')
         : d.toLocaleDateString(language === 'ta' ? 'ta-IN' : 'en-US', { weekday: 'short' });
       const label = d.toLocaleDateString(language === 'ta' ? 'ta-IN' : 'en-US', { month: 'short', day: 'numeric' });
       dates.push({ dateStr, label, dayName });
     }
     return dates;
-  }, [language]);
+  }, [language, t]);
 
   const [selectedDateStr, setSelectedDateStr] = useState<string>(dateOptions[0].dateStr);
   const [slots, setSlots] = useState<AppointmentSlot[]>([]);
@@ -153,20 +153,20 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
 
   const handleBookAppointment = async () => {
     if (!selectedService) {
-      toastError(language === 'ta' ? 'தயவுசெய்து சேவையைத் தேர்வு செய்யவும்.' : 'Please select a service or doctor.');
+      toastError(t('pleaseSelectService'));
       return;
     }
     if (!selectedSlot) {
-      toastError(language === 'ta' ? 'கிடைக்கக்கூடிய நேரத்தைத் தேர்வு செய்யவும்.' : 'Please select an available time slot.');
+      toastError(t('pleaseSelectTimeSlot'));
       return;
     }
     if (!customerName.trim() || !customerPhone.trim()) {
-      toastError(language === 'ta' ? 'பெயர் மற்றும் தொலைபேசி எண்ணை உள்ளிடுங்கள்.' : 'Please provide your contact name and phone number.');
+      toastError(t('pleaseProvideNamePhone'));
       return;
     }
 
     if (!user) {
-      toastError(language === 'ta' ? 'முன்பதிவு செய்ய தயவுசெய்து உள்நுழையவும்.' : 'Please sign in to reserve an appointment.');
+      toastError(t('signInToBookAppointment'));
       navigate('/login', { state: { from: { pathname: `/shop/${shop.id}` } } });
       return;
     }
@@ -248,7 +248,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                       )}
                     </div>
                     <div className="vaango-service-card__price">
-                      {srv.base_price ? `₹${srv.base_price}` : (language === 'ta' ? 'கட்டணம்' : 'Consultation Fee')}
+                      {srv.base_price ? `₹${srv.base_price}` : t('consultationFee')}
                     </div>
                   </div>
 
@@ -260,16 +260,16 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                     {srv.duration_minutes && (
                       <span className="vaango-service-duration">
                         <Clock size={14} />
-                        {srv.duration_minutes} {language === 'ta' ? 'நிமிடம்' : 'mins'}
+                        {srv.duration_minutes} {t('durationMinutesUnit')}
                       </span>
                     )}
                     {isSelected ? (
                       <span className="vaango-selected-tag">
-                        <CheckCircle2 size={16} /> {language === 'ta' ? 'தேர்ந்தெடுக்கப்பட்டது' : 'Selected'}
+                        <CheckCircle2 size={16} /> {t('itemSelected')}
                       </span>
                     ) : (
                       <span className="vaango-select-prompt">
-                        {language === 'ta' ? 'தேர்வு செய்ய தட்டவும்' : 'Tap to Select'}
+                        {t('tapToSelect')}
                       </span>
                     )}
                   </div>
@@ -312,20 +312,20 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
         <div className="vaango-booking-section__header">
           <Clock size={20} className="text-primary" />
           <h2 className="vaango-booking-section__title">
-            {language === 'ta' ? 'நேரத்தைத் தேர்வு செய்க' : 'Select Time Slot'}
+            {t('selectTimeSlot')}
           </h2>
         </div>
 
         {/* Legend for accessibility */}
         <div className="vaango-slot-legend">
           <span className="vaango-legend-item">
-            <span className="vaango-legend-dot vaango-legend-dot--available" /> {language === 'ta' ? 'கிடைக்கக்கூடியது' : 'Available'}
+            <span className="vaango-legend-dot vaango-legend-dot--available" /> {t('legendAvailable')}
           </span>
           <span className="vaango-legend-item">
-            <span className="vaango-legend-dot vaango-legend-dot--selected" /> {language === 'ta' ? 'தேர்ந்தெடுக்கப்பட்டது' : 'Selected'}
+            <span className="vaango-legend-dot vaango-legend-dot--selected" /> {t('legendSelected')}
           </span>
           <span className="vaango-legend-item">
-            <span className="vaango-legend-dot vaango-legend-dot--booked" /> {language === 'ta' ? 'நிரம்பியது' : 'Booked'}
+            <span className="vaango-legend-dot vaango-legend-dot--booked" /> {t('legendBooked')}
           </span>
         </div>
 
@@ -340,7 +340,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
           <div className="vaango-booking-loading">{t('loadingText')}</div>
         ) : slots.length === 0 ? (
           <div className="vaango-booking-empty">
-            {language === 'ta' ? 'இந்தத் தேதியில் நேர இடைவெளிகள் எதுவும் இல்லை.' : 'No available appointment slots for this date.'}
+            {t('noSlotsForDate')}
           </div>
         ) : (
           <div className="vaango-slots-grid" role="radiogroup" aria-label="Appointment Time Slots">
@@ -373,17 +373,17 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                   <div className="vaango-slot-status">
                     {isSelected ? (
                       <span className="vaango-slot-status--text-selected">
-                        <CheckCircle2 size={15} /> {language === 'ta' ? 'தேர்வு செய்யப்பட்டது' : 'Selected'}
+                        <CheckCircle2 size={15} /> {t('itemSelected')}
                       </span>
                     ) : isAvailable ? (
                       <span className="vaango-slot-status--text-avail">
                         {capacity > 1 && remaining <= 3
-                          ? (language === 'ta' ? `${remaining} உள்ளது` : `${remaining} left`)
-                          : (language === 'ta' ? 'உள்ளது' : 'Available')}
+                          ? t('slotsRemainingCount', { count: remaining })
+                          : t('legendAvailable')}
                       </span>
                     ) : (
                       <span className="vaango-slot-status--text-booked">
-                        {language === 'ta' ? 'நிரம்பியது' : 'Full'}
+                        {t('legendBooked')}
                       </span>
                     )}
                   </div>
@@ -411,7 +411,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                 id="customer-name"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder={language === 'ta' ? 'உங்கள் பெயரை உள்ளிடுக' : 'Enter visitor/patient name'}
+                placeholder={t('visitorNamePlaceholder')}
                 leftIcon={<User size={16} />}
               />
             </div>
@@ -424,7 +424,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                 id="customer-phone"
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder={language === 'ta' ? '10 இலக்க மொபைல் எண்' : '10-digit mobile number'}
+                placeholder={t('phoneTenDigits')}
                 leftIcon={<Phone size={16} />}
               />
             </div>
@@ -437,7 +437,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                 id="customer-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder={language === 'ta' ? 'கூடுதல் தகவல்கள்...' : 'e.g. Specific checkup / notes'}
+                placeholder={t('appointmentNotesPlaceholder')}
                 leftIcon={<FileText size={16} />}
               />
             </div>
@@ -445,29 +445,29 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
             {/* Review Summary Box */}
             <div className="vaango-review-box">
               <div className="vaango-review-row">
-                <span className="vaango-review-label">{language === 'ta' ? 'சேவை:' : 'Service:'}</span>
+                <span className="vaango-review-label">{t('serviceLabel')}</span>
                 <strong className="vaango-review-value">{selectedService.name}</strong>
               </div>
               {selectedService.provider_name && (
                 <div className="vaango-review-row">
-                  <span className="vaango-review-label">{language === 'ta' ? 'நிபுணர்:' : 'Provider:'}</span>
+                  <span className="vaango-review-label">{t('providerLabel')}</span>
                   <span className="vaango-review-value">{selectedService.provider_name}</span>
                 </div>
               )}
               <div className="vaango-review-row">
-                <span className="vaango-review-label">{language === 'ta' ? 'தேதி & நேரம்:' : 'Date & Time:'}</span>
+                <span className="vaango-review-label">{t('dateTimeLabel')}</span>
                 <strong className="vaango-review-value">
                   {selectedSlot.slot_date} at {selectedSlot.start_time} – {selectedSlot.end_time}
                 </strong>
               </div>
               <div className="vaango-review-row">
-                <span className="vaango-review-label">{language === 'ta' ? 'மதிப்பீட்டுக் கட்டணம்:' : 'Estimated Fee:'}</span>
+                <span className="vaango-review-label">{t('estimatedFeeLabel')}</span>
                 <strong className="vaango-review-value text-primary">
-                  {selectedService.base_price ? `₹${selectedService.base_price}` : (language === 'ta' ? 'நேரில் செலுத்தவும்' : 'Pay at shop')}
+                  {selectedService.base_price ? `₹${selectedService.base_price}` : t('payAtShop')}
                 </strong>
               </div>
               <div className="vaango-review-notice">
-                <span>ℹ️ <strong>{language === 'ta' ? 'குறிப்பு:' : 'Note:'}</strong> {language === 'ta' ? 'உங்கள் முன்பதிவு கடைக்காரரின் ஒப்புதலுக்கு அனுப்பப்படும்.' : 'Your appointment will be reviewed and confirmed by the merchant.'}</span>
+                <span>ℹ️ <strong>{t('note')}</strong> {t('appointmentReviewNotice')}</span>
               </div>
             </div>
 

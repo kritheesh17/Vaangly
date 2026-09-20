@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Shop, ShopProduct, Request } from '../types/database';
-import { MOCK_SHOP_TYPES } from '../data/mockData';
+import { MOCK_SHOP_TYPES, isValidUuid, LEGACY_SHOP_ID_MAP } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -59,7 +59,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem(CART_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return parsed.activeShop || null;
+        let shop: Shop | null = parsed.activeShop || null;
+        if (shop && LEGACY_SHOP_ID_MAP[shop.id]) {
+          shop = { ...shop, id: LEGACY_SHOP_ID_MAP[shop.id] };
+        }
+        return shop;
       }
     } catch {
       // ignore parse error
@@ -232,6 +236,34 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let createdRequest: Request;
 
       if (isSupabaseConfigured) {
+        if (!isValidUuid(activeShop.id)) {
+          return {
+            success: false,
+            error: 'The shop ID in your cart is invalid or outdated. Please clear your cart and select an active shop.',
+          };
+        }
+
+        // Verify that target shop exists in database before inserting request
+        const { data: dbShop, error: shopCheckErr } = await supabase
+          .from('shops')
+          .select('id, status, is_live')
+          .eq('id', activeShop.id)
+          .maybeSingle();
+
+        if (shopCheckErr || !dbShop) {
+          return {
+            success: false,
+            error: 'This shopfront is not registered in the live database. Please select from active verified shops.',
+          };
+        }
+
+        if (dbShop.status !== 'active' || !dbShop.is_live) {
+          return {
+            success: false,
+            error: 'This shopfront is currently paused or not accepting new orders.',
+          };
+        }
+
         // Insert into Supabase requests table
         const { data, error } = await supabase
           .from('requests')
@@ -243,7 +275,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             current_state: 'REQUESTED',
             total_estimate: serverCalculatedTotal,
             notes: JSON.stringify(requestPayload),
-                    fulfillment_type: fulfillmentType,
+            fulfillment_type: fulfillmentType,
           })
           .select()
           .single();

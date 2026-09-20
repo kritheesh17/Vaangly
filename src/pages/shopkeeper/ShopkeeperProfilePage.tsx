@@ -25,12 +25,14 @@ import { useToast } from '../../context/ToastContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { Switch } from '../../components/ui/Switch';
 import { CreditCard, Info } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import './ShopkeeperProfilePage.css';
 
 export const ShopkeeperProfilePage: React.FC = () => {
   const { user, signOut, switchDemoRole } = useAuth();
   const navigate = useNavigate();
   const { success, error: toastError } = useToast();
+  const { t } = useLanguage();
 
   const [shop, setShop] = useState<Shop | null>(null);
   const [subscription, setSubscription] = useState<ShopSubscription | null>(null);
@@ -93,41 +95,46 @@ export const ShopkeeperProfilePage: React.FC = () => {
     if (!shop) return;
 
     setIsSaving(true);
-    const parsedFee = parseFloat(deliveryFee);
+    try {
+      const parsedFee = parseFloat(deliveryFee);
 
-    const res = await updateShopProfile(shop.id, {
-      tagline: tagline.trim() || null,
-      phone: phone.trim(),
-      opening_time: openingTime,
-      closing_time: closingTime,
-      is_open_today: isOpenToday,
-      delivery_available: deliveryAvailable,
-      delivery_fee: isNaN(parsedFee) ? 0 : Math.max(0, parsedFee),
-      upi_id: upiId.trim() || null,
-      customised_cake_available: customisedCakeAvailable,
-    });
+      const res = await updateShopProfile(shop.id, {
+        tagline: tagline.trim() || null,
+        phone: phone.trim(),
+        opening_time: openingTime,
+        closing_time: closingTime,
+        is_open_today: isOpenToday,
+        delivery_available: deliveryAvailable,
+        delivery_fee: isNaN(parsedFee) ? 0 : Math.max(0, parsedFee),
+        upi_id: upiId.trim() || null,
+        customised_cake_available: customisedCakeAvailable,
+      });
 
-    if (res.success && res.shop) {
-      setShop(res.shop);
-      if (MOCK_SHOP_TYPES.find((type) => type.id === shop.shop_type_id)?.workflow_group_code === 'APPOINTMENT') {
-        const slotResult = await updateSlotConfig(shop.id, { ranges: timeRanges, slotDurationMinutes: slotDuration, availableDays });
-        if (!slotResult.success) toastError(slotResult.error || 'Failed to save appointment slots.');
+      if (res.success && res.shop) {
+        setShop(res.shop);
+        if (MOCK_SHOP_TYPES.find((type) => type.id === shop.shop_type_id)?.workflow_group_code === 'APPOINTMENT') {
+          const slotResult = await updateSlotConfig(shop.id, { ranges: timeRanges, slotDurationMinutes: slotDuration, availableDays });
+          if (!slotResult.success) toastError(slotResult.error || t('failedSaveSlots'));
+        }
+        success(t('shopSettingsSaved'));
+      } else {
+        toastError(res.error || t('failedSaveSettings'));
       }
-      success('Shop settings and delivery options updated successfully!');
-    } else {
-      toastError(res.error || 'Failed to update settings.');
-    }
-    if (res.success && shop && upiQrFile && isSupabaseConfigured) {
-      const path = `shop-photos/${shop.id}/upi_qr.jpg`;
-      const { error } = await supabase.storage.from('shop-photos').upload(path, upiQrFile, { upsert: true });
-      if (error) toastError(error.message);
-      else {
-        const upiQrUrl = supabase.storage.from('shop-photos').getPublicUrl(path).data.publicUrl;
-        const qrResult = await updateShopProfile(shop.id, { upi_qr_url: upiQrUrl });
-        if (qrResult.success && qrResult.shop) setShop(qrResult.shop);
+      if (res.success && shop && upiQrFile && isSupabaseConfigured) {
+        const path = `shop-photos/${shop.id}/upi_qr.jpg`;
+        const { error } = await supabase.storage.from('shop-photos').upload(path, upiQrFile, { upsert: true });
+        if (error) toastError(error.message);
+        else {
+          const upiQrUrl = supabase.storage.from('shop-photos').getPublicUrl(path).data.publicUrl;
+          const qrResult = await updateShopProfile(shop.id, { upi_qr_url: upiQrUrl });
+          if (qrResult.success && qrResult.shop) setShop(qrResult.shop);
+        }
       }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const handleSignOut = async () => {
@@ -138,13 +145,18 @@ export const ShopkeeperProfilePage: React.FC = () => {
   const handleBillingCycleChange = async (cycle: ShopSubscription['billing_cycle']) => {
     if (!subscription || cycle === subscription.billing_cycle) return;
     setIsBillingSaving(true);
-    const result = await updateShopBillingCycle(subscription.id, cycle);
-    setIsBillingSaving(false);
-    if (result.success && result.subscription) {
-      setSubscription(result.subscription);
-      success(`Billing cycle changed to ${cycle.toLowerCase()}.`);
-    } else {
-      toastError(result.error || 'Unable to change billing cycle.');
+    try {
+      const result = await updateShopBillingCycle(subscription.id, cycle);
+      if (result.success && result.subscription) {
+        setSubscription(result.subscription);
+        success(t('billingCycleChanged', { cycle: cycle.toLowerCase() }));
+      } else {
+        toastError(result.error || t('failedChangeBilling'));
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setIsBillingSaving(false);
     }
   };
 

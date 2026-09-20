@@ -161,6 +161,14 @@
   margin: 0;
 }
 
+.vaangly-footer__bottom-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 .vaangly-footer__socials {
   display: flex;
   align-items: center;

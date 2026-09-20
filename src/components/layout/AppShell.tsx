@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { BottomNav } from './BottomNav';
+import { CartBar } from '../customer/CartBar';
 import './AppShell.css';
 import { InstallPrompt } from './InstallPrompt';
 
@@ -52,6 +53,9 @@ export const AppShell: React.FC = () => {
         )}
         <Outlet />
       </main>
+
+      {/* Global Floating Cart Bar for Customer Workflows */}
+      <CartBar />
 
       {/* Global Footer (Non-admin screens) */}
       {!location.pathname.startsWith('/admin') && <Footer />}

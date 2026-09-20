@@ -1,7 +1,9 @@
+import React from 'react';
 import { Radio, AlertTriangle, XCircle, ShieldAlert } from 'lucide-react';
 import { Shop, ApplicationStatus } from '../../types/database';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
+import { useLanguage } from '../../context/LanguageContext';
 import './ShopStatusCard.css';
 
 interface ShopStatusCardProps {
@@ -21,6 +23,8 @@ export const ShopStatusCard: React.FC<ShopStatusCardProps> = ({
   onToggleLive,
   isToggling = false,
 }) => {
+  const { t } = useLanguage();
+
   // Determine conceptual state
   if (applicationStatus === 'rejected') {
     return (
@@ -30,19 +34,19 @@ export const ShopStatusCard: React.FC<ShopStatusCardProps> = ({
             <XCircle size={26} />
           </div>
           <div className="vaango-shop-status-card__title-col">
-            <Badge variant="error" size="md">Application Rejected</Badge>
-            <h2 className="vaango-shop-status-card__title">Storefront Application Not Approved</h2>
+            <Badge variant="error" size="md">{t('applicationRejectedBadge')}</Badge>
+            <h2 className="vaango-shop-status-card__title">{t('applicationNotApprovedTitle')}</h2>
           </div>
         </div>
         <div className="vaango-shop-status-card__body">
           <p className="vaango-shop-status-card__desc">
-            Your application was reviewed and could not be approved at this time.
+            {t('applicationRejectedDesc')}
           </p>
           {rejectionReason && (
             <div className="vaango-shop-status-card__reason-box">
               <ShieldAlert size={18} />
               <div>
-                <strong>Reason for rejection:</strong>
+                <strong>{t('rejectionReasonLabel')}</strong>
                 <p>{rejectionReason}</p>
               </div>
             </div>
@@ -60,13 +64,13 @@ export const ShopStatusCard: React.FC<ShopStatusCardProps> = ({
             <AlertTriangle size={26} />
           </div>
           <div className="vaango-shop-status-card__title-col">
-            <Badge variant="warning" size="md" withDot>Pending Application</Badge>
-            <h2 className="vaango-shop-status-card__title">Application Under Verification</h2>
+            <Badge variant="warning" size="md" withDot>{t('pendingApplicationBadge')}</Badge>
+            <h2 className="vaango-shop-status-card__title">{t('applicationUnderVerificationTitle')}</h2>
           </div>
         </div>
         <div className="vaango-shop-status-card__body">
           <p className="vaango-shop-status-card__desc">
-            Your shop onboarding application and storefront verification documents are currently being checked. Once verified, you can set up your product catalogue and start receiving orders.
+            {t('applicationUnderVerificationDesc')}
           </p>
         </div>
       </Card>
@@ -77,7 +81,7 @@ export const ShopStatusCard: React.FC<ShopStatusCardProps> = ({
     return (
       <Card variant="default" padding="lg" className="vaango-shop-status-card">
         <div className="vaango-shop-status-card__body">
-          <p className="vaango-shop-status-card__desc">No registered shop found for this account.</p>
+          <p className="vaango-shop-status-card__desc">{t('noRegisteredShopFound')}</p>
         </div>
       </Card>
     );
@@ -107,44 +111,36 @@ export const ShopStatusCard: React.FC<ShopStatusCardProps> = ({
           <div className="vaango-shop-status-card__badge-row">
             {isSuspended ? (
               <Badge variant="error" size="md" withDot>
-                SUSPENDED
+                {t('suspendedBadge')}
               </Badge>
             ) : isLive ? (
               <Badge variant="success" size="md" withDot>
-                LIVE ON VAANGO
+                {t('liveOnVaango')}
               </Badge>
             ) : isCatalogueIncomplete ? (
               <Badge variant="warning" size="md">
-                Approved — Catalogue Incomplete
+                {t('approvedCatalogueIncomplete')}
               </Badge>
             ) : (
               <Badge variant="neutral" size="md">
-                Approved — Store Paused (Offline)
+                {t('approvedStorePaused')}
               </Badge>
             )}
             <span className="vaango-shop-status-card__item-count">
-              {productCount} {productCount === 1 ? 'product' : 'products'} in catalogue
+              {productCount === 1 ? t('productInCatalogue') : t('productsInCatalogue', { count: productCount })}
             </span>
           </div>
 
           <h2 className="vaango-shop-status-card__name">{shop.name}</h2>
           <p className="vaango-shop-status-card__desc">
             {isSuspended ? (
-              <>
-                Your shop is suspended and cannot be made visible until the Vaango admin team reviews it.
-              </>
+              t('shopSuspendedDesc')
             ) : isLive ? (
-              <>
-                <span className="vaango-status-highlight">Customers can find your shop</span> in town and send pre-orders right now.
-              </>
+              t('shopLiveDesc')
             ) : isCatalogueIncomplete ? (
-              <>
-                Your application is approved! <strong>Your shop is NOT yet visible to customers</strong>. Add your daily products to make your shop go live.
-              </>
+              t('shopCatalogueIncompleteDesc')
             ) : (
-              <>
-                Your catalogue is ready, but your shop is currently set to <strong>Offline</strong>. Customers cannot send new orders while offline.
-              </>
+              t('shopOfflineDesc')
             )}
           </p>
         </div>
@@ -152,23 +148,23 @@ export const ShopStatusCard: React.FC<ShopStatusCardProps> = ({
         {/* Go Live Toggle Switch */}
         <div className="vaango-shop-status-card__toggle-container">
           {isSuspended ? (
-            <Badge variant="error" size="md">Suspended - awaiting admin review</Badge>
+            <Badge variant="error" size="md">{t('suspendedAwaitingReview')}</Badge>
           ) : (
             <>
-          <label className="vaango-switch" htmlFor="go-live-toggle">
-            <input
-              id="go-live-toggle"
-              type="checkbox"
-              checked={isLive}
-              disabled={isToggling || isCatalogueIncomplete}
-              onChange={(e) => onToggleLive(e.target.checked)}
-              aria-label="Toggle shop live visibility"
-            />
-            <span className="vaango-switch__slider" />
-          </label>
-          <span className="vaango-shop-status-card__toggle-label">
-            {isLive ? 'Shop is LIVE' : 'Go Live'}
-          </span>
+              <label className="vaango-switch" htmlFor="go-live-toggle">
+                <input
+                  id="go-live-toggle"
+                  type="checkbox"
+                  checked={isLive}
+                  disabled={isToggling || isCatalogueIncomplete}
+                  onChange={(e) => onToggleLive(e.target.checked)}
+                  aria-label={isLive ? t('shopIsLive') : t('goLive')}
+                />
+                <span className="vaango-switch__slider" />
+              </label>
+              <span className="vaango-shop-status-card__toggle-label">
+                {isLive ? t('shopIsLive') : t('goLive')}
+              </span>
             </>
           )}
         </div>
@@ -178,7 +174,7 @@ export const ShopStatusCard: React.FC<ShopStatusCardProps> = ({
         <div className="vaango-shop-status-card__incomplete-alert" role="status">
           <AlertTriangle size={18} />
           <span>
-            Minimum catalogue requirement: Add at least 1 product to unlock Go Live visibility.
+            {t('minCatalogueReq')}
           </span>
         </div>
       )}
@@ -186,7 +182,7 @@ export const ShopStatusCard: React.FC<ShopStatusCardProps> = ({
       {isLive && (
         <div className="vaango-shop-status-card__live-footer">
           <Radio size={16} className="vaango-radar-icon" />
-          <span>Actively receiving orders for counter pickup & delivery</span>
+          <span>{t('activelyReceivingOrders')}</span>
         </div>
       )}
     </Card>

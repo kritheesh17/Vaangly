@@ -4,6 +4,7 @@ import { ShopService, PriceType } from '../../types/database';
 import { WorkflowGroupCode } from '../../types/workflow';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { useLanguage } from '../../context/LanguageContext';
 import './ServiceFormModal.css';
 
 interface ServiceFormModalProps {
@@ -34,6 +35,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
   workflowGroup,
   onSave,
 }) => {
+  const { t } = useLanguage();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [priceType, setPriceType] = useState<PriceType>('fixed');
@@ -85,7 +87,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
     setFormError(null);
 
     if (!name.trim()) {
-      setFormError('Service name is required.');
+      setFormError(t('serviceNameRequired'));
       return;
     }
 
@@ -96,7 +98,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
     if (priceType === 'fixed') {
       parsedBase = parseFloat(basePrice);
       if (isNaN(parsedBase) || parsedBase <= 0) {
-        setFormError('Please enter a valid fixed price greater than 0.');
+        setFormError(t('validFixedPricePrompt'));
         return;
       }
       parsedMin = parsedBase;
@@ -106,11 +108,11 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
       parsedMin = parseFloat(minPrice);
       parsedMax = parseFloat(maxPrice);
       if (isNaN(parsedMin) || parsedMin <= 0 || isNaN(parsedMax) || parsedMax <= 0) {
-        setFormError('Both minimum and maximum price must be greater than 0.');
+        setFormError(t('validRangePricePrompt'));
         return;
       }
       if (parsedMin >= parsedMax) {
-        setFormError('Minimum price must be less than maximum price.');
+        setFormError(t('minPriceMustBeLess'));
         return;
       }
       parsedBase = Math.round((parsedMin + parsedMax) / 2);
@@ -119,28 +121,31 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
     const parsedDuration = durationMinutes ? parseInt(durationMinutes, 10) : null;
 
     setIsSubmitting(true);
+    try {
+      const res = await onSave({
+        id: serviceToEdit?.id,
+        name: name.trim(),
+        description: description.trim() || null,
+        price_type: priceType,
+        base_price: parsedBase,
+        min_price: parsedMin,
+        max_price: parsedMax,
+        duration_minutes: parsedDuration,
+        provider_name: providerName.trim() || null,
+        specialization: specialization.trim() || null,
+        service_category: category.trim() || null,
+        is_available: isAvailable,
+      });
 
-    const res = await onSave({
-      id: serviceToEdit?.id,
-      name: name.trim(),
-      description: description.trim() || null,
-      price_type: priceType,
-      base_price: parsedBase,
-      min_price: parsedMin,
-      max_price: parsedMax,
-      duration_minutes: parsedDuration,
-      provider_name: providerName.trim() || null,
-      specialization: specialization.trim() || null,
-      service_category: category.trim() || null,
-      is_available: isAvailable,
-    });
-
-    setIsSubmitting(false);
-
-    if (res.success) {
-      onClose();
-    } else {
-      setFormError(res.error || 'Failed to save service.');
+      if (res.success) {
+        onClose();
+      } else {
+        setFormError(res.error || t('failedToSaveService'));
+      }
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : t('failedToSaveService'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -151,14 +156,14 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
           <div className="flex items-center gap-2">
             <Sparkles size={20} className="text-primary" />
             <h2 className="vaango-modal-title">
-              {serviceToEdit ? 'Edit Service / Slot' : 'Add New Service / Slot'}
+              {serviceToEdit ? t('editServiceSlot') : t('addServiceSlot')}
             </h2>
           </div>
           <button
             type="button"
             className="vaango-modal-close"
             onClick={onClose}
-            aria-label="Close modal"
+            aria-label={t('closeBtn')}
           >
             <X size={20} />
           </button>
@@ -175,13 +180,13 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
           {/* Service Name */}
           <div className="vaango-form-group">
             <label className="vaango-form-label">
-              Service Name <span className="text-error">*</span>
+              {t('serviceNameLabel')} <span className="text-error">*</span>
             </label>
             <Input
               id="srv-name-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Haircut & Styling / Screen Replacement / General Visit"
+              placeholder={t('serviceNamePlaceholder')}
               required
               autoFocus
             />
@@ -189,12 +194,12 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
 
           {/* Category */}
           <div className="vaango-form-group">
-            <label className="vaango-form-label">Category</label>
+            <label className="vaango-form-label">{t('categoryLabel')}</label>
             <Input
               id="srv-cat-input"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder="e.g. Hair, Skin, Consultation, Alteration, Brakes"
+              placeholder={t('serviceCategoryPlaceholder')}
               leftIcon={<Tag size={16} />}
             />
           </div>
@@ -203,45 +208,45 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="vaango-form-group">
               <label className="vaango-form-label">
-                {workflowGroup === 'APPOINTMENT' ? 'Doctor / Stylist Name' : 'Specialist / Master'}
+                {workflowGroup === 'APPOINTMENT' ? t('doctorStylistNameLabel') : t('specialistMasterLabel')}
               </label>
               <Input
                 id="srv-provider-input"
                 value={providerName}
                 onChange={(e) => setProviderName(e.target.value)}
-                placeholder="e.g. Dr. Senthil / Master Karthi"
+                placeholder={t('providerNamePlaceholder')}
                 leftIcon={<User size={16} />}
               />
             </div>
 
             <div className="vaango-form-group">
-              <label className="vaango-form-label">Specialization / Department</label>
+              <label className="vaango-form-label">{t('specializationDeptLabel')}</label>
               <Input
                 id="srv-spec-input"
                 value={specialization}
                 onChange={(e) => setSpecialization(e.target.value)}
-                placeholder="e.g. Pediatrics / Men's Grooming"
+                placeholder={t('specializationPlaceholder')}
               />
             </div>
           </div>
 
           {/* Price Model Toggle: Fixed vs Range */}
           <div className="vaango-form-group">
-            <label className="vaango-form-label">Pricing Structure</label>
+            <label className="vaango-form-label">{t('pricingStructureLabel')}</label>
             <div className="vaango-price-type-toggle">
               <button
                 type="button"
                 className={`vaango-toggle-btn ${priceType === 'fixed' ? 'vaango-toggle-btn--active' : ''}`}
                 onClick={() => setPriceType('fixed')}
               >
-                Fixed Rate
+                {t('fixedRate')}
               </button>
               <button
                 type="button"
                 className={`vaango-toggle-btn ${priceType === 'range' ? 'vaango-toggle-btn--active' : ''}`}
                 onClick={() => setPriceType('range')}
               >
-                Estimated Range (₹Min – ₹Max)
+                {t('estimatedRangeMinMax')}
               </button>
             </div>
           </div>
@@ -250,7 +255,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
           {priceType === 'fixed' ? (
             <div className="vaango-form-group">
               <label className="vaango-form-label">
-                Fixed Price (₹) <span className="text-error">*</span>
+                {t('fixedPriceLabel')} <span className="text-error">*</span>
               </label>
               <Input
                 id="srv-fixed-price"
@@ -266,7 +271,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div className="vaango-form-group">
                 <label className="vaango-form-label">
-                  Min Price (₹) <span className="text-error">*</span>
+                  {t('minPriceLabel')} <span className="text-error">*</span>
                 </label>
                 <Input
                   id="srv-min-price"
@@ -280,7 +285,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
               </div>
               <div className="vaango-form-group">
                 <label className="vaango-form-label">
-                  Max Price (₹) <span className="text-error">*</span>
+                  {t('maxPriceLabel')} <span className="text-error">*</span>
                 </label>
                 <Input
                   id="srv-max-price"
@@ -297,7 +302,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
 
           {/* Duration in minutes */}
           <div className="vaango-form-group">
-            <label className="vaango-form-label">Approx Duration (Minutes)</label>
+            <label className="vaango-form-label">{t('durationMinutesLabel')}</label>
             <Input
               id="srv-duration"
               type="number"
@@ -310,22 +315,22 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
 
           {/* Description */}
           <div className="vaango-form-group">
-            <label className="vaango-form-label">Description / Inclusions</label>
+            <label className="vaango-form-label">{t('descriptionInclusionsLabel')}</label>
             <textarea
               className="vaango-input vaango-textarea"
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Explain what the service or consultation includes..."
+              placeholder={t('descriptionInclusionsPlaceholder')}
             />
           </div>
 
           {/* Availability toggle */}
           <div className="vaango-switch-row">
             <label className="vaango-switch-label" htmlFor="srv-available-check">
-              <strong>Available for Booking</strong>
+              <strong>{t('availableForBookingLabel')}</strong>
               <span className="text-xs text-muted block">
-                Turn off if temporarily unavailable or out of slots.
+                {t('availableForBookingDesc')}
               </span>
             </label>
             <input
@@ -339,10 +344,10 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
 
           <div className="vaango-modal-actions mt-4">
             <Button variant="outline" type="button" onClick={onClose}>
-              Cancel
+              {t('cancelBtn')}
             </Button>
             <Button variant="primary" type="submit" isLoading={isSubmitting}>
-              {serviceToEdit ? 'Save Changes' : 'Add Service'}
+              {serviceToEdit ? t('saveChangesBtn') : t('addServiceBtn')}
             </Button>
           </div>
         </form>

@@ -24,6 +24,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { useLanguage } from '../../context/LanguageContext';
 import './AdminSubscriptionsPage.css';
 
 export const AdminSubscriptionsPage: React.FC = () => {
@@ -31,6 +32,7 @@ export const AdminSubscriptionsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { success } = useToast();
+  const { t } = useLanguage();
 
   const [subscriptions, setSubscriptions] = useState<ShopSubscription[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
@@ -129,28 +131,33 @@ export const AdminSubscriptionsPage: React.FC = () => {
     }
 
     setIsRecording(true);
-    const res = await recordSubscriptionPayment(
-      {
-        subscriptionId: selectedSub.id,
-        shopId: selectedSub.shop_id,
-        amountPaid,
-        paymentDate,
-        billingCycle,
-        periodStart,
-        periodEnd,
-        paymentReference: paymentRef.trim(),
-        notes,
-      },
-      user.id
-    );
-    setIsRecording(false);
+    try {
+      const res = await recordSubscriptionPayment(
+        {
+          subscriptionId: selectedSub.id,
+          shopId: selectedSub.shop_id,
+          amountPaid,
+          paymentDate,
+          billingCycle,
+          periodStart,
+          periodEnd,
+          paymentReference: paymentRef.trim(),
+          notes,
+        },
+        user.id
+      );
 
-    if (res.success) {
-      success(`Payment of ₹${amountPaid} recorded. Subscription renewed to ACTIVE.`);
-      setPaymentModalOpen(false);
-      loadData();
-    } else {
-      setRecordError(res.error || 'Failed to record payment.');
+      if (res.success) {
+        success(t('paymentRecordedSuccess', { amount: amountPaid }));
+        setPaymentModalOpen(false);
+        loadData();
+      } else {
+        setRecordError(res.error || t('failedRecordPayment'));
+      }
+    } catch (err: unknown) {
+      setRecordError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setIsRecording(false);
     }
   };
 
@@ -174,7 +181,7 @@ export const AdminSubscriptionsPage: React.FC = () => {
             aria-label="Back to dashboard"
           >
             <ArrowLeft size={16} />
-            <span>Dashboard</span>
+            <span>{t('adminDashboard')}</span>
           </button>
           <h1 className="vaango-admin-subs__title">Shopkeeper Subscriptions & Manual UPI</h1>
           <p className="vaango-admin-subs__subtitle">

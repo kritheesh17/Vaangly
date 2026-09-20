@@ -15,6 +15,7 @@ import {
   UserX,
 } from 'lucide-react';
 import { Badge } from '../ui/Badge';
+import { useLanguage } from '../../context/LanguageContext';
 import './RequestTimeline.css';
 
 export interface RequestTimelineProps {
@@ -30,100 +31,101 @@ interface TimelineStep {
   description: string;
 }
 
-const ORDER_STEPS: TimelineStep[] = [
-  {
-    code: 'REQUESTED',
-    label: 'Request Sent',
-    description: 'Your pre-order has reached the shopkeeper',
-  },
-  {
-    code: 'ACCEPTED',
-    label: 'Shop Accepted',
-    description: 'Shop confirmed item availability',
-  },
-  {
-    code: 'PREPARING',
-    label: 'Preparing Your Order',
-    description: 'Shopkeeper is packing your items',
-  },
-  {
-    code: 'READY',
-    label: 'Ready for Pickup',
-    description: 'Packed & ready for counter pickup or delivery',
-  },
-  {
-    code: 'COMPLETED',
-    label: 'Completed',
-    description: 'Order handed over successfully',
-  },
-];
-
-const APPOINTMENT_STEPS: TimelineStep[] = [
-  {
-    code: 'REQUESTED',
-    label: 'Appointment Requested',
-    description: 'Slot request sent to clinic / salon',
-  },
-  {
-    code: 'CONFIRMED',
-    label: 'Appointment Confirmed',
-    description: 'Shopkeeper confirmed and reserved your slot',
-  },
-  {
-    code: 'IN_PROGRESS',
-    label: 'Appointment In Progress',
-    description: 'Service / consultation is actively underway',
-  },
-  {
-    code: 'COMPLETED',
-    label: 'Completed',
-    description: 'Appointment fulfilled successfully',
-  },
-];
-
-const SERVICE_STEPS: TimelineStep[] = [
-  {
-    code: 'REQUESTED',
-    label: 'Service Requested',
-    description: 'Your service request has reached the shop',
-  },
-  {
-    code: 'ACCEPTED',
-    label: 'Service Accepted',
-    description: 'Shop accepted request & confirmed estimated price',
-  },
-  {
-    code: 'IN_PROGRESS',
-    label: 'Service in Progress',
-    description: 'Repair / tailoring work is actively underway',
-  },
-  {
-    code: 'READY',
-    label: 'Ready for Pickup',
-    description: 'Work completed; ready for customer collection',
-  },
-  {
-    code: 'COMPLETED',
-    label: 'Completed',
-    description: 'Handed over and payment settled',
-  },
-];
-
 export const RequestTimeline: React.FC<RequestTimelineProps> = ({
   currentState,
   workflowGroupCode = 'ORDER',
   updatedAt,
 }) => {
+  const { t } = useLanguage();
   const isTerminalFailure = ['REJECTED', 'EXPIRED', 'CANCELLED'].includes(currentState);
   const isDelayed = currentState === 'DELAYED';
   const isNoShow = currentState === 'NO_SHOW';
 
+  const orderSteps: TimelineStep[] = [
+    {
+      code: 'REQUESTED',
+      label: t('timelineStepOrderRequestedLabel'),
+      description: t('timelineStepOrderRequestedDesc'),
+    },
+    {
+      code: 'ACCEPTED',
+      label: t('timelineStepOrderAcceptedLabel'),
+      description: t('timelineStepOrderAcceptedDesc'),
+    },
+    {
+      code: 'PREPARING',
+      label: t('timelineStepOrderPreparingLabel'),
+      description: t('timelineStepOrderPreparingDesc'),
+    },
+    {
+      code: 'READY',
+      label: t('timelineStepOrderReadyLabel'),
+      description: t('timelineStepOrderReadyDesc'),
+    },
+    {
+      code: 'COMPLETED',
+      label: t('timelineStepOrderCompletedLabel'),
+      description: t('timelineStepOrderCompletedDesc'),
+    },
+  ];
+
+  const appointmentSteps: TimelineStep[] = [
+    {
+      code: 'REQUESTED',
+      label: t('timelineStepAptRequestedLabel'),
+      description: t('timelineStepAptRequestedDesc'),
+    },
+    {
+      code: 'CONFIRMED',
+      label: t('timelineStepAptConfirmedLabel'),
+      description: t('timelineStepAptConfirmedDesc'),
+    },
+    {
+      code: 'IN_PROGRESS',
+      label: t('timelineStepAptInProgressLabel'),
+      description: t('timelineStepAptInProgressDesc'),
+    },
+    {
+      code: 'COMPLETED',
+      label: t('timelineStepAptCompletedLabel'),
+      description: t('timelineStepAptCompletedDesc'),
+    },
+  ];
+
+  const serviceSteps: TimelineStep[] = [
+    {
+      code: 'REQUESTED',
+      label: t('timelineStepSrvRequestedLabel'),
+      description: t('timelineStepSrvRequestedDesc'),
+    },
+    {
+      code: 'ACCEPTED',
+      label: t('timelineStepSrvAcceptedLabel'),
+      description: t('timelineStepSrvAcceptedDesc'),
+    },
+    {
+      code: 'IN_PROGRESS',
+      label: t('timelineStepSrvInProgressLabel'),
+      description: t('timelineStepSrvInProgressDesc'),
+    },
+    {
+      code: 'READY',
+      label: t('timelineStepSrvReadyLabel'),
+      description: t('timelineStepSrvReadyDesc'),
+    },
+    {
+      code: 'COMPLETED',
+      label: t('timelineStepSrvCompletedLabel'),
+      description: t('timelineStepSrvCompletedDesc'),
+    },
+  ];
+
   const steps =
     workflowGroupCode === 'APPOINTMENT'
-      ? APPOINTMENT_STEPS
+      ? appointmentSteps
       : workflowGroupCode === 'SERVICE'
-      ? SERVICE_STEPS
-      : ORDER_STEPS;
+      ? serviceSteps
+      : orderSteps;
 
   const getStepIndex = (code: WorkflowStateCode): number => {
     return steps.findIndex((s) => s.code === code);
@@ -169,7 +171,7 @@ export const RequestTimeline: React.FC<RequestTimelineProps> = ({
         <div className="vaango-timeline-alert vaango-timeline-alert--warning" role="status">
           <AlertTriangle size={20} />
           <div>
-            <strong>Appointment / Service Delayed:</strong> The shopkeeper reported a delay. Please check notes for estimated timing.
+            <strong>{t('timelineDelayedTitle')}</strong> {t('timelineDelayedText')}
           </div>
         </div>
       )}
@@ -179,7 +181,7 @@ export const RequestTimeline: React.FC<RequestTimelineProps> = ({
         <div className="vaango-timeline-alert vaango-timeline-alert--error" role="status">
           <UserX size={20} />
           <div>
-            <strong>Marked as No-Show:</strong> The customer did not arrive at the scheduled appointment time.
+            <strong>{t('timelineNoShowTitle')}</strong> {t('timelineNoShowText')}
           </div>
         </div>
       )}
@@ -189,11 +191,11 @@ export const RequestTimeline: React.FC<RequestTimelineProps> = ({
         <div className="vaango-timeline-alert vaango-timeline-alert--error" role="status">
           {currentState === 'CANCELLED' ? <RotateCcw size={20} /> : <XCircle size={20} />}
           <div>
-            <strong>Status: {currentState}</strong>
+            <strong>{currentState === 'CANCELLED' ? t('timelineCancelledTitle') : `Status: ${currentState}`}</strong>
             <p>
               {currentState === 'CANCELLED'
-                ? 'This request was cancelled.'
-                : 'The shopkeeper was unable to accept this request at this time.'}
+                ? t('timelineCancelledText')
+                : t('timelineRejectedText')}
             </p>
           </div>
         </div>
@@ -237,12 +239,12 @@ export const RequestTimeline: React.FC<RequestTimelineProps> = ({
                   <span className="vaango-timeline-label">{step.label}</span>
                   {stepStatus === 'active' && (
                     <Badge variant="primary" size="sm" withDot>
-                      In Progress
+                      {t('timelineStepInProgress')}
                     </Badge>
                   )}
                   {stepStatus === 'completed' && (
                     <Badge variant="success" size="sm">
-                      Done
+                      {t('timelineStepDone')}
                     </Badge>
                   )}
                 </div>

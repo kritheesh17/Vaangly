@@ -19,10 +19,12 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { useLanguage } from '../../context/LanguageContext';
 import './AdminDashboardPage.css';
 
 export const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [metrics, setMetrics] = useState<OperationalMetrics | null>(null);
   const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,12 +79,12 @@ export const AdminDashboardPage: React.FC = () => {
       <div className="vaango-admin-dash__header">
         <div>
           <div className="vaango-admin-dash__badge-row">
-            <span className="vaango-admin-dash__kicker">Platform Command Center</span>
+            <span className="vaango-admin-dash__kicker">{t('commandCenter')}</span>
             <Badge variant="primary" size="sm">Vaango v0.5</Badge>
           </div>
-          <h1 className="vaango-admin-dash__title">Operations & Lifecycle Governance</h1>
+          <h1 className="vaango-admin-dash__title">{t('operationsGovernance')}</h1>
           <p className="vaango-admin-dash__subtitle">
-            Oversee hometown storefront onboarding, shop visibility, subscriptions, and platform fulfillment integrity.
+            {t('operationsSubtitle')}
           </p>
         </div>
 
@@ -93,7 +95,7 @@ export const AdminDashboardPage: React.FC = () => {
           isLoading={isRefreshing}
           leftIcon={<RefreshCw size={14} />}
         >
-          Refresh Data
+          {t('refreshData')}
         </Button>
       </div>
 

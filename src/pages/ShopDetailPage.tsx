@@ -16,7 +16,6 @@ import { getShopProductsList } from '../lib/shopkeeperApi';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useCart } from '../context/CartContext';
 import { ProductCard } from '../components/customer/ProductCard';
-import { CartBar } from '../components/customer/CartBar';
 import { AppointmentBookingCard } from '../components/customer/AppointmentBookingCard';
 import { ServiceRequestCard } from '../components/customer/ServiceRequestCard';
 import { Badge } from '../components/ui/Badge';
@@ -55,9 +54,28 @@ export const ShopDetailPage: React.FC = () => {
   const [cakeDescription, setCakeDescription] = useState('');
   const [isSubmittingCake, setIsSubmittingCake] = useState(false);
 
-  // Find shop
-  const shop = useMemo(() => {
+  // Find shop (supports both mock data and Supabase live UUIDs)
+  const [shop, setShop] = useState<any>(() => {
     return MOCK_SHOPS.find((s) => s.id === shopId) || null;
+  });
+
+  useEffect(() => {
+    let active = true;
+    const local = MOCK_SHOPS.find((s) => s.id === shopId) || null;
+    if (local) {
+      setShop(local);
+      return;
+    }
+    if (isSupabaseConfigured && shopId) {
+      supabase.from('shops').select('*').eq('id', shopId).maybeSingle().then(({ data }) => {
+        if (active && data) {
+          setShop(data);
+        }
+      });
+    }
+    return () => {
+      active = false;
+    };
   }, [shopId]);
 
   // Find shop type
@@ -120,9 +138,9 @@ export const ShopDetailPage: React.FC = () => {
       <div className="container vaango-shop-detail__error">
         <EmptyState
           icon={<Store size={48} />}
-          title="Shop Not Found"
-          description="The shop you are looking for does not exist or is currently inactive."
-          actionLabel="Browse Available Shops"
+          title={t('shopNotFoundTitle')}
+          description={t('shopNotFoundDesc')}
+          actionLabel={t('browseAvailableShops')}
           onAction={() => navigate('/shops')}
         />
       </div>
@@ -149,18 +167,23 @@ export const ShopDetailPage: React.FC = () => {
   const handleCustomCakeSubmit = async () => {
     if (!user || !shop || cakeDescription.trim().length < 10) return;
     setIsSubmittingCake(true);
-    const referenceCode = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
-    const notes = JSON.stringify({ type: 'custom_cake', description: cakeDescription.trim(), shop_name: shop.name, shop_address: shop.address_line, shop_phone: shop.phone, payment_method: 'cash' });
-    const { data, error } = await supabase.from('requests').insert({ reference_code: referenceCode, customer_id: user.id, shop_id: shop.id, workflow_group_code: 'ORDER', current_state: 'REQUESTED', total_estimate: 0, notes }).select().single();
-    setIsSubmittingCake(false);
-    if (error || !data) {
-      toastError(error?.message || 'Unable to submit customised cake request.');
-      return;
+    try {
+      const referenceCode = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+      const notes = JSON.stringify({ type: 'custom_cake', description: cakeDescription.trim(), shop_name: shop.name, shop_address: shop.address_line, shop_phone: shop.phone, payment_method: 'cash' });
+      const { data, error } = await supabase.from('requests').insert({ reference_code: referenceCode, customer_id: user.id, shop_id: shop.id, workflow_group_code: 'ORDER', current_state: 'REQUESTED', total_estimate: 0, notes }).select().single();
+      if (error || !data) {
+        toastError(error?.message || t('cakeRequestError'));
+        return;
+      }
+      setCakeModalOpen(false);
+      setCakeDescription('');
+      success(t('cakeRequestSuccess'));
+      navigate(`/request-confirmation/${data.id}`);
+    } catch (err: any) {
+      toastError(err?.message || t('cakeRequestError'));
+    } finally {
+      setIsSubmittingCake(false);
     }
-    setCakeModalOpen(false);
-    setCakeDescription('');
-    success('Customised cake request submitted to the bakery.');
-    navigate(`/request-confirmation/${data.id}`);
   };
 
   return (
@@ -171,10 +194,10 @@ export const ShopDetailPage: React.FC = () => {
           type="button"
           className="vaango-back-link"
           onClick={() => navigate(-1)}
-          aria-label="Back to shops"
+          aria-label={t('backToShops')}
         >
           <ArrowLeft size={18} />
-          <span>Back to Shops</span>
+          <span>{t('backToShops')}</span>
         </button>
       </div>
 
@@ -199,16 +222,16 @@ export const ShopDetailPage: React.FC = () => {
             <div className="vaango-shop-hero__badges">
               {shopType && <Badge variant="primary" size="sm">{shopType.name}</Badge>}
               <Badge variant={shop.is_open_today ? 'success' : 'neutral'} size="sm" withDot>
-                {shop.is_open_today ? 'Open Today' : 'Closed'}
+                {shop.is_open_today ? t('openToday') : t('closed')}
               </Badge>
               {workflowGroup === 'APPOINTMENT' && (
                 <Badge variant="accent" size="sm">
-                  <Calendar size={12} style={{ marginRight: 4 }} /> Appointments
+                  <Calendar size={12} style={{ marginRight: 4 }} /> {t('navAppointments')}
                 </Badge>
               )}
               {workflowGroup === 'SERVICE' && (
                 <Badge variant="accent" size="sm">
-                  <Wrench size={12} style={{ marginRight: 4 }} /> Services
+                  <Wrench size={12} style={{ marginRight: 4 }} /> {t('navServices')}
                 </Badge>
               )}
             </div>
@@ -227,7 +250,7 @@ export const ShopDetailPage: React.FC = () => {
               {shop.opening_time && shop.closing_time && (
                 <div className="vaango-shop-meta-item">
                   <Clock size={16} className="vaango-shop-meta-icon" />
-                  <span>Hours: {shop.opening_time} to {shop.closing_time}</span>
+                  <span>{t('hoursPrefix')} {shop.opening_time} {t('hoursTo')} {shop.closing_time}</span>
                 </div>
               )}
 
@@ -240,10 +263,10 @@ export const ShopDetailPage: React.FC = () => {
                 <Truck size={16} className="vaango-shop-meta-icon" />
                 <span>
                   {workflowGroup === 'APPOINTMENT'
-                    ? 'In-person Appointment Slot'
+                    ? t('inPersonAppointment')
                     : workflowGroup === 'SERVICE'
-                    ? 'In-Shop Counter Service'
-                    : 'Counter Pickup & Optional Delivery'}
+                    ? t('inShopService')
+                    : t('counterPickupDelivery')}
                 </span>
               </div>
             </div>
@@ -264,16 +287,16 @@ export const ShopDetailPage: React.FC = () => {
           <div className="vaango-shop-catalogue">
             {shopType?.code === 'bakery' && shop.customised_cake_available && (
               <div className="vaango-custom-cake-card">
-                <h2>🎂 Customised Cakes Available</h2>
-                <p>Share your flavour, weight, design, and occasion. The bakery will confirm the price.</p>
-                <button type="button" className="vaango-btn vaango-btn--primary" onClick={() => setCakeModalOpen(true)}>Order a Customised Cake</button>
+                <h2>{t('customCakesAvailable')}</h2>
+                <p>{t('customCakesDesc')}</p>
+                <button type="button" className="vaango-btn vaango-btn--primary" onClick={() => setCakeModalOpen(true)}>{t('orderCustomCakeBtn')}</button>
               </div>
             )}
             <div className="vaango-shop-catalogue__header">
               <div className="vaango-shop-catalogue__title-wrap">
                 <h2 className="vaango-shop-catalogue__title">{t('availableCatalogue')}</h2>
                 <span className="vaango-shop-catalogue__count">
-                  {filteredProducts.length} items listed
+                  {t('itemsListed', { count: filteredProducts.length })}
                 </span>
               </div>
 
@@ -282,7 +305,7 @@ export const ShopDetailPage: React.FC = () => {
                 <Input
                   id="catalogue-search-input"
                   type="search"
-                  placeholder={`Search items in ${shop.name}...`}
+                  placeholder={t('searchInShopPlaceholder', { shopName: shop.name })}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   leftIcon={<Search size={18} />}
@@ -310,9 +333,9 @@ export const ShopDetailPage: React.FC = () => {
             ) : (
               <div className="vaango-catalogue-empty">
                 <EmptyState
-                  title="No products found"
-                  description={`No products matched "${searchQuery}". Please try another search term.`}
-                  actionLabel="Clear Search"
+                  title={t('noProductsFoundTitle')}
+                  description={t('noProductsFoundDesc', { query: searchQuery })}
+                  actionLabel={t('clearSearch')}
                   onAction={() => setSearchQuery('')}
                 />
               </div>
@@ -329,22 +352,20 @@ export const ShopDetailPage: React.FC = () => {
           setPendingProduct(null);
         }}
         onConfirm={handleConfirmSwitchShop}
-        title="Start a new request?"
-        message={`Your cart currently contains items from "${activeShop?.name}". Each request must be placed with one shop. Would you like to clear your cart and add this item from "${shop.name}"?`}
-        confirmLabel="Clear Cart & Switch"
-        cancelLabel="Keep Current Items"
+        title={t('startNewRequestTitle')}
+        message={t('startNewRequestMessage', { activeShop: activeShop?.name || '', newShop: shop.name })}
+        confirmLabel={t('clearCartAndSwitch')}
+        cancelLabel={t('keepCurrentItems')}
         variant="primary"
       />
 
-      {/* Bottom Floating Cart Bar (only for Order Workflow) */}
-      {workflowGroup === 'ORDER' && <CartBar />}
-      <Modal isOpen={cakeModalOpen} onClose={() => setCakeModalOpen(false)} title="Order a Customised Cake" maxWidth="md">
+      <Modal isOpen={cakeModalOpen} onClose={() => setCakeModalOpen(false)} title={t('orderCustomCakeModalTitle')} maxWidth="md">
         <div className="vaango-form-group">
-          <label className="vaango-form-label" htmlFor="custom-cake-description">Describe your cake <span className="vaango-required">*</span></label>
-          <Textarea id="custom-cake-description" rows={5} value={cakeDescription} onChange={(e) => setCakeDescription(e.target.value)} placeholder="Flavour, weight, design, and occasion" />
-          <span className="text-xs text-secondary">Minimum 10 characters.</span>
+          <label className="vaango-form-label" htmlFor="custom-cake-description">{t('describeCakeLabel')} <span className="vaango-required">*</span></label>
+          <Textarea id="custom-cake-description" rows={5} value={cakeDescription} onChange={(e) => setCakeDescription(e.target.value)} placeholder={t('cakeDescPlaceholder')} />
+          <span className="text-xs text-secondary">{t('minCharactersNotice')}</span>
         </div>
-        <Button variant="primary" isLoading={isSubmittingCake} disabled={!user || cakeDescription.trim().length < 10} onClick={() => void handleCustomCakeSubmit()}>Submit Cake Request</Button>
+        <Button variant="primary" isLoading={isSubmittingCake} disabled={!user || cakeDescription.trim().length < 10} onClick={() => void handleCustomCakeSubmit()}>{t('submitCakeRequestBtn')}</Button>
       </Modal>
     </div>
   );
