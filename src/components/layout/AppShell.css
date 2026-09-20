@@ -30,9 +30,17 @@
   padding-bottom: calc(var(--bottom-nav-height, 72px) + env(safe-area-inset-bottom));
 }
 
+.vaango-main-content--with-cart {
+  padding-bottom: calc(var(--bottom-nav-height, 72px) + 72px + env(safe-area-inset-bottom));
+}
+
 @media (min-width: 820px) {
   .vaango-main-content {
     padding-bottom: var(--space-12);
+  }
+
+  .vaango-main-content--with-cart {
+    padding-bottom: 92px;
   }
 }
 

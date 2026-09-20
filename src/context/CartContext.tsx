@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Shop, ShopProduct, Request } from '../types/database';
-import { MOCK_SHOP_TYPES, isValidUuid, LEGACY_SHOP_ID_MAP } from '../data/mockData';
+import { MOCK_SHOP_TYPES, isValidUuid } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -22,7 +22,7 @@ interface CartContextType {
   setOrderNotes: (notes: string) => void;
   fulfillmentType: 'parcel' | 'dine_in' | null;
   setFulfillmentType: (type: 'parcel' | 'dine_in' | null) => void;
-  addItem: (product: ShopProduct, shop: Shop) => { success: boolean; requiresClear?: boolean };
+  addItem: (product: ShopProduct, shop: Shop) => { success: boolean; requiresClear?: boolean; error?: string };
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -43,7 +43,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem(CART_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return (parsed.items || []).map((item: CartItem) => ({
+        const rawItems: CartItem[] = parsed.items || [];
+        // Strict UUID sanitization: ignore any legacy mock items without valid UUID
+        const validItems = rawItems.filter((i) => i?.product?.id && isValidUuid(i.product.id));
+        return validItems.map((item: CartItem) => ({
           ...item,
           billed_quantity: item.billed_quantity || item.quantity,
         }));
@@ -59,11 +62,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem(CART_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        let shop: Shop | null = parsed.activeShop || null;
-        if (shop && LEGACY_SHOP_ID_MAP[shop.id]) {
-          shop = { ...shop, id: LEGACY_SHOP_ID_MAP[shop.id] };
+        const shop: Shop | null = parsed.activeShop || null;
+        // Strict UUID validation: do NOT silently convert or permit mock legacy IDs
+        if (shop && isValidUuid(shop.id)) {
+          return shop;
         }
-        return shop;
       }
     } catch {
       // ignore parse error
@@ -103,6 +106,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addItem = (product: ShopProduct, shop: Shop) => {
+    // Validate UUID safety for shop and product
+    if (!isValidUuid(shop.id) || !isValidUuid(product.id)) {
+      return {
+        success: false,
+        error: 'Invalid product or shop identifier. Please select from active verified shops.',
+      };
+    }
+
     // Prevent adding out of stock products
     if (!product.is_available) {
       return { success: false, error: 'Product is currently out of stock' };
@@ -239,7 +250,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!isValidUuid(activeShop.id)) {
           return {
             success: false,
-            error: 'The shop ID in your cart is invalid or outdated. Please clear your cart and select an active shop.',
+            error: 'The shop ID in your cart is invalid or outdated. Please clear your cart and select an active verified shop.',
+          };
+        }
+
+        const hasInvalidProductUuid = items.some((item) => !isValidUuid(item.product.id));
+        if (hasInvalidProductUuid) {
+          return {
+            success: false,
+            error: 'One or more items in your cart have invalid product identifiers. Please clear your cart and select an active verified shop.',
           };
         }
 

@@ -22,8 +22,12 @@
   align-items: center;
   justify-content: space-between;
   height: 100%;
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 0 var(--space-4, 16px);
   gap: var(--space-2, 8px);
-  min-width: 0;
+  box-sizing: border-box;
   position: relative;
 }
 
@@ -37,6 +41,7 @@
   gap: var(--space-2, 8px);
   flex-shrink: 0;
   min-width: 0;
+  z-index: 5;
 }
 
 .vaango-header__logo {
@@ -63,7 +68,7 @@
 }
 
 .vaango-header__logo-text {
-  font-size: 1.25rem;
+  font-size: 1.22rem;
   font-weight: var(--font-weight-extrabold, 800);
   color: var(--brand-primary, #0A7B83);
   letter-spacing: -0.02em;
@@ -105,6 +110,11 @@
   flex-shrink: 0;
 }
 
+.vaango-header__location-chevron {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
 .vaango-header__location-name {
   max-width: 85px;
   overflow: hidden;
@@ -114,6 +124,7 @@
 
 /* ==========================================================================
    CENTER ZONE: Desktop Navigation Links
+   Strictly non-bleeding flex container: items will never overflow into left/right zones
    ========================================================================== */
 
 .vaango-header__desktop-nav {
@@ -124,22 +135,23 @@
   .vaango-header__desktop-nav {
     display: flex;
     align-items: center;
-    gap: var(--space-3, 12px);
-    flex: 1 1 auto;
+    gap: 10px;
+    flex: 0 1 auto;
     min-width: 0;
-    justify-content: center;
-    padding: 0 4px;
+    overflow: hidden;
+    padding: 0 6px;
+    white-space: nowrap;
   }
 }
 
 @media (min-width: 1280px) {
   .vaango-header__desktop-nav {
-    gap: var(--space-4, 16px);
+    gap: 14px;
   }
 }
 
 .vaango-header__nav-link {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: var(--font-weight-semibold, 600);
   color: var(--color-text-secondary);
   text-decoration: none;
@@ -147,11 +159,12 @@
   padding: 6px 0;
   position: relative;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 @media (min-width: 1280px) {
   .vaango-header__nav-link {
-    font-size: var(--font-size-base, 1rem);
+    font-size: 0.94rem;
   }
 }
 
@@ -175,7 +188,18 @@
   border-radius: var(--radius-full, 9999px);
 }
 
-/* Open Your Shop CTA in Center Nav */
+/* Home Link: Only shown on screens >= 1320px because the Logo already navigates to home */
+.vaango-header__nav-link--home {
+  display: none;
+}
+
+@media (min-width: 1320px) {
+  .vaango-header__nav-link--home {
+    display: inline-block;
+  }
+}
+
+/* Open Your Shop CTA in Center Nav: Compact responsive label */
 .vaango-header__nav-link--business {
   color: var(--brand-accent, #F4A261);
   font-weight: var(--font-weight-bold, 700);
@@ -183,12 +207,26 @@
   border-radius: var(--radius-full, 9999px);
   background-color: var(--brand-accent-light, rgba(244, 162, 97, 0.12));
   transition: all var(--transition-fast, 150ms ease);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
+  flex-shrink: 0;
 }
 
-@media (min-width: 1280px) {
+.vaango-header__nav-business-short {
+  display: inline;
+}
+
+.vaango-header__nav-business-full {
+  display: none;
+}
+
+@media (min-width: 1360px) {
+  .vaango-header__nav-business-short {
+    display: none;
+  }
+  .vaango-header__nav-business-full {
+    display: inline;
+  }
   .vaango-header__nav-link--business {
-    font-size: var(--font-size-sm, 0.875rem);
     padding: 5px 12px;
   }
 }
@@ -198,17 +236,17 @@
   color: #FFFFFF;
 }
 
-/* Secondary Informational Links */
+/* Secondary Informational Links: Only on large desktop screens */
 .vaango-header__nav-link--info {
-  font-size: var(--font-size-sm, 0.875rem);
+  font-size: 0.84rem;
   color: var(--color-text-muted);
   opacity: 0.85;
+  display: none;
 }
 
-/* Hide secondary info links on screens below 1280px to prevent crowding */
-@media (max-width: 1279px) {
+@media (min-width: 1440px) {
   .vaango-header__nav-link--info {
-    display: none;
+    display: inline-block;
   }
 }
 
@@ -217,16 +255,17 @@
   opacity: 1;
 }
 
-/* DEV design tokens badge in center nav */
+/* DEV design tokens badge in center nav: only on wide screens */
 .vaango-header__nav-link--badge {
   display: none;
   align-items: center;
   gap: var(--space-1, 4px);
   color: var(--brand-accent);
   font-size: var(--font-size-xs, 0.75rem);
+  flex-shrink: 0;
 }
 
-@media (min-width: 1360px) {
+@media (min-width: 1480px) {
   .vaango-header__nav-link--badge {
     display: inline-flex;
   }
@@ -239,6 +278,7 @@
 
 /* ==========================================================================
    RIGHT ZONE: Actions, Language Toggle, Cart, Profile, Controls
+   Always pinned to the right edge with flex-shrink: 0; cannot be pushed off screen
    ========================================================================== */
 
 .vaango-header__actions {
@@ -257,8 +297,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-full, 9999px);
   background-color: var(--brand-primary-light, rgba(10, 123, 131, 0.08));
   color: var(--brand-primary, #0A7B83);
@@ -285,47 +325,47 @@
   line-height: 1;
 }
 
-/* DEV Persona Selector & Reset (Only shown on wide screens) */
-.vaango-header__role-pill {
-  position: relative;
+/* DEV Persona Tools: Hidden below 1400px so it never crowds customer/shopkeeper header controls */
+.vaango-header__dev-tools {
   display: none;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-@media (min-width: 1280px) {
-  .vaango-header__role-pill {
-    display: block;
+@media (min-width: 1400px) {
+  .vaango-header__dev-tools {
+    display: flex;
   }
 }
 
+.vaango-header__role-pill {
+  position: relative;
+}
+
 .vaango-header__role-select {
-  padding: 5px 8px;
+  padding: 4px 7px;
   border-radius: var(--radius-md, 6px);
   border: 1px solid var(--color-border);
   background-color: var(--color-surface-sunken);
   color: var(--color-text-primary);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: var(--font-weight-semibold, 600);
   cursor: pointer;
 }
 
 .vaango-header__reset-btn {
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: var(--radius-full, 9999px);
   background: var(--color-surface-hover);
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: all var(--transition-fast);
-}
-
-@media (min-width: 1280px) {
-  .vaango-header__reset-btn {
-    display: inline-flex;
-  }
 }
 
 .vaango-header__reset-btn:hover {
@@ -335,10 +375,17 @@
   transform: rotate(-45deg);
 }
 
+/* Two-Way Segmented Language Toggle Wrapper: Always pinned, never shrinks */
+.vaango-header__lang-toggle-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
 /* Theme Toggle Button */
 .vaango-header__theme-btn {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-full, 9999px);
   display: none;
   align-items: center;
@@ -396,13 +443,13 @@
   display: none;
   font-size: var(--font-size-sm, 0.875rem);
   font-weight: var(--font-weight-bold, 700);
-  max-width: 90px;
+  max-width: 85px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 820px) {
   .vaango-header__user-name {
     display: inline-block;
   }
@@ -423,7 +470,7 @@
   flex-shrink: 0;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 820px) {
   .vaango-header__logout-btn {
     display: inline-flex;
   }
@@ -453,7 +500,7 @@
   justify-content: center;
   padding: 6px 12px;
   border-radius: var(--radius-full, 9999px);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   font-weight: var(--font-weight-bold, 700);
   color: var(--color-text-primary);
   text-decoration: none;
@@ -470,11 +517,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 14px;
+  padding: 6px 13px;
   border-radius: var(--radius-full, 9999px);
   background-color: var(--brand-primary);
   color: #FFFFFF;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   font-weight: var(--font-weight-bold, 700);
   text-decoration: none;
   box-shadow: 0 2px 6px rgba(10, 123, 131, 0.2);
@@ -493,8 +540,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-md, 8px);
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
@@ -516,21 +563,33 @@
 }
 
 /* ==========================================================================
-   MOBILE & NARROW VIEWPORT OPTIMIZATIONS
+   MOBILE & NARROW VIEWPORT OPTIMIZATIONS (320px, 360px, 375px, 390px, 414px)
    ========================================================================== */
 
 @media (max-width: 640px) {
-  .vaango-header__role-pill,
-  .vaango-header__reset-btn {
-    display: none !important;
+  .vaango-header__inner {
+    padding: 0 10px;
+    gap: 6px;
+  }
+  .vaango-header__brand-group {
+    gap: 6px;
   }
   .vaango-header__location-btn {
     padding: 4px 7px;
-    max-width: 110px;
+    max-width: 105px;
     font-size: 11.5px;
   }
   .vaango-header__location-name {
-    max-width: 65px;
+    max-width: 58px;
+  }
+  .vaango-header__theme-btn {
+    display: none !important;
+  }
+  .vaango-header__user-name {
+    display: none !important;
+  }
+  .vaango-header__logout-btn {
+    display: none !important;
   }
   .vaango-header__actions {
     gap: 6px;
@@ -548,47 +607,48 @@
   }
   .vaango-header__location-btn {
     padding: 3px 6px;
-    max-width: 95px;
+    max-width: 92px;
     font-size: 11px;
     gap: 3px;
   }
   .vaango-header__location-name {
-    max-width: 55px;
+    max-width: 52px;
   }
   .vaango-header__hamburger-btn {
-    width: 36px;
-    height: 36px;
+    width: 35px;
+    height: 35px;
   }
   .vaango-header__cart-link {
-    width: 36px;
-    height: 36px;
+    width: 35px;
+    height: 35px;
   }
 }
 
-@media (max-width: 360px) {
+@media (max-width: 375px) {
   .vaango-header__inner {
+    padding: 0 6px;
     gap: 4px;
   }
   .vaango-header__brand-group {
-    gap: 5px;
+    gap: 4px;
   }
   .vaango-header__logo-icon {
     width: 32px;
     height: 32px;
+    font-size: 0.95rem;
   }
   .vaango-header__logo-text {
     font-size: 1.05rem;
   }
   .vaango-header__location-btn {
     padding: 2px 5px;
-    max-width: 75px;
+    max-width: 78px;
     font-size: 10.5px;
   }
   .vaango-header__location-name {
-    max-width: 42px;
+    max-width: 44px;
   }
-  /* Hide chevron icon to save 12px on 320px screens */
-  .vaango-header__location-btn svg:last-child {
+  .vaango-header__location-chevron {
     display: none;
   }
   .vaango-header__actions {
@@ -601,6 +661,39 @@
   .vaango-header__cart-link {
     width: 34px;
     height: 34px;
+  }
+}
+
+@media (max-width: 320px) {
+  .vaango-header__inner {
+    padding: 0 4px;
+    gap: 3px;
+  }
+  .vaango-header__brand-group {
+    gap: 3px;
+  }
+  .vaango-header__logo-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
+  }
+  .vaango-header__logo-text {
+    font-size: 0.95rem;
+  }
+  .vaango-header__location-btn {
+    padding: 2px 4px;
+    max-width: 68px;
+    font-size: 10px;
+  }
+  .vaango-header__location-name {
+    max-width: 36px;
+  }
+  .vaango-header__actions {
+    gap: 3px;
+  }
+  .vaango-header__hamburger-btn {
+    width: 32px;
+    height: 32px;
   }
 }
 

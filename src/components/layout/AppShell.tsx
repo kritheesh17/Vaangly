@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { BottomNav } from './BottomNav';
@@ -11,7 +12,16 @@ import { InstallPrompt } from './InstallPrompt';
 export const AppShell: React.FC = () => {
   const location = useLocation();
   const { role, isAuthenticated, isProfileComplete, isLoading } = useAuth();
+  const { itemCount, activeShop } = useCart();
   const [isSmallAdminViewport, setIsSmallAdminViewport] = useState(false);
+
+  const isCartBarVisible =
+    itemCount > 0 &&
+    Boolean(activeShop) &&
+    location.pathname !== '/cart' &&
+    !location.pathname.startsWith('/request-confirmation') &&
+    !location.pathname.startsWith('/shopkeeper') &&
+    !location.pathname.startsWith('/admin');
 
   useEffect(() => {
     if (!location.pathname.startsWith('/admin')) return;
@@ -44,8 +54,11 @@ export const AppShell: React.FC = () => {
       <Header />
       <InstallPrompt />
 
-      {/* Main Content Area */}
-      <main id="main-content" className="vaango-main-content">
+      {/* Main Content Area with safe bottom padding when CartBar is present */}
+      <main
+        id="main-content"
+        className={`vaango-main-content ${isCartBarVisible ? 'vaango-main-content--with-cart' : ''}`}
+      >
         {isSmallAdminViewport && (
           <div className="vaango-admin-size-notice" role="status">
             The admin panel is designed for larger screens; use a tablet or desktop for the best experience

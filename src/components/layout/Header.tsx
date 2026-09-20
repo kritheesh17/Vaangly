@@ -48,8 +48,8 @@ export const Header: React.FC = () => {
   return (
     <>
       <header className="vaango-header">
-        <div className="container vaango-header__inner">
-          {/* Logo & Hometown Tag */}
+        <div className="vaango-header__inner">
+          {/* LEFT: Logo & Location Selector */}
           <div className="vaango-header__brand-group">
             <Link
               to={
@@ -76,13 +76,13 @@ export const Header: React.FC = () => {
               onClick={() => setIsLocationModalOpen(true)}
               aria-label={`${t('location')}: ${selectedLocation.name}. ${t('changeLocation')}.`}
             >
-              <MapPin size={15} className="vaango-header__location-icon" />
+              <MapPin size={14} className="vaango-header__location-icon" />
               <span className="vaango-header__location-name">{selectedLocation.name}</span>
-              <ChevronDown size={13} />
+              <ChevronDown size={12} className="vaango-header__location-chevron" />
             </button>
           </div>
 
-          {/* Desktop Navigation Links */}
+          {/* CENTER: Desktop Navigation Links */}
           <nav className="vaango-header__desktop-nav" aria-label="Main Navigation">
             {role === 'admin' ? (
               <>
@@ -104,7 +104,7 @@ export const Header: React.FC = () => {
               <>
                 <Link
                   to="/"
-                  className={`vaango-header__nav-link ${location.pathname === '/' && !location.hash ? 'vaango-header__nav-link--active' : ''}`}
+                  className={`vaango-header__nav-link vaango-header__nav-link--home ${location.pathname === '/' && !location.hash ? 'vaango-header__nav-link--active' : ''}`}
                 >
                   {t('navHome')}
                 </Link>
@@ -130,7 +130,8 @@ export const Header: React.FC = () => {
                   to="/shopkeeper/apply"
                   className="vaango-header__nav-link vaango-header__nav-link--business"
                 >
-                  {t('navOpenShop')}
+                  <span className="vaango-header__nav-business-full">{t('navOpenShop')}</span>
+                  <span className="vaango-header__nav-business-short">{t('navOpenShopShort')}</span>
                 </Link>
                 <a href="/#how-it-works" className="vaango-header__nav-link vaango-header__nav-link--info">
                   {t('navHowItWorks')}
@@ -142,13 +143,13 @@ export const Header: React.FC = () => {
             )}
             {import.meta.env.DEV && (
               <Link to="/design-system" className="vaango-header__nav-link vaango-header__nav-link--badge" title="Design tokens showcase">
-                <Sparkles size={15} />
+                <Sparkles size={14} />
                 <span>{t('navTokens')}</span>
               </Link>
             )}
           </nav>
 
-          {/* Controls & Actions */}
+          {/* RIGHT: Actions, Language Toggle, Cart, Profile, Controls */}
           <div className="vaango-header__actions">
             {/* Operational Notifications */}
             {user && <NotificationBell />}
@@ -156,13 +157,14 @@ export const Header: React.FC = () => {
             {/* Header Cart Icon if items > 0 */}
             {itemCount > 0 && (
               <Link to="/cart" className="vaango-header__cart-link" aria-label={t('itemsInCart', { count: itemCount })} onClick={closeMobileMenu}>
-                <ShoppingBag size={20} />
+                <ShoppingBag size={19} />
                 <span className="vaango-header__cart-badge">{itemCount}</span>
               </Link>
             )}
 
+            {/* DEV Role Selector & Reset (Only on ultra-wide screens >= 1400px) */}
             {import.meta.env.DEV && (
-              <>
+              <div className="vaango-header__dev-tools">
                 <div className="vaango-header__role-pill" title="Active persona (Customer / Shopkeeper / Admin)">
                   <select
                     value={role || 'customer'}
@@ -182,13 +184,15 @@ export const Header: React.FC = () => {
                   title={t('restoreSampleBtn')}
                   aria-label={t('restoreSampleBtn')}
                 >
-                  <RotateCcw size={15} />
+                  <RotateCcw size={14} />
                 </button>
-              </>
+              </div>
             )}
 
-            {/* Two-Way Segmented Language Toggle (EN | தமிழ்) */}
-            <LanguageToggle size="sm" />
+            {/* Two-Way Segmented Language Toggle (EN | தமிழ்) - ALWAYS PINNED TOP-RIGHT */}
+            <div className="vaango-header__lang-toggle-wrap">
+              <LanguageToggle size="sm" />
+            </div>
 
             {/* Theme Toggle Button */}
             <button
@@ -198,7 +202,7 @@ export const Header: React.FC = () => {
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
 
             {/* Auth Profile / Login & Get Started Buttons */}
@@ -206,7 +210,7 @@ export const Header: React.FC = () => {
               <div className="vaango-header__user-wrap">
                 <Link to="/profile" className="vaango-header__profile-link" aria-label="View user profile" onClick={closeMobileMenu}>
                   <div className="vaango-header__user-avatar">
-                    <User size={17} />
+                    <User size={16} />
                   </div>
                   <span className="vaango-header__user-name">{user.full_name?.split(' ')[0] || t('profile')}</span>
                 </Link>
@@ -239,7 +243,7 @@ export const Header: React.FC = () => {
               aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={isMobileMenuOpen}
             >
-              {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+              {isMobileMenuOpen ? <X size={21} /> : <Menu size={21} />}
             </button>
           </div>
         </div>

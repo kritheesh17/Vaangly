@@ -34,7 +34,7 @@ import './HomePage.css';
 export const HomePage: React.FC = () => {
   const { selectedLocation, setIsLocationModalOpen } = useLocationContext();
   const { addItem } = useCart();
-  const { success } = useToast();
+  const { success, error: toastError } = useToast();
   const { t, language } = useLanguage();
   const navigate = useNavigate();
 
@@ -59,10 +59,17 @@ export const HomePage: React.FC = () => {
     setSelectedVariants((prev) => ({ ...prev, [productId]: variant }));
   };
 
-  const handleQuickAdd = (id: string, name: string, price: number, shopName: string, imageUrl: string) => {
+  const handleQuickAdd = (
+    id: string,
+    name: string,
+    price: number,
+    shopId: string,
+    shopName: string,
+    imageUrl: string
+  ) => {
     const variant = selectedVariants[id];
     const demoShop: Shop = {
-      id: '30000000-0000-0000-0000-000000000001',
+      id: shopId,
       owner_id: 's2222222-0000-0000-0000-000000000003',
       shop_type_id: '0f56b1ab-c358-4638-bf0c-4b510a15482f',
       location_id: selectedLocation.id,
@@ -74,7 +81,7 @@ export const HomePage: React.FC = () => {
       is_live: true,
       delivery_available: true,
       delivery_fee: 20,
-      upi_id: 'greenmart@upi',
+      upi_id: 'merchant@upi',
       gps_lat: 11.0048,
       gps_lng: 77.5829,
       photo_url: imageUrl,
@@ -95,8 +102,14 @@ export const HomePage: React.FC = () => {
       image_url: imageUrl,
       created_at: new Date().toISOString(),
     };
-    addItem(demoProduct, demoShop);
-    success(t('addedToCart', { product: name }));
+    const res = addItem(demoProduct, demoShop);
+    if (res.success) {
+      success(t('addedToCart', { product: name }));
+    } else if (res.requiresClear) {
+      toastError(language === 'ta' ? 'உங்கள் கூடையில் வேறு கடையின் பொருட்கள் உள்ளன. அதை முடித்தபின் புதிய கடையைத் தொடங்குங்கள்.' : 'Your cart contains items from another shop. Please finish or clear your existing order.');
+    } else if (res.error) {
+      toastError(res.error);
+    }
   };
 
   const businessCategories = [
@@ -198,40 +211,44 @@ export const HomePage: React.FC = () => {
 
   const featuredProducts = [
     {
-      id: 'prod-milk',
-      name: 'Farm Fresh Pure Milk',
+      id: '40000000-0000-0000-0000-000000000001',
+      name: 'Country Tomatoes (நாட்டு தக்காளி)',
       shop: 'Green Mart Provisions',
-      price: 45,
-      variants: ['500 ml', '1 L'],
+      shopId: '30000000-0000-0000-0000-000000000001',
+      price: 32,
+      variants: ['500 g', '1 kg'],
       isAvailable: true,
-      image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=600&auto=format&fit=crop&q=80',
+      image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&auto=format&fit=crop&q=80',
     },
     {
-      id: 'prod-sambar',
-      name: 'Stone-Ground Sambar Powder',
-      shop: 'Kaveri Organic Spices',
-      price: 110,
-      variants: ['250 g', '500 g'],
+      id: '40000000-0000-0000-0000-000000000002',
+      name: 'Small Shallots (சின்ன வெங்காயம்)',
+      shop: 'Green Mart Provisions',
+      shopId: '30000000-0000-0000-0000-000000000001',
+      price: 58,
+      variants: ['500 g', '1 kg'],
       isAvailable: true,
-      image: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=600&auto=format&fit=crop&q=80',
+      image: 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=600&auto=format&fit=crop&q=80',
     },
     {
-      id: 'prod-bread',
-      name: 'Artisan Whole Wheat Bread',
+      id: '40000000-0000-0000-0000-000000000007',
+      name: 'Fresh Butter Milk Bread (ரொட்டி)',
       shop: 'Crown Bakery & Sweets',
-      price: 40,
+      shopId: '30000000-0000-0000-0000-000000000002',
+      price: 45,
       variants: ['Standard', 'Large'],
       isAvailable: true,
       image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=80',
     },
     {
-      id: 'prod-eggs',
-      name: 'Organic Country Eggs (Pack of 6)',
-      shop: 'Green Mart Provisions',
-      price: 65,
+      id: '40000000-0000-0000-0000-000000000008',
+      name: 'Crispy Veg Puff (காய்கறி பப்ஸ்)',
+      shop: 'Crown Bakery & Sweets',
+      shopId: '30000000-0000-0000-0000-000000000002',
+      price: 20,
       variants: [],
       isAvailable: true,
-      image: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=600&auto=format&fit=crop&q=80',
+      image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=600&auto=format&fit=crop&q=80',
     },
   ];
 
@@ -674,7 +691,7 @@ export const HomePage: React.FC = () => {
                     <button
                       type="button"
                       className="vaangly-product-card__add-btn"
-                      onClick={() => handleQuickAdd(prod.id, prod.name, prod.price, prod.shop, prod.image)}
+                      onClick={() => handleQuickAdd(prod.id, prod.name, prod.price, prod.shopId, prod.shop, prod.image)}
                       aria-label={`${t('addToCart')} ${prod.name}`}
                     >
                       <Plus size={16} />
