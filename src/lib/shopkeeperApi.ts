@@ -69,6 +69,7 @@ const saveMockProducts = (shopId: string, products: ShopProduct[]) => {
 export const getShopkeeperShop = async (ownerId: string): Promise<Shop | null> => {
   if (isSupabaseConfigured) {
     try {
+      // 1. Direct query by owner_id
       const { data, error } = await supabase
         .from('shops')
         .select('*')
@@ -78,12 +79,37 @@ export const getShopkeeperShop = async (ownerId: string): Promise<Shop | null> =
       if (!error && data) {
         return data as Shop;
       }
+
+      // 2. If no shop record exists yet, check if the user has an approved shop application
+      const { data: approvedApp } = await supabase
+        .from('shop_applications')
+        .select('id, status')
+        .eq('applicant_id', ownerId)
+        .eq('status', 'approved')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (approvedApp) {
+        // Auto-provision the approved shop record via atomic RPC
+        const { data: provisionedList, error: rpcError } = await supabase
+          .rpc('provision_shop_for_approved_applicant', { p_applicant_id: ownerId });
+
+        if (!rpcError && provisionedList && provisionedList.length > 0) {
+          return provisionedList[0] as Shop;
+        }
+      }
+
+      // In Supabase mode, do not bind authenticated users to a mock shop
+      // because writing to an unowned shop ID violates database RLS policies.
+      return null;
     } catch (err) {
       console.error('Supabase getShopkeeperShop error:', err);
+      return null;
     }
   }
 
-  // Fallback: match in stored mock shops
+  // Pure offline / mock fallback
   const allShops = getStoredMockShops();
   let found = allShops.find((s) => s.owner_id === ownerId);
   if (!found) {
