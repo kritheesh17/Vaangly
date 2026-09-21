@@ -222,7 +222,7 @@ export const DICTIONARY = {
     enterPasswordPrompt: 'Please enter your password.',
     enterNamePrompt: 'Please enter your full name.',
     validPhonePrompt: 'Please enter a valid 10-digit mobile phone number.',
-    fullAddressPrompt: 'Please enter your full delivery address in Kangeyam.',
+    fullAddressPrompt: 'Please enter your full delivery address (Door No, Street, Area, Town, Pincode).',
     emailVerifiedRedirect: 'Email verified! Redirecting you now...',
     emailNotDetectedYet: 'Email confirmation is not detected yet. Please click the link sent to your email or click Resend below.',
     passwordUpdatedSuccess: 'Your password has been updated successfully. Redirecting you now...',

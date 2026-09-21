@@ -10,6 +10,10 @@ import {
   Save,
   User,
   ShieldCheck,
+  Lock,
+  KeyRound,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Shop, ShopSubscription, TimeRange } from '../../types/database';
@@ -20,6 +24,7 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { Checkbox } from '../../components/ui/Checkbox';
 import { TimePicker12h } from '../../components/ui/TimePicker12h';
 import { useToast } from '../../context/ToastContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -29,7 +34,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import './ShopkeeperProfilePage.css';
 
 export const ShopkeeperProfilePage: React.FC = () => {
-  const { user, signOut, switchDemoRole } = useAuth();
+  const { user, signOut, switchDemoRole, updatePassword } = useAuth();
   const navigate = useNavigate();
   const { success, error: toastError } = useToast();
   const { t } = useLanguage();
@@ -54,6 +59,36 @@ export const ShopkeeperProfilePage: React.FC = () => {
   const [timeRanges, setTimeRanges] = useState<TimeRange[]>([{ id: 'range-1', start: '09:00', end: '17:00', concurrent: 1 }]);
   const [upiQrFile, setUpiQrFile] = useState<File | null>(null);
   const [customisedCakeAvailable, setCustomisedCakeAvailable] = useState(false);
+
+  // Security & Password states
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordFeedback, setPasswordFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordFeedback(null);
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordFeedback({ type: 'error', message: 'Password must be at least 6 characters long.' });
+      return;
+    }
+    setIsUpdatingPassword(true);
+    try {
+      const res = await updatePassword(newPassword);
+      if (res.success) {
+        setPasswordFeedback({ type: 'success', message: 'Password updated successfully!' });
+        setNewPassword('');
+      } else {
+        setPasswordFeedback({ type: 'error', message: res.error || 'Failed to update password.' });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error updating password';
+      setPasswordFeedback({ type: 'error', message: msg });
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
 
   useEffect(() => {
     async function loadShop() {
@@ -512,6 +547,71 @@ export const ShopkeeperProfilePage: React.FC = () => {
             No active subscription record found for your storefront.
           </p>
         )}
+      </Card>
+
+      {/* Security & Password */}
+      <Card variant="default" padding="lg" className="vaango-settings-card mt-6">
+        <div className="vaango-settings-card__header">
+          <Lock size={20} className="text-primary" />
+          <h2 className="vaango-settings-card__title">Security & Password</h2>
+        </div>
+        <p className="vaango-settings-card__desc">
+          Update your merchant account password to sign in directly with email.
+        </p>
+
+        <form onSubmit={handleUpdatePassword} style={{ marginTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          {passwordFeedback && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 12px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 'var(--font-size-xs)',
+                backgroundColor: passwordFeedback.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                color: passwordFeedback.type === 'success' ? 'var(--color-success, #16a34a)' : 'var(--color-error, #dc2626)',
+                border: `1px solid ${passwordFeedback.type === 'success' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+              }}
+            >
+              {passwordFeedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+              <span>{passwordFeedback.message}</span>
+            </div>
+          )}
+
+          <div>
+            <Input
+              id="shopkeeper-new-password"
+              type={showPassword ? 'text' : 'password'}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter new password (min 6 characters)"
+              leftIcon={<KeyRound size={18} />}
+              disabled={isUpdatingPassword}
+            />
+          </div>
+
+          <div style={{ marginTop: '2px' }}>
+            <Checkbox
+              id="shopkeeper-show-password"
+              label="Show password"
+              checked={showPassword}
+              onChange={(e) => setShowPassword(e.target.checked)}
+              disabled={isUpdatingPassword}
+            />
+          </div>
+
+          <Button
+            type="submit"
+            variant="outline"
+            size="md"
+            isLoading={isUpdatingPassword}
+            disabled={!newPassword || newPassword.length < 6}
+            style={{ alignSelf: 'flex-start' }}
+          >
+            Update Password
+          </Button>
+        </form>
       </Card>
 
       {/* Account & Role Switcher */}

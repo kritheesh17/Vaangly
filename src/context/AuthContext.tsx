@@ -600,15 +600,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           full_name: cleanName,
           phone: cleanPhone,
           address: cleanAddress,
+          preferred_location_id: user?.preferred_location_id || '10000000-0000-0000-0000-000000000004',
           updated_at: new Date().toISOString(),
         })
         .eq('id', authenticatedUserId);
 
       if (profileError) {
         console.error('[Profile] Failed to update public.profiles:', profileError.message);
+        let msg = profileError.message || 'Failed to update profile in database.';
+        if (msg.includes('Failed to fetch') || msg.includes('network')) {
+          msg = 'Unable to connect to database. Please check your internet connection and try again.';
+        }
         return {
           success: false,
-          error: profileError.message || 'Failed to update profile in database.',
+          error: msg,
         };
       }
 
@@ -633,7 +638,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { success: true };
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to update profile';
+      let message = err instanceof Error ? err.message : 'Failed to update profile';
+      if (message.includes('Failed to fetch') || message.includes('network') || message.includes('NetworkError')) {
+        message = 'Unable to connect to database. Please check your internet connection and try again.';
+      }
       return { success: false, error: message };
     } finally {
       setIsLoading(false);

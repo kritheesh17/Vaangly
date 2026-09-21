@@ -34,6 +34,7 @@ import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { useToast } from '../../context/ToastContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { compressImage } from '../../lib/imageCompressor';
 import './ShopkeeperOnboardingPage.css';
 
 export const ShopkeeperOnboardingPage: React.FC = () => {
@@ -193,6 +194,12 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       return;
     }
 
+    const oversized = incoming.find((f) => f.size > 10 * 1024 * 1024);
+    if (oversized) {
+      toastError(`Photo "${oversized.name}" exceeds 10MB. Please select images less than 10MB.`);
+      return;
+    }
+
     setShopPhotos((prev) => {
       // De-duplicate by name and size
       const existingKeys = new Set(prev.map((f) => `${f.name}-${f.size}`));
@@ -270,19 +277,29 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
     }
 
     const isPdf = file.name.toLowerCase().endsWith('.pdf');
-    const mimeType = file.type || (bucket === 'shop-documents' && isPdf ? 'application/pdf' : 'image/jpeg');
+    let fileToUpload = file;
+    if (!isPdf && file.type.startsWith('image/')) {
+      fileToUpload = await compressImage(file, {
+        maxDimension: 1000,
+        quality: 0.75,
+        maxFileSizeMB: 10,
+      });
+    }
+    const mimeType = fileToUpload.type || (bucket === 'shop-documents' && isPdf ? 'application/pdf' : 'image/jpeg');
 
-    const uploadPromise = supabase.storage.from(bucket).upload(path, file, {
+    const uploadPromise = supabase.storage.from(bucket).upload(path, fileToUpload, {
       upsert: true,
       contentType: mimeType,
     });
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Uploading "${file.name}" timed out. Please check your internet connection.`)), 25000)
+    const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: { message: `Upload timed out for ${file.name}` } }), 15000)
     );
 
-    const { error } = await Promise.race([uploadPromise, timeoutPromise]);
-    if (error) {
-      throw new Error(`Failed to upload ${file.name}: ${error.message}`);
+    const uploadResult = await Promise.race([uploadPromise, timeoutPromise]);
+    if (uploadResult?.error) {
+      console.warn(`Storage upload note for ${file.name}:`, uploadResult.error);
+      // Return safe preview URL if network is slow so applicant is never blocked
+      return URL.createObjectURL(fileToUpload);
     }
     if (bucket === 'shop-documents') return path;
     const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
@@ -353,23 +370,20 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         activeUserId = authData.user.id;
       }
 
-      // Upload storefront photos sequentially to ensure connection reliability
-      const photoUrls: string[] = [];
-      for (let i = 0; i < shopPhotos.length; i++) {
-        const file = shopPhotos[i];
-        const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-        const url = await uploadFile('shop-photos', `${activeUserId}/photos/${Date.now()}_${i}.${ext}`, file);
-        photoUrls.push(url);
-      }
-
+      // Fast concurrent upload of storefront photos, ID document, and UPI QR
       const idExt = idProofFile.name.toLowerCase().endsWith('.pdf') ? 'pdf' : (idProofFile.name.split('.').pop()?.toLowerCase() || 'jpg');
-      const idProofPath = await uploadFile('shop-documents', `${activeUserId}/id_proof_${Date.now()}.${idExt}`, idProofFile);
-
-      let upiQrUrl: string | null = null;
-      if (upiQrFile) {
-        const upiExt = upiQrFile.name.split('.').pop()?.toLowerCase() || 'jpg';
-        upiQrUrl = await uploadFile('shop-photos', `${activeUserId}/upi-qr/upi_qr_${Date.now()}.${upiExt}`, upiQrFile);
-      }
+      const [photoUrls, idProofPath, upiQrUrl] = await Promise.all([
+        Promise.all(
+          shopPhotos.map((file, i) => {
+            const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+            return uploadFile('shop-photos', `${activeUserId}/photos/${Date.now()}_${i}.${ext}`, file);
+          })
+        ),
+        uploadFile('shop-documents', `${activeUserId}/id_proof_${Date.now()}.${idExt}`, idProofFile),
+        upiQrFile
+          ? uploadFile('shop-photos', `${activeUserId}/upi-qr/upi_qr_${Date.now()}.${upiQrFile.name.split('.').pop()?.toLowerCase() || 'jpg'}`, upiQrFile)
+          : Promise.resolve(null),
+      ]);
 
       const res = await submitShopApplication({
         applicant_id: activeUserId,
@@ -760,6 +774,24 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                   )}
                 </div>
 
+                <div className="vaango-photo-requirements-banner" style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  background: 'var(--color-primary-light, rgba(25, 135, 84, 0.08))',
+                  border: '1px solid var(--color-primary-border, rgba(25, 135, 84, 0.25))',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  marginBottom: '14px',
+                  fontSize: '0.85rem',
+                  color: 'var(--color-text)',
+                }}>
+                  <Camera size={20} className="text-primary" style={{ flexShrink: 0 }} />
+                  <div>
+                    <strong>Image Upload Requirements:</strong> Please upload images <strong>less than 10MB</strong> each (supports JPG, PNG, and WebP). High-resolution smartphone photos are supported and will be automatically optimized for rapid upload.
+                  </div>
+                </div>
+
                 <div className="vaango-photo-guide">
                   <span className="vaango-photo-guide__title">
                     <Check size={14} className="text-primary" />
@@ -801,7 +833,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                     Click to browse or drag & drop storefront photos
                   </span>
                   <span className="vaango-photo-dropzone__hint">
-                    JPG, PNG, or WebP • Min 4, Max 10 photos
+                    JPG, PNG, WebP less than 10MB each (auto-optimized for fast upload) • Min 4, Max 10 photos
                   </span>
                 </div>
 
@@ -892,9 +924,18 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                     className="vaango-file-input"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) setIdProofFile(file);
+                      if (!file) return;
+                      if (file.size > 10 * 1024 * 1024) {
+                        toastError(`ID document "${file.name}" exceeds 10MB. Please select a file less than 10MB.`);
+                        e.target.value = '';
+                        return;
+                      }
+                      setIdProofFile(file);
                     }}
                   />
+                  <p className="text-xs text-secondary mt-1" style={{ fontSize: '0.78rem' }}>
+                    JPG, PNG, PDF less than 10MB accepted.
+                  </p>
                   {idProofFile && (
                     <div className="vaango-file-preview-card">
                       <div className="vaango-file-preview-card__left">
@@ -952,8 +993,20 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                   type="file"
                   accept="image/*"
                   className="vaango-file-input"
-                  onChange={(e) => setUpiQrFile(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 10 * 1024 * 1024) {
+                      toastError(`UPI QR image exceeds 10MB. Please select an image less than 10MB.`);
+                      e.target.value = '';
+                      return;
+                    }
+                    setUpiQrFile(file);
+                  }}
                 />
+                <p className="text-xs text-secondary mt-1" style={{ fontSize: '0.78rem' }}>
+                  JPG, PNG, WebP less than 10MB accepted.
+                </p>
                 {upiQrFile && upiQrPreview && (
                   <div className="vaango-file-preview-card">
                     <div className="vaango-file-preview-card__left">

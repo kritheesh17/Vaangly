@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { User, Lock, Mail, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, KeyRound } from 'lucide-react';
+import { User, Lock, Mail, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { FormField } from '../../components/ui/FormField';
+import { Checkbox } from '../../components/ui/Checkbox';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import './Auth.css';
 
@@ -42,6 +43,8 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -434,17 +437,34 @@ export const LoginPage: React.FC = () => {
             <FormField id="signin-password" label={t('passwordLabel')} required>
               <Input
                 id="signin-password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 leftIcon={<Lock size={18} />}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'inherit' }}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
               />
             </FormField>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', marginBottom: '8px' }}>
+              <Checkbox
+                id="signin-show-password"
+                label="Show password"
+                checked={showPassword}
+                onChange={(e) => setShowPassword(e.target.checked)}
+              />
               <button
                 type="button"
                 className="vaango-auth-link"
@@ -564,28 +584,62 @@ export const LoginPage: React.FC = () => {
             <FormField id="signup-password" label={t('passwordLabel')} required hint={t('passwordMinHint')}>
               <Input
                 id="signup-password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('passwordMinHint')}
                 leftIcon={<Lock size={18} />}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'inherit' }}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
               />
             </FormField>
 
             <FormField id="signup-confirm-password" label={t('confirmPasswordLabel')} required>
               <Input
                 id="signup-confirm-password"
-                type="password"
+                type={showConfirmPassword ? 'text' : 'password'}
                 required
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder={t('confirmPasswordLabel')}
                 leftIcon={<Lock size={18} />}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'inherit' }}
+                    title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
               />
             </FormField>
+
+            <div style={{ marginTop: '4px', marginBottom: '8px' }}>
+              <Checkbox
+                id="signup-show-password"
+                label="Show password"
+                checked={showPassword && showConfirmPassword}
+                onChange={(e) => {
+                  setShowPassword(e.target.checked);
+                  setShowConfirmPassword(e.target.checked);
+                }}
+              />
+            </div>
 
             <Button
               type="submit"
@@ -711,28 +765,62 @@ export const LoginPage: React.FC = () => {
             <FormField id="recovery-password" label={t('passwordLabel')} required hint={t('passwordMinHint')}>
               <Input
                 id="recovery-password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('passwordMinHint')}
                 leftIcon={<Lock size={18} />}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'inherit' }}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
               />
             </FormField>
 
             <FormField id="recovery-confirm-password" label={t('confirmPasswordLabel')} required>
               <Input
                 id="recovery-confirm-password"
-                type="password"
+                type={showConfirmPassword ? 'text' : 'password'}
                 required
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder={t('confirmPasswordLabel')}
                 leftIcon={<Lock size={18} />}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'inherit' }}
+                    title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
               />
             </FormField>
+
+            <div style={{ marginTop: '4px', marginBottom: '8px' }}>
+              <Checkbox
+                id="recovery-show-password"
+                label="Show password"
+                checked={showPassword && showConfirmPassword}
+                onChange={(e) => {
+                  setShowPassword(e.target.checked);
+                  setShowConfirmPassword(e.target.checked);
+                }}
+              />
+            </div>
 
             <Button
               type="submit"

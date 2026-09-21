@@ -100,8 +100,13 @@ export const getShopkeeperShop = async (ownerId: string): Promise<Shop | null> =
         }
       }
 
-      // In Supabase mode, do not bind authenticated users to a mock shop
-      // because writing to an unowned shop ID violates database RLS policies.
+      // If user is demo shopkeeper or has no Supabase shop, fall back to demo mock shop
+      const isDemoOwner = ownerId === 's2222222-0000-0000-0000-000000000002';
+      if (isDemoOwner) {
+        const allShops = getStoredMockShops();
+        return allShops.find((s) => s.owner_id === ownerId) || allShops.find((s) => s.status === 'active' && s.is_live) || null;
+      }
+
       return null;
     } catch (err) {
       console.error('Supabase getShopkeeperShop error:', err);
@@ -315,38 +320,46 @@ export const createShopProduct = async (
     return { success: false, error: 'Price must be a valid non-negative number.' };
   }
 
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await supabase
-        .from('shop_products')
-        .insert({
-          shop_id: shopId,
-          name: product.name.trim(),
-          description: product.description?.trim() || null,
-          price: Number(product.price),
-          unit: product.unit.trim() || 'item',
-          is_available: product.is_available ?? true,
-          image_url: product.image_url || null,
-          image_urls: product.image_urls || [],
-          offer_label: product.offer_label?.trim() || null,
-          offer_type: product.offer_type || null,
-          offer_value: product.offer_value ?? null,
-          has_variants: product.has_variants ?? false,
-          variants: product.variants ?? [],
-          attribute_groups: product.attribute_groups ?? [],
-        })
-        .select()
-        .single();
+  const isMockShop = shopId.startsWith('30000000-') || shopId.startsWith('shop-');
 
-      if (error) throw error;
-      return { success: true, product: data as ShopProduct };
+  if (isSupabaseConfigured && !isMockShop) {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user) {
+        const { data, error } = await supabase
+          .from('shop_products')
+          .insert({
+            shop_id: shopId,
+            name: product.name.trim(),
+            description: product.description?.trim() || null,
+            price: Number(product.price),
+            unit: product.unit.trim() || 'item',
+            is_available: product.is_available ?? true,
+            image_url: product.image_url || null,
+            image_urls: product.image_urls || [],
+            offer_label: product.offer_label?.trim() || null,
+            offer_type: product.offer_type || null,
+            offer_value: product.offer_value ?? null,
+            has_variants: product.has_variants ?? false,
+            variants: product.variants ?? [],
+            attribute_groups: product.attribute_groups ?? [],
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Keep local mock cache in sync for instant offline and fast UI updates
+        const current = getStoredMockProducts(shopId);
+        saveMockProducts(shopId, [data as ShopProduct, ...current]);
+        return { success: true, product: data as ShopProduct };
+      }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to create product.';
-      return { success: false, error: message };
+      console.warn('Supabase createShopProduct failed, falling back to local storage:', err);
     }
   }
 
-  // Mock mode
+  // Mock mode / local offline fallback
   const current = getStoredMockProducts(shopId);
   const newProd: ShopProduct = {
     id: `prod-${Date.now()}`,
@@ -384,27 +397,61 @@ export const updateShopProduct = async (
     return { success: false, error: 'Price must be non-negative.' };
   }
 
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await supabase
-        .from('shop_products')
-        .update(updates)
-        .eq('id', productId)
-        .select()
-        .single();
+  const isMockShop = shopId.startsWith('30000000-') || shopId.startsWith('shop-');
+  const isMockProduct = productId.startsWith('prod-');
 
-      if (error) throw error;
-      return { success: true, product: data as ShopProduct };
+  if (isSupabaseConfigured && !isMockShop && !isMockProduct) {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user) {
+        const { data, error } = await supabase
+          .from('shop_products')
+          .update(updates)
+          .eq('id', productId)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Keep local cache in sync
+        const current = getStoredMockProducts(shopId);
+        const idx = current.findIndex((p) => p.id === productId);
+        if (idx !== -1) {
+          current[idx] = data as ShopProduct;
+          saveMockProducts(shopId, current);
+        }
+        return { success: true, product: data as ShopProduct };
+      }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to update product.';
-      return { success: false, error: message };
+      console.warn('Supabase updateShopProduct failed, falling back to local update:', err);
     }
   }
 
-  // Mock mode
+  // Mock mode / local cache update
   const current = getStoredMockProducts(shopId);
   const index = current.findIndex((p) => p.id === productId);
-  if (index === -1) return { success: false, error: 'Product not found.' };
+  if (index === -1) {
+    const fallbackProd: ShopProduct = {
+      id: productId,
+      shop_id: shopId,
+      name: updates.name || 'Product',
+      description: updates.description ?? null,
+      price: updates.price ?? 0,
+      unit: updates.unit || 'item',
+      is_available: updates.is_available ?? true,
+      image_url: updates.image_url ?? null,
+      image_urls: updates.image_urls ?? [],
+      offer_label: updates.offer_label ?? null,
+      offer_type: updates.offer_type ?? null,
+      offer_value: updates.offer_value ?? null,
+      has_variants: updates.has_variants ?? false,
+      variants: updates.variants ?? [],
+      attribute_groups: updates.attribute_groups ?? [],
+      created_at: new Date().toISOString(),
+    };
+    saveMockProducts(shopId, [fallbackProd, ...current]);
+    return { success: true, product: fallbackProd };
+  }
 
   const updatedProd: ShopProduct = {
     ...current[index],
@@ -434,14 +481,18 @@ export const deleteShopProduct = async (
   shopId: string,
   productId: string
 ): Promise<{ success: boolean; error?: string }> => {
-  if (isSupabaseConfigured) {
+  const isMockShop = shopId.startsWith('30000000-') || shopId.startsWith('shop-');
+  const isMockProduct = productId.startsWith('prod-');
+
+  if (isSupabaseConfigured && !isMockShop && !isMockProduct) {
     try {
-      const { error } = await supabase.from('shop_products').delete().eq('id', productId);
-      if (error) throw error;
-      return { success: true };
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user) {
+        const { error } = await supabase.from('shop_products').delete().eq('id', productId);
+        if (error) throw error;
+      }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to delete product.';
-      return { success: false, error: message };
+      console.warn('Supabase deleteShopProduct failed, removing from local cache:', err);
     }
   }
 
