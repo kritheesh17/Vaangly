@@ -96,23 +96,31 @@ export function mapSupabaseAuthError(err: unknown, defaultMessage = 'Unable to v
   if (msg.includes('rate') || msg.includes('429') || msg.includes('too many') || msg.includes('over_email_send_rate_limit')) {
     return 'Too many attempts. Please wait and try again.';
   }
-  if (msg.includes('expired') || msg.includes('otp_expired')) {
-    return 'This verification code has expired. Request a new code.';
-  }
-  if (msg.includes('invalid') || msg.includes('token') || msg.includes('incorrect') || msg.includes('invalid_grant')) {
-    return 'That verification code is invalid or has expired. Request a new code.';
+  if (
+    msg.includes('invalid login credentials') ||
+    msg.includes('invalid_credentials') ||
+    msg.includes('invalid username or password') ||
+    msg.includes('invalid email or password')
+  ) {
+    return 'Incorrect email or password. Please check your credentials and try again.';
   }
   if (msg.includes('email not confirmed') || msg.includes('not confirmed') || msg.includes('email_not_confirmed')) {
     return 'Your email address has not been verified yet. Please check your inbox or request a new verification email.';
   }
-  if (msg.includes('invalid login credentials') || msg.includes('invalid_credentials')) {
-    return 'Incorrect email or password. Please check your credentials and try again.';
+  if (msg.includes('user not found')) {
+    return 'No account found with this email address.';
   }
   if (msg.includes('user already registered') || msg.includes('already registered')) {
     return 'An account with this email already exists. Please sign in instead.';
   }
   if (msg.includes('already') && (msg.includes('confirmed') || msg.includes('verified'))) {
     return 'This email address is already verified. You can sign in.';
+  }
+  if (msg.includes('expired') || msg.includes('otp_expired')) {
+    return 'This verification code has expired. Request a new code.';
+  }
+  if (msg.includes('otp') || msg.includes('token') || msg.includes('verification code') || msg.includes('pkce') || msg.includes('invalid_grant')) {
+    return 'That verification code is invalid or has expired. Request a new code.';
   }
   if (msg.includes('network') || msg.includes('fetch') || msg.includes('connection') || msg.includes('offline')) {
     return 'Unable to connect to the authentication service. Please check your internet connection.';

@@ -32,6 +32,18 @@ export const ADMIN_AUDIT_LOGS_KEY = 'vaango_admin_audit_logs';
 export const DEMO_APPLICATIONS_KEY = 'vaango_demo_applications';
 export const DEMO_REQUESTS_KEY = 'vaango_demo_requests';
 
+export function extractErrorMessage(err: unknown, defaultMsg = 'An unexpected error occurred.'): string {
+  if (!err) return defaultMsg;
+  if (typeof err === 'object' && err !== null) {
+    const record = err as Record<string, unknown>;
+    if (typeof record.message === 'string' && record.message) return record.message;
+    if (typeof record.error_description === 'string' && record.error_description) return record.error_description;
+    if (typeof record.details === 'string' && record.details) return record.details;
+  }
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
 // -------------------------------------------------------------
 // INITIAL SEED DATA HELPERS FOR OFFLINE / PREVIEW MODE
 // -------------------------------------------------------------
@@ -429,7 +441,32 @@ export async function approveShopApplication(
 
   if (isSupabaseConfigured) {
     try {
-      // 1. Fetch application
+      // 1. Attempt atomic database procedure
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('approve_shop_application', {
+        p_application_id: applicationId,
+        p_admin_id: adminId,
+        p_review_notes: note,
+      });
+
+      if (!rpcErr && rpcData?.success) {
+        const { data: createdShop } = await supabase
+          .from('shops')
+          .select('*')
+          .eq('id', rpcData.shop_id)
+          .maybeSingle();
+
+        return { success: true, shop: (createdShop || { id: rpcData.shop_id }) as Shop };
+      }
+
+      // If RPC failed due to business logic (not missing function), report it
+      const rpcMsg = rpcErr ? extractErrorMessage(rpcErr, '') : '';
+      const isMissingRpc = rpcMsg.includes('could not find') || rpcMsg.includes('does not exist') || rpcMsg.includes('404');
+      if (rpcErr && !isMissingRpc) {
+        throw rpcErr;
+      }
+
+      // 2. Fallback: Direct table operations
+      // Fetch application
       const { data: app, error: appErr } = await supabase
         .from('shop_applications')
         .select('*')
@@ -437,7 +474,7 @@ export async function approveShopApplication(
         .single();
       if (appErr || !app) throw appErr || new Error('Application not found');
 
-      // 2. Mark application approved
+      // Mark application approved
       const { error: updErr } = await supabase
         .from('shop_applications')
         .update({
@@ -449,7 +486,7 @@ export async function approveShopApplication(
         .eq('id', applicationId);
       if (updErr) throw updErr;
 
-      // 3. Create shop record (status: 'active', is_live: FALSE - Catalogue Incomplete)
+      // Create shop record (status: 'active', is_live: FALSE - Catalogue Incomplete)
       const newShop: Partial<Shop> = {
         owner_id: app.applicant_id,
         shop_type_id: app.shop_type_id,
@@ -477,7 +514,7 @@ export async function approveShopApplication(
         .single();
       if (shopErr) throw shopErr;
 
-      // 4. Create initial trial subscription (60 days from future go-live, or starts today)
+      // Create initial trial subscription (60 days)
       const now = new Date();
       const trialEnd = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
       await supabase.from('shop_subscriptions').insert({
@@ -491,7 +528,19 @@ export async function approveShopApplication(
         amount_due: 0,
       });
 
-      // 5. Audit log
+      // Upgrade applicant profile to shopkeeper
+      if (app.applicant_id) {
+        await supabase
+          .from('profiles')
+          .update({
+            role: 'shopkeeper',
+            is_verified: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', app.applicant_id);
+      }
+
+      // Audit log
       await logAdminAudit(adminId, 'application_approved', 'shop_application', applicationId, {
         shop_id: createdShop.id,
         shop_name: app.shop_name,
@@ -500,7 +549,7 @@ export async function approveShopApplication(
 
       return { success: true, shop: createdShop as Shop };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Approval failed.';
+      const msg = extractErrorMessage(err, 'Approval failed.');
       return { success: false, error: msg };
     }
   }
@@ -596,6 +645,24 @@ export async function rejectShopApplication(
 
   if (isSupabaseConfigured) {
     try {
+      // 1. Attempt atomic database procedure
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('reject_shop_application', {
+        p_application_id: applicationId,
+        p_admin_id: adminId,
+        p_rejection_reason: reason,
+      });
+
+      if (!rpcErr && rpcData?.success) {
+        return { success: true };
+      }
+
+      const rpcMsg = rpcErr ? extractErrorMessage(rpcErr, '') : '';
+      const isMissingRpc = rpcMsg.includes('could not find') || rpcMsg.includes('does not exist') || rpcMsg.includes('404');
+      if (rpcErr && !isMissingRpc) {
+        throw rpcErr;
+      }
+
+      // 2. Fallback: Direct table operations
       const { error } = await supabase
         .from('shop_applications')
         .update({
@@ -614,7 +681,7 @@ export async function rejectShopApplication(
 
       return { success: true };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Rejection failed.';
+      const msg = extractErrorMessage(err, 'Rejection failed.');
       return { success: false, error: msg };
     }
   }
@@ -715,7 +782,7 @@ export async function suspendShop(
       await logAdminAudit(adminId, 'shop_suspended', 'shop', shopId, { reason });
       return { success: true };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to suspend shop.';
+      const msg = extractErrorMessage(err, 'Failed to suspend shop.');
       return { success: false, error: msg };
     }
   }
@@ -765,7 +832,7 @@ export async function reactivateShop(
       await logAdminAudit(adminId, 'shop_reactivated', 'shop', shopId, {});
       return { success: true };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to reactivate shop.';
+      const msg = extractErrorMessage(err, 'Failed to reactivate shop.');
       return { success: false, error: msg };
     }
   }
