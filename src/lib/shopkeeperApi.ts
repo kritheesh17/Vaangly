@@ -3,7 +3,7 @@
 import { Shop, ShopProduct, Request, RequestEvent, ShopApplication, ApplicationStatus, SlotConfig, ShopType } from '../types/database';
 import { WorkflowStateCode, WorkflowGroupCode } from '../types/workflow';
 import { supabase, isSupabaseConfigured } from './supabase';
-import { MOCK_SHOPS, MOCK_PRODUCTS, MOCK_SHOP_TYPES } from '../data/mockData';
+import { MOCK_SHOPS, MOCK_PRODUCTS, MOCK_SHOP_TYPES, getShopServices } from '../data/mockData';
 import { getStoredDemoRequests } from './demoData';
 
 const DEMO_SHOPS_KEY = 'vaango_demo_shops';
@@ -213,18 +213,34 @@ export const toggleShopLive = async (
       }
 
       if (targetLive) {
-        const products = await getShopProductsList(shopId);
-        if (products.length === 0) {
+        const [products, servicesRes] = await Promise.all([
+          getShopProductsList(shopId),
+          supabase
+            .from('shop_services')
+            .select('id')
+            .eq('shop_id', shopId)
+            .eq('is_available', true),
+        ]);
+        const services = servicesRes.data || [];
+        if (products.length === 0 && services.length === 0) {
           return {
             success: false,
-            error: 'Your catalogue has no products yet. Add at least one product before making your shop visible to customers.',
+            error: 'Your catalogue has no items yet. Add at least one product or service before making your shop visible to customers.',
           };
         }
       }
 
+      const updatePayload: Record<string, any> = {
+        is_live: targetLive,
+        updated_at: new Date().toISOString(),
+      };
+      if (targetLive && currentShop.status !== 'suspended') {
+        updatePayload.status = 'active';
+      }
+
       const { data, error } = await supabase
         .from('shops')
-        .update({ is_live: targetLive, updated_at: new Date().toISOString() })
+        .update(updatePayload)
         .eq('id', shopId)
         .select()
         .single();
@@ -250,10 +266,11 @@ export const toggleShopLive = async (
 
   if (targetLive) {
     const products = getStoredMockProducts(shopId);
-    if (products.length === 0) {
+    const services = getShopServices(shopId);
+    if (products.length === 0 && services.length === 0) {
       return {
         success: false,
-        error: 'Your catalogue has no products yet. Add at least one product before making your shop visible to customers.',
+        error: 'Your catalogue has no items yet. Add at least one product or service before making your shop visible to customers.',
       };
     }
   }
@@ -261,6 +278,7 @@ export const toggleShopLive = async (
   const updated: Shop = {
     ...allShops[index],
     is_live: targetLive,
+    status: targetLive && allShops[index].status !== 'suspended' ? 'active' : allShops[index].status,
     updated_at: new Date().toISOString(),
   };
   allShops[index] = updated;

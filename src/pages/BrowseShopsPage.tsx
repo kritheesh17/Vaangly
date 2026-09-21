@@ -1,15 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Store, ArrowLeft } from 'lucide-react';
 import { useLocationContext } from '../context/LocationContext';
 import { useLanguage } from '../context/LanguageContext';
 import { MOCK_SHOP_TYPES } from '../data/mockData';
-import { searchLocationCatalog } from '../lib/search';
+import { searchLocationCatalog, fetchCustomerLocationCatalog, CustomerCatalogData } from '../lib/search';
 import { ShopCard } from '../components/customer/ShopCard';
 import { Input } from '../components/ui/Input';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Skeleton } from '../components/ui/Skeleton';
 import { WorkflowGroupCode } from '../types/workflow';
+import { Shop, ShopType } from '../types/database';
 import { resetDemoData } from '../lib/demoData';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import './BrowseShopsPage.css';
 
 export const BrowseShopsPage: React.FC = () => {
@@ -23,17 +26,77 @@ export const BrowseShopsPage: React.FC = () => {
   const selectedGroup = (rawGroup?.toUpperCase() as WorkflowGroupCode) || null;
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Live database customer catalog state
+  const [catalogData, setCatalogData] = useState<CustomerCatalogData>({
+    shops: [],
+    products: [],
+    services: [],
+    shopTypes: MOCK_SHOP_TYPES,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load authoritative live shops, products, and services for selected town
+  const loadCatalog = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await fetchCustomerLocationCatalog(selectedLocation.id);
+      setCatalogData(data);
+    } catch (err) {
+      console.error('Failed to load customer catalog:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedLocation.id]);
+
+  useEffect(() => {
+    void loadCatalog();
+
+    if (!isSupabaseConfigured) return;
+
+    // Realtime listener: Automatically update customer view when a shop goes live or updates
+    const channel = supabase
+      .channel(`customer-shops-${selectedLocation.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shops' },
+        () => void loadCatalog()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shop_products' },
+        () => void loadCatalog()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedLocation.id, loadCatalog]);
+
+  const allShopTypes = catalogData.shopTypes.length > 0 ? catalogData.shopTypes : MOCK_SHOP_TYPES;
+
+  // Resolve shop type for any shop (handles UUIDs from Supabase or code strings)
+  const getShopCategory = useCallback(
+    (shop: Shop): ShopType | undefined => {
+      return (
+        allShopTypes.find((t) => t.id === shop.shop_type_id || t.code === shop.shop_type_id) ||
+        MOCK_SHOP_TYPES.find((t) => t.id === shop.shop_type_id || t.code === shop.shop_type_id)
+      );
+    },
+    [allShopTypes]
+  );
+
   // Find active shop type if selected
   const activeShopType = useMemo(() => {
     if (selectedCategoryCode === 'all') return undefined;
-    return MOCK_SHOP_TYPES.find((st) => st.code === selectedCategoryCode);
-  }, [selectedCategoryCode]);
+    return allShopTypes.find((st) => st.code === selectedCategoryCode || st.id === selectedCategoryCode);
+  }, [selectedCategoryCode, allShopTypes]);
 
   // Filter types by group if specified
   const displayedShopTypes = useMemo(() => {
-    if (!selectedGroup) return MOCK_SHOP_TYPES;
-    return MOCK_SHOP_TYPES.filter((st) => st.workflow_group_code === selectedGroup);
-  }, [selectedGroup]);
+    if (!selectedGroup) return allShopTypes;
+    return allShopTypes.filter((st) => st.workflow_group_code === selectedGroup);
+  }, [selectedGroup, allShopTypes]);
 
   // Dynamic page title
   const pageTitle = useMemo(() => {
@@ -44,23 +107,24 @@ export const BrowseShopsPage: React.FC = () => {
     return t('allBusinesses');
   }, [activeShopType, selectedGroup, t]);
 
-  // Execute search / filtering
+  // Execute search / filtering against live database catalog
   const { shops, matchingProducts, matchingServices } = useMemo(() => {
     return searchLocationCatalog(
       selectedLocation.id,
       searchQuery,
-      activeShopType?.id
+      activeShopType?.id,
+      catalogData
     );
-  }, [selectedLocation.id, searchQuery, activeShopType]);
+  }, [selectedLocation.id, searchQuery, activeShopType, catalogData]);
 
   // Filter shops by workflow group
   const finalShops = useMemo(() => {
     if (!selectedGroup) return shops;
     return shops.filter((s) => {
-      const type = MOCK_SHOP_TYPES.find((t) => t.id === s.shop_type_id);
+      const type = getShopCategory(s);
       return type?.workflow_group_code === selectedGroup;
     });
-  }, [shops, selectedGroup]);
+  }, [shops, selectedGroup, getShopCategory]);
 
   const handleCategorySelect = (code: string) => {
     const params = new URLSearchParams(searchParams);
@@ -201,11 +265,25 @@ export const BrowseShopsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Shops Grid */}
-      {finalShops.length > 0 ? (
+      {/* Loading Skeleton */}
+      {isLoading && catalogData.shops.length === 0 ? (
+        <div className="vaango-browse__grid" style={{ marginTop: '16px' }}>
+          {[1, 2, 3, 4].map((n) => (
+            <div key={n} style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+              <Skeleton height={180} />
+              <div style={{ padding: '16px' }}>
+                <Skeleton height={20} width="60%" style={{ marginBottom: '8px' }} />
+                <Skeleton height={14} width="80%" style={{ marginBottom: '12px' }} />
+                <Skeleton height={14} width="40%" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : finalShops.length > 0 ? (
+        /* Shops Grid */
         <div className="vaango-browse__grid">
           {finalShops.map((shop) => {
-            const category = MOCK_SHOP_TYPES.find((t) => t.id === shop.shop_type_id);
+            const category = getShopCategory(shop);
             return (
               <ShopCard
                 key={shop.id}
@@ -217,6 +295,7 @@ export const BrowseShopsPage: React.FC = () => {
           })}
         </div>
       ) : (
+        /* Empty State */
         <div className="vaango-browse__empty">
           <EmptyState
             icon={<Store size={44} />}

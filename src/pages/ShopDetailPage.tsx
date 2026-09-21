@@ -78,11 +78,28 @@ export const ShopDetailPage: React.FC = () => {
     };
   }, [shopId]);
 
-  // Find shop type
-  const shopType = useMemo(() => {
-    if (!shop) return null;
-    return MOCK_SHOP_TYPES.find((t) => t.id === shop.shop_type_id) || null;
-  }, [shop]);
+  const [dbShopType, setDbShopType] = useState<any>(null);
+
+  useEffect(() => {
+    if (!shop?.shop_type_id) return;
+    const mock = MOCK_SHOP_TYPES.find((t) => t.id === shop.shop_type_id || t.code === shop.shop_type_id);
+    if (mock) {
+      setDbShopType(mock);
+      return;
+    }
+    if (isSupabaseConfigured) {
+      supabase
+        .from('shop_types')
+        .select('*')
+        .eq('id', shop.shop_type_id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setDbShopType(data);
+        });
+    }
+  }, [shop?.shop_type_id]);
+
+  const shopType = dbShopType || MOCK_SHOP_TYPES.find((t) => t.id === shop?.shop_type_id || t.code === shop?.shop_type_id) || null;
 
   const workflowGroup = shopType?.workflow_group_code || 'ORDER';
 

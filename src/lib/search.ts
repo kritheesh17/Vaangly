@@ -1,7 +1,8 @@
 // Search Abstraction with Tanglish & Tamil Keyword Matching
 
-import { Shop, ShopProduct, ShopService } from '../types/database';
-import { MOCK_SHOPS, getShopProducts, getShopServices } from '../data/mockData';
+import { Shop, ShopProduct, ShopService, ShopType } from '../types/database';
+import { MOCK_SHOPS, MOCK_SHOP_TYPES, getShopProducts, getShopServices } from '../data/mockData';
+import { supabase, isSupabaseConfigured } from './supabase';
 
 // Common Tanglish and Tamil phonetic alias dictionary
 export const TANGLISH_ALIASES: Record<string, string[]> = {
@@ -57,6 +58,16 @@ export interface SearchResult {
   matchingServices: { service: ShopService; shop: Shop }[];
 }
 
+export interface CustomerCatalogData {
+  shops: Shop[];
+  products: ShopProduct[];
+  services: ShopService[];
+  shopTypes: ShopType[];
+}
+
+/**
+ * Synchronous in-memory / local storage helper for offline / demo mode.
+ */
 export const getCustomerVisibleShops = (): Shop[] => {
   let shops = MOCK_SHOPS;
   try {
@@ -76,18 +87,121 @@ export const getCustomerVisibleShops = (): Shop[] => {
 };
 
 /**
+ * Asynchronously fetches live active shops, products, services, and types from Supabase
+ * for a specific customer hometown location. Falls back to mock data if offline or no DB rows exist.
+ */
+export const fetchCustomerLocationCatalog = async (
+  locationId: string
+): Promise<CustomerCatalogData> => {
+  if (isSupabaseConfigured) {
+    try {
+      // 1. Fetch live active shops for this location
+      const { data: shopsData, error: shopsErr } = await supabase
+        .from('shops')
+        .select('*, shop_avg_ratings(avg_rating, total_ratings)')
+        .eq('status', 'active')
+        .eq('is_live', true)
+        .eq('location_id', locationId)
+        .order('created_at', { ascending: false });
+
+      if (shopsErr) throw shopsErr;
+
+      // 2. Fetch active shop types
+      const { data: typesData } = await supabase
+        .from('shop_types')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      const loadedShopTypes: ShopType[] =
+        typesData && typesData.length > 0 ? (typesData as ShopType[]) : MOCK_SHOP_TYPES;
+
+      const liveShops: Shop[] = (shopsData || []).map((shop) => {
+        const rating = Array.isArray(shop.shop_avg_ratings)
+          ? shop.shop_avg_ratings[0]
+          : shop.shop_avg_ratings;
+        return {
+          ...shop,
+          avg_rating: rating?.avg_rating ?? null,
+          total_ratings: rating?.total_ratings ?? 0,
+        };
+      });
+
+      const shopIds = liveShops.map((s) => s.id);
+      let productsData: ShopProduct[] = [];
+      let servicesData: ShopService[] = [];
+
+      if (shopIds.length > 0) {
+        const [prodRes, servRes] = await Promise.all([
+          supabase
+            .from('shop_products')
+            .select('*')
+            .in('shop_id', shopIds)
+            .eq('is_available', true),
+          supabase
+            .from('shop_services')
+            .select('*')
+            .in('shop_id', shopIds)
+            .eq('is_available', true),
+        ]);
+        productsData = (prodRes.data as ShopProduct[]) || [];
+        servicesData = (servRes.data as ShopService[]) || [];
+      }
+
+      // If we found live shops in Supabase, return authoritative live database catalog
+      if (liveShops.length > 0) {
+        return {
+          shops: liveShops,
+          products: productsData,
+          services: servicesData,
+          shopTypes: loadedShopTypes,
+        };
+      }
+    } catch (err) {
+      console.error('Failed to fetch customer catalog from Supabase:', err);
+    }
+  }
+
+  // Fallback to local/mock demo data for this location
+  const mockShops = getCustomerVisibleShops().filter((s) => s.location_id === locationId);
+  const mockShopIds = mockShops.map((s) => s.id);
+  const mockProducts = mockShopIds.flatMap((id) => getShopProducts(id));
+  const mockServices = mockShopIds.flatMap((id) => getShopServices(id));
+
+  return {
+    shops: mockShops,
+    products: mockProducts,
+    services: mockServices,
+    shopTypes: MOCK_SHOP_TYPES,
+  };
+};
+
+/**
  * Searches shops, products, and services matching the query within a specific location.
+ * Accepts optional catalogData to execute instantly against live database records.
  */
 export const searchLocationCatalog = (
   locationId: string,
   query: string,
-  shopTypeId?: string
+  shopTypeId?: string,
+  catalogData?: CustomerCatalogData
 ): SearchResult => {
-  const visibleShops = getCustomerVisibleShops();
+  const visibleShops = catalogData ? catalogData.shops : getCustomerVisibleShops();
+  const allShopTypes = catalogData?.shopTypes || MOCK_SHOP_TYPES;
+
+  // Flexible shop type matching supporting UUIDs and code identifiers
+  const matchesShopType = (shop: Shop, targetTypeId?: string): boolean => {
+    if (!targetTypeId || targetTypeId === 'all') return true;
+    if (shop.shop_type_id === targetTypeId) return true;
+    const resolved = allShopTypes.find(
+      (t) => t.id === shop.shop_type_id || t.code === shop.shop_type_id
+    );
+    return resolved?.id === targetTypeId || resolved?.code === targetTypeId;
+  };
 
   if (!query.trim()) {
     const locationShops = visibleShops.filter(
-      (s) => s.location_id === locationId && (!shopTypeId || s.shop_type_id === shopTypeId)
+      (s) => s.location_id === locationId && matchesShopType(s, shopTypeId)
     );
     return { shops: locationShops, matchingProducts: [], matchingServices: [] };
   }
@@ -100,14 +214,18 @@ export const searchLocationCatalog = (
   const matchingServices: { service: ShopService; shop: Shop }[] = [];
 
   for (const shop of locationShops) {
-    if (shopTypeId && shop.shop_type_id !== shopTypeId) continue;
+    if (shopTypeId && !matchesShopType(shop, shopTypeId)) continue;
 
     const shopNameLower = shop.name.toLowerCase();
     const shopTaglineLower = (shop.tagline || '').toLowerCase();
+    const shopAddrLower = (shop.address_line || '').toLowerCase();
 
-    // Check if shop matches
+    // Check if shop itself matches search keywords
     const shopMatches = terms.some(
-      (term) => shopNameLower.includes(term) || shopTaglineLower.includes(term)
+      (term) =>
+        shopNameLower.includes(term) ||
+        shopTaglineLower.includes(term) ||
+        shopAddrLower.includes(term)
     );
 
     if (shopMatches) {
@@ -115,7 +233,10 @@ export const searchLocationCatalog = (
     }
 
     // Check products in shop (Group A)
-    const products = getShopProducts(shop.id);
+    const products = catalogData
+      ? catalogData.products.filter((p) => p.shop_id === shop.id)
+      : getShopProducts(shop.id);
+
     for (const product of products) {
       const prodNameLower = product.name.toLowerCase();
       const prodDescLower = (product.description || '').toLowerCase();
@@ -131,7 +252,10 @@ export const searchLocationCatalog = (
     }
 
     // Check appointment / services in shop (Group B & Group C)
-    const services = getShopServices(shop.id);
+    const services = catalogData
+      ? catalogData.services.filter((s) => s.shop_id === shop.id)
+      : getShopServices(shop.id);
+
     for (const service of services) {
       const srvNameLower = service.name.toLowerCase();
       const srvDescLower = (service.description || '').toLowerCase();

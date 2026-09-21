@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { fetchCustomerLocationCatalog } from '../lib/search';
 import {
   Calendar,
   Wrench,
@@ -205,9 +206,57 @@ export const HomePage: React.FC = () => {
     },
   ];
 
+  const [liveShops, setLiveShops] = useState<any[]>([]);
+  const [liveShopTypes, setLiveShopTypes] = useState<any[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    fetchCustomerLocationCatalog(selectedLocation.id).then((catalog) => {
+      if (active && catalog.shops && catalog.shops.length > 0) {
+        setLiveShops(catalog.shops);
+        setLiveShopTypes(catalog.shopTypes);
+      } else if (active) {
+        setLiveShops([]);
+        setLiveShopTypes([]);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [selectedLocation.id]);
+
+  const liveCards = useMemo(() => {
+    if (!liveShops || liveShops.length === 0) return null;
+    return liveShops.map((s) => {
+      const shopType = liveShopTypes.find((t) => t.id === s.shop_type_id || t.code === s.shop_type_id);
+      const categoryLabel = shopType?.name || t('groceriesCategory');
+      const categoryKey = (shopType?.code || 'groceries').toLowerCase();
+      return {
+        id: s.id,
+        name: s.name,
+        category: categoryLabel,
+        categoryKey,
+        distance: `${selectedLocation.name}`,
+        location: selectedLocation.name,
+        rating: s.rating || 5.0,
+        reviewsCount: s.reviews_count || 1,
+        tagline: s.tagline || s.address_line,
+        image: s.photo_url || 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&auto=format&fit=crop&q=80',
+        badge: s.delivery_available ? t('fastCounterPickup') : t('activeMarketplace'),
+        isLive: true,
+      };
+    });
+  }, [liveShops, liveShopTypes, selectedLocation.name, t]);
+
+  const displayedShops = liveCards || featuredShops;
+
   const filteredShops = activeCategory === 'all'
-    ? featuredShops
-    : featuredShops.filter((s) => s.categoryKey === activeCategory);
+    ? displayedShops
+    : displayedShops.filter((s) => {
+        if (s.categoryKey === activeCategory) return true;
+        if (activeCategory === 'groceries' && s.categoryKey === 'grocery') return true;
+        return false;
+      });
 
   const featuredProducts = [
     {
@@ -575,7 +624,7 @@ export const HomePage: React.FC = () => {
                       <MapPin size={13} />
                       {shop.distance}
                     </span>
-                    <Link to="/shops" className="vaangly-shop-card__btn">
+                    <Link to={(shop as any).isLive ? `/shop/${shop.id}` : '/shops'} className="vaangly-shop-card__btn">
                       {t('viewShop')}
                     </Link>
                   </div>
