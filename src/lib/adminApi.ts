@@ -459,8 +459,14 @@ export async function approveShopApplication(
       }
 
       // If RPC failed due to business logic (not missing function), report it
-      const rpcMsg = rpcErr ? extractErrorMessage(rpcErr, '') : '';
-      const isMissingRpc = rpcMsg.includes('could not find') || rpcMsg.includes('does not exist') || rpcMsg.includes('404');
+      const rpcMsg = (rpcErr ? extractErrorMessage(rpcErr, '') : '').toLowerCase();
+      const rpcCode = (rpcErr as any)?.code || '';
+      const isMissingRpc =
+        rpcCode === 'PGRST202' ||
+        rpcMsg.includes('could not find') ||
+        rpcMsg.includes('does not exist') ||
+        rpcMsg.includes('schema cache') ||
+        rpcMsg.includes('404');
       if (rpcErr && !isMissingRpc) {
         throw rpcErr;
       }
@@ -656,8 +662,14 @@ export async function rejectShopApplication(
         return { success: true };
       }
 
-      const rpcMsg = rpcErr ? extractErrorMessage(rpcErr, '') : '';
-      const isMissingRpc = rpcMsg.includes('could not find') || rpcMsg.includes('does not exist') || rpcMsg.includes('404');
+      const rpcMsg = (rpcErr ? extractErrorMessage(rpcErr, '') : '').toLowerCase();
+      const rpcCode = (rpcErr as any)?.code || '';
+      const isMissingRpc =
+        rpcCode === 'PGRST202' ||
+        rpcMsg.includes('could not find') ||
+        rpcMsg.includes('does not exist') ||
+        rpcMsg.includes('schema cache') ||
+        rpcMsg.includes('404');
       if (rpcErr && !isMissingRpc) {
         throw rpcErr;
       }
