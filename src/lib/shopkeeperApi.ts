@@ -329,6 +329,8 @@ export const createShopProduct = async (
     has_variants?: boolean;
     variants?: ShopProduct['variants'];
     attribute_groups?: ShopProduct['attribute_groups'];
+    track_inventory?: boolean;
+    stock_quantity?: number | null;
   }
 ): Promise<{ success: boolean; product?: ShopProduct; error?: string }> => {
   if (!product.name.trim()) {
@@ -361,6 +363,8 @@ export const createShopProduct = async (
             has_variants: product.has_variants ?? false,
             variants: product.variants ?? [],
             attribute_groups: product.attribute_groups ?? [],
+            track_inventory: product.track_inventory ?? false,
+            stock_quantity: product.stock_quantity ?? null,
           })
           .select()
           .single();
@@ -399,6 +403,8 @@ export const createShopProduct = async (
     has_variants: product.has_variants ?? false,
     variants: product.variants ?? [],
     attribute_groups: product.attribute_groups ?? [],
+    track_inventory: product.track_inventory ?? false,
+    stock_quantity: product.stock_quantity ?? null,
     created_at: new Date().toISOString(),
   };
 
@@ -413,7 +419,7 @@ export const createShopProduct = async (
 export const updateShopProduct = async (
   shopId: string,
   productId: string,
-  updates: Partial<Pick<ShopProduct, 'name' | 'description' | 'price' | 'unit' | 'is_available' | 'image_url' | 'image_urls' | 'offer_label' | 'offer_type' | 'offer_value' | 'has_variants' | 'variants' | 'attribute_groups'>>
+  updates: Partial<Pick<ShopProduct, 'name' | 'description' | 'price' | 'unit' | 'is_available' | 'image_url' | 'image_urls' | 'offer_label' | 'offer_type' | 'offer_value' | 'has_variants' | 'variants' | 'attribute_groups' | 'track_inventory' | 'stock_quantity'>>
 ): Promise<{ success: boolean; product?: ShopProduct; error?: string }> => {
   if (updates.price !== undefined && (updates.price < 0 || isNaN(updates.price))) {
     return { success: false, error: 'Price must be non-negative.' };
@@ -482,6 +488,8 @@ export const updateShopProduct = async (
       has_variants: updates.has_variants ?? false,
       variants: updates.variants ?? [],
       attribute_groups: updates.attribute_groups ?? [],
+      track_inventory: updates.track_inventory ?? false,
+      stock_quantity: updates.stock_quantity ?? null,
       created_at: new Date().toISOString(),
     };
     saveMockProducts(shopId, [fallbackProd, ...current]);
@@ -841,7 +849,7 @@ export const markRequestCustomerPaid = async (
   if (isSupabaseConfigured) {
     const { data, error } = await supabase
       .from('requests')
-      .update({ customer_paid: true, updated_at: new Date().toISOString() })
+      .update({ customer_paid: true, payment_status: 'PAYMENT_VERIFIED', updated_at: new Date().toISOString() })
       .eq('id', requestId)
       .select()
       .single();
@@ -872,6 +880,36 @@ export const markRequestCustomerPaid = async (
   } catch {
     return { success: false, error: 'Unable to update payment status.' };
   }
+};
+
+export const rejectRequestPayment = async (
+  requestId: string,
+  actorId: string,
+  reason: string
+): Promise<{ success: boolean; request?: Request; error?: string }> => {
+  const cleanReason = reason.trim();
+  if (!cleanReason) return { success: false, error: 'A payment rejection reason is required.' };
+
+  if (isSupabaseConfigured) {
+    const { data, error } = await supabase
+      .from('requests')
+      .update({ payment_status: 'PAYMENT_REJECTED', payment_rejection_reason: cleanReason, updated_at: new Date().toISOString() })
+      .eq('id', requestId)
+      .select()
+      .single();
+    if (error || !data) return { success: false, error: error?.message || 'Request not found.' };
+    await supabase.from('request_events').insert({
+      request_id: requestId,
+      from_state: data.current_state,
+      to_state: data.current_state,
+      actor_id: actorId,
+      actor_role: 'shopkeeper',
+      notes: `Payment proof rejected: ${cleanReason}`,
+    });
+    return { success: true, request: data as Request };
+  }
+
+  return { success: false, error: 'Payment rejection is unavailable in offline mode.' };
 };
 
 /**

@@ -208,7 +208,8 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             ₹{decoded.confirmed_price || request.total_estimate || 0}
           </span>
         </div>
-        {(request.customer_paid || request.payment_screenshot_url) && <Badge variant={request.customer_paid ? 'success' : 'warning'} size="sm">{request.customer_paid ? t('paidBadge') : t('proofSubmittedBadge')}</Badge>}
+        {request.payment_method === 'upi' && <Badge variant={request.payment_status === 'PAYMENT_VERIFIED' ? 'success' : request.payment_status === 'PAYMENT_REJECTED' ? 'error' : 'warning'} size="sm">{request.payment_status === 'PAYMENT_VERIFIED' ? 'Payment verified' : request.payment_status === 'PAYMENT_REJECTED' ? 'Payment rejected' : 'UPI proof pending'}</Badge>}
+        {request.payment_method !== 'upi' && request.customer_paid && <Badge variant="success" size="sm">{t('paidBadge')}</Badge>}
 
         <div className="vaango-shop-req-card__actions">
           {/* Quick Primary Transition Buttons */}

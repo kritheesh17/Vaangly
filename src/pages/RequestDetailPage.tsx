@@ -16,7 +16,6 @@ import { Request } from '../types/database';
 import { WorkflowStateCode, WorkflowGroupCode } from '../types/workflow';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { cancelCustomerRequest } from '../lib/appointmentServiceApi';
-import { markRequestCustomerPaid } from '../lib/shopkeeperApi';
 import { RequestTimeline } from '../components/customer/RequestTimeline';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -29,11 +28,12 @@ import { RatingModal } from '../components/customer/RatingModal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
+import { validatePaymentProofFile } from '../lib/paymentProof';
 import './RequestDetailPage.css';
 
 interface DecodedPayload {
   // Order payload
-  items?: { product_id: string; name: string; price: number; unit: string; quantity: number; subtotal: number }[];
+  items?: { product_id: string; name: string; price: number; unit: string; quantity: number; subtotal: number; variant_label?: string | null; variant_attributes?: Record<string, string> }[];
   // Appointment payload
   service_id?: string;
   service_name?: string;
@@ -77,7 +77,6 @@ export const RequestDetailPage: React.FC = () => {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
-  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null);
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
@@ -87,26 +86,13 @@ export const RequestDetailPage: React.FC = () => {
 
   const groupCode: WorkflowGroupCode = (request?.workflow_group_code || 'ORDER') as WorkflowGroupCode;
 
-  const handleCustomerMarkPaid = async () => {
-    if (!request || !user) return;
-    setIsMarkingPaid(true);
-    try {
-      const result = await markRequestCustomerPaid(request.id, user.id);
-      if (result.success && result.request) {
-        setRequest(result.request);
-        success(t('paymentMarkedSuccess'));
-      } else {
-        toastError(result.error || t('unableToMarkPayment'));
-      }
-    } catch (err: any) {
-      toastError(err?.message || t('unableToMarkPayment'));
-    } finally {
-      setIsMarkingPaid(false);
-    }
-  };
-
   const handleSubmitPaymentProof = async () => {
     if (!request || !user || !paymentProofFile) return;
+    const validationError = validatePaymentProofFile(paymentProofFile);
+    if (validationError) {
+      toastError(validationError);
+      return;
+    }
     setIsSubmittingProof(true);
     try {
       if (!isSupabaseConfigured) {
@@ -117,7 +103,8 @@ export const RequestDetailPage: React.FC = () => {
         setPaymentProofPreview(null);
         return;
       }
-      const path = `requests/${request.id}/${Date.now()}-${paymentProofFile.name}`;
+      const extension = paymentProofFile.type.split('/')[1] || 'jpg';
+      const path = `requests/${request.id}/${crypto.randomUUID()}.${extension}`;
       const { error: uploadError } = await supabase.storage.from('payment-proofs').upload(path, paymentProofFile);
       if (uploadError) throw uploadError;
       const { data, error } = await supabase.from('requests').update({ payment_screenshot_url: path }).eq('id', request.id).eq('customer_id', user.id).select().single();
@@ -487,13 +474,13 @@ export const RequestDetailPage: React.FC = () => {
             {payload.shop_upi_qr_url && <img src={payload.shop_upi_qr_url} alt="Shop UPI QR code" className="vaango-upi-qr" />}
             <a className="vaango-upi-open-btn" href={`upi://pay?pa=${payload.shop_upi_id}&pn=${encodeURIComponent(payload.shop_name || 'Shop')}&cu=INR`}>{t('openUpiAppBtn')}</a>
             <p className="text-xs text-secondary mt-2">{t('upiIdLabel', { upiId: payload.shop_upi_id })}</p>
-            {!request.payment_screenshot_url ? <>
+            {!request.payment_screenshot_url || request.payment_status === 'PAYMENT_REJECTED' ? <>
               <label className="vaango-form-label mt-3" htmlFor="payment-proof">{t('uploadPaymentScreenshotLabel')}</label>
               <input id="payment-proof" type="file" accept="image/*" className="vaango-file-input" onChange={(e) => { const file = e.target.files?.[0] || null; setPaymentProofFile(file); setPaymentProofPreview(file ? URL.createObjectURL(file) : null); }} />
               {paymentProofPreview && <img src={paymentProofPreview} alt="Payment screenshot preview" className="vaango-payment-proof-preview" />}
               <Button type="button" variant="primary" size="sm" isLoading={isSubmittingProof} disabled={!paymentProofFile} onClick={() => void handleSubmitPaymentProof()}>{t('submitPaymentProofBtn')}</Button>
             </> : <Badge variant="warning" size="md">{t('paymentScreenshotSubmittedBadge')}</Badge>}
-            <Button type="button" variant="primary" size="sm" isLoading={isMarkingPaid} onClick={() => void handleCustomerMarkPaid()}>{t('iHavePaidBtn')}</Button>
+            {request.payment_status === 'PAYMENT_VERIFIED' ? <Badge variant="success" size="md">Payment verified by shop</Badge> : <Badge variant="warning" size="md">Payment proof submitted · awaiting verification</Badge>}
           </div>
         )}
         {request.customer_paid && <div className="vaango-paid-confirm">{t('paymentConfirmedBanner')}</div>}
@@ -688,6 +675,9 @@ export const RequestDetailPage: React.FC = () => {
               <div key={idx} className="vaango-item-row">
                 <div>
                   <span className="vaango-item-row__name">{item.name}</span>
+                  {(item.variant_label || Object.keys(item.variant_attributes || {}).length > 0) && (
+                    <span className="vaango-item-row__unit">{item.variant_label || Object.entries(item.variant_attributes || {}).map(([name, value]) => `${name}: ${value}`).join(' / ')}</span>
+                  )}
                   <span className="vaango-item-row__unit">
                     ₹{item.price} / {item.unit}
                   </span>

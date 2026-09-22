@@ -5,19 +5,22 @@ import { Badge } from '../ui/Badge';
 import { Plus, Minus, PackageX, Eye } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { ProductDetailModal } from './ProductDetailModal';
+import { findVariantForSelections, optionIsReachable, variantAttributeGroups, variantIsAvailable, variantLabel } from '../../lib/productVariants';
 import './ProductCard.css';
 
 export interface ProductCardProps {
   product: ShopProduct;
   quantityInCart: number;
+  getVariantQuantity?: (variantId?: string | null) => number;
   onAdd: (product?: ShopProduct, variant?: ProductVariant | null) => void;
-  onIncrease: () => void;
-  onDecrease: () => void;
+  onIncrease: (variant?: ProductVariant | null) => void;
+  onDecrease: (variant?: ProductVariant | null) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   quantityInCart,
+  getVariantQuantity,
   onAdd,
   onIncrease,
   onDecrease,
@@ -27,24 +30,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const [imageError, setImageError] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-  // Auto-select first in-stock variant by default
-  const defaultVariantId = product.has_variants && product.variants?.length
-    ? (product.variants.find((v) => v.in_stock)?.id || product.variants[0]?.id || null)
-    : null;
-
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(defaultVariantId);
-  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
-
-  const selectedVariant = product.has_variants
-    ? product.variants?.find((variant) => variant.id === (selectedVariantId || defaultVariantId)) || null
-    : null;
+  const availableVariants = product.variants || [];
+  const defaultVariant = availableVariants.find(variantIsAvailable) || availableVariants[0] || null;
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(defaultVariant?.id || null);
+  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>(defaultVariant?.attributes || {});
+  const variantGroups = variantAttributeGroups(availableVariants);
+  const selectedVariant = availableVariants.some((variant) => variant.attributes && Object.keys(variant.attributes).length > 0)
+    ? findVariantForSelections(availableVariants, selectedAttributes)
+    : availableVariants.find((variant) => variant.id === selectedVariantId) || null;
 
   const selectedProduct = selectedVariant
-    ? { ...product, price: selectedVariant.price, unit: selectedVariant.label }
+    ? { ...product, price: selectedVariant.price, unit: variantLabel(selectedVariant) }
     : product;
-
-  const attributesReady = !product.attribute_groups?.length || product.attribute_groups.every((group) => selectedAttributes[group.name]);
-  const attributeUnit = product.attribute_groups?.length ? Object.values(selectedAttributes).join(' / ') : product.unit;
+  const currentQuantity = getVariantQuantity ? getVariantQuantity(selectedVariant?.id || null) : quantityInCart;
 
   const validImages: string[] = [];
   if (product.image_urls && product.image_urls.length > 0) {
@@ -124,19 +122,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
 
           {/* Variants selector chips */}
-          {product.has_variants && product.variants && product.variants.length > 0 && (
+          {product.has_variants && availableVariants.length > 0 && (
             <div className="vaango-product-variants" role="group" aria-label={product.name}>
-              {product.variants.map((variant) => (
-                <button
-                  key={variant.id}
-                  type="button"
-                  disabled={!variant.in_stock}
-                  className={(selectedVariant?.id || selectedVariantId) === variant.id ? 'active' : ''}
-                  onClick={() => setSelectedVariantId(variant.id)}
-                >
-                  {variant.label} · ₹{variant.price}
-                </button>
+              {Object.entries(variantGroups).map(([attributeName, options]) => (
+                <div key={attributeName}>
+                  <strong>{attributeName}</strong>
+                  {options.map((option) => {
+                    const reachable = optionIsReachable(availableVariants, selectedAttributes, attributeName, option);
+                    return <button key={option} type="button" disabled={!reachable} className={selectedAttributes[attributeName] === option ? 'active' : ''} onClick={() => setSelectedAttributes((current) => ({ ...current, [attributeName]: option }))}>{option}</button>;
+                  })}
+                </div>
               ))}
+              {!Object.keys(variantGroups).length && availableVariants.map((variant) => <button key={variant.id} type="button" disabled={!variantIsAvailable(variant)} className={selectedVariant?.id === variant.id ? 'active' : ''} onClick={() => setSelectedVariantId(variant.id)}>{variantLabel(variant)} · ₹{variant.price}</button>)}
             </div>
           )}
 
@@ -148,38 +145,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
             {/* Action: Add Button OR Quantity Controls */}
             <div className="vaango-prod-card__action">
-              {product.attribute_groups?.length && !product.has_variants ? (
-                <div className="vaango-product-variants">
-                  {product.attribute_groups.map((group) => (
-                    <select
-                      key={group.name}
-                      aria-label={group.name}
-                      value={selectedAttributes[group.name] || ''}
-                      onChange={(e) => setSelectedAttributes((current) => ({ ...current, [group.name]: e.target.value }))}
-                    >
-                      <option value="">{t('chooseOption')} {group.name}</option>
-                      {group.options.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  ))}
-                  <Button
-                    variant="primary"
-                    size="md"
-                    disabled={!attributesReady || !product.is_available}
-                    onClick={() => onAdd({ ...product, unit: attributeUnit }, null)}
-                    leftIcon={<Plus size={16} />}
-                  >
-                    {t('addToCart')}
-                  </Button>
-                </div>
-              ) : !product.is_available ? (
+              {!product.is_available || (product.has_variants && (!selectedVariant || !variantIsAvailable(selectedVariant))) ? (
                 <Button variant="secondary" size="md" disabled leftIcon={<PackageX size={16} />}>
                   {t('outOfStock')}
                 </Button>
-              ) : quantityInCart === 0 ? (
+              ) : currentQuantity === 0 ? (
                 <Button
                   variant="primary"
                   size="md"
@@ -194,18 +164,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   <button
                     type="button"
                     className="vaango-qty-btn"
-                    onClick={onDecrease}
+                    onClick={() => onDecrease(selectedVariant)}
                     aria-label={t('decreaseQty')}
                   >
                     <Minus size={16} />
                   </button>
                   <span className="vaango-qty-display" aria-live="polite">
-                    {quantityInCart}
+                    {currentQuantity}
                   </span>
                   <button
                     type="button"
                     className="vaango-qty-btn"
-                    onClick={onIncrease}
+                    onClick={() => onIncrease(selectedVariant)}
                     aria-label={t('increaseQty')}
                   >
                     <Plus size={16} />

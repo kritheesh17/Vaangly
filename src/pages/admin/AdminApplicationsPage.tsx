@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { fetchAdminApplications } from '../../lib/adminApi';
 import { ShopApplication } from '../../types/database';
-import { MOCK_SHOP_TYPES, getShopType } from '../../data/mockData';
+import { getShopType } from '../../data/mockData';
 import { DEFAULT_LOCATIONS } from '../../context/LocationContext';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';

@@ -24,7 +24,7 @@ import { getStoredDemoRequests, resetDemoData } from '../lib/demoData';
 import './OrdersPage.css';
 
 interface DecodedNotes {
-  items?: { product_id: string; name: string; price: number; unit: string; quantity: number; subtotal: number; variant_label?: string }[];
+  items?: { product_id: string; name: string; price: number; unit: string; quantity: number; subtotal: number; variant_label?: string; variant_attributes?: Record<string, string> }[];
   service_name?: string;
   provider_name?: string;
   slot_date?: string;

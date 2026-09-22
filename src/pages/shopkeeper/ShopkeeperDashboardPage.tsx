@@ -19,7 +19,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { Shop, Request, ShopProduct } from '../../types/database';
 import { WorkflowGroupCode, WorkflowStateCode } from '../../types/workflow';
-import { MOCK_SHOP_TYPES, getShopType } from '../../data/mockData';
+import { getShopType } from '../../data/mockData';
 import {
   getShopkeeperShop,
   getShopProductsList,

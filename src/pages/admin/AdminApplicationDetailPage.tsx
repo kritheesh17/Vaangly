@@ -20,7 +20,7 @@ import {
   rejectShopApplication,
 } from '../../lib/adminApi';
 import { ShopApplication } from '../../types/database';
-import { MOCK_SHOP_TYPES, getShopType } from '../../data/mockData';
+import { getShopType } from '../../data/mockData';
 import { DEFAULT_LOCATIONS } from '../../context/LocationContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';

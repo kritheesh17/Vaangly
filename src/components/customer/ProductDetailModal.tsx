@@ -3,9 +3,10 @@ import { ShopProduct, ProductVariant } from '../../types/database';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { ChevronLeft, ChevronRight, Plus, Minus, PackageX, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Minus, PackageX } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import './ProductDetailModal.css';
+import { findVariantForSelections, optionIsReachable, variantAttributeGroups, variantIsAvailable, variantLabel } from '../../lib/productVariants';
 
 interface ProductDetailModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const { t } = useLanguage();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [imageError, setImageError] = useState<Record<number, boolean>>({});
 
@@ -35,10 +37,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       setImageError({});
       setQuantity(1);
       if (product.has_variants && product.variants?.length) {
-        const defaultVar = product.variants.find((v) => v.in_stock) || product.variants[0];
+        const defaultVar = product.variants.find(variantIsAvailable) || product.variants[0];
         setSelectedVariant(defaultVar || null);
+        setSelectedAttributes(defaultVar?.attributes || {});
       } else {
         setSelectedVariant(null);
+        setSelectedAttributes({});
       }
     }
   }, [product, isOpen]);
@@ -58,8 +62,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     allImages.push(product.image_url);
   }
 
-  const effectivePrice = selectedVariant ? selectedVariant.price : product.price;
-  const effectiveUnit = selectedVariant ? selectedVariant.label : product.unit;
+  const variantGroups = variantAttributeGroups(product.variants || []);
+  const hasAttributeVariants = Object.keys(variantGroups).length > 0;
+  const resolvedVariant = hasAttributeVariants
+    ? findVariantForSelections(product.variants || [], selectedAttributes)
+    : selectedVariant;
+  const effectivePrice = resolvedVariant ? resolvedVariant.price : product.price;
+  const effectiveUnit = resolvedVariant ? variantLabel(resolvedVariant) : product.unit;
+  const selectedStock = resolvedVariant?.stock_quantity;
 
   const handlePrevImage = () => {
     setActiveImageIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
@@ -70,7 +80,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   };
 
   const handleAdd = () => {
-    onAddToCart(product, selectedVariant, quantity);
+    onAddToCart(product, resolvedVariant, quantity);
     onClose();
   };
 
@@ -170,31 +180,24 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           {/* Variants / Sizes */}
           {product.has_variants && product.variants && product.variants.length > 0 && (
             <div className="vaango-prod-modal__section">
-              <h4 className="vaango-prod-modal__section-title">Select Size / Option:</h4>
+              <h4 className="vaango-prod-modal__section-title">Select options:</h4>
               <div className="vaango-prod-modal__variants-list" role="group" aria-label="Product options">
-                {product.variants.map((v) => {
-                  const isSelected = selectedVariant?.id === v.id;
-                  return (
-                    <button
-                      key={v.id}
-                      type="button"
-                      disabled={!v.in_stock}
-                      className={`vaango-variant-chip ${isSelected ? 'vaango-variant-chip--active' : ''} ${!v.in_stock ? 'vaango-variant-chip--out-of-stock' : ''}`}
-                      onClick={() => setSelectedVariant(v)}
-                    >
-                      <span className="vaango-variant-chip__label">{v.label}</span>
-                      <span className="vaango-variant-chip__price">₹{v.price}</span>
-                      {isSelected && <Check size={14} className="vaango-variant-chip__check" />}
-                    </button>
-                  );
-                })}
+                {hasAttributeVariants ? Object.entries(variantGroups).map(([attributeName, options]) => (
+                  <div key={attributeName}>
+                    <strong>{attributeName}</strong>
+                    {options.map((option) => {
+                      const reachable = optionIsReachable(product.variants || [], selectedAttributes, attributeName, option);
+                      return <button key={option} type="button" disabled={!reachable} className={`vaango-variant-chip ${selectedAttributes[attributeName] === option ? 'vaango-variant-chip--active' : ''}`} onClick={() => setSelectedAttributes((current) => ({ ...current, [attributeName]: option }))}>{option}</button>;
+                    })}
+                  </div>
+                )) : product.variants.map((v) => <button key={v.id} type="button" disabled={!variantIsAvailable(v)} className={`vaango-variant-chip ${selectedVariant?.id === v.id ? 'vaango-variant-chip--active' : ''}`} onClick={() => setSelectedVariant(v)}>{variantLabel(v)} · ₹{v.price}</button>)}
               </div>
             </div>
           )}
 
           {/* Quantity Controls & Add to Cart */}
           <div className="vaango-prod-modal__cta-row">
-            {product.is_available && (!selectedVariant || selectedVariant.in_stock) ? (
+            {product.is_available && (!product.has_variants || (resolvedVariant !== null && variantIsAvailable(resolvedVariant))) ? (
               <>
                 <div className="vaango-qty-control" role="group" aria-label="Quantity">
                   <button
@@ -209,7 +212,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   <button
                     type="button"
                     className="vaango-qty-btn"
-                    onClick={() => setQuantity((q) => q + 1)}
+                    onClick={() => setQuantity((q) => selectedStock == null ? q + 1 : Math.min(selectedStock, q + 1))}
                     aria-label="Increase quantity"
                   >
                     <Plus size={16} />
@@ -220,7 +223,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   variant="primary"
                   size="lg"
                   fullWidth
-                  onClick={handleAdd}
+                  onClick={() => resolvedVariant && handleAdd()}
                   leftIcon={<Plus size={18} />}
                 >
                   {t('add')} · ₹{effectivePrice * quantity}

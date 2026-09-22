@@ -105,6 +105,8 @@ export interface ShopProduct {
   has_variants?: boolean;
   variants?: ProductVariant[];
   attribute_groups?: ProductAttributeGroup[];
+  track_inventory?: boolean;
+  stock_quantity?: number | null;
   is_banned?: boolean;
   moderation_reason?: string | null;
   moderated_at?: string | null;
@@ -114,9 +116,14 @@ export interface ShopProduct {
 
 export interface ProductVariant {
   id: string;
-  label: string;
+  label?: string;
   price: number;
-  in_stock: boolean;
+  attributes?: Record<string, string>;
+  sku?: string | null;
+  stock_quantity?: number | null;
+  is_available?: boolean;
+  in_stock?: boolean;
+  image_url?: string | null;
 }
 
 export interface ProductAttributeGroup {
@@ -196,6 +203,12 @@ export interface Request {
   total_estimate: number | null;
   customer_paid: boolean;
   payment_screenshot_url?: string | null;
+  payment_method?: 'cash' | 'upi' | null;
+  payment_amount?: number | null;
+  payment_status?: 'NOT_REQUIRED' | 'PAYMENT_PENDING' | 'PAYMENT_PROOF_SUBMITTED' | 'PAYMENT_VERIFIED' | 'PAYMENT_REJECTED';
+  payment_verified_at?: string | null;
+  payment_verified_by?: string | null;
+  payment_rejection_reason?: string | null;
   fulfillment_type?: 'parcel' | 'dine_in' | null;
   notes: string | null;
   scheduled_for: string | null;

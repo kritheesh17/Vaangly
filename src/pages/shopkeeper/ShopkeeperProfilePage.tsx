@@ -18,7 +18,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { Shop, ShopSubscription, TimeRange } from '../../types/database';
 import { getShopkeeperShop, updateShopProfile, updateSlotConfig } from '../../lib/shopkeeperApi';
-import { MOCK_SHOP_TYPES, getShopType } from '../../data/mockData';
+import { getShopType } from '../../data/mockData';
 import { fetchShopSubscription, calculateTrialWindow, updateShopBillingCycle } from '../../lib/adminApi';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';

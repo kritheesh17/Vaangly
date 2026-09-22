@@ -38,12 +38,13 @@ interface CartContextType {
   clearCart: () => void;
   clearShopItems: (shopId: string) => void;
   shopGroups: ShopCartGroup[];
-  submitRequest: (paymentMethod?: 'cash' | 'upi') => Promise<{ success: boolean; request?: Request; error?: string }>;
+  submitRequest: (paymentMethod?: 'cash' | 'upi', paymentProofPath?: string | null) => Promise<{ success: boolean; request?: Request; error?: string }>;
   submitShopRequest: (
     shopId: string,
     paymentMethod?: 'cash' | 'upi',
     overrideFulfillment?: 'parcel' | 'dine_in' | null,
-    shopNotes?: string
+    shopNotes?: string,
+    paymentProofPath?: string | null
   ) => Promise<{ success: boolean; request?: Request; error?: string }>;
   isSubmitting: boolean;
   getItemQuantity: (productId: string, variantId?: string | null) => number;
@@ -247,7 +248,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     shopId: string,
     paymentMethod: 'cash' | 'upi' = 'cash',
     overrideFulfillment?: 'parcel' | 'dine_in' | null,
-    shopNotes?: string
+    shopNotes?: string,
+    paymentProofPath?: string | null
   ): Promise<{ success: boolean; request?: Request; error?: string }> => {
     if (isSubmitting) {
       return { success: false, error: 'An order request is already processing. Please wait.' };
@@ -310,6 +312,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             variant_id: i.selectedVariant?.id || null,
             variant_label: i.selectedVariant?.label || null,
             variant_price: i.selectedVariant?.price || null,
+            variant_attributes: i.selectedVariant?.attributes || {},
           };
         }),
         notes: (shopNotes || orderNotes || '').trim() || null,
@@ -375,6 +378,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             total_estimate: serverCalculatedTotal,
             notes: JSON.stringify(requestPayload),
             fulfillment_type: chosenFulfillment,
+            payment_method: paymentMethod,
+            payment_amount: paymentMethod === 'upi' ? serverCalculatedTotal : null,
+            payment_screenshot_url: paymentMethod === 'upi' ? paymentProofPath : null,
           })
           .select()
           .single();
@@ -405,6 +411,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           reference_code: referenceCode,
           total_estimate: serverCalculatedTotal,
           customer_paid: false,
+          payment_method: paymentMethod,
+          payment_status: paymentMethod === 'upi' ? 'PAYMENT_PROOF_SUBMITTED' : 'NOT_REQUIRED',
+          payment_screenshot_url: paymentMethod === 'upi' ? paymentProofPath : null,
           fulfillment_type: chosenFulfillment,
           notes: JSON.stringify(requestPayload),
           scheduled_for: null,
@@ -433,11 +442,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Backward compatible single submit
-  const submitRequest = async (paymentMethod: 'cash' | 'upi' = 'cash'): Promise<{ success: boolean; request?: Request; error?: string }> => {
+  const submitRequest = async (paymentMethod: 'cash' | 'upi' = 'cash', paymentProofPath?: string | null): Promise<{ success: boolean; request?: Request; error?: string }> => {
     if (shopGroups.length === 0) {
       return { success: false, error: 'Cart is empty.' };
     }
-    return submitShopRequest(shopGroups[0].shop.id, paymentMethod);
+    return submitShopRequest(shopGroups[0].shop.id, paymentMethod, undefined, undefined, paymentProofPath);
   };
 
   return (

@@ -73,12 +73,36 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 DECLARE
+    v_request RECORD;
     v_notes TEXT;
     v_items JSONB;
 BEGIN
-    SELECT notes INTO v_notes
+    IF p_request_id IS NULL OR p_product_id IS NULL THEN
+        RETURN FALSE;
+    END IF;
+
+    SELECT id, customer_id, shop_id, current_state, notes INTO v_request
     FROM public.requests
     WHERE id = p_request_id;
+
+    IF NOT FOUND OR v_request.current_state <> 'COMPLETED' THEN
+        RETURN FALSE;
+    END IF;
+
+    IF auth.role() <> 'service_role'
+       AND NOT public.is_admin()
+       AND v_request.customer_id IS DISTINCT FROM auth.uid() THEN
+        RETURN FALSE;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM public.shop_products sp
+        WHERE sp.id = p_product_id AND sp.shop_id = v_request.shop_id
+    ) THEN
+        RETURN FALSE;
+    END IF;
+
+    v_notes := v_request.notes;
 
     IF v_notes IS NULL OR TRIM(v_notes) = '' THEN
         RETURN FALSE;
@@ -95,11 +119,26 @@ BEGIN
         RETURN FALSE;
     END IF;
 
-    RETURN EXISTS (
-        SELECT 1
-        FROM jsonb_array_elements(v_items) AS elem
-        WHERE (elem->>'product_id')::uuid = p_product_id
-    );
+        RETURN EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(v_items) AS elem
+                WHERE elem->>'product_id' = p_product_id::text
+                    AND (
+                        NULLIF(elem->>'variant_id', '') IS NULL
+                        OR (
+                            (elem->>'variant_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+                            AND EXISTS (
+                                SELECT 1
+                                FROM public.shop_products sp
+                                CROSS JOIN LATERAL jsonb_array_elements(
+                                        CASE WHEN jsonb_typeof(sp.variants) = 'array' THEN sp.variants ELSE '[]'::jsonb END
+                                ) AS variant
+                                WHERE sp.id = p_product_id
+                                    AND variant->>'id' = elem->>'variant_id'
+                            )
+                        )
+                    )
+        );
 EXCEPTION WHEN OTHERS THEN
     RETURN FALSE;
 END;
@@ -122,8 +161,19 @@ CREATE TABLE IF NOT EXISTS public.product_ratings (
 ALTER TABLE public.product_ratings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public read product ratings" ON public.product_ratings;
-CREATE POLICY "Public read product ratings" ON public.product_ratings
-    FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Customers read own product ratings" ON public.product_ratings;
+CREATE POLICY "Customers read own product ratings" ON public.product_ratings
+    FOR SELECT TO authenticated
+    USING (auth.uid() = customer_id OR public.is_admin());
+
+REVOKE ALL ON TABLE public.product_ratings FROM anon;
+
+CREATE OR REPLACE VIEW public.product_public_ratings AS
+    SELECT product_id, rating, review, created_at
+    FROM public.product_ratings;
+
+REVOKE ALL ON public.product_public_ratings FROM PUBLIC;
+GRANT SELECT ON public.product_public_ratings TO anon, authenticated;
 
 DROP POLICY IF EXISTS "Customers insert product rating for completed purchase" ON public.product_ratings;
 CREATE POLICY "Customers insert product rating for completed purchase" ON public.product_ratings
@@ -190,6 +240,7 @@ DECLARE
     v_app RECORD;
     v_shop RECORD;
     v_now TIMESTAMPTZ := now();
+    v_admin_id UUID := auth.uid();
     v_notes TEXT := COALESCE(NULLIF(trim(p_review_notes), ''), 'Storefront verified and identity approved by admin.');
     v_composed_address TEXT;
 BEGIN
@@ -211,7 +262,7 @@ BEGIN
     -- Step A: Mark application approved
     UPDATE public.shop_applications
     SET status = 'approved',
-        reviewed_by = p_admin_id,
+        reviewed_by = v_admin_id,
         review_notes = v_notes,
         updated_at = v_now
     WHERE id = p_application_id;
@@ -227,7 +278,7 @@ BEGIN
             ),
             ''
         ),
-        'Town Center, Verified Storefront'
+        'Address not provided'
     );
 
     -- Step B: Create storefront record
@@ -315,6 +366,13 @@ BEGIN
     SET role = 'shopkeeper',
         updated_at = v_now
     WHERE id = v_app.applicant_id;
+
+    DELETE FROM public.user_roles
+    WHERE user_id = v_app.applicant_id AND role = 'customer';
+
+    INSERT INTO public.user_roles (user_id, role, granted_by)
+    VALUES (v_app.applicant_id, 'shopkeeper', v_admin_id)
+    ON CONFLICT (user_id, role) DO NOTHING;
 
     RETURN jsonb_build_object(
         'success', true,

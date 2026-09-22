@@ -10,7 +10,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { Request, Shop } from '../../types/database';
 import { WorkflowGroupCode, WorkflowStateCode } from '../../types/workflow';
-import { MOCK_SHOP_TYPES, getShopType } from '../../data/mockData';
+import { getShopType } from '../../data/mockData';
 import { getShopkeeperShop, getShopRequests, transitionRequestState } from '../../lib/shopkeeperApi';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { RequestCard } from '../../components/shopkeeper/RequestCard';

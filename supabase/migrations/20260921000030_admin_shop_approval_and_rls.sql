@@ -41,6 +41,7 @@ AS $$
 DECLARE
     v_app RECORD;
     v_shop RECORD;
+    v_admin_id UUID := auth.uid();
     v_now TIMESTAMPTZ := now();
     v_trial_end TIMESTAMPTZ := now() + interval '60 days';
     v_notes TEXT := COALESCE(NULLIF(trim(p_review_notes), ''), 'Storefront verified and identity approved by admin.');
@@ -63,7 +64,7 @@ BEGIN
     -- Step A: Mark application approved
     UPDATE public.shop_applications
     SET status = 'approved',
-        reviewed_by = p_admin_id,
+        reviewed_by = v_admin_id,
         review_notes = v_notes,
         updated_at = v_now
     WHERE id = p_application_id;
@@ -95,8 +96,8 @@ BEGIN
         v_app.shop_type_id,
         v_app.location_id,
         v_app.shop_name,
-        COALESCE(v_app.description, 'Verified neighborhood business on Vaango'),
-        'Town Center, Verified Storefront',
+        COALESCE(v_app.description, 'Verified neighborhood business on Vaangly'),
+        'Address not provided',
         v_app.contact_phone,
         'active',
         false,
@@ -147,6 +148,13 @@ BEGIN
             is_verified = true,
             updated_at = v_now
         WHERE id = v_app.applicant_id;
+
+    DELETE FROM public.user_roles
+    WHERE user_id = v_app.applicant_id AND role = 'customer';
+
+    INSERT INTO public.user_roles (user_id, role, granted_by)
+    VALUES (v_app.applicant_id, 'shopkeeper', v_admin_id)
+    ON CONFLICT (user_id, role) DO NOTHING;
     END IF;
 
     -- Step E: Write admin audit log
@@ -159,7 +167,7 @@ BEGIN
         created_at
     )
     VALUES (
-        p_admin_id,
+        v_admin_id,
         'application_approved',
         'shop_application',
         p_application_id::text,
@@ -194,6 +202,7 @@ AS $$
 DECLARE
     v_app RECORD;
     v_now TIMESTAMPTZ := now();
+    v_admin_id UUID := auth.uid();
     v_reason TEXT := trim(p_rejection_reason);
 BEGIN
     -- Strict admin guard
@@ -218,7 +227,7 @@ BEGIN
     -- Update application status
     UPDATE public.shop_applications
     SET status = 'rejected',
-        reviewed_by = p_admin_id,
+        reviewed_by = v_admin_id,
         review_notes = v_reason,
         updated_at = v_now
     WHERE id = p_application_id;
@@ -233,7 +242,7 @@ BEGIN
         created_at
     )
     VALUES (
-        p_admin_id,
+        v_admin_id,
         'application_rejected',
         'shop_application',
         p_application_id::text,

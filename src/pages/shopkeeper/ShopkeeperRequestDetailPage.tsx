@@ -18,7 +18,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { Request, RequestEvent } from '../../types/database';
 import { WorkflowStateCode, WorkflowGroupCode } from '../../types/workflow';
-import { markRequestCustomerPaid, transitionRequestState } from '../../lib/shopkeeperApi';
+import { markRequestCustomerPaid, rejectRequestPayment, transitionRequestState } from '../../lib/shopkeeperApi';
 import { confirmServicePrice } from '../../lib/appointmentServiceApi';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { Card } from '../../components/ui/Card';
@@ -32,7 +32,7 @@ import './ShopkeeperRequestDetailPage.css';
 
 interface DecodedPayload {
   // Order
-  items?: { product_id: string; name: string; price: number; unit: string; quantity: number; effective_quantity?: number; offer_type?: string; subtotal: number; variant_id?: string | null; variant_label?: string | null; variant_price?: number | null }[];
+  items?: { product_id: string; name: string; price: number; unit: string; quantity: number; effective_quantity?: number; offer_type?: string; subtotal: number; variant_id?: string | null; variant_label?: string | null; variant_price?: number | null; variant_attributes?: Record<string, string> }[];
   // Appointment
   service_name?: string;
   provider_name?: string;
@@ -231,6 +231,25 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
     }
   };
 
+  const handleRejectPayment = async () => {
+    if (!request || !user) return;
+    const reason = window.prompt('Why is this payment proof being rejected?')?.trim();
+    if (!reason) return;
+    setIsActionLoading(true);
+    try {
+      const result = await rejectRequestPayment(request.id, user.id, reason);
+      if (result.success && result.request) {
+        setRequest(result.request);
+        toastError('Payment proof rejected. The customer can submit a replacement proof.');
+        await loadRequestAndHistory();
+      } else {
+        toastError(result.error || t('genericError'));
+      }
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
   const handleCompleteWithPaymentCheck = async (notes: string) => {
     if (!request) return;
     if (!request.customer_paid) {
@@ -333,15 +352,16 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
         <div className="vaango-req-header__top">
           <div>
 
-            {request.payment_screenshot_url && (
+            {request.payment_method === 'upi' && (
               <Card variant="outlined" padding="md" className="vaango-payment-review-card">
-                <h2 className="vaango-proof-review__title">{request.customer_paid ? 'Payment Verified' : 'Customer Payment Screenshot'}</h2>
+                <h2 className="vaango-proof-review__title">Payment Method: UPI</h2>
+                <p className="text-secondary text-sm">Payment status: {request.payment_status || (request.payment_screenshot_url ? 'PAYMENT_PROOF_SUBMITTED' : 'PAYMENT_PENDING')}</p>
                 {paymentProofUrl ? (
                   <a href={paymentProofUrl} target="_blank" rel="noopener noreferrer"><img src={paymentProofUrl} alt="Customer payment proof" className="vaango-payment-proof-preview" /></a>
                 ) : (
-                  <p className="text-secondary text-sm">Payment proof is unavailable. Refresh and try again.</p>
+                  <p className="text-secondary text-sm">Payment proof has not been submitted.</p>
                 )}
-                {!request.customer_paid ? <div className="vaango-req-action-card__btn-group"><Button variant="primary" onClick={() => void handleMarkPaid()} leftIcon={<CheckCircle size={16} />}>Confirm Payment Received</Button><Button variant="outline" onClick={() => toastError('Payment marked for review. Contact the customer before completing this request.')} leftIcon={<AlertTriangle size={16} />}>Payment Looks Wrong</Button></div> : <p className="vaango-proof-verified-note">Payment confirmed. Screenshot kept for your records.</p>}
+                {request.payment_status !== 'PAYMENT_VERIFIED' && request.payment_status !== 'PAYMENT_REJECTED' && request.payment_screenshot_url ? <div className="vaango-req-action-card__btn-group"><Button variant="primary" onClick={() => void handleMarkPaid()} leftIcon={<CheckCircle size={16} />}>Confirm Payment Received</Button><Button variant="outline" onClick={() => void handleRejectPayment()} leftIcon={<AlertTriangle size={16} />}>Reject Proof</Button></div> : request.payment_status === 'PAYMENT_REJECTED' ? <p className="vaango-proof-verified-note">Rejected: {request.payment_rejection_reason || 'No reason provided.'}</p> : request.payment_status === 'PAYMENT_VERIFIED' ? <p className="vaango-proof-verified-note">Payment confirmed. Screenshot kept for your records.</p> : null}
               </Card>
             )}
             <span className="vaango-req-header__kicker">
@@ -995,6 +1015,9 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
                       <span className="vaango-item-variant-pill" style={{ display: 'inline-block', fontSize: '0.75rem', background: 'var(--color-surface-hover)', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px' }}>
                         Option: {it.variant_label}
                       </span>
+                    )}
+                    {!it.variant_label && Object.keys(it.variant_attributes || {}).length > 0 && (
+                      <span className="vaango-item-row__unit">Option: {Object.entries(it.variant_attributes || {}).map(([name, value]) => `${name}: ${value}`).join(' / ')}</span>
                     )}
                     {it.offer_type === 'bogo' && <span className="vaango-bogo-tag">BOGO - prepare {it.effective_quantity ?? it.quantity * 2} units</span>}
                   </div>

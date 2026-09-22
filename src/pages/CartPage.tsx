@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -18,9 +18,98 @@ import { Textarea } from '../components/ui/Textarea';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 import { useToast } from '../context/ToastContext';
-import { MOCK_SHOP_TYPES, getShopType, isValidUuid } from '../data/mockData';
+import { getShopType, isValidUuid } from '../data/mockData';
 import { useLanguage } from '../context/LanguageContext';
+import QRCode from 'qrcode';
+import { removePendingPaymentProof, uploadPendingPaymentProof, validatePaymentProofFile } from '../lib/paymentProof';
 import './CartPage.css';
+
+interface UpiPaymentPanelProps {
+  shopName: string;
+  upiId?: string | null;
+  qrUrl?: string | null;
+  amount: number;
+  userId: string;
+  proofPath: string | null;
+  onProofPathChange: (path: string | null) => void;
+}
+
+const UpiPaymentPanel: React.FC<UpiPaymentPanelProps> = ({ shopName, upiId, qrUrl, amount, userId, proofPath, onProofPathChange }) => {
+  const [generatedQr, setGeneratedQr] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!upiId || qrUrl) {
+      setGeneratedQr(null);
+      return;
+    }
+    const paymentUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(shopName)}&am=${amount.toFixed(2)}&cu=INR`;
+    void QRCode.toDataURL(paymentUri, { width: 320, margin: 2 }).then((dataUrl) => {
+      if (active) setGeneratedQr(dataUrl);
+    }).catch(() => {
+      if (active) setGeneratedQr(null);
+    });
+    return () => { active = false; };
+  }, [amount, qrUrl, shopName, upiId]);
+
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    const validationError = validatePaymentProofFile(file);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setIsUploading(true);
+    try {
+      await removePendingPaymentProof(proofPath);
+      const path = await uploadPendingPaymentProof(file, userId);
+      setPreviewUrl(URL.createObjectURL(file));
+      setFileName(file.name);
+      onProofPathChange(path);
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'Unable to upload payment proof.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeProof = async () => {
+    await removePendingPaymentProof(proofPath);
+    setPreviewUrl(null);
+    setFileName(null);
+    onProofPathChange(null);
+  };
+
+  return (
+    <div className="vaango-cart-upi-panel">
+      <strong>Pay ₹{amount.toFixed(2)} using any UPI app</strong>
+      {qrUrl || generatedQr ? <img src={qrUrl || generatedQr || ''} alt={`UPI QR code for ${shopName}`} className="vaango-upi-qr" /> : <p className="vaango-cart-payment-error">This shop has not configured a UPI ID or QR code.</p>}
+      {upiId && <p className="vaango-cart-upi-id">UPI ID: <code>{upiId}</code></p>}
+      <p className="vaango-cart-payment-help">After completing payment, upload the payment screenshot. Payment remains pending until the shop verifies it.</p>
+      {!previewUrl ? (
+        <label className="vaango-payment-proof-upload">
+          <span>{isUploading ? 'Uploading proof...' : 'Add Payment Proof'}</span>
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" disabled={isUploading} onChange={(event) => void handleFile(event.target.files?.[0])} />
+        </label>
+      ) : (
+        <div className="vaango-payment-proof-selection">
+          <img src={previewUrl} alt="Payment proof preview" className="vaango-payment-proof-preview" />
+          <span>{fileName}</span>
+          <div className="vaango-payment-proof-actions">
+            <label className="vaango-payment-proof-upload"><span>Replace</span><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={(event) => void handleFile(event.target.files?.[0])} /></label>
+            <Button type="button" variant="outline" size="sm" onClick={() => void removeProof()}>Remove</Button>
+          </div>
+        </div>
+      )}
+      {error && <p className="vaango-cart-payment-error" role="alert">{error}</p>}
+    </div>
+  );
+};
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -46,6 +135,7 @@ export const CartPage: React.FC = () => {
   const [shopNotes, setShopNotes] = useState<Record<string, string>>({});
   const [shopFulfillments, setShopFulfillments] = useState<Record<string, 'parcel' | 'dine_in' | null>>({});
   const [shopPaymentMethods, setShopPaymentMethods] = useState<Record<string, 'cash' | 'upi'>>({});
+  const [paymentProofPaths, setPaymentProofPaths] = useState<Record<string, string | null>>({});
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -87,11 +177,20 @@ export const CartPage: React.FC = () => {
     }
 
     const chosenPayment = shopPaymentMethods[shopId] || 'cash';
+    const paymentProofPath = paymentProofPaths[shopId] || null;
+    if (chosenPayment === 'upi' && !group.shop.upi_id && !group.shop.upi_qr_url) {
+      setShopErrors((prev) => ({ ...prev, [shopId]: 'This shop has not configured UPI payment details.' }));
+      return;
+    }
+    if (chosenPayment === 'upi' && !paymentProofPath) {
+      setShopErrors((prev) => ({ ...prev, [shopId]: 'Add payment proof before placing a UPI order.' }));
+      return;
+    }
     const chosenNote = shopNotes[shopId] || '';
 
     setSubmittingShopId(shopId);
     try {
-      const result = await submitShopRequest(shopId, chosenPayment, chosenFulfillment, chosenNote);
+      const result = await submitShopRequest(shopId, chosenPayment, chosenFulfillment, chosenNote, paymentProofPath);
       if (result.success && result.request) {
         toastSuccess(`Order placed with ${group.shop.name}!`);
         navigate(`/request-confirmation/${result.request.id}`);
@@ -326,9 +425,11 @@ export const CartPage: React.FC = () => {
                     <button
                       type="button"
                       className={currentPayment === 'cash' ? 'active' : ''}
-                      onClick={() =>
-                        setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'cash' }))
-                      }
+                      onClick={() => {
+                        void removePendingPaymentProof(paymentProofPaths[shopId] || null);
+                        setPaymentProofPaths((prev) => ({ ...prev, [shopId]: null }));
+                        setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'cash' }));
+                      }}
                     >
                       Cash on Delivery
                     </button>
@@ -342,6 +443,17 @@ export const CartPage: React.FC = () => {
                       UPI / Online
                     </button>
                   </div>
+                  {currentPayment === 'upi' && user && (
+                    <UpiPaymentPanel
+                      shopName={shop.name}
+                      upiId={shop.upi_id}
+                      qrUrl={shop.upi_qr_url}
+                      amount={subtotal}
+                      userId={user.id}
+                      proofPath={paymentProofPaths[shopId] || null}
+                      onProofPathChange={(path) => setPaymentProofPaths((prev) => ({ ...prev, [shopId]: path }))}
+                    />
+                  )}
                 </div>
               </div>
 

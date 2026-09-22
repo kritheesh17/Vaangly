@@ -3,7 +3,7 @@
 -- Description: Production Readiness Hardening
 -- 1. Permits PRE-FULFILLMENT CANCELLATION (REQUESTED -> CANCELLED) in requests state machine.
 -- 2. Closes unverified role escalation by defaulting all new auth users to 'customer'.
--- 3. Restores authenticated operational notifications INSERT RLS policy.
+-- 3. Restricts notification creation to trusted admin/server-side RPCs.
 -- 4. Grants SELECT permissions on product_avg_ratings view for customer storefronts.
 -- ==============================================================================
 
@@ -110,15 +110,11 @@ BEGIN
 END;
 $$;
 
--- 3. NOTIFICATION RLS: RESTORE OPERATIONAL NOTIFICATIONS CREATION FOR AUTHENTICATED USERS
+-- 3. NOTIFICATION RLS: clients may read/update their own rows, but never insert.
 DROP POLICY IF EXISTS vaangly_notifications_service_insert ON public.notifications;
 DROP POLICY IF EXISTS "Users can create operational notifications" ON public.notifications;
 
-CREATE POLICY "Users can create operational notifications"
-ON public.notifications FOR INSERT
-WITH CHECK (
-  auth.role() = 'authenticated'
-);
+REVOKE INSERT ON public.notifications FROM PUBLIC, anon, authenticated;
 
 -- Ensure recipients can only view and update their own notifications
 DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
@@ -139,3 +135,76 @@ BEGIN
     EXECUTE 'GRANT SELECT ON public.product_avg_ratings TO authenticated, anon';
   END IF;
 END $$;
+
+CREATE OR REPLACE FUNCTION public.vaangly_create_admin_notification(
+    p_recipient_id UUID,
+    p_shop_id UUID,
+    p_type TEXT,
+    p_title TEXT,
+    p_message TEXT,
+    p_reference_id TEXT DEFAULT NULL,
+    p_reference_code TEXT DEFAULT NULL
+)
+RETURNS public.notifications
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+DECLARE
+    v_notification public.notifications;
+BEGIN
+    IF auth.role() <> 'service_role' AND NOT public.is_admin() THEN
+        RAISE EXCEPTION 'Trusted notification access required';
+    END IF;
+
+    INSERT INTO public.notifications(
+        recipient_id, shop_id, type, notification_type, title, message,
+        reference_id, reference_code
+    )
+    VALUES (
+        p_recipient_id, p_shop_id, p_type, p_type, p_title, p_message,
+        p_reference_id, p_reference_code
+    )
+    RETURNING * INTO v_notification;
+
+    RETURN v_notification;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.vaangly_create_notification_from_event(
+    p_event_id UUID, p_recipient_id UUID, p_notification_type TEXT,
+    p_title TEXT, p_message TEXT, p_reference_id UUID DEFAULT NULL, p_reference_code TEXT DEFAULT NULL
+)
+RETURNS public.notifications
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+DECLARE
+    v_notification public.notifications;
+BEGIN
+    IF auth.role() <> 'service_role' AND NOT public.is_admin() THEN
+        RAISE EXCEPTION 'Trusted notification access required';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.notification_events WHERE id = p_event_id) THEN
+        RAISE EXCEPTION 'Notification event not found';
+    END IF;
+
+    INSERT INTO public.notifications(
+        recipient_id, event_id, type, notification_type, title, message,
+        reference_id, reference_code
+    )
+    VALUES (
+        p_recipient_id, p_event_id, p_notification_type, p_notification_type,
+        p_title, p_message, p_reference_id::text, p_reference_code
+    )
+    RETURNING * INTO v_notification;
+
+    RETURN v_notification;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.vaangly_create_admin_notification(UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.vaangly_create_admin_notification(UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.vaangly_create_notification_from_event(UUID, UUID, TEXT, TEXT, TEXT, UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.vaangly_create_notification_from_event(UUID, UUID, TEXT, TEXT, TEXT, UUID, TEXT) TO authenticated, service_role;

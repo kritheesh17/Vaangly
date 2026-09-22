@@ -340,9 +340,10 @@ export const ShopDetailPage: React.FC = () => {
                       key={product.id}
                       product={product}
                       quantityInCart={qty}
+                      getVariantQuantity={(variantId) => getItemQuantity(product.id, variantId)}
                       onAdd={(p, variant) => handleAddProduct(p || product, variant)}
-                      onIncrease={() => updateQuantity(product.id, qty + 1)}
-                      onDecrease={() => updateQuantity(product.id, qty - 1)}
+                      onIncrease={(variant) => updateQuantity(product.id, getItemQuantity(product.id, variant?.id) + 1, variant?.id)}
+                      onDecrease={(variant) => updateQuantity(product.id, getItemQuantity(product.id, variant?.id) - 1, variant?.id)}
                     />
                   );
                 })}

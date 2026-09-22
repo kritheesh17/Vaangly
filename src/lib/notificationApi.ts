@@ -193,20 +193,15 @@ export const createNotification = async (
 
   if (isSupabaseConfigured) {
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .insert({
-          recipient_id: payload.recipient_id,
-          shop_id: payload.shop_id || null,
-          type: payload.type,
-          title: payload.title,
-          message: payload.message,
-          reference_id: payload.reference_id || null,
-          reference_code: payload.reference_code || null,
-          is_read: false,
-        })
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('vaangly_create_admin_notification', {
+        p_recipient_id: payload.recipient_id,
+        p_shop_id: payload.shop_id || null,
+        p_type: payload.type,
+        p_title: payload.title,
+        p_message: payload.message,
+        p_reference_id: payload.reference_id || null,
+        p_reference_code: payload.reference_code || null,
+      });
 
       if (!error && data) {
         window.dispatchEvent(new CustomEvent('vaango-notifications-changed'));

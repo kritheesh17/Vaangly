@@ -16,7 +16,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { Shop, ShopProduct, ShopService, PriceType, ProductVariant, ProductAttributeGroup } from '../../types/database';
 import { WorkflowGroupCode } from '../../types/workflow';
-import { MOCK_SHOP_TYPES, getShopType } from '../../data/mockData';
+import { getShopType } from '../../data/mockData';
 import {
   getShopkeeperShop,
   getShopProductsList,
