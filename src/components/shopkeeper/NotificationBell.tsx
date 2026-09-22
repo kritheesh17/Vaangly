@@ -16,6 +16,7 @@ import {
   markAllNotificationsAsRead,
 } from '../../lib/notificationApi';
 import { useAuth } from '../../context/AuthContext';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import './NotificationBell.css';
 
 interface NotificationBellProps {
@@ -49,6 +50,26 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
     window.addEventListener('vaango-notifications-changed', handleUpdate);
     window.addEventListener('vaango-requests-changed', handleUpdate);
 
+    // Supabase Realtime live sync
+    let channel: any = null;
+    if (isSupabaseConfigured && user) {
+      channel = supabase
+        .channel(`user-notifications-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'notifications',
+            filter: `recipient_id=eq.${user.id}`,
+          },
+          () => {
+            loadNotifs();
+          }
+        )
+        .subscribe();
+    }
+
     // Close on outside click
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -61,10 +82,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
       window.removeEventListener('vaango-notifications-changed', handleUpdate);
       window.removeEventListener('vaango-requests-changed', handleUpdate);
       document.removeEventListener('mousedown', handleClickOutside);
+      if (channel && isSupabaseConfigured) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [user, shopId]);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const displayBadge = unreadCount > 99 ? '99+' : unreadCount.toString();
 
   const handleNotificationClick = async (notif: Notification) => {
     try {
@@ -186,7 +211,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
         title="Storefront Operational Notifications"
       >
         <Bell size={18} />
-        {unreadCount > 0 && <span className="vaango-notif-badge">{unreadCount}</span>}
+        {unreadCount > 0 && <span className="vaango-notif-badge">{displayBadge}</span>}
       </button>
 
       {isOpen && (

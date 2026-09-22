@@ -6,11 +6,11 @@ import {
   Plus,
   Minus,
   Store,
-  FileText,
   AlertCircle,
   ShoppingBag,
+  Building2,
 } from 'lucide-react';
-import { getEffectiveQuantity, useCart } from '../context/CartContext';
+import { getEffectiveQuantity, useCart, ShopCartGroup } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -26,35 +26,30 @@ export const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { user, signInWithGoogle, isSupabaseLive } = useAuth();
-  const { error: toastError } = useToast();
+  const { success: toastSuccess, error: toastError } = useToast();
 
   const {
     items,
-    activeShop,
+    shopGroups,
     itemCount,
-    totalAmount,
-    orderNotes,
-    setOrderNotes,
-    fulfillmentType,
-    setFulfillmentType,
     updateQuantity,
     removeItem,
     clearCart,
-    submitRequest,
+    clearShopItems,
+    submitShopRequest,
     isSubmitting,
   } = useCart();
 
-  const isInvalidShopId = !isValidUuid(activeShop?.id);
-  const shopType = MOCK_SHOP_TYPES.find((type) => type.id === activeShop?.shop_type_id);
-  const offersDineIn = ['restaurant', 'hotel', 'bakery'].includes(shopType?.code || '');
-
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [submissionError, setSubmissionError] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi'>('cash');
+  const [submittingShopId, setSubmittingShopId] = useState<string | null>(null);
+  const [shopErrors, setShopErrors] = useState<Record<string, string>>({});
+  const [shopNotes, setShopNotes] = useState<Record<string, string>>({});
+  const [shopFulfillments, setShopFulfillments] = useState<Record<string, 'parcel' | 'dine_in' | null>>({});
+  const [shopPaymentMethods, setShopPaymentMethods] = useState<Record<string, 'cash' | 'upi'>>({});
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  if (items.length === 0 || !activeShop) {
+  if (items.length === 0 || shopGroups.length === 0) {
     return (
       <div className="container vaango-cart-page__empty">
         <EmptyState
@@ -68,39 +63,49 @@ export const CartPage: React.FC = () => {
     );
   }
 
-  const handleProceed = async () => {
-    setSubmissionError(null);
+  const handleCheckoutShop = async (group: ShopCartGroup) => {
+    const shopId = group.shop.id;
+    setShopErrors((prev) => ({ ...prev, [shopId]: '' }));
 
-    // Stale / Invalid Shop ID Check
-    if (isInvalidShopId) {
-      setSubmissionError(t('staleCartWarningDesc'));
+    if (!isValidUuid(shopId)) {
+      setShopErrors((prev) => ({ ...prev, [shopId]: t('staleCartWarningDesc') }));
       return;
     }
 
-    // Authentication Check
     if (!user) {
       setAuthModalOpen(true);
       return;
     }
 
-    if (offersDineIn && !fulfillmentType) {
-      setSubmissionError(t('chooseParcelOrDineIn'));
+    const shopType = MOCK_SHOP_TYPES.find((type) => type.id === group.shop.shop_type_id);
+    const offersDineIn = ['restaurant', 'hotel', 'bakery'].includes(shopType?.code || '');
+    const chosenFulfillment = shopFulfillments[shopId] || null;
+
+    if (offersDineIn && !chosenFulfillment) {
+      setShopErrors((prev) => ({ ...prev, [shopId]: t('chooseParcelOrDineIn') }));
       return;
     }
 
+    const chosenPayment = shopPaymentMethods[shopId] || 'cash';
+    const chosenNote = shopNotes[shopId] || '';
+
+    setSubmittingShopId(shopId);
     try {
-      const result = await submitRequest(paymentMethod);
+      const result = await submitShopRequest(shopId, chosenPayment, chosenFulfillment, chosenNote);
       if (result.success && result.request) {
+        toastSuccess(`Order placed with ${group.shop.name}!`);
         navigate(`/request-confirmation/${result.request.id}`);
       } else {
         const errorMsg = result.error || t('genericError');
-        setSubmissionError(errorMsg);
+        setShopErrors((prev) => ({ ...prev, [shopId]: errorMsg }));
         toastError(errorMsg);
       }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : t('genericError');
-      setSubmissionError(errorMsg);
+      setShopErrors((prev) => ({ ...prev, [shopId]: errorMsg }));
       toastError(errorMsg);
+    } finally {
+      setSubmittingShopId(null);
     }
   };
 
@@ -131,15 +136,20 @@ export const CartPage: React.FC = () => {
         <button
           type="button"
           className="vaango-back-link"
-          onClick={() => navigate(`/shop/${activeShop.id}`)}
-          aria-label={`${t('backBtn')} ${activeShop.name}`}
+          onClick={() => navigate('/shops?group=ORDER')}
+          aria-label={t('browseAvailableShops')}
         >
           <ArrowLeft size={18} />
-          <span>{t('backBtn')} {activeShop.name}</span>
+          <span>{t('browseAvailableShops')}</span>
         </button>
 
         <div className="vaango-cart-page__title-row">
-          <h1 className="vaango-cart-page__title">{t('reviewRequest')}</h1>
+          <div>
+            <h1 className="vaango-cart-page__title">{t('reviewRequest')}</h1>
+            <span className="vaango-cart-page__count-badge">
+              {itemCount} {itemCount === 1 ? 'item' : 'items'} across {shopGroups.length} {shopGroups.length === 1 ? 'store' : 'stores'}
+            </span>
+          </div>
           <button
             type="button"
             className="vaango-cart-page__clear-btn"
@@ -151,319 +161,262 @@ export const CartPage: React.FC = () => {
         </div>
       </div>
 
-      {isInvalidShopId && (
-        <div
-          className="vaango-cart-error-alert"
-          style={{
-            background: 'var(--color-warning-bg, #fffbeb)',
-            borderColor: 'var(--color-warning, #f59e0b)',
-            color: 'var(--color-text, #1e293b)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: 'var(--space-4)',
-          }}
-          role="alert"
-        >
-          <AlertCircle size={22} style={{ color: 'var(--color-warning, #f59e0b)', flexShrink: 0 }} />
-          <div style={{ flex: 1 }}>
-            <strong style={{ display: 'block', marginBottom: 2 }}>{t('staleCartWarningTitle')}</strong>
-            <p style={{ margin: 0, fontSize: 'var(--font-size-sm)' }}>{t('staleCartWarningDesc')}</p>
+      {/* Multi-Shop Notice when items from multiple stores exist */}
+      {shopGroups.length > 1 && (
+        <div className="vaango-multi-shop-banner">
+          <Building2 size={20} className="vaango-multi-shop-banner__icon" />
+          <div className="vaango-multi-shop-banner__text">
+            <strong>Multiple Store Orders</strong>
+            <p>
+              Your cart contains products from {shopGroups.length} different local shops. Each store will process and fulfill its order independently. You can place your orders one by one.
+            </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              clearCart();
-              navigate('/shops?group=ORDER');
-            }}
-          >
-            {t('clearCartAndBrowse')}
-          </Button>
         </div>
       )}
 
-      {submissionError && (
-        <div className="vaango-cart-error-alert" role="alert">
-          <AlertCircle size={18} />
-          <span>{submissionError}</span>
-        </div>
-      )}
+      {/* Render Each Shopfront Group as an Independent Order Card */}
+      <div className="vaango-cart-groups-list">
+        {shopGroups.map((group) => {
+          const { shop, items: shopItems, subtotal } = group;
+          const shopId = shop.id;
+          const isInvalidShopId = !isValidUuid(shopId);
+          const shopType = MOCK_SHOP_TYPES.find((type) => type.id === shop.shop_type_id);
+          const offersDineIn = ['restaurant', 'hotel', 'bakery'].includes(shopType?.code || '');
+          const currentFulfillment = shopFulfillments[shopId] || null;
+          const currentPayment = shopPaymentMethods[shopId] || 'cash';
+          const currentNote = shopNotes[shopId] || '';
+          const currentError = shopErrors[shopId];
+          const isThisSubmitting = submittingShopId === shopId;
 
-      <div className="vaango-cart-layout">
-        {/* Main Items Section */}
-        <div className="vaango-cart-items-section">
-          {/* Shop Context Header */}
-          <Card variant="default" padding="md" className="vaango-cart-shop-banner">
-            <div className="vaango-cart-shop-banner__icon">
-              <Store size={22} />
-            </div>
-            <div>
-              <div className="vaango-cart-shop-banner__label">
-                {t('orderingFromLabel')}
+          return (
+            <Card key={shopId} variant="default" padding="lg" className="vaango-cart-shop-group-card">
+              {/* Storefront Header */}
+              <div className="vaango-cart-shop-group-header">
+                <div className="vaango-cart-shop-group-meta">
+                  <div className="vaango-cart-shop-banner__icon">
+                    <Store size={22} />
+                  </div>
+                  <div>
+                    <div className="vaango-cart-shop-banner__label">{t('orderingFromLabel')}</div>
+                    <h2 className="vaango-cart-shop-banner__name">{shop.name}</h2>
+                    <span className="vaango-cart-shop-banner__address">{shop.address_line}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="vaango-cart-shop-clear-btn"
+                  onClick={() => clearShopItems(shopId)}
+                  title={`Remove all items from ${shop.name}`}
+                >
+                  <Trash2 size={16} />
+                  <span>Remove Store Items</span>
+                </button>
               </div>
-              <h2 className="vaango-cart-shop-banner__name">{activeShop.name}</h2>
-              <span className="vaango-cart-shop-banner__address">{activeShop.address_line}</span>
-            </div>
-          </Card>
 
-          {/* Line Items List */}
-          <div className="vaango-cart-items-list" role="list" aria-label={t('items')}>
-            {items.map((item) => {
-              const { product, quantity } = item;
-              const effectiveQuantity = getEffectiveQuantity(item);
-              return (
-                <Card key={product.id} variant="default" padding="md" className="vaango-cart-item">
-                  <div className="vaango-cart-item__main">
-                    <div className="vaango-cart-item__info">
-                      <h3 className="vaango-cart-item__name">{product.name}</h3>
-                      <span className="vaango-cart-item__rate">
-                        ₹{product.price} / {product.unit}
-                      </span>
-                      {product.offer_type === 'bogo' && (
-                        <div className="vaango-bogo-badge">
-                          {t('bogoNoticeWithCount', { quantity, effectiveQuantity })}
-                        </div>
-                      )}
-                      <div className="vaango-cart-item-qty">
-                        {t('quantityLabel', { quantity })}
-                        {product.offer_type === 'bogo' && (
-                          <span className="vaango-bogo-qty">
-                            {t('bogoQtyBadge', { effectiveQuantity })}
+              {isInvalidShopId && (
+                <div className="vaango-cart-error-alert" role="alert">
+                  <AlertCircle size={20} />
+                  <span>{t('staleCartWarningDesc')}</span>
+                </div>
+              )}
+
+              {currentError && (
+                <div className="vaango-cart-error-alert" role="alert">
+                  <AlertCircle size={18} />
+                  <span>{currentError}</span>
+                </div>
+              )}
+
+              {/* Items for this Shop */}
+              <div className="vaango-cart-items-list" role="list">
+                {shopItems.map((item) => {
+                  const { product, quantity, selectedVariant } = item;
+                  const effectiveQuantity = getEffectiveQuantity(item);
+                  const unitPrice = selectedVariant?.price ?? product.price;
+
+                  return (
+                    <div key={`${product.id}-${selectedVariant?.id || 'base'}`} className="vaango-cart-item-row">
+                      <div className="vaango-cart-item__main">
+                        <div className="vaango-cart-item__info">
+                          <h3 className="vaango-cart-item__name">{product.name}</h3>
+                          {selectedVariant && (
+                            <span className="vaango-cart-variant-pill">
+                              Option: {selectedVariant.label} (₹{selectedVariant.price})
+                            </span>
+                          )}
+                          <span className="vaango-cart-item__rate">
+                            ₹{unitPrice} / {selectedVariant?.label || product.unit}
                           </span>
-                        )}
+                          {product.offer_type === 'bogo' && (
+                            <div className="vaango-bogo-badge">
+                              {t('bogoNoticeWithCount', { quantity, effectiveQuantity })}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="vaango-cart-item__subtotal">
+                          ₹{unitPrice * quantity}
+                        </div>
+                      </div>
+
+                      <div className="vaango-cart-item__actions">
+                        {/* Quantity Controls */}
+                        <div className="vaango-qty-control vaango-qty-control--sm" role="group">
+                          <button
+                            type="button"
+                            className="vaango-qty-btn"
+                            onClick={() => updateQuantity(product.id, quantity - 1, selectedVariant?.id)}
+                            aria-label={t('decreaseQty')}
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <span className="vaango-qty-display">{quantity}</span>
+                          <button
+                            type="button"
+                            className="vaango-qty-btn"
+                            onClick={() => updateQuantity(product.id, quantity + 1, selectedVariant?.id)}
+                            aria-label={t('increaseQty')}
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="vaango-cart-item__remove"
+                          onClick={() => removeItem(product.id, selectedVariant?.id)}
+                          aria-label={`${t('deleteItem')} ${product.name}`}
+                        >
+                          <Trash2 size={16} />
+                          <span>{t('deleteItem')}</span>
+                        </button>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
 
-                    <div className="vaango-cart-item__subtotal">
-                      ₹{product.price * quantity}
+              {/* Shop Specific Options (Dine in / Parcel & Notes) */}
+              <div className="vaango-cart-shop-options-grid">
+                {offersDineIn && (
+                  <div className="vaango-cart-fulfillment-box">
+                    <span className="vaango-cart-opt-label">{t('chooseFulfillment')}</span>
+                    <div className="vaango-fulfillment-toggle" role="radiogroup">
+                      {(['parcel', 'dine_in'] as const).map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          role="radio"
+                          aria-checked={currentFulfillment === opt}
+                          className={currentFulfillment === opt ? 'active' : ''}
+                          onClick={() =>
+                            setShopFulfillments((prev) => ({ ...prev, [shopId]: opt }))
+                          }
+                        >
+                          {opt === 'parcel' ? t('parcelOption') : t('dineInOption')}
+                        </button>
+                      ))}
                     </div>
                   </div>
+                )}
 
-                  <div className="vaango-cart-item__actions">
-                    {/* Quantity Control */}
-                    <div className="vaango-qty-control vaango-qty-control--sm" role="group">
-                      <button
-                        type="button"
-                        className="vaango-qty-btn"
-                        onClick={() => updateQuantity(product.id, quantity - 1)}
-                        aria-label={t('decreaseQty')}
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span className="vaango-qty-display">{quantity}</span>
-                      <button
-                        type="button"
-                        className="vaango-qty-btn"
-                        onClick={() => updateQuantity(product.id, quantity + 1)}
-                        aria-label={t('increaseQty')}
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-
+                <div className="vaango-cart-payment-box">
+                  <span className="vaango-cart-opt-label">Payment Method</span>
+                  <div className="vaango-fulfillment-toggle" role="radiogroup">
                     <button
                       type="button"
-                      className="vaango-cart-item__remove"
-                      onClick={() => removeItem(product.id)}
-                      aria-label={`${t('deleteItem')} ${product.name}`}
+                      className={currentPayment === 'cash' ? 'active' : ''}
+                      onClick={() =>
+                        setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'cash' }))
+                      }
                     >
-                      <Trash2 size={16} />
-                      <span>{t('deleteItem')}</span>
+                      Cash on Delivery
+                    </button>
+                    <button
+                      type="button"
+                      className={currentPayment === 'upi' ? 'active' : ''}
+                      onClick={() =>
+                        setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'upi' }))
+                      }
+                    >
+                      UPI / Online
                     </button>
                   </div>
-                </Card>
-              );
-            })}
-          </div>
+                </div>
+              </div>
 
-          {/* Customer Special Notes */}
-          {offersDineIn && (
-            <Card variant="default" padding="md" className="vaango-cart-notes-card">
-              <strong>{t('chooseFulfillment')}</strong>
-              <div className="vaango-fulfillment-toggle" role="radiogroup" aria-label={t('chooseFulfillment')}>
-                {(['parcel', 'dine_in'] as const).map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    role="radio"
-                    aria-checked={fulfillmentType === option}
-                    className={fulfillmentType === option ? 'active' : ''}
-                    onClick={() => setFulfillmentType(option)}
-                  >
-                    {option === 'parcel' ? t('parcelOption') : t('dineInOption')}
-                  </button>
-                ))}
+              {/* Special Instructions Note for Shop */}
+              <div className="vaango-cart-notes-section">
+                <label htmlFor={`notes-${shopId}`} className="vaango-cart-opt-label">Special instructions / Notes</label>
+                <Textarea
+                  id={`notes-${shopId}`}
+                  placeholder={t('orderNotesPlaceholder')}
+                  value={currentNote}
+                  onChange={(e) =>
+                    setShopNotes((prev) => ({ ...prev, [shopId]: e.target.value }))
+                  }
+                  rows={2}
+                />
+              </div>
+
+              {/* Storefront Footer & Checkout Button */}
+              <div className="vaango-cart-shop-footer">
+                <div className="vaango-cart-shop-subtotal">
+                  <span>Store Total ({shopItems.length} items):</span>
+                  <strong>₹{subtotal}</strong>
+                </div>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  isLoading={isThisSubmitting}
+                  disabled={isSubmitting || isInvalidShopId}
+                  onClick={() => handleCheckoutShop(group)}
+                >
+                  Place Order with {shop.name} · ₹{subtotal}
+                </Button>
               </div>
             </Card>
-          )}
-
-          <Card variant="default" padding="md" className="vaango-cart-notes-card">
-            <div className="vaango-cart-notes-header">
-              <FileText size={18} />
-              <label htmlFor="cart-notes" className="vaango-cart-notes-title">
-                {t('specialInstructions')}
-              </label>
-            </div>
-            <Textarea
-              id="cart-notes"
-              value={orderNotes}
-              onChange={(e) => setOrderNotes(e.target.value)}
-              placeholder={t('orderNotesPlaceholder')}
-              rows={2}
-            />
-          </Card>
-        </div>
-
-        {/* Order Summary & Submit Panel */}
-        <div className="vaango-cart-summary-section">
-          <Card variant="elevated" padding="lg" className="vaango-cart-summary-card">
-            <h2 className="vaango-cart-summary__title">
-              {t('orderSummary')}
-            </h2>
-
-            <div className="vaango-cart-summary__breakdown">
-              <div className="vaango-summary-row">
-                <span>{t('totalItems')}</span>
-                <span>{itemCount} {t('items')}</span>
-              </div>
-
-              <div className="vaango-summary-row">
-                <span>{t('itemTotal')}</span>
-                <span>₹{totalAmount}</span>
-              </div>
-
-              <div className="vaango-summary-row vaango-summary-row--accent">
-                <span>{t('chooseFulfillment')}</span>
-                <span>
-                  {fulfillmentType === 'dine_in'
-                    ? t('dineInOption')
-                    : fulfillmentType === 'parcel'
-                    ? t('parcelOption')
-                    : offersDineIn
-                    ? t('chooseOneFulfillment')
-                    : t('counterPickup')}
-                </span>
-              </div>
-
-              <div className="vaango-summary-divider" />
-
-              <div className="vaango-summary-row vaango-summary-row--total">
-                <span>{t('totalAmount')}</span>
-                <span className="vaango-summary-total-price">₹{totalAmount}</span>
-              </div>
-            </div>
-
-            <div className="vaango-cart-payment-selector">
-              <p className="vaango-cart-payment-label">
-                {t('paymentMethodTitle')}: {t('submitNote')}
-              </p>
-              <div className="vaango-cart-payment-options">
-                <button
-                  type="button"
-                  className={`vaango-payment-option ${paymentMethod === 'cash' ? 'vaango-payment-option--active' : ''}`}
-                  onClick={() => setPaymentMethod('cash')}
-                >
-                  {t('payCash')}
-                </button>
-                <button
-                  type="button"
-                  className={`vaango-payment-option ${paymentMethod === 'upi' ? 'vaango-payment-option--active' : ''}`}
-                  onClick={() => setPaymentMethod('upi')}
-                >
-                  {t('payUpiDirect')}
-                </button>
-              </div>
-            </div>
-
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              isLoading={isSubmitting}
-              onClick={handleProceed}
-              className="vaango-cart-submit-btn"
-            >
-              {isSubmitting ? t('submittingRequest') : t('submitRequest')}
-            </Button>
-          </Card>
-        </div>
+          );
+        })}
       </div>
 
-      {/* Sign-in Modal if unauthenticated */}
+      {/* Auth Modal if guest checks out */}
       <Modal
         isOpen={authModalOpen}
-        onClose={() => {
-          setAuthModalOpen(false);
-          setAuthError(null);
-        }}
+        onClose={() => setAuthModalOpen(false)}
         title={t('signInToOrder')}
-        description={t('signInToOrderDesc')}
         maxWidth="sm"
-        footer={
-          <Button
-            variant="outline"
-            size="md"
-            onClick={() => setAuthModalOpen(false)}
-          >
-            {t('cancelBtn')}
-          </Button>
-        }
       >
-        <div style={{ textAlign: 'center', padding: 'var(--space-2) 0' }}>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', lineHeight: 1.6, marginBottom: 'var(--space-5)' }}>
-            {t('signInWithGoogleForShop', { shopName: activeShop.name })}
+        <div className="vaango-auth-modal-content">
+          <p className="vaango-auth-modal-desc">
+            Sign in with Google or your phone to complete your order and track live updates from the store.
           </p>
-
           {authError && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-error)', fontSize: 'var(--font-size-xs)', marginBottom: 'var(--space-4)', justifyContent: 'center' }}>
-              <AlertCircle size={14} />
+            <div className="vaango-cart-error-alert" role="alert">
+              <AlertCircle size={16} />
               <span>{authError}</span>
             </div>
           )}
-
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            fullWidth
-            isLoading={isGoogleLoading}
-            onClick={handleGoogleSignInFromCart}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '12px',
-              fontWeight: 600,
-              fontSize: '1rem',
-              padding: '12px 20px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--color-surface)',
-              color: 'var(--color-text)',
-              cursor: 'pointer',
-              marginBottom: 'var(--space-3)',
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-              />
-            </svg>
-            <span>{t('googleSignInBtn')}</span>
-          </Button>
+          <div className="vaango-auth-modal-actions">
+            <Button
+              variant="primary"
+              fullWidth
+              isLoading={isGoogleLoading}
+              onClick={handleGoogleSignInFromCart}
+            >
+              Continue with Google
+            </Button>
+            <Button
+              variant="outline"
+              fullWidth
+              onClick={() => {
+                setAuthModalOpen(false);
+                navigate('/login', { state: { from: { pathname: '/cart' } } });
+              }}
+            >
+              Sign In with Mobile OTP
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

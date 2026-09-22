@@ -32,7 +32,7 @@ import './ShopkeeperRequestDetailPage.css';
 
 interface DecodedPayload {
   // Order
-  items?: { product_id: string; name: string; price: number; unit: string; quantity: number; effective_quantity?: number; offer_type?: string; subtotal: number }[];
+  items?: { product_id: string; name: string; price: number; unit: string; quantity: number; effective_quantity?: number; offer_type?: string; subtotal: number; variant_id?: string | null; variant_label?: string | null; variant_price?: number | null }[];
   // Appointment
   service_name?: string;
   provider_name?: string;
@@ -64,6 +64,7 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
   const { success, error: toastError } = useToast();
 
   const [request, setRequest] = useState<Request | null>(null);
+  const [customerProfile, setCustomerProfile] = useState<{ full_name?: string; phone_number?: string } | null>(null);
   const [paymentProofUrl, setPaymentProofUrl] = useState<string | null>(null);
   const [events, setEvents] = useState<RequestEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,6 +110,20 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
 
         if (!reqErr && reqData) {
           setRequest(reqData as Request);
+          if (reqData.customer_id && isSupabaseConfigured) {
+            try {
+              const { data: profData } = await supabase
+                .from('profiles')
+                .select('full_name, phone_number')
+                .eq('id', reqData.customer_id)
+                .maybeSingle();
+              if (profData) {
+                setCustomerProfile(profData);
+              }
+            } catch {
+              // Ignore profile fetch failure
+            }
+          }
           if (reqData.payment_screenshot_url && isSupabaseConfigured) {
             const { data: signedData } = await supabase.storage
               .from('payment-proofs')
@@ -377,17 +392,17 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
             <span className="vaango-req-label">Customer / Visitor</span>
             <div className="vaango-req-val">
               <User size={15} />
-              <span>{decoded.customer_name || 'Counter Customer'}</span>
+              <span>{decoded.customer_name || customerProfile?.full_name || 'Counter Customer'}</span>
             </div>
           </div>
 
-          {decoded.customer_phone && (
+          {(decoded.customer_phone || customerProfile?.phone_number) && (
             <div className="vaango-req-cust-col">
               <span className="vaango-req-label">Phone</span>
               <div className="vaango-req-val">
                 <Phone size={15} />
-                <a href={`tel:${decoded.customer_phone}`} className="hover:underline">
-                  {decoded.customer_phone}
+                <a href={`tel:${decoded.customer_phone || customerProfile?.phone_number}`} className="hover:underline">
+                  {decoded.customer_phone || customerProfile?.phone_number}
                 </a>
               </div>
             </div>
@@ -991,6 +1006,11 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
                 <div key={idx} className="vaango-req-items-table__row">
                   <div className="vaango-col-item">
                     <strong>{it.name}</strong>
+                    {it.variant_label && (
+                      <span className="vaango-item-variant-pill" style={{ display: 'inline-block', fontSize: '0.75rem', background: 'var(--color-surface-hover)', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px' }}>
+                        Option: {it.variant_label}
+                      </span>
+                    )}
                     {it.offer_type === 'bogo' && <span className="vaango-bogo-tag">BOGO - prepare {it.effective_quantity ?? it.quantity * 2} units</span>}
                   </div>
                   <div className="vaango-col-rate">

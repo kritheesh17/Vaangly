@@ -78,18 +78,54 @@ export const LoginPage: React.FC = () => {
     }
 
     if (isSupabaseConfigured) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'PASSWORD_RECOVERY') {
           setMode('recovery');
           setErrorMsg(null);
           setSuccessMsg(null);
+        } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
+          if (session?.user) {
+            const updated = await refreshUser();
+            if (updated?.is_verified) {
+              setSuccessMsg(null);
+              setUnconfirmedEmail(null);
+              navigate(from, { replace: true });
+            }
+          }
         }
       });
+
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key?.includes('auth-token') || e.key === 'vaangly_demo_role' || e.key === 'vaango_demo_role') {
+          refreshUser().then((updated) => {
+            if (updated?.is_verified) {
+              navigate(from, { replace: true });
+            }
+          });
+        }
+      };
+
+      const handleWindowFocus = () => {
+        if (isGoogleLoading) {
+          refreshUser().then((updated) => {
+            if (updated?.is_verified) {
+              setIsGoogleLoading(false);
+              navigate(from, { replace: true });
+            }
+          });
+        }
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+      window.addEventListener('focus', handleWindowFocus);
+
       return () => {
         subscription.unsubscribe();
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('focus', handleWindowFocus);
       };
     }
-  }, []);
+  }, [from, isGoogleLoading, navigate, refreshUser]);
 
   // Customer / Partner: Continue with Google
   const handleGoogleSignIn = async () => {
@@ -285,9 +321,12 @@ export const LoginPage: React.FC = () => {
       <Card variant="elevated" padding="lg" className="vaango-auth-card">
         {/* Header */}
         <div className="vaango-auth-header">
-          <div className="vaango-auth-logo">
-            <span>V</span>
-          </div>
+          <Link to="/" className="vaango-auth-brand" aria-label="Vaangly Home">
+            <div className="vaango-header__logo-icon" aria-hidden="true">
+              <span>V</span>
+            </div>
+            <span className="vaango-header__logo-text">VAANGLY</span>
+          </Link>
           <h1 className="vaango-auth-title">
             {mode === 'signin' && t('signInTitle')}
             {mode === 'signup' && t('signUpTitle')}

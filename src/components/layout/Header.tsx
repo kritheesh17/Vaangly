@@ -308,6 +308,7 @@ export const Header: React.FC = () => {
               {!user ? (
                 <div className="vaango-mobile-menu__auth-actions">
                   <Link to="/login" className="vaango-mobile-menu__btn-login" onClick={closeMobileMenu}>
+                    <User size={18} style={{ marginRight: 6 }} />
                     {t('logIn')}
                   </Link>
                   <Link to="/shops?group=ORDER" className="vaango-mobile-menu__btn-primary" onClick={closeMobileMenu}>
@@ -316,10 +317,15 @@ export const Header: React.FC = () => {
                 </div>
               ) : (
                 <div className="vaango-mobile-menu__user-card">
-                  <div className="vaango-mobile-menu__user-info">
-                    <User size={18} />
-                    <span>{user.full_name}</span>
-                  </div>
+                  <Link to="/profile" className="vaango-mobile-menu__user-info-link" onClick={closeMobileMenu}>
+                    <div className="vaango-mobile-menu__user-avatar">
+                      <User size={18} />
+                    </div>
+                    <div className="vaango-mobile-menu__user-details">
+                      <span className="vaango-mobile-menu__user-name">{user.full_name}</span>
+                      <span className="vaango-mobile-menu__user-sub">{t('profile') || 'View Profile'}</span>
+                    </div>
+                  </Link>
                   <button
                     type="button"
                     onClick={() => {
@@ -327,6 +333,8 @@ export const Header: React.FC = () => {
                       signOut().then(() => navigate('/login'));
                     }}
                     className="vaango-mobile-menu__logout-btn"
+                    title={t('signOut')}
+                    aria-label={t('signOut')}
                   >
                     <LogOut size={16} />
                     <span>{t('signOut')}</span>

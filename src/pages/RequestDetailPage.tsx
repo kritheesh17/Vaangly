@@ -10,6 +10,7 @@ import {
   Calendar,
   AlertTriangle,
   XCircle,
+  Star,
 } from 'lucide-react';
 import { Request } from '../types/database';
 import { WorkflowStateCode, WorkflowGroupCode } from '../types/workflow';
@@ -24,7 +25,7 @@ import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
-import { StarRating } from '../components/ui/StarRating';
+import { RatingModal } from '../components/customer/RatingModal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -82,7 +83,7 @@ export const RequestDetailPage: React.FC = () => {
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
   const [userRating, setUserRating] = useState(0);
   const [hasRated, setHasRated] = useState(false);
-  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  const [ratingModalOpen, setRatingModalOpen] = useState(false);
 
   const groupCode: WorkflowGroupCode = (request?.workflow_group_code || 'ORDER') as WorkflowGroupCode;
 
@@ -127,28 +128,6 @@ export const RequestDetailPage: React.FC = () => {
       toastError(err instanceof Error ? err.message : t('unableToSubmitProof'));
     } finally {
       setIsSubmittingProof(false);
-    }
-  };
-
-  const handleSubmitRating = async () => {
-    if (!userRating || !request || !user) return;
-    setIsSubmittingRating(true);
-    try {
-      if (isSupabaseConfigured) {
-        const { error } = await supabase.from('shop_ratings').insert({
-          shop_id: request.shop_id,
-          customer_id: user.id,
-          request_id: request.id,
-          rating: userRating,
-        });
-        if (error) throw error;
-      }
-      setHasRated(true);
-      success(t('ratingSubmitted'));
-    } catch {
-      toastError(t('ratingError'));
-    } finally {
-      setIsSubmittingRating(false);
     }
   };
 
@@ -537,18 +516,34 @@ export const RequestDetailPage: React.FC = () => {
         />
       </Card>
 
-      {request.current_state === 'COMPLETED' && !hasRated && (
+      {request.current_state === 'COMPLETED' && (
         <Card variant="default" padding="lg" className="vaango-rating-prompt">
-          <h3>{t('howWasExperienceTitle')}</h3>
-          <p className="text-sm text-secondary">{t('rateMerchantPrompt', { shopName })}</p>
-          <StarRating value={userRating} onChange={setUserRating} size="lg" />
-          {userRating > 0 && <Button variant="primary" size="md" isLoading={isSubmittingRating} onClick={() => void handleSubmitRating()}>{t('submitRatingBtn')}</Button>}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>Rate Your Purchase & Experience</h3>
+              <p className="text-sm text-secondary" style={{ margin: '4px 0 0 0' }}>Share your feedback for {shopName} and the items you purchased.</p>
+            </div>
+            <Button
+              variant="primary"
+              size="md"
+              leftIcon={<Star size={16} fill="#ffffff" />}
+              onClick={() => setRatingModalOpen(true)}
+            >
+              {hasRated ? `Rated ${userRating > 0 ? `(${userRating}★)` : ''} · Update Review` : 'Rate & Write Review'}
+            </Button>
+          </div>
         </Card>
       )}
-      {hasRated && (
-        <Card variant="default" padding="md">
-          <div className="vaango-rating-submitted"><StarRating value={userRating} readonly size="sm" /><span className="text-sm text-secondary">{t('ratingSubmittedThankYou')}</span></div>
-        </Card>
+
+      {ratingModalOpen && (
+        <RatingModal
+          request={request}
+          isOpen={ratingModalOpen}
+          onClose={() => setRatingModalOpen(false)}
+          onSuccess={() => {
+            setHasRated(true);
+          }}
+        />
       )}
 
       {/* Group-specific Content */}

@@ -1027,6 +1027,10 @@ export const submitShopApplication = async (
         gps_lat: application.gps_lat,
         gps_lng: application.gps_lng,
         google_maps_url: application.google_maps_url || null,
+        area: application.area?.trim() || null,
+        district: application.district?.trim() || null,
+        taluk: application.taluk?.trim() || null,
+        pincode: application.pincode?.trim() || null,
         review_notes: null,
         reviewed_by: null,
       };

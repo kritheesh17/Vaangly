@@ -1,0 +1,239 @@
+.vaango-prod-modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+}
+
+.vaango-prod-modal__gallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.vaango-prod-modal__main-image-wrap {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  background-color: var(--color-surface-sunken);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 640px) {
+  .vaango-prod-modal__main-image-wrap {
+    height: 320px;
+  }
+}
+
+.vaango-prod-modal__main-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background-color: var(--color-surface-sunken);
+}
+
+.vaango-prod-modal__placeholder {
+  width: 100%;
+  height: 220px;
+  background: var(--brand-primary-light);
+  color: var(--brand-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: 800;
+  border-radius: var(--radius-lg);
+}
+
+.vaango-prod-modal__nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: rgba(15, 24, 40, 0.65);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast);
+}
+
+.vaango-prod-modal__nav-btn:hover {
+  background: rgba(15, 24, 40, 0.9);
+}
+
+.vaango-prod-modal__nav-btn--prev {
+  left: 10px;
+}
+
+.vaango-prod-modal__nav-btn--next {
+  right: 10px;
+}
+
+.vaango-prod-modal__thumbnails {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.vaango-prod-modal__thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 2px solid transparent;
+  padding: 0;
+  background: var(--color-surface-sunken);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color var(--transition-fast);
+}
+
+.vaango-prod-modal__thumb--active {
+  border-color: var(--brand-primary);
+}
+
+.vaango-prod-modal__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vaango-prod-modal__info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.vaango-prod-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vaango-prod-modal__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.vaango-prod-modal__badges {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.vaango-prod-modal__price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.vaango-prod-modal__price {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--brand-primary);
+}
+
+[data-theme='dark'] .vaango-prod-modal__price,
+.dark .vaango-prod-modal__price {
+  color: #22D3EE;
+}
+
+.vaango-prod-modal__unit {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.vaango-prod-modal__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vaango-prod-modal__section-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.vaango-prod-modal__desc {
+  font-size: 0.92rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.vaango-prod-modal__variants-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vaango-variant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.vaango-variant-chip:hover:not(:disabled) {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-light);
+}
+
+.vaango-variant-chip--active {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-light);
+  color: var(--brand-primary);
+  box-shadow: 0 0 0 2px rgba(27, 77, 62, 0.2);
+}
+
+[data-theme='dark'] .vaango-variant-chip--active,
+.dark .vaango-variant-chip--active {
+  background-color: rgba(34, 211, 238, 0.15);
+  border-color: #22D3EE;
+  color: #22D3EE;
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.25);
+}
+
+.vaango-variant-chip--out-of-stock {
+  opacity: 0.5;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.vaango-variant-chip__price {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.vaango-prod-modal__cta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}

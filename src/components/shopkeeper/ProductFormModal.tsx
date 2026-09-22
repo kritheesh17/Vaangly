@@ -155,7 +155,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const uploadedUrls: string[] = await Promise.all(
         imageFiles.map(async (rawFile, index) => {
           if (!isSupabaseConfigured || !hasLiveAuthSession) {
-            return URL.createObjectURL(rawFile);
+            throw new Error('Supabase storage session not active. Please log in again to upload photos.');
           }
 
           try {
@@ -173,24 +173,24 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               contentType: 'image/jpeg',
             });
 
-            // Fast 10-second timeout that resolves safely rather than throwing
+            // 15-second timeout
             const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
-              setTimeout(() => resolve({ data: null, error: { message: 'Upload timed out' } }), 10000)
+              setTimeout(() => resolve({ data: null, error: { message: 'Image upload timed out' } }), 15000)
             );
 
             const uploadResult = await Promise.race([uploadPromise, timeoutPromise]);
             if (uploadResult?.error) {
-              console.warn('Storage upload error, falling back to local preview:', uploadResult.error);
-              return URL.createObjectURL(fileToUpload);
+              console.error('Storage upload error:', uploadResult.error);
+              throw new Error(`Failed to upload ${rawFile.name}: ${uploadResult.error.message}`);
             }
             return supabase.storage.from('shop-photos').getPublicUrl(filePath).data.publicUrl;
           } catch (uploadErr) {
-            console.warn('Image processing fallback:', uploadErr);
-            return URL.createObjectURL(rawFile);
+            console.error('Image processing error:', uploadErr);
+            throw uploadErr instanceof Error ? uploadErr : new Error('Failed to process and upload image.');
           }
         })
       );
-      const allImageUrls = [...existingImageUrls, ...uploadedUrls];
+      const allImageUrls = [...existingImageUrls, ...uploadedUrls].filter((url) => !url.startsWith('blob:'));
       const result = await onSubmit({
         name: name.trim(),
         description: description.trim(),

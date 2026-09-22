@@ -75,6 +75,10 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       }
     });
   }, []);
+  const [area, setArea] = useState('');
+  const [district, setDistrict] = useState('');
+  const [taluk, setTaluk] = useState('');
+  const [pincode, setPincode] = useState('');
   const [description, setDescription] = useState('');
   const [shopPhotos, setShopPhotos] = useState<File[]>([]);
   const [upiQrFile, setUpiQrFile] = useState<File | null>(null);
@@ -111,6 +115,22 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
     }
     if (!shopTypeId) {
       setFormError('Please select a shop category.');
+      return;
+    }
+    if (!area.trim()) {
+      setFormError('Area / Street / Locality is required.');
+      return;
+    }
+    if (!taluk.trim()) {
+      setFormError('Taluk is required.');
+      return;
+    }
+    if (!district.trim()) {
+      setFormError('District is required.');
+      return;
+    }
+    if (!pincode.trim() || !/^\d{6}$/.test(pincode.trim())) {
+      setFormError('Please enter a valid 6-digit Pincode.');
       return;
     }
     setStep('verification');
@@ -401,6 +421,10 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         gps_lat: gpsCoords.lat,
         gps_lng: gpsCoords.lng,
         google_maps_url: googleMapsUrl.trim() || null,
+        area: area.trim(),
+        district: district.trim(),
+        taluk: taluk.trim(),
+        pincode: pincode.trim(),
       });
 
       if (res.success && res.application) {
@@ -726,6 +750,63 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                 />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                <div className="vaango-form-group">
+                  <label className="vaango-form-label" htmlFor="app-area">
+                    Area / Street / Locality <span className="vaango-required">*</span>
+                  </label>
+                  <Input
+                    id="app-area"
+                    placeholder="e.g. Gandhi Nagar, Main Road"
+                    value={area}
+                    onChange={(e) => setArea(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="vaango-form-group">
+                  <label className="vaango-form-label" htmlFor="app-taluk">
+                    Taluk <span className="vaango-required">*</span>
+                  </label>
+                  <Input
+                    id="app-taluk"
+                    placeholder="e.g. Pollachi"
+                    value={taluk}
+                    onChange={(e) => setTaluk(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                <div className="vaango-form-group">
+                  <label className="vaango-form-label" htmlFor="app-district">
+                    District <span className="vaango-required">*</span>
+                  </label>
+                  <Input
+                    id="app-district"
+                    placeholder="e.g. Coimbatore"
+                    value={district}
+                    onChange={(e) => setDistrict(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="vaango-form-group">
+                  <label className="vaango-form-label" htmlFor="app-pincode">
+                    Pincode <span className="vaango-required">*</span>
+                  </label>
+                  <Input
+                    id="app-pincode"
+                    placeholder="e.g. 642001"
+                    maxLength={6}
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
+                    required
+                  />
+                </div>
               </div>
             </Card>
 

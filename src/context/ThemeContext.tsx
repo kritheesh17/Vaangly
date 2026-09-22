@@ -18,10 +18,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 1. Check local storage
     const saved = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
     if (saved === 'light' || saved === 'dark') return saved;
-    // 2. Fallback to system preference
-    if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
+    // 2. Default to light mode for all new users
     return 'light';
   });
 

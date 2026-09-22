@@ -299,3 +299,161 @@
   flex-shrink: 0;
   margin-top: 1px;
 }
+
+/* Multi-Shop Cart Specific Styling */
+.vaango-cart-page__count-badge {
+  display: inline-block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.vaango-multi-shop-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-primary-surface, rgba(16, 185, 129, 0.08));
+  border: 1px solid var(--color-primary-border, rgba(16, 185, 129, 0.25));
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-2);
+}
+
+.vaango-multi-shop-banner__icon {
+  color: var(--brand-primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.vaango-multi-shop-banner__text strong {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  margin-bottom: 2px;
+}
+
+.vaango-multi-shop-banner__text p {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.vaango-cart-groups-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.vaango-cart-shop-group-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+}
+
+.vaango-cart-shop-group-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  gap: var(--space-3);
+}
+
+.vaango-cart-shop-group-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.vaango-cart-shop-clear-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--color-error);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease;
+}
+
+.vaango-cart-shop-clear-btn:hover {
+  background: var(--color-error-bg);
+}
+
+.vaango-cart-item-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.06));
+}
+
+.vaango-cart-variant-pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-medium);
+  background: var(--color-surface-hover);
+  color: var(--color-text-secondary);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  margin-top: 2px;
+  margin-bottom: 2px;
+  width: fit-content;
+}
+
+.vaango-cart-shop-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-md);
+}
+
+.vaango-cart-opt-label {
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+}
+
+.vaango-cart-notes-section {
+  margin-top: var(--space-1);
+}
+
+.vaango-cart-shop-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+@media (min-width: 640px) {
+  .vaango-cart-shop-footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.vaango-cart-shop-subtotal {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.vaango-cart-shop-subtotal strong {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-extrabold);
+  color: var(--brand-primary);
+}

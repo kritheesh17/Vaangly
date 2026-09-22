@@ -48,6 +48,10 @@ export interface Shop {
   name: string;
   tagline: string | null;
   address_line: string;
+  area?: string | null;
+  district?: string | null;
+  taluk?: string | null;
+  pincode?: string | null;
   phone: string;
   status: ShopStatus;
   is_live: boolean;
@@ -227,6 +231,10 @@ export interface ShopApplication {
   upi_id?: string | null;
   upi_qr_url?: string | null;
   id_proof_url: string | null;
+  area?: string | null;
+  district?: string | null;
+  taluk?: string | null;
+  pincode?: string | null;
   gps_lat?: number | null;
   gps_lng?: number | null;
   google_maps_url?: string | null;
@@ -234,6 +242,26 @@ export interface ShopApplication {
   reviewed_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ShopRating {
+  id: string;
+  shop_id: string;
+  customer_id: string;
+  request_id: string;
+  rating: number;
+  review?: string | null;
+  created_at: string;
+}
+
+export interface ProductRating {
+  id: string;
+  product_id: string;
+  customer_id: string;
+  request_id: string;
+  rating: number;
+  review?: string | null;
+  created_at: string;
 }
 
 // Phase 5: Subscriptions & Admin Audit Domain Models

@@ -164,8 +164,8 @@ export const ShopDetailPage: React.FC = () => {
     );
   }
 
-  const handleAddProduct = (product: ShopProduct) => {
-    const result = addItem(product, shop);
+  const handleAddProduct = (product: ShopProduct, variant?: import('../types/database').ProductVariant | null) => {
+    const result = addItem(product, shop, variant);
     if (result.requiresClear) {
       setPendingProduct(product);
       setConflictModalOpen(true);
@@ -340,7 +340,7 @@ export const ShopDetailPage: React.FC = () => {
                       key={product.id}
                       product={product}
                       quantityInCart={qty}
-                      onAdd={() => handleAddProduct(product)}
+                      onAdd={(p, variant) => handleAddProduct(p || product, variant)}
                       onIncrease={() => updateQuantity(product.id, qty + 1)}
                       onDecrease={() => updateQuantity(product.id, qty - 1)}
                     />

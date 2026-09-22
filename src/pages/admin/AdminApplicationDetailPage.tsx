@@ -270,6 +270,30 @@ export const AdminApplicationDetailPage: React.FC = () => {
                   {location?.name || 'Hometown Zone'} ({location?.pincode})
                 </span>
               </div>
+              {application.area && (
+                <div>
+                  <span className="vaango-field-label">Area / Locality</span>
+                  <span className="vaango-field-value">{application.area}</span>
+                </div>
+              )}
+              {application.taluk && (
+                <div>
+                  <span className="vaango-field-label">Taluk</span>
+                  <span className="vaango-field-value">{application.taluk}</span>
+                </div>
+              )}
+              {application.district && (
+                <div>
+                  <span className="vaango-field-label">District</span>
+                  <span className="vaango-field-value">{application.district}</span>
+                </div>
+              )}
+              {application.pincode && (
+                <div>
+                  <span className="vaango-field-label">Postal Pincode</span>
+                  <span className="vaango-field-value">{application.pincode}</span>
+                </div>
+              )}
             </div>
 
             <div style={{ marginTop: 16 }}>

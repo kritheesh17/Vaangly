@@ -7,7 +7,7 @@ import {
   Clock,
   Calendar,
   Wrench,
-  ShoppingBag,
+  Star,
 } from 'lucide-react';
 import { Request } from '../types/database';
 import { WorkflowGroupCode } from '../types/workflow';
@@ -16,13 +16,15 @@ import { useLanguage } from '../context/LanguageContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
+import { RatingModal } from '../components/customer/RatingModal';
 import { getStoredDemoRequests, resetDemoData } from '../lib/demoData';
 import './OrdersPage.css';
 
 interface DecodedNotes {
-  items?: { product_id: string; name: string; price: number; unit: string; quantity: number; subtotal: number }[];
+  items?: { product_id: string; name: string; price: number; unit: string; quantity: number; subtotal: number; variant_label?: string }[];
   service_name?: string;
   provider_name?: string;
   slot_date?: string;
@@ -37,7 +39,7 @@ interface DecodedNotes {
 }
 
 type GroupFilter = 'ALL' | 'ORDER' | 'APPOINTMENT' | 'SERVICE';
-type StatusFilter = 'active' | 'completed' | 'all';
+type StatusFilter = 'all' | 'pending' | 'processing' | 'ready' | 'completed' | 'cancelled';
 
 export const OrdersPage: React.FC = () => {
   const { user } = useAuth();
@@ -46,37 +48,54 @@ export const OrdersPage: React.FC = () => {
 
   const [requests, setRequests] = useState<Request[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [groupFilter, setGroupFilter] = useState<GroupFilter>('ALL');
+  const [ratingModalRequest, setRatingModalRequest] = useState<Request | null>(null);
+
+  const fetchRequests = async () => {
+    if (isSupabaseConfigured && user) {
+      try {
+        const { data, error } = await supabase
+          .from('requests')
+          .select('*')
+          .eq('customer_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          setRequests(data as Request[]);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      const stored = getStoredDemoRequests();
+      setRequests(stored);
+    }
+    setIsLoading(false);
+  };
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function fetchRequests() {
-      if (isSupabaseConfigured && user) {
-        try {
-          const { data, error } = await supabase
-            .from('requests')
-            .select('*')
-            .eq('customer_id', user.id)
-            .order('created_at', { ascending: false });
-
-          if (!error && data && isMounted) {
-            setRequests(data as Request[]);
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      } else {
-        const stored = getStoredDemoRequests();
-        if (isMounted) {
-          setRequests(stored);
-        }
-      }
-      if (isMounted) setIsLoading(false);
-    }
-
     fetchRequests();
+
+    // Supabase Realtime channel subscription for live updates
+    let channel: any = null;
+    if (isSupabaseConfigured && user) {
+      channel = supabase
+        .channel(`customer_requests_${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'requests',
+            filter: `customer_id=eq.${user.id}`,
+          },
+          () => {
+            fetchRequests();
+          }
+        )
+        .subscribe();
+    }
 
     const handleDataChanged = () => {
       if (!isSupabaseConfigured) {
@@ -86,20 +105,47 @@ export const OrdersPage: React.FC = () => {
     window.addEventListener('vaango-requests-changed', handleDataChanged);
 
     return () => {
-      isMounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
       window.removeEventListener('vaango-requests-changed', handleDataChanged);
     };
   }, [user]);
+
+  // Status Counts
+  const counts = {
+    all: requests.length,
+    pending: requests.filter((r) => r.current_state === 'REQUESTED').length,
+    processing: requests.filter((r) =>
+      ['ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'DELAYED'].includes(r.current_state)
+    ).length,
+    ready: requests.filter((r) => r.current_state === 'READY').length,
+    completed: requests.filter((r) => r.current_state === 'COMPLETED').length,
+    cancelled: requests.filter((r) =>
+      ['REJECTED', 'CANCELLED', 'NO_SHOW'].includes(r.current_state)
+    ).length,
+  };
 
   const filteredRequests = requests.filter((req) => {
     // 1. Filter by workflow group
     const reqGroup: WorkflowGroupCode = (req.workflow_group_code || 'ORDER') as WorkflowGroupCode;
     if (groupFilter !== 'ALL' && reqGroup !== groupFilter) return false;
 
-    // 2. Filter by status (active vs completed/terminal)
-    const isCompleted = ['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(req.current_state);
-    if (statusFilter === 'active') return !isCompleted;
-    if (statusFilter === 'completed') return isCompleted;
+    // 2. Filter by status
+    if (statusFilter === 'pending' && req.current_state !== 'REQUESTED') return false;
+    if (
+      statusFilter === 'processing' &&
+      !['ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'DELAYED'].includes(req.current_state)
+    )
+      return false;
+    if (statusFilter === 'ready' && req.current_state !== 'READY') return false;
+    if (statusFilter === 'completed' && req.current_state !== 'COMPLETED') return false;
+    if (
+      statusFilter === 'cancelled' &&
+      !['REJECTED', 'CANCELLED', 'NO_SHOW'].includes(req.current_state)
+    )
+      return false;
+
     return true;
   });
 
@@ -138,94 +184,118 @@ export const OrdersPage: React.FC = () => {
         <div className="vaango-merchant-notice-banner mb-4">
           <div className="flex items-center gap-2">
             <Store size={18} className="text-primary" />
-            <span className="text-sm font-semibold">{t('merchantNoticeLoggedIn')}</span>
+            <span>You are signed in as a shopkeeper. Viewing your personal customer orders.</span>
           </div>
           <button
             type="button"
-            className="vaango-btn vaango-btn--primary vaango-btn--sm"
+            className="vaango-btn vaango-btn--secondary vaango-btn--sm"
             onClick={() => navigate('/shopkeeper/requests')}
           >
-            {t('goToMerchantInbox')}
+            Go to Shop Management
           </button>
         </div>
       )}
 
+      {/* Header */}
       <div className="vaango-orders-header">
         <div>
-          <h1 className="vaango-orders-title">{t('ordersHeaderTitle')}</h1>
+          <h1 className="vaango-orders-title">Your Orders & Activity</h1>
           <p className="vaango-orders-subtitle">
-            {t('ordersHeaderSubtitle')}
+            Track real-time progress and order fulfillment across your local stores.
           </p>
         </div>
 
-        {/* Workflow Group Filter Strip */}
-        <div className="vaango-orders-group-tabs" role="tablist" aria-label="Filter by type">
+        {/* Order Status Metrics Grid */}
+        <div className="vaango-order-metrics-grid" role="region" aria-label="Order Status Metrics">
           <button
             type="button"
-            className={`vaango-group-pill ${groupFilter === 'ALL' ? 'vaango-group-pill--active' : ''}`}
-            onClick={() => setGroupFilter('ALL')}
+            className={`vaango-order-metric-card ${statusFilter === 'all' ? 'active' : ''}`}
+            onClick={() => setStatusFilter('all')}
           >
-            {t('filterAll')}
+            <span className="vaango-metric-label">All Orders</span>
+            <strong className="vaango-metric-val">{counts.all}</strong>
           </button>
           <button
             type="button"
-            className={`vaango-group-pill ${groupFilter === 'ORDER' ? 'vaango-group-pill--active' : ''}`}
-            onClick={() => setGroupFilter('ORDER')}
+            className={`vaango-order-metric-card ${statusFilter === 'pending' ? 'active' : ''}`}
+            onClick={() => setStatusFilter('pending')}
           >
-            <ShoppingBag size={14} /> {t('navOrder')}
+            <span className="vaango-metric-label">Pending</span>
+            <strong className="vaango-metric-val text-primary">{counts.pending}</strong>
           </button>
           <button
             type="button"
-            className={`vaango-group-pill ${groupFilter === 'APPOINTMENT' ? 'vaango-group-pill--active' : ''}`}
-            onClick={() => setGroupFilter('APPOINTMENT')}
+            className={`vaango-order-metric-card ${statusFilter === 'processing' ? 'active' : ''}`}
+            onClick={() => setStatusFilter('processing')}
           >
-            <Calendar size={14} /> {t('navAppointments')}
+            <span className="vaango-metric-label">Processing</span>
+            <strong className="vaango-metric-val text-accent">{counts.processing}</strong>
           </button>
           <button
             type="button"
-            className={`vaango-group-pill ${groupFilter === 'SERVICE' ? 'vaango-group-pill--active' : ''}`}
-            onClick={() => setGroupFilter('SERVICE')}
+            className={`vaango-order-metric-card ${statusFilter === 'ready' ? 'active' : ''}`}
+            onClick={() => setStatusFilter('ready')}
           >
-            <Wrench size={14} /> {t('navServices')}
+            <span className="vaango-metric-label">Ready for Pickup</span>
+            <strong className="vaango-metric-val text-success">{counts.ready}</strong>
+          </button>
+          <button
+            type="button"
+            className={`vaango-order-metric-card ${statusFilter === 'completed' ? 'active' : ''}`}
+            onClick={() => setStatusFilter('completed')}
+          >
+            <span className="vaango-metric-label">Completed</span>
+            <strong className="vaango-metric-val text-success">{counts.completed}</strong>
+          </button>
+          <button
+            type="button"
+            className={`vaango-order-metric-card ${statusFilter === 'cancelled' ? 'active' : ''}`}
+            onClick={() => setStatusFilter('cancelled')}
+          >
+            <span className="vaango-metric-label">Cancelled</span>
+            <strong className="vaango-metric-val text-error">{counts.cancelled}</strong>
           </button>
         </div>
 
-        {/* Status Tab Filters */}
-        <div className="vaango-orders-tabs" role="tablist" aria-label="Filter by status">
+        {/* Workflow Group Tabs */}
+        <div className="vaango-group-filter-tabs">
           <button
             type="button"
-            role="tab"
-            aria-selected={statusFilter === 'active'}
-            className={`vaango-orders-tab ${statusFilter === 'active' ? 'vaango-orders-tab--active' : ''}`}
-            onClick={() => setStatusFilter('active')}
+            className={`vaango-group-filter-btn ${groupFilter === 'ALL' ? 'active' : ''}`}
+            onClick={() => setGroupFilter('ALL')}
           >
-            {t('filterActive')} ({requests.filter((r) => !['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(r.current_state)).length})
+            All Types
           </button>
           <button
             type="button"
-            role="tab"
-            aria-selected={statusFilter === 'completed'}
-            className={`vaango-orders-tab ${statusFilter === 'completed' ? 'vaango-orders-tab--active' : ''}`}
-            onClick={() => setStatusFilter('completed')}
+            className={`vaango-group-filter-btn ${groupFilter === 'ORDER' ? 'active' : ''}`}
+            onClick={() => setGroupFilter('ORDER')}
           >
-            {t('filterCompleted')} ({requests.filter((r) => ['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(r.current_state)).length})
+            Store Orders
           </button>
           <button
             type="button"
-            role="tab"
-            aria-selected={statusFilter === 'all'}
-            className={`vaango-orders-tab ${statusFilter === 'all' ? 'vaango-orders-tab--active' : ''}`}
-            onClick={() => setStatusFilter('all')}
+            className={`vaango-group-filter-btn ${groupFilter === 'APPOINTMENT' ? 'active' : ''}`}
+            onClick={() => setGroupFilter('APPOINTMENT')}
           >
-            {t('filterAll')} ({requests.length})
+            Appointments
+          </button>
+          <button
+            type="button"
+            className={`vaango-group-filter-btn ${groupFilter === 'SERVICE' ? 'active' : ''}`}
+            onClick={() => setGroupFilter('SERVICE')}
+          >
+            Services & Repairs
           </button>
         </div>
       </div>
 
+      {/* Main Stream */}
       {isLoading ? (
         <div className="vaango-orders-loading">
-          <Skeleton height={120} />
-          <Skeleton height={120} />
+          <Skeleton height="120px" borderRadius="12px" />
+          <Skeleton height="120px" borderRadius="12px" />
+          <Skeleton height="120px" borderRadius="12px" />
         </div>
       ) : filteredRequests.length > 0 ? (
         <div className="vaango-orders-list">
@@ -237,16 +307,15 @@ export const OrdersPage: React.FC = () => {
               // ignore
             }
 
-            const reqGroup = (req.workflow_group_code || 'ORDER') as WorkflowGroupCode;
-            const shopName = decoded.shop_name || t('localStoreFallback');
             const items = decoded.items || [];
+            const reqGroup: WorkflowGroupCode = (req.workflow_group_code || 'ORDER') as WorkflowGroupCode;
+            const shopName = decoded.shop_name || 'Local Store';
 
             return (
               <Card
                 key={req.id}
                 variant="default"
                 padding="md"
-                interactive
                 className="vaango-order-card"
                 onClick={() => navigate(`/request/${req.id}`)}
               >
@@ -266,7 +335,22 @@ export const OrdersPage: React.FC = () => {
                       <span className="vaango-order-card__ref">Ref: {req.reference_code}</span>
                     </div>
                   </div>
-                  {getStatusBadge(req.current_state, reqGroup)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {getStatusBadge(req.current_state, reqGroup)}
+                    {req.current_state === 'COMPLETED' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        leftIcon={<Star size={14} color="#f59e0b" fill="#f59e0b" />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRatingModalRequest(req);
+                        }}
+                      >
+                        Rate & Review
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="vaango-order-card__body">
@@ -297,7 +381,11 @@ export const OrdersPage: React.FC = () => {
                   ) : (
                     <div className="vaango-order-card__items-preview">
                       {items.length > 0 ? (
-                        <span>{items.map((i) => `${i.quantity}x ${i.name}`).join(', ')}</span>
+                        <span>
+                          {items
+                            .map((i) => `${i.quantity}x ${i.name}${i.variant_label ? ` (${i.variant_label})` : ''}`)
+                            .join(', ')}
+                        </span>
                       ) : (
                         <span>Items order</span>
                       )}
@@ -336,11 +424,11 @@ export const OrdersPage: React.FC = () => {
         <div className="vaango-orders-empty">
           <EmptyState
             icon={<ClipboardList size={48} />}
-            title={statusFilter === 'active' ? t('noActiveActivityTitle') : t('noActivityFoundTitle')}
+            title={statusFilter === 'all' ? t('noActivityFoundTitle') : `No ${statusFilter} orders`}
             description={
-              statusFilter === 'active'
-                ? t('noActiveActivityDesc')
-                : t('noActivityFoundDesc')
+              statusFilter === 'all'
+                ? t('noActivityFoundDesc')
+                : `There are currently no orders in the "${statusFilter}" state.`
             }
             actionLabel={t('discoverLocalServices')}
             onAction={() => navigate('/shops')}
@@ -351,6 +439,16 @@ export const OrdersPage: React.FC = () => {
             }}
           />
         </div>
+      )}
+
+      {/* Customer Rating Modal */}
+      {ratingModalRequest && (
+        <RatingModal
+          request={ratingModalRequest}
+          isOpen={Boolean(ratingModalRequest)}
+          onClose={() => setRatingModalRequest(null)}
+          onSuccess={() => fetchRequests()}
+        />
       )}
     </div>
   );

@@ -291,14 +291,38 @@ p {
 .text-error { color: var(--color-error); }
 .text-success { color: var(--color-success); }
 .text-warning { color: var(--color-warning); }
-.bg-primary\/10 { background-color: var(--brand-primary-subtle); }
-
-/* Animation */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.animate-spin {
-  animation: spin 1s linear infinite;
+/* Form inputs & interactive elements theme support */
+input, select, textarea {
+  color: var(--color-text-primary);
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
 }
 
+[data-theme='dark'] input,
+[data-theme='dark'] select,
+[data-theme='dark'] textarea,
+.dark input,
+.dark select,
+.dark textarea {
+  color: #F8FAFC;
+  background-color: #172338;
+  border-color: #263852;
+}
+
+[data-theme='dark'] input::placeholder,
+[data-theme='dark'] textarea::placeholder,
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748B;
+}
+
+[data-theme='dark'] input:focus,
+[data-theme='dark'] select:focus,
+[data-theme='dark'] textarea:focus,
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: #22D3EE;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.3);
+}

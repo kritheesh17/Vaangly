@@ -7,6 +7,7 @@ import {
   User,
   Phone,
   CheckCircle,
+  XCircle,
   Package,
   Calendar,
   Wrench,
@@ -20,7 +21,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import './RequestCard.css';
 
 interface DecodedNotes {
-  items?: { product_id: string; name: string; price: number; unit: string; quantity: number; subtotal: number }[];
+  items?: { product_id: string; name: string; price: number; unit: string; quantity: number; subtotal: number; variant_label?: string; variant_price?: number }[];
   service_name?: string;
   provider_name?: string;
   specialization?: string;
@@ -40,12 +41,14 @@ interface DecodedNotes {
 interface RequestCardProps {
   request: Request;
   onQuickTransition?: (request: Request, nextState: WorkflowStateCode) => void;
+  onReject?: (request: Request) => void;
   isActionLoading?: boolean;
 }
 
 export const RequestCard: React.FC<RequestCardProps> = ({
   request,
   onQuickTransition,
+  onReject,
   isActionLoading = false,
 }) => {
   const navigate = useNavigate();
@@ -178,6 +181,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             {items.slice(0, 3).map((it, idx) => (
               <span key={idx} className="vaango-shop-req-card__item-pill">
                 {it.quantity}x {it.name}
+                {it.variant_label ? ` (${it.variant_label})` : ''}
               </span>
             ))}
             {items.length > 3 && (
@@ -293,16 +297,31 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             </>
           ) : (
             <>
-              {request.current_state === 'REQUESTED' && onQuickTransition && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  isLoading={isActionLoading}
-                  onClick={() => onQuickTransition(request, 'ACCEPTED')}
-                  leftIcon={<CheckCircle size={15} />}
-                >
-                  {t('acceptOrderBtn')}
-                </Button>
+              {request.current_state === 'REQUESTED' && (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  {onQuickTransition && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      isLoading={isActionLoading}
+                      onClick={() => onQuickTransition(request, 'ACCEPTED')}
+                      leftIcon={<CheckCircle size={15} />}
+                    >
+                      {t('acceptOrderBtn')}
+                    </Button>
+                  )}
+                  {onReject && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onReject(request)}
+                      leftIcon={<XCircle size={15} color="var(--color-error)" />}
+                      style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }}
+                    >
+                      Reject
+                    </Button>
+                  )}
+                </div>
               )}
               {request.current_state === 'PREPARING' && onQuickTransition && (
                 <Button

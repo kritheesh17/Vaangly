@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   RefreshCw,
   ShoppingBag,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Request, Shop } from '../../types/database';
@@ -14,6 +15,9 @@ import { getShopkeeperShop, getShopRequests, transitionRequestState } from '../.
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { RequestCard } from '../../components/shopkeeper/RequestCard';
 import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
+import { Modal } from '../../components/ui/Modal';
+import { Textarea } from '../../components/ui/Textarea';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../context/ToastContext';
@@ -34,6 +38,13 @@ export const ShopkeeperRequestsPage: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  // Rejection modal state
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectingReq, setRejectingReq] = useState<Request | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [rejectError, setRejectError] = useState<string | null>(null);
 
   const activeTab = (searchParams.get('tab') as RequestFilterTab) || 'all';
 
@@ -127,6 +138,45 @@ export const ShopkeeperRequestsPage: React.FC = () => {
       toastError(err instanceof Error ? err.message : t('genericError'));
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const handleOpenReject = (req: Request) => {
+    setRejectingReq(req);
+    setRejectionReason('');
+    setRejectError(null);
+    setRejectModalOpen(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectingReq || !user) return;
+    if (!rejectionReason.trim()) {
+      setRejectError('Please provide a reason for rejecting this order.');
+      return;
+    }
+
+    setIsRejecting(true);
+    try {
+      const res = await transitionRequestState(
+        rejectingReq.id,
+        rejectingReq.current_state,
+        'REJECTED',
+        user.id,
+        rejectionReason.trim()
+      );
+
+      if (res.success && res.request) {
+        setRequests((prev) => prev.map((r) => (r.id === rejectingReq.id ? res.request! : r)));
+        success(`Order #${rejectingReq.reference_code} has been rejected.`);
+        setRejectModalOpen(false);
+        setRejectingReq(null);
+      } else {
+        setRejectError(res.error || 'Failed to reject order.');
+      }
+    } catch (err: unknown) {
+      setRejectError(err instanceof Error ? err.message : 'Error rejecting order.');
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -291,12 +341,61 @@ export const ShopkeeperRequestsPage: React.FC = () => {
                 key={req.id}
                 request={req}
                 onQuickTransition={handleQuickTransition}
+                onReject={handleOpenReject}
                 isActionLoading={actionLoadingId === req.id}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Reject Reason Confirmation Modal */}
+      <Modal
+        isOpen={rejectModalOpen}
+        onClose={() => setRejectModalOpen(false)}
+        title={`Reject Order #${rejectingReq?.reference_code || ''}?`}
+        maxWidth="sm"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+            Please provide a mandatory reason for rejecting this order so the customer is notified appropriately.
+          </p>
+
+          {rejectError && (
+            <div className="vaango-form-error-alert" role="alert" style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'var(--color-error-bg)', color: 'var(--color-error)', padding: '8px 12px', borderRadius: '6px', fontSize: '0.85rem' }}>
+              <AlertCircle size={16} />
+              <span>{rejectError}</span>
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="reject-reason-input" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6 }}>
+              Rejection Reason <span style={{ color: 'var(--color-error)' }}>*</span>
+            </label>
+            <Textarea
+              id="reject-reason-input"
+              placeholder="e.g. Out of stock, item unavailable, shop closing early, etc."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              rows={3}
+              required
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+            <Button variant="outline" onClick={() => setRejectModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              isLoading={isRejecting}
+              onClick={handleConfirmReject}
+            >
+              Confirm Rejection
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
