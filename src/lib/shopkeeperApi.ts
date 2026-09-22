@@ -373,7 +373,11 @@ export const createShopProduct = async (
         return { success: true, product: data as ShopProduct };
       }
     } catch (err: unknown) {
-      console.warn('Supabase createShopProduct failed, falling back to local storage:', err);
+      console.error('Supabase createShopProduct failed:', err);
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Failed to save product to database.',
+      };
     }
   }
 
@@ -450,7 +454,11 @@ export const updateShopProduct = async (
         return { success: true, product: data as ShopProduct };
       }
     } catch (err: unknown) {
-      console.warn('Supabase updateShopProduct failed, falling back to local update:', err);
+      console.error('Supabase updateShopProduct failed:', err);
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Failed to update product in database.',
+      };
     }
   }
 
@@ -527,7 +535,11 @@ export const deleteShopProduct = async (
         if (error) throw error;
       }
     } catch (err: unknown) {
-      console.warn('Supabase deleteShopProduct failed, removing from local cache:', err);
+      console.error('Supabase deleteShopProduct failed:', err);
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Failed to delete product from database.',
+      };
     }
   }
 
@@ -579,7 +591,7 @@ export const getShopRequests = async (shopId: string): Promise<Request[]> => {
  */
 export const VALID_TRANSITIONS_BY_GROUP: Record<WorkflowGroupCode, Record<WorkflowStateCode, WorkflowStateCode[]>> = {
   ORDER: {
-    REQUESTED: ['ACCEPTED', 'REJECTED'],
+    REQUESTED: ['ACCEPTED', 'REJECTED', 'CANCELLED'],
     ACCEPTED: ['PREPARING', 'CANCELLED'],
     PREPARING: ['READY', 'DELAYED', 'CANCELLED'],
     DELAYED: ['PREPARING', 'READY', 'CANCELLED'],
@@ -593,7 +605,7 @@ export const VALID_TRANSITIONS_BY_GROUP: Record<WorkflowGroupCode, Record<Workfl
     NO_SHOW: [],
   },
   APPOINTMENT: {
-    REQUESTED: ['CONFIRMED', 'REJECTED'],
+    REQUESTED: ['CONFIRMED', 'REJECTED', 'CANCELLED'],
     CONFIRMED: ['IN_PROGRESS', 'DELAYED', 'CANCELLED', 'NO_SHOW'],
     DELAYED: ['CONFIRMED', 'IN_PROGRESS', 'CANCELLED', 'NO_SHOW'],
     IN_PROGRESS: ['COMPLETED'],
@@ -607,7 +619,7 @@ export const VALID_TRANSITIONS_BY_GROUP: Record<WorkflowGroupCode, Record<Workfl
     READY: [],
   },
   SERVICE: {
-    REQUESTED: ['ACCEPTED', 'REJECTED'],
+    REQUESTED: ['ACCEPTED', 'REJECTED', 'CANCELLED'],
     ACCEPTED: ['IN_PROGRESS', 'DELAYED', 'CANCELLED'],
     DELAYED: ['ACCEPTED', 'IN_PROGRESS', 'CANCELLED'],
     IN_PROGRESS: ['READY', 'DELAYED', 'CANCELLED'],

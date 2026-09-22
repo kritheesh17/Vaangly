@@ -10,7 +10,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { Request, Shop } from '../../types/database';
 import { WorkflowGroupCode, WorkflowStateCode } from '../../types/workflow';
-import { MOCK_SHOP_TYPES } from '../../data/mockData';
+import { MOCK_SHOP_TYPES, getShopType } from '../../data/mockData';
 import { getShopkeeperShop, getShopRequests, transitionRequestState } from '../../lib/shopkeeperApi';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { RequestCard } from '../../components/shopkeeper/RequestCard';
@@ -105,7 +105,7 @@ export const ShopkeeperRequestsPage: React.FC = () => {
   };
 
   const { t } = useLanguage();
-  const shopType = MOCK_SHOP_TYPES.find((t) => t.id === shop?.shop_type_id);
+  const shopType = getShopType(shop?.shop_type_id);
   const workflowGroup: WorkflowGroupCode = (shopType?.workflow_group_code || 'ORDER') as WorkflowGroupCode;
 
   const handleQuickTransition = async (req: Request, nextState: WorkflowStateCode) => {

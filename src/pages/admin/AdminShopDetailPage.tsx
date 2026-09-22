@@ -702,8 +702,8 @@ export const AdminShopDetailPage: React.FC = () => {
                       subscription.status === 'ACTIVE'
                         ? 'success'
                         : subscription.status === 'OVERDUE'
-                        ? 'error'
-                        : 'primary'
+                          ? 'error'
+                          : 'primary'
                     }
                     size="sm"
                   >

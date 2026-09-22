@@ -64,7 +64,6 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
   const { success, error: toastError } = useToast();
 
   const [request, setRequest] = useState<Request | null>(null);
-  const [customerProfile, setCustomerProfile] = useState<{ full_name?: string; phone_number?: string } | null>(null);
   const [paymentProofUrl, setPaymentProofUrl] = useState<string | null>(null);
   const [events, setEvents] = useState<RequestEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -110,20 +109,6 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
 
         if (!reqErr && reqData) {
           setRequest(reqData as Request);
-          if (reqData.customer_id && isSupabaseConfigured) {
-            try {
-              const { data: profData } = await supabase
-                .from('profiles')
-                .select('full_name, phone_number')
-                .eq('id', reqData.customer_id)
-                .maybeSingle();
-              if (profData) {
-                setCustomerProfile(profData);
-              }
-            } catch {
-              // Ignore profile fetch failure
-            }
-          }
           if (reqData.payment_screenshot_url && isSupabaseConfigured) {
             const { data: signedData } = await supabase.storage
               .from('payment-proofs')
@@ -392,17 +377,17 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
             <span className="vaango-req-label">Customer / Visitor</span>
             <div className="vaango-req-val">
               <User size={15} />
-              <span>{decoded.customer_name || customerProfile?.full_name || 'Counter Customer'}</span>
+              <span>{decoded.customer_name || 'Counter Customer'}</span>
             </div>
           </div>
 
-          {(decoded.customer_phone || customerProfile?.phone_number) && (
+          {decoded.customer_phone && (
             <div className="vaango-req-cust-col">
               <span className="vaango-req-label">Phone</span>
               <div className="vaango-req-val">
                 <Phone size={15} />
-                <a href={`tel:${decoded.customer_phone || customerProfile?.phone_number}`} className="hover:underline">
-                  {decoded.customer_phone || customerProfile?.phone_number}
+                <a href={`tel:${decoded.customer_phone}`} className="hover:underline">
+                  {decoded.customer_phone}
                 </a>
               </div>
             </div>

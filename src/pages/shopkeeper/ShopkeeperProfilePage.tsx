@@ -18,7 +18,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { Shop, ShopSubscription, TimeRange } from '../../types/database';
 import { getShopkeeperShop, updateShopProfile, updateSlotConfig } from '../../lib/shopkeeperApi';
-import { MOCK_SHOP_TYPES } from '../../data/mockData';
+import { MOCK_SHOP_TYPES, getShopType } from '../../data/mockData';
 import { fetchShopSubscription, calculateTrialWindow, updateShopBillingCycle } from '../../lib/adminApi';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -147,7 +147,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
 
       if (res.success && res.shop) {
         setShop(res.shop);
-        if (MOCK_SHOP_TYPES.find((type) => type.id === shop.shop_type_id)?.workflow_group_code === 'APPOINTMENT') {
+        if (getShopType(shop.shop_type_id)?.workflow_group_code === 'APPOINTMENT') {
           const slotResult = await updateSlotConfig(shop.id, { ranges: timeRanges, slotDurationMinutes: slotDuration, availableDays });
           if (!slotResult.success) toastError(slotResult.error || t('failedSaveSlots'));
         }
@@ -328,7 +328,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
         </Card>
 
         {/* Delivery Configuration */}
-        {shop && MOCK_SHOP_TYPES.find((type) => type.id === shop.shop_type_id)?.workflow_group_code === 'APPOINTMENT' && (
+        {shop && getShopType(shop.shop_type_id)?.workflow_group_code === 'APPOINTMENT' && (
           <Card variant="default" padding="lg" className="vaango-settings-card" id="slots">
             <div className="vaango-settings-card__header"><Clock size={20} className="text-primary" /><h2 className="vaango-settings-card__title">Appointment Slots</h2></div>
             <p className="vaango-settings-card__desc">Choose the duration and days customers can book.</p>
@@ -426,7 +426,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
           </div>
         </Card>
 
-        {shop && MOCK_SHOP_TYPES.find((type) => type.id === shop.shop_type_id)?.code === 'bakery' && (
+        {shop && getShopType(shop.shop_type_id)?.code === 'bakery' && (
           <Card variant="default" padding="lg" className="vaango-settings-card">
             <Switch id="customised-cake-toggle" label="Accept customised cake orders" description="Let customers submit flavour, weight, design, and occasion requests." checked={customisedCakeAvailable} onChange={setCustomisedCakeAvailable} />
           </Card>

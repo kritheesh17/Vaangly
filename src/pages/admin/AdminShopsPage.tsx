@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { fetchAdminShops, suspendShop, reactivateShop, fetchAdminSubscriptions } from '../../lib/adminApi';
 import { Shop, ShopSubscription } from '../../types/database';
-import { MOCK_SHOP_TYPES } from '../../data/mockData';
+import { MOCK_SHOP_TYPES, getShopType } from '../../data/mockData';
 import { DEFAULT_LOCATIONS } from '../../context/LocationContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -231,7 +231,7 @@ export const AdminShopsPage: React.FC = () => {
       ) : (
         <div className="vaango-admin-shops__list">
           {shops.map((shop) => {
-            const shopType = MOCK_SHOP_TYPES.find((t) => t.id === shop.shop_type_id);
+            const shopType = getShopType(shop.shop_type_id);
             const location = DEFAULT_LOCATIONS.find((l) => l.id === shop.location_id);
             const sub = subscriptions.find((s) => s.shop_id === shop.id);
 

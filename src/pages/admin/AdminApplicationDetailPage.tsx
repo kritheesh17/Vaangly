@@ -20,7 +20,7 @@ import {
   rejectShopApplication,
 } from '../../lib/adminApi';
 import { ShopApplication } from '../../types/database';
-import { MOCK_SHOP_TYPES } from '../../data/mockData';
+import { MOCK_SHOP_TYPES, getShopType } from '../../data/mockData';
 import { DEFAULT_LOCATIONS } from '../../context/LocationContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -159,7 +159,7 @@ export const AdminApplicationDetailPage: React.FC = () => {
     );
   }
 
-  const shopType = MOCK_SHOP_TYPES.find((t) => t.id === application.shop_type_id);
+  const shopType = getShopType(application.shop_type_id);
   const location = DEFAULT_LOCATIONS.find((l) => l.id === application.location_id);
 
   return (

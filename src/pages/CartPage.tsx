@@ -18,7 +18,7 @@ import { Textarea } from '../components/ui/Textarea';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 import { useToast } from '../context/ToastContext';
-import { MOCK_SHOP_TYPES, isValidUuid } from '../data/mockData';
+import { MOCK_SHOP_TYPES, getShopType, isValidUuid } from '../data/mockData';
 import { useLanguage } from '../context/LanguageContext';
 import './CartPage.css';
 
@@ -77,7 +77,7 @@ export const CartPage: React.FC = () => {
       return;
     }
 
-    const shopType = MOCK_SHOP_TYPES.find((type) => type.id === group.shop.shop_type_id);
+    const shopType = getShopType(group.shop.shop_type_id);
     const offersDineIn = ['restaurant', 'hotel', 'bakery'].includes(shopType?.code || '');
     const chosenFulfillment = shopFulfillments[shopId] || null;
 
@@ -180,7 +180,7 @@ export const CartPage: React.FC = () => {
           const { shop, items: shopItems, subtotal } = group;
           const shopId = shop.id;
           const isInvalidShopId = !isValidUuid(shopId);
-          const shopType = MOCK_SHOP_TYPES.find((type) => type.id === shop.shop_type_id);
+          const shopType = getShopType(shop.shop_type_id);
           const offersDineIn = ['restaurant', 'hotel', 'bakery'].includes(shopType?.code || '');
           const currentFulfillment = shopFulfillments[shopId] || null;
           const currentPayment = shopPaymentMethods[shopId] || 'cash';

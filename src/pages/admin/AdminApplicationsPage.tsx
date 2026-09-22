@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { fetchAdminApplications } from '../../lib/adminApi';
 import { ShopApplication } from '../../types/database';
-import { MOCK_SHOP_TYPES } from '../../data/mockData';
+import { MOCK_SHOP_TYPES, getShopType } from '../../data/mockData';
 import { DEFAULT_LOCATIONS } from '../../context/LocationContext';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -128,7 +128,7 @@ export const AdminApplicationsPage: React.FC = () => {
       ) : (
         <div className="vaango-admin-apps__grid">
           {applications.map((app) => {
-            const shopType = MOCK_SHOP_TYPES.find((t) => t.id === app.shop_type_id);
+            const shopType = getShopType(app.shop_type_id);
             const location = DEFAULT_LOCATIONS.find((l) => l.id === app.location_id);
 
             return (

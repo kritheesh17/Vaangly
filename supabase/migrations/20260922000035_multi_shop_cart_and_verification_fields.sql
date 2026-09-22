@@ -21,7 +21,7 @@ ALTER TABLE public.shops
 ALTER TABLE public.shop_ratings
     ADD COLUMN IF NOT EXISTS review TEXT;
 
--- 4. ENSURE RLS ON SHOP RATINGS REQUIRES COMPLETED ORDERS
+-- 4. ENSURE RLS ON SHOP RATINGS REQUIRES COMPLETED ORDERS AT THE SPECIFIED SHOP
 DROP POLICY IF EXISTS "Customers insert own rating" ON public.shop_ratings;
 CREATE POLICY "Customers insert own rating" ON public.shop_ratings
     FOR INSERT TO authenticated
@@ -31,6 +31,7 @@ CREATE POLICY "Customers insert own rating" ON public.shop_ratings
             SELECT 1 FROM public.requests r
             WHERE r.id = shop_ratings.request_id
               AND r.customer_id = auth.uid()
+              AND r.shop_id = shop_ratings.shop_id
               AND r.current_state = 'COMPLETED'
         )
     );
@@ -38,10 +39,75 @@ CREATE POLICY "Customers insert own rating" ON public.shop_ratings
 DROP POLICY IF EXISTS "Customers update own rating" ON public.shop_ratings;
 CREATE POLICY "Customers update own rating" ON public.shop_ratings
     FOR UPDATE TO authenticated
-    USING (auth.uid() = customer_id)
-    WITH CHECK (auth.uid() = customer_id);
+    USING (
+        auth.uid() = customer_id
+        AND EXISTS (
+            SELECT 1 FROM public.requests r
+            WHERE r.id = shop_ratings.request_id
+              AND r.customer_id = auth.uid()
+              AND r.shop_id = shop_ratings.shop_id
+              AND r.current_state = 'COMPLETED'
+        )
+    )
+    WITH CHECK (
+        auth.uid() = customer_id
+        AND EXISTS (
+            SELECT 1 FROM public.requests r
+            WHERE r.id = shop_ratings.request_id
+              AND r.customer_id = auth.uid()
+              AND r.shop_id = shop_ratings.shop_id
+              AND r.current_state = 'COMPLETED'
+        )
+    );
 
--- 5. CREATE PRODUCT RATINGS TABLE & POLICIES
+-- 5. FUNCTION: SECURE PURCHASE-PRODUCT VERIFICATION
+-- Ensures customers can only rate products that were actually purchased in their completed request
+CREATE OR REPLACE FUNCTION public.request_contains_product(
+    p_request_id UUID,
+    p_product_id UUID
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_notes TEXT;
+    v_items JSONB;
+BEGIN
+    SELECT notes INTO v_notes
+    FROM public.requests
+    WHERE id = p_request_id;
+
+    IF v_notes IS NULL OR TRIM(v_notes) = '' THEN
+        RETURN FALSE;
+    END IF;
+
+    -- Safely parse JSON items array; non-JSON or missing items return FALSE
+    BEGIN
+        v_items := (v_notes::jsonb)->'items';
+    EXCEPTION WHEN OTHERS THEN
+        RETURN FALSE;
+    END;
+
+    IF v_items IS NULL OR jsonb_typeof(v_items) != 'array' THEN
+        RETURN FALSE;
+    END IF;
+
+    RETURN EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(v_items) AS elem
+        WHERE (elem->>'product_id')::uuid = p_product_id
+    );
+EXCEPTION WHEN OTHERS THEN
+    RETURN FALSE;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.request_contains_product(UUID, UUID) TO authenticated, service_role;
+
+-- 6. CREATE PRODUCT RATINGS TABLE & POLICIES
 CREATE TABLE IF NOT EXISTS public.product_ratings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     product_id UUID NOT NULL REFERENCES public.shop_products(id) ON DELETE CASCADE,
@@ -69,34 +135,45 @@ CREATE POLICY "Customers insert product rating for completed purchase" ON public
             WHERE r.id = product_ratings.request_id
               AND r.customer_id = auth.uid()
               AND r.current_state = 'COMPLETED'
+              AND public.request_contains_product(r.id, product_ratings.product_id)
         )
     );
 
 DROP POLICY IF EXISTS "Customers update own product rating" ON public.product_ratings;
 CREATE POLICY "Customers update own product rating" ON public.product_ratings
     FOR UPDATE TO authenticated
-    USING (auth.uid() = customer_id)
-    WITH CHECK (auth.uid() = customer_id);
+    USING (
+        auth.uid() = customer_id
+        AND EXISTS (
+            SELECT 1 FROM public.requests r
+            WHERE r.id = product_ratings.request_id
+              AND r.customer_id = auth.uid()
+              AND r.current_state = 'COMPLETED'
+              AND public.request_contains_product(r.id, product_ratings.product_id)
+        )
+    )
+    WITH CHECK (
+        auth.uid() = customer_id
+        AND EXISTS (
+            SELECT 1 FROM public.requests r
+            WHERE r.id = product_ratings.request_id
+              AND r.customer_id = auth.uid()
+              AND r.current_state = 'COMPLETED'
+              AND public.request_contains_product(r.id, product_ratings.product_id)
+        )
+    );
 
 -- View for Product Average Ratings
 CREATE OR REPLACE VIEW public.product_avg_ratings AS
     SELECT product_id, ROUND(AVG(rating)::numeric, 1) AS avg_rating, COUNT(*) AS total_ratings
     FROM public.product_ratings GROUP BY product_id;
 
--- 6. ALLOW SHOPKEEPERS TO READ CUSTOMER PROFILES FOR ORDERS PLACED AT THEIR SHOP
+-- 7. CUSTOMER PROFILE PRIVACY PROTECTION
+-- Revoke any broad shopkeeper SELECT access on public.profiles.
+-- Shopkeepers obtain necessary fulfillment info (customer_name, customer_phone)
+-- directly from the immutable order snapshot in requests.notes.
+-- This ensures private customer email, preferred locations, and metadata remain unexposed.
 DROP POLICY IF EXISTS "Shopkeepers can view order customer profiles" ON public.profiles;
-CREATE POLICY "Shopkeepers can view order customer profiles" ON public.profiles
-    FOR SELECT TO authenticated
-    USING (
-        auth.uid() = id
-        OR public.is_admin()
-        OR EXISTS (
-            SELECT 1 FROM public.requests r
-            JOIN public.shops s ON s.id = r.shop_id
-            WHERE r.customer_id = profiles.id
-              AND s.owner_id = auth.uid()
-        )
-    );
 
 -- 7. UPDATE APPROVE_SHOP_APPLICATION PROCEDURE TO POPULATE STRUCTURED ADDRESS FIELDS
 CREATE OR REPLACE FUNCTION public.approve_shop_application(

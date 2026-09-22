@@ -19,7 +19,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { Shop, Request, ShopProduct } from '../../types/database';
 import { WorkflowGroupCode, WorkflowStateCode } from '../../types/workflow';
-import { MOCK_SHOP_TYPES } from '../../data/mockData';
+import { MOCK_SHOP_TYPES, getShopType } from '../../data/mockData';
 import {
   getShopkeeperShop,
   getShopProductsList,
@@ -205,7 +205,7 @@ export const ShopkeeperDashboardPage: React.FC = () => {
     );
   }
 
-  const shopType = MOCK_SHOP_TYPES.find((t) => t.id === shop?.shop_type_id);
+  const shopType = getShopType(shop?.shop_type_id);
   const workflowGroup: WorkflowGroupCode = (shopType?.workflow_group_code || 'ORDER') as WorkflowGroupCode;
 
   // 1. Calculate Daily Operational Metrics (Requirement 7 - Free Shopkeeper Operations)

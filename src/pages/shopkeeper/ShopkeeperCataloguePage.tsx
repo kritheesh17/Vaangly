@@ -16,7 +16,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { Shop, ShopProduct, ShopService, PriceType, ProductVariant, ProductAttributeGroup } from '../../types/database';
 import { WorkflowGroupCode } from '../../types/workflow';
-import { MOCK_SHOP_TYPES } from '../../data/mockData';
+import { MOCK_SHOP_TYPES, getShopType } from '../../data/mockData';
 import {
   getShopkeeperShop,
   getShopProductsList,
@@ -67,7 +67,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
   // Delete Confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const shopType = MOCK_SHOP_TYPES.find((t) => t.id === shop?.shop_type_id);
+  const shopType = getShopType(shop?.shop_type_id);
   const workflowGroup: WorkflowGroupCode = (shopType?.workflow_group_code || 'ORDER') as WorkflowGroupCode;
 
   const loadData = useCallback(async () => {
@@ -77,7 +77,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
       setShop(userShop);
 
       if (userShop) {
-        const type = MOCK_SHOP_TYPES.find((t) => t.id === userShop.shop_type_id);
+        const type = getShopType(userShop.shop_type_id);
         const group = type?.workflow_group_code || 'ORDER';
 
         if (group === 'ORDER') {
