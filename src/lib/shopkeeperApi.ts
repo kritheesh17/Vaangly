@@ -38,7 +38,7 @@ export const saveMockShops = (shops: Shop[]) => {
 };
 
 // Helper for local mock products
-const getStoredMockProducts = (shopId: string): ShopProduct[] => {
+export const getStoredMockProducts = (shopId: string): ShopProduct[] => {
   try {
     const raw = localStorage.getItem(DEMO_PRODUCTS_KEY);
     if (raw) {
@@ -51,7 +51,7 @@ const getStoredMockProducts = (shopId: string): ShopProduct[] => {
   return MOCK_PRODUCTS[shopId] || [];
 };
 
-const saveMockProducts = (shopId: string, products: ShopProduct[]) => {
+export const saveMockProducts = (shopId: string, products: ShopProduct[]) => {
   try {
     const raw = localStorage.getItem(DEMO_PRODUCTS_KEY);
     const allProducts: Record<string, ShopProduct[]> = raw ? JSON.parse(raw) : { ...MOCK_PRODUCTS };
@@ -415,6 +415,15 @@ export const updateShopProduct = async (
     return { success: false, error: 'Price must be non-negative.' };
   }
 
+  const currentProds = getStoredMockProducts(shopId);
+  const existingProduct = currentProds.find((p) => p.id === productId);
+  if (existingProduct?.is_banned && updates.is_available === true) {
+    return {
+      success: false,
+      error: 'This product has been restricted or banned by platform administration. Contact support to request review.',
+    };
+  }
+
   const isMockShop = shopId.startsWith('30000000-') || shopId.startsWith('shop-');
   const isMockProduct = productId.startsWith('prod-');
 
@@ -489,6 +498,14 @@ export const toggleProductStock = async (
   productId: string,
   isAvailable: boolean
 ): Promise<{ success: boolean; error?: string }> => {
+  const currentProds = getStoredMockProducts(shopId);
+  const existingProduct = currentProds.find((p) => p.id === productId);
+  if (existingProduct?.is_banned && isAvailable) {
+    return {
+      success: false,
+      error: 'This product has been restricted or banned by platform administration. It cannot be marked as available.',
+    };
+  }
   return updateShopProduct(shopId, productId, { is_available: isAvailable });
 };
 

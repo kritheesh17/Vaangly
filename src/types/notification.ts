@@ -5,7 +5,10 @@ export type NotificationType =
   | 'APPOINTMENT_CANCELLED'
   | 'STATUS_CHANGE'
   | 'PAYMENT_RECEIVED'
-  | 'APPLICATION_STATUS';
+  | 'APPLICATION_STATUS'
+  | 'PRODUCT_WARNING'
+  | 'PRODUCT_BANNED'
+  | 'PRODUCT_UNBANNED';
 
 export interface Notification {
   id: string;

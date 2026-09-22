@@ -37,16 +37,20 @@ export const AdminAuditPage: React.FC = () => {
     if (activeFilter === 'all') return true;
     if (activeFilter === 'applications') return log.entity_type === 'shop_application';
     if (activeFilter === 'shops') return log.entity_type === 'shop';
+    if (activeFilter === 'products') return log.entity_type === 'shop_product';
     if (activeFilter === 'locations') return log.entity_type === 'location';
     if (activeFilter === 'payments') return log.entity_type === 'payment' || log.entity_type === 'subscription';
     return true;
   });
 
-  const getActionBadge = (action: string) => {
-    if (action.includes('approved') || action.includes('reactivated') || action.includes('recorded')) {
+  const getActionBadge = (action: string): 'primary' | 'accent' | 'success' | 'warning' | 'error' | 'neutral' => {
+    if (action.includes('warning')) {
+      return 'warning';
+    }
+    if (action.includes('approved') || action.includes('reactivated') || action.includes('recorded') || action.includes('unbanned')) {
       return 'success';
     }
-    if (action.includes('rejected') || action.includes('suspended') || action.includes('deactivated')) {
+    if (action.includes('rejected') || action.includes('suspended') || action.includes('deactivated') || action.includes('banned') || action.includes('hidden')) {
       return 'error';
     }
     return 'primary';
@@ -96,6 +100,13 @@ export const AdminAuditPage: React.FC = () => {
             onClick={() => setActiveFilter('shops')}
           >
             Shops & Lifecycles
+          </button>
+          <button
+            type="button"
+            className={`vaango-admin-tab ${activeFilter === 'products' ? 'vaango-admin-tab--active' : ''}`}
+            onClick={() => setActiveFilter('products')}
+          >
+            Product Moderation
           </button>
           <button
             type="button"

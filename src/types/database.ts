@@ -101,6 +101,10 @@ export interface ShopProduct {
   has_variants?: boolean;
   variants?: ProductVariant[];
   attribute_groups?: ProductAttributeGroup[];
+  is_banned?: boolean;
+  moderation_reason?: string | null;
+  moderated_at?: string | null;
+  moderated_by?: string | null;
   created_at: string;
 }
 
@@ -282,8 +286,12 @@ export interface AdminAuditLog {
   | 'location_updated'
   | 'location_deactivated'
   | 'payment_recorded'
-  | 'subscription_status_changed';
-  entity_type: 'shop_application' | 'shop' | 'location' | 'subscription' | 'payment';
+  | 'subscription_status_changed'
+  | 'product_warning_sent'
+  | 'product_banned'
+  | 'product_unbanned'
+  | 'product_hidden';
+  entity_type: 'shop_application' | 'shop' | 'location' | 'subscription' | 'payment' | 'shop_product';
   entity_id: string;
   details: Record<string, unknown>;
   created_at: string;

@@ -102,6 +102,11 @@ export const ShopkeeperCataloguePage: React.FC = () => {
   // Product Stock Toggle (Group A)
   const handleStockToggle = async (productId: string, currentStock: boolean) => {
     if (!shop) return;
+    const targetProduct = products.find((p) => p.id === productId);
+    if (targetProduct?.is_banned) {
+      toastError('This product has been restricted or banned by platform administration.');
+      return;
+    }
     const nextStock = !currentStock;
 
     setProducts((prev) =>
@@ -617,15 +622,27 @@ export const ShopkeeperCataloguePage: React.FC = () => {
                 >
                   <div className="vaango-prod-card__inner">
                     <div className="vaango-prod-card__details">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge variant={prod.is_available ? 'success' : 'neutral'} size="sm">
-                          {prod.is_available ? 'In Stock' : 'Out of Stock'}
-                        </Badge>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        {prod.is_banned ? (
+                          <Badge variant="error" size="sm">
+                            RESTRICTED BY ADMIN
+                          </Badge>
+                        ) : (
+                          <Badge variant={prod.is_available ? 'success' : 'neutral'} size="sm">
+                            {prod.is_available ? 'In Stock' : 'Out of Stock'}
+                          </Badge>
+                        )}
                       </div>
 
                       <h3 className="vaango-prod-card__name">{prod.name}</h3>
                       {prod.description && (
                         <p className="vaango-prod-card__desc">{prod.description}</p>
+                      )}
+
+                      {prod.is_banned && (
+                        <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: 'var(--radius-md, 8px)', padding: '6px 10px', margin: '8px 0', fontSize: '0.8rem', color: '#b91c1c' }}>
+                          <strong>Administrative Notice:</strong> {prod.moderation_reason || 'Prohibited item removed from customer discovery.'}
+                        </div>
                       )}
 
                       <div className="vaango-prod-card__price-row">
@@ -638,14 +655,19 @@ export const ShopkeeperCataloguePage: React.FC = () => {
                     <div className="vaango-prod-card__actions">
                       <button
                         type="button"
+                        disabled={prod.is_banned}
+                        title={prod.is_banned ? 'Item has been restricted by administration' : undefined}
                         className={`vaango-stock-toggle-btn ${
-                          prod.is_available
+                          prod.is_banned
+                            ? 'vaango-stock-toggle-btn--out'
+                            : prod.is_available
                             ? 'vaango-stock-toggle-btn--in'
                             : 'vaango-stock-toggle-btn--out'
                         }`}
-                        onClick={() => handleStockToggle(prod.id, prod.is_available)}
+                        style={prod.is_banned ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                        onClick={() => !prod.is_banned && handleStockToggle(prod.id, prod.is_available)}
                       >
-                        {prod.is_available ? 'In Stock' : 'Out of Stock'}
+                        {prod.is_banned ? 'Restricted' : prod.is_available ? 'In Stock' : 'Out of Stock'}
                       </button>
 
                       <div className="vaango-prod-card__btn-group">

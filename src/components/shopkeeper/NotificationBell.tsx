@@ -79,7 +79,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
     } finally {
       setIsOpen(false);
       if (role === 'shopkeeper') {
-        if (notif.reference_id) {
+        if (
+          notif.type === 'PRODUCT_WARNING' ||
+          notif.type === 'PRODUCT_BANNED' ||
+          notif.type === 'PRODUCT_UNBANNED' ||
+          notif.type === 'APPLICATION_STATUS'
+        ) {
+          navigate('/shopkeeper/catalogue');
+        } else if (notif.reference_id) {
           navigate(`/shopkeeper/requests/${notif.reference_id}`);
         } else {
           navigate('/shopkeeper/requests');
@@ -117,6 +124,24 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
 
   const renderIcon = (type: NotificationType) => {
     switch (type) {
+      case 'PRODUCT_WARNING':
+        return (
+          <div className="vaango-notif-item__icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#d97706' }}>
+            <AlertCircle size={16} />
+          </div>
+        );
+      case 'PRODUCT_BANNED':
+        return (
+          <div className="vaango-notif-item__icon vaango-notif-item__icon--cancel">
+            <XCircle size={16} />
+          </div>
+        );
+      case 'PRODUCT_UNBANNED':
+        return (
+          <div className="vaango-notif-item__icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+            <CheckCircle2 size={16} />
+          </div>
+        );
       case 'NEW_ORDER':
         return (
           <div className="vaango-notif-item__icon vaango-notif-item__icon--order">

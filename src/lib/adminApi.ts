@@ -12,6 +12,7 @@ import {
   SubscriptionStatus,
   Request,
   RequestEvent,
+  ShopProduct,
 } from '../types/database';
 import {
   OperationalMetrics,
@@ -22,7 +23,8 @@ import {
 } from '../types/admin';
 import { DEFAULT_LOCATIONS } from '../context/LocationContext';
 import { MOCK_SHOPS, MOCK_SHOP_TYPES } from '../data/mockData';
-import { getStoredMockShops, saveMockShops } from './shopkeeperApi';
+import { getStoredMockShops, saveMockShops, getStoredMockProducts, saveMockProducts } from './shopkeeperApi';
+import { createNotification } from './notificationApi';
 
 // Local Storage Keys for Mock Admin Data
 export const ADMIN_LOCATIONS_KEY = 'vaango_admin_locations';
@@ -866,6 +868,217 @@ export async function reactivateShop(
   }
 
   await logAdminAudit(adminId, 'shop_reactivated', 'shop', shopId, {});
+  return { success: true };
+}
+
+// -------------------------------------------------------------
+// 3B. ADMIN PRODUCT INSPECTION & MODERATION
+// -------------------------------------------------------------
+
+export async function fetchAdminShopProducts(shopId: string): Promise<ShopProduct[]> {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('shop_products')
+        .select('*')
+        .eq('shop_id', shopId)
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        return data as ShopProduct[];
+      }
+      if (error) console.error('Failed to fetch admin shop products from Supabase:', error);
+    } catch (err) {
+      console.error('Error in fetchAdminShopProducts:', err);
+    }
+  }
+  return getStoredMockProducts(shopId);
+}
+
+export async function warnShopkeeperProduct(
+  adminId: string,
+  shopId: string,
+  productId: string,
+  productName: string,
+  reason: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!reason || !reason.trim()) {
+    return { success: false, error: 'A warning reason is required.' };
+  }
+
+  try {
+    let ownerId: string | null = null;
+    if (isSupabaseConfigured) {
+      const { data: shop } = await supabase.from('shops').select('owner_id').eq('id', shopId).maybeSingle();
+      ownerId = shop?.owner_id || null;
+    }
+    if (!ownerId) {
+      const mockShops = getStoredMockShops();
+      const shop = mockShops.find((s) => s.id === shopId);
+      ownerId = shop?.owner_id || 'demo-merchant';
+    }
+
+    await createNotification({
+      recipient_id: ownerId,
+      shop_id: shopId,
+      type: 'PRODUCT_WARNING',
+      title: `Catalogue Warning: "${productName}"`,
+      message: `Administration issued an operational warning: ${reason.trim()}`,
+      reference_id: productId,
+      reference_code: productName,
+    });
+
+    await logAdminAudit(adminId, 'product_warning_sent', 'shop_product', productId, {
+      shop_id: shopId,
+      product_name: productName,
+      reason: reason.trim(),
+    });
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: extractErrorMessage(err, 'Failed to send product warning.') };
+  }
+}
+
+export async function banShopProduct(
+  adminId: string,
+  shopId: string,
+  productId: string,
+  productName: string,
+  reason: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!reason || !reason.trim()) {
+    return { success: false, error: 'A ban / prohibition reason is required.' };
+  }
+
+  const cleanReason = reason.trim();
+  const now = new Date().toISOString();
+
+  if (isSupabaseConfigured) {
+    try {
+      const { error } = await supabase
+        .from('shop_products')
+        .update({
+          is_banned: true,
+          is_available: false,
+          moderation_reason: cleanReason,
+          moderated_at: now,
+          moderated_by: adminId,
+        })
+        .eq('id', productId);
+
+      if (error) throw error;
+    } catch (err) {
+      return { success: false, error: extractErrorMessage(err, 'Failed to ban product in Supabase.') };
+    }
+  }
+
+  const mockProds = getStoredMockProducts(shopId);
+  const idx = mockProds.findIndex((p: ShopProduct) => p.id === productId);
+  if (idx !== -1) {
+    mockProds[idx] = {
+      ...mockProds[idx],
+      is_banned: true,
+      is_available: false,
+      moderation_reason: cleanReason,
+      moderated_at: now,
+      moderated_by: adminId,
+    };
+    saveMockProducts(shopId, mockProds);
+  }
+
+  let ownerId: string | null = null;
+  if (isSupabaseConfigured) {
+    const { data: shop } = await supabase.from('shops').select('owner_id').eq('id', shopId).maybeSingle();
+    ownerId = shop?.owner_id || null;
+  }
+  if (!ownerId) {
+    const mockShops = getStoredMockShops();
+    const shop = mockShops.find((s) => s.id === shopId);
+    ownerId = shop?.owner_id || 'demo-merchant';
+  }
+
+  await createNotification({
+    recipient_id: ownerId,
+    shop_id: shopId,
+    type: 'PRODUCT_BANNED',
+    title: `Product Removed by Admin: "${productName}"`,
+    message: `This product was banned from customer discovery. Reason: ${cleanReason}`,
+    reference_id: productId,
+    reference_code: productName,
+  });
+
+  await logAdminAudit(adminId, 'product_banned', 'shop_product', productId, {
+    shop_id: shopId,
+    product_name: productName,
+    reason: cleanReason,
+  });
+
+  return { success: true };
+}
+
+export async function unbanShopProduct(
+  adminId: string,
+  shopId: string,
+  productId: string,
+  productName: string
+): Promise<{ success: boolean; error?: string }> {
+  if (isSupabaseConfigured) {
+    try {
+      const { error } = await supabase
+        .from('shop_products')
+        .update({
+          is_banned: false,
+          moderation_reason: null,
+          moderated_at: null,
+          moderated_by: null,
+        })
+        .eq('id', productId);
+
+      if (error) throw error;
+    } catch (err) {
+      return { success: false, error: extractErrorMessage(err, 'Failed to unban product in Supabase.') };
+    }
+  }
+
+  const mockProds = getStoredMockProducts(shopId);
+  const idx = mockProds.findIndex((p: ShopProduct) => p.id === productId);
+  if (idx !== -1) {
+    mockProds[idx] = {
+      ...mockProds[idx],
+      is_banned: false,
+      moderation_reason: null,
+      moderated_at: null,
+      moderated_by: null,
+    };
+    saveMockProducts(shopId, mockProds);
+  }
+
+  let ownerId: string | null = null;
+  if (isSupabaseConfigured) {
+    const { data: shop } = await supabase.from('shops').select('owner_id').eq('id', shopId).maybeSingle();
+    ownerId = shop?.owner_id || null;
+  }
+  if (!ownerId) {
+    const mockShops = getStoredMockShops();
+    const shop = mockShops.find((s) => s.id === shopId);
+    ownerId = shop?.owner_id || 'demo-merchant';
+  }
+
+  await createNotification({
+    recipient_id: ownerId,
+    shop_id: shopId,
+    type: 'PRODUCT_UNBANNED',
+    title: `Product Ban Lifted: "${productName}"`,
+    message: `Administration lifted restrictions on this product. You may now manage its inventory and stock availability.`,
+    reference_id: productId,
+    reference_code: productName,
+  });
+
+  await logAdminAudit(adminId, 'product_unbanned', 'shop_product', productId, {
+    shop_id: shopId,
+    product_name: productName,
+  });
+
   return { success: true };
 }
 

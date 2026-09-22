@@ -137,14 +137,15 @@ export const fetchCustomerLocationCatalog = async (
             .from('shop_products')
             .select('*')
             .in('shop_id', shopIds)
-            .eq('is_available', true),
+            .eq('is_available', true)
+            .eq('is_banned', false),
           supabase
             .from('shop_services')
             .select('*')
             .in('shop_id', shopIds)
             .eq('is_available', true),
         ]);
-        productsData = (prodRes.data as ShopProduct[]) || [];
+        productsData = ((prodRes.data as ShopProduct[]) || []).filter((p) => !p.is_banned);
         servicesData = (servRes.data as ShopService[]) || [];
       }
 
@@ -165,7 +166,7 @@ export const fetchCustomerLocationCatalog = async (
   // Fallback to local/mock demo data for this location
   const mockShops = getCustomerVisibleShops().filter((s) => s.location_id === locationId);
   const mockShopIds = mockShops.map((s) => s.id);
-  const mockProducts = mockShopIds.flatMap((id) => getShopProducts(id));
+  const mockProducts = mockShopIds.flatMap((id) => getShopProducts(id)).filter((p) => !p.is_banned);
   const mockServices = mockShopIds.flatMap((id) => getShopServices(id));
 
   return {
