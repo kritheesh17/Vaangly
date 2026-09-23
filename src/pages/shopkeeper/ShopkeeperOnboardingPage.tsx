@@ -35,6 +35,7 @@ import { Badge } from '../../components/ui/Badge';
 import { useToast } from '../../context/ToastContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { compressImage } from '../../lib/imageCompressor';
+import { isValidUpiQrUrl } from '../../lib/upi';
 import './ShopkeeperOnboardingPage.css';
 
 export const ShopkeeperOnboardingPage: React.FC = () => {
@@ -150,6 +151,10 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
     }
     if (!idProofFile) {
       setFormError('Government identity proof document is required.');
+      return;
+    }
+    if (!upiQrFile || !upiQrFile.type.startsWith('image/') || upiQrFile.size === 0) {
+      setFormError('UPI QR code is required to accept UPI payments.');
       return;
     }
     setStep('review');
@@ -317,9 +322,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
 
     const uploadResult = await Promise.race([uploadPromise, timeoutPromise]);
     if (uploadResult?.error) {
-      console.warn(`Storage upload note for ${file.name}:`, uploadResult.error);
-      // Return safe preview URL if network is slow so applicant is never blocked
-      return URL.createObjectURL(fileToUpload);
+      throw new Error(`Unable to upload ${file.name}: ${uploadResult.error.message}`);
     }
     if (bucket === 'shop-documents') return path;
     const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(path);
@@ -373,6 +376,10 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       setFormError('Government ID proof is required.');
       return;
     }
+    if (!upiQrFile || !upiQrFile.type.startsWith('image/') || upiQrFile.size === 0) {
+      setFormError('UPI QR code is required to accept UPI payments.');
+      return;
+    }
 
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -404,6 +411,9 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
           ? uploadFile('shop-photos', `${activeUserId}/upi-qr/upi_qr_${Date.now()}.${upiQrFile.name.split('.').pop()?.toLowerCase() || 'jpg'}`, upiQrFile)
           : Promise.resolve(null),
       ]);
+      if (!isValidUpiQrUrl(upiQrUrl)) {
+        throw new Error('UPI QR code is required to accept UPI payments.');
+      }
 
       const res = await submitShopApplication({
         applicant_id: activeUserId,
@@ -1067,7 +1077,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
               </div>
 
               <div className="vaango-form-group mt-4">
-                <label className="vaango-form-label" htmlFor="app-upi-qr">UPI QR Photo (Optional)</label>
+                <label className="vaango-form-label" htmlFor="app-upi-qr">UPI QR Photo (Required)</label>
                 <input
                   ref={upiQrInputRef}
                   id="app-upi-qr"

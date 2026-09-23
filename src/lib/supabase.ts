@@ -32,9 +32,26 @@ export const getAuthRedirectUrl = (redirectPath?: string): string => {
   return callbackUrl;
 };
 
+const isValidSupabaseUrl = (url: string): boolean => {
+  if (url.toLowerCase().includes('your-project-id')) {
+    return false;
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+    const isLocalHttp =
+      parsedUrl.protocol === 'http:' &&
+      (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1');
+    const isHttps = parsedUrl.protocol === 'https:';
+
+    return isHttps || isLocalHttp;
+  } catch {
+    return false;
+  }
+};
+
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
   supabasePublishableKey &&
-  !supabaseUrl.includes('your-project-id') &&
-  supabaseUrl.startsWith('https://')
+  isValidSupabaseUrl(supabaseUrl)
 );

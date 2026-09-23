@@ -28,10 +28,18 @@ import { Checkbox } from '../../components/ui/Checkbox';
 import { TimePicker12h } from '../../components/ui/TimePicker12h';
 import { useToast } from '../../context/ToastContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { isValidUpiQrUrl } from '../../lib/upi';
 import { Switch } from '../../components/ui/Switch';
 import { CreditCard, Info } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import './ShopkeeperProfilePage.css';
+
+const readFileAsDataUrl = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+  reader.onerror = () => reject(new Error(`Unable to read ${file.name}.`));
+  reader.readAsDataURL(file);
+});
 
 export const ShopkeeperProfilePage: React.FC = () => {
   const { user, signOut, switchDemoRole, updatePassword } = useAuth();
@@ -129,9 +137,34 @@ export const ShopkeeperProfilePage: React.FC = () => {
     e.preventDefault();
     if (!shop) return;
 
+    if (upiQrFile && (!upiQrFile.type.startsWith('image/') || upiQrFile.size === 0)) {
+      toastError('UPI QR code is required to accept UPI payments.');
+      return;
+    }
+    if (!isValidUpiQrUrl(shop.upi_qr_url) && !upiQrFile) {
+      toastError('UPI QR code is required to accept UPI payments.');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const parsedFee = parseFloat(deliveryFee);
+      let upiQrUrl = shop.upi_qr_url || null;
+
+      if (upiQrFile) {
+        if (isSupabaseConfigured) {
+          const path = `shop-photos/${shop.id}/upi_qr.jpg`;
+          const { error } = await supabase.storage.from('shop-photos').upload(path, upiQrFile, { upsert: true });
+          if (error) throw new Error(error.message);
+          upiQrUrl = supabase.storage.from('shop-photos').getPublicUrl(path).data.publicUrl;
+        } else {
+          upiQrUrl = await readFileAsDataUrl(upiQrFile);
+        }
+      }
+
+      if (!isValidUpiQrUrl(upiQrUrl)) {
+        throw new Error('UPI QR code is required to accept UPI payments.');
+      }
 
       const res = await updateShopProfile(shop.id, {
         tagline: tagline.trim() || null,
@@ -142,6 +175,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
         delivery_available: deliveryAvailable,
         delivery_fee: isNaN(parsedFee) ? 0 : Math.max(0, parsedFee),
         upi_id: upiId.trim() || null,
+        upi_qr_url: upiQrUrl,
         customised_cake_available: customisedCakeAvailable,
       });
 
@@ -154,16 +188,6 @@ export const ShopkeeperProfilePage: React.FC = () => {
         success(t('shopSettingsSaved'));
       } else {
         toastError(res.error || t('failedSaveSettings'));
-      }
-      if (res.success && shop && upiQrFile && isSupabaseConfigured) {
-        const path = `shop-photos/${shop.id}/upi_qr.jpg`;
-        const { error } = await supabase.storage.from('shop-photos').upload(path, upiQrFile, { upsert: true });
-        if (error) toastError(error.message);
-        else {
-          const upiQrUrl = supabase.storage.from('shop-photos').getPublicUrl(path).data.publicUrl;
-          const qrResult = await updateShopProfile(shop.id, { upi_qr_url: upiQrUrl });
-          if (qrResult.success && qrResult.shop) setShop(qrResult.shop);
-        }
       }
     } catch (err: unknown) {
       toastError(err instanceof Error ? err.message : t('genericError'));
@@ -421,7 +445,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
             <span className="text-xs text-secondary mt-1">
               Displayed to customer upon order ready/pickup.
             </span>
-            <label className="vaango-form-label mt-3" htmlFor="shop-upi-qr">UPI QR Photo</label>
+            <label className="vaango-form-label mt-3" htmlFor="shop-upi-qr">UPI QR Photo (Required)</label>
             <input id="shop-upi-qr" type="file" accept="image/*" className="vaango-file-input" onChange={(e) => setUpiQrFile(e.target.files?.[0] || null)} />
           </div>
         </Card>

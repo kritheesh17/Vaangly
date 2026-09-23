@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -20,8 +20,8 @@ import { Modal } from '../components/ui/Modal';
 import { useToast } from '../context/ToastContext';
 import { getShopType, isValidUuid } from '../data/mockData';
 import { useLanguage } from '../context/LanguageContext';
-import QRCode from 'qrcode';
 import { removePendingPaymentProof, uploadPendingPaymentProof, validatePaymentProofFile } from '../lib/paymentProof';
+import { isValidUpiQrUrl } from '../lib/upi';
 import './CartPage.css';
 
 interface UpiPaymentPanelProps {
@@ -35,26 +35,10 @@ interface UpiPaymentPanelProps {
 }
 
 const UpiPaymentPanel: React.FC<UpiPaymentPanelProps> = ({ shopName, upiId, qrUrl, amount, userId, proofPath, onProofPathChange }) => {
-  const [generatedQr, setGeneratedQr] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    if (!upiId || qrUrl) {
-      setGeneratedQr(null);
-      return;
-    }
-    const paymentUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(shopName)}&am=${amount.toFixed(2)}&cu=INR`;
-    void QRCode.toDataURL(paymentUri, { width: 320, margin: 2 }).then((dataUrl) => {
-      if (active) setGeneratedQr(dataUrl);
-    }).catch(() => {
-      if (active) setGeneratedQr(null);
-    });
-    return () => { active = false; };
-  }, [amount, qrUrl, shopName, upiId]);
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
@@ -85,28 +69,32 @@ const UpiPaymentPanel: React.FC<UpiPaymentPanelProps> = ({ shopName, upiId, qrUr
     onProofPathChange(null);
   };
 
+  const hasValidQr = isValidUpiQrUrl(qrUrl);
+
   return (
     <div className="vaango-cart-upi-panel">
-      <strong>Pay ₹{amount.toFixed(2)} using any UPI app</strong>
-      {qrUrl || generatedQr ? <img src={qrUrl || generatedQr || ''} alt={`UPI QR code for ${shopName}`} className="vaango-upi-qr" /> : <p className="vaango-cart-payment-error">This shop has not configured a UPI ID or QR code.</p>}
-      {upiId && <p className="vaango-cart-upi-id">UPI ID: <code>{upiId}</code></p>}
-      <p className="vaango-cart-payment-help">After completing payment, upload the payment screenshot. Payment remains pending until the shop verifies it.</p>
-      {!previewUrl ? (
-        <label className="vaango-payment-proof-upload">
-          <span>{isUploading ? 'Uploading proof...' : 'Add Payment Proof'}</span>
-          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" disabled={isUploading} onChange={(event) => void handleFile(event.target.files?.[0])} />
-        </label>
-      ) : (
-        <div className="vaango-payment-proof-selection">
-          <img src={previewUrl} alt="Payment proof preview" className="vaango-payment-proof-preview" />
-          <span>{fileName}</span>
-          <div className="vaango-payment-proof-actions">
-            <label className="vaango-payment-proof-upload"><span>Replace</span><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={(event) => void handleFile(event.target.files?.[0])} /></label>
-            <Button type="button" variant="outline" size="sm" onClick={() => void removeProof()}>Remove</Button>
+      {hasValidQr ? <>
+        <strong>Pay ₹{amount.toFixed(2)} using any UPI app</strong>
+        <img src={qrUrl} alt={`UPI QR code for ${shopName}`} className="vaango-upi-qr" />
+        {upiId && <p className="vaango-cart-upi-id">UPI ID: <code>{upiId}</code></p>}
+        <p className="vaango-cart-payment-help">After completing payment, upload the payment screenshot. Payment remains pending until the shop verifies it.</p>
+        {!previewUrl ? (
+          <label className="vaango-payment-proof-upload">
+            <span>{isUploading ? 'Uploading proof...' : 'Add Payment Proof'}</span>
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" disabled={isUploading} onChange={(event) => void handleFile(event.target.files?.[0])} />
+          </label>
+        ) : (
+          <div className="vaango-payment-proof-selection">
+            <img src={previewUrl} alt="Payment proof preview" className="vaango-payment-proof-preview" />
+            <span>{fileName}</span>
+            <div className="vaango-payment-proof-actions">
+              <label className="vaango-payment-proof-upload"><span>Replace</span><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={(event) => void handleFile(event.target.files?.[0])} /></label>
+              <Button type="button" variant="outline" size="sm" onClick={() => void removeProof()}>Remove</Button>
+            </div>
           </div>
-        </div>
-      )}
-      {error && <p className="vaango-cart-payment-error" role="alert">{error}</p>}
+        )}
+        {error && <p className="vaango-cart-payment-error" role="alert">{error}</p>}
+      </> : <p className="vaango-cart-payment-error">UPI payment is currently unavailable because this shop has not configured its UPI QR code.</p>}
     </div>
   );
 };
@@ -178,8 +166,8 @@ export const CartPage: React.FC = () => {
 
     const chosenPayment = shopPaymentMethods[shopId] || 'cash';
     const paymentProofPath = paymentProofPaths[shopId] || null;
-    if (chosenPayment === 'upi' && !group.shop.upi_id && !group.shop.upi_qr_url) {
-      setShopErrors((prev) => ({ ...prev, [shopId]: 'This shop has not configured UPI payment details.' }));
+    if (chosenPayment === 'upi' && !isValidUpiQrUrl(group.shop.upi_qr_url)) {
+      setShopErrors((prev) => ({ ...prev, [shopId]: 'UPI payment is currently unavailable because this shop has not configured its UPI QR code.' }));
       return;
     }
     if (chosenPayment === 'upi' && !paymentProofPath) {
@@ -435,6 +423,7 @@ export const CartPage: React.FC = () => {
                     </button>
                     <button
                       type="button"
+                      disabled={!isValidUpiQrUrl(shop.upi_qr_url)}
                       className={currentPayment === 'upi' ? 'active' : ''}
                       onClick={() =>
                         setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'upi' }))

@@ -29,6 +29,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
 import { validatePaymentProofFile } from '../lib/paymentProof';
+import { isValidUpiQrUrl } from '../lib/upi';
 import './RequestDetailPage.css';
 
 interface DecodedPayload {
@@ -467,20 +468,24 @@ export const RequestDetailPage: React.FC = () => {
             <span>{(request.fulfillment_type || payload.fulfillment_type) === 'dine_in' ? t('eatThere') : t('takeParcel')}</span>
           </div>
         )}
-        {groupCode === 'ORDER' && payload.payment_method === 'upi' && payload.shop_upi_id && !request.customer_paid && (
+        {groupCode === 'ORDER' && payload.payment_method === 'upi' && !request.customer_paid && (
           <div className="vaango-upi-payment-card">
-            <h3>{t('payViaUpiTitle')}</h3>
-            <p className="text-secondary text-sm">{t('payViaUpiSubtitle')}</p>
-            {payload.shop_upi_qr_url && <img src={payload.shop_upi_qr_url} alt="Shop UPI QR code" className="vaango-upi-qr" />}
-            <a className="vaango-upi-open-btn" href={`upi://pay?pa=${payload.shop_upi_id}&pn=${encodeURIComponent(payload.shop_name || 'Shop')}&cu=INR`}>{t('openUpiAppBtn')}</a>
-            <p className="text-xs text-secondary mt-2">{t('upiIdLabel', { upiId: payload.shop_upi_id })}</p>
-            {!request.payment_screenshot_url || request.payment_status === 'PAYMENT_REJECTED' ? <>
-              <label className="vaango-form-label mt-3" htmlFor="payment-proof">{t('uploadPaymentScreenshotLabel')}</label>
-              <input id="payment-proof" type="file" accept="image/*" className="vaango-file-input" onChange={(e) => { const file = e.target.files?.[0] || null; setPaymentProofFile(file); setPaymentProofPreview(file ? URL.createObjectURL(file) : null); }} />
-              {paymentProofPreview && <img src={paymentProofPreview} alt="Payment screenshot preview" className="vaango-payment-proof-preview" />}
-              <Button type="button" variant="primary" size="sm" isLoading={isSubmittingProof} disabled={!paymentProofFile} onClick={() => void handleSubmitPaymentProof()}>{t('submitPaymentProofBtn')}</Button>
-            </> : <Badge variant="warning" size="md">{t('paymentScreenshotSubmittedBadge')}</Badge>}
-            {request.payment_status === 'PAYMENT_VERIFIED' ? <Badge variant="success" size="md">Payment verified by shop</Badge> : <Badge variant="warning" size="md">Payment proof submitted · awaiting verification</Badge>}
+            {!isValidUpiQrUrl(payload.shop_upi_qr_url) ? <p className="vaango-cart-payment-error">UPI payment is currently unavailable because this shop has not configured its UPI QR code.</p> : <>
+              <h3>{t('payViaUpiTitle')}</h3>
+              <p className="text-secondary text-sm">{t('payViaUpiSubtitle')}</p>
+              <img src={payload.shop_upi_qr_url} alt="Shop UPI QR code" className="vaango-upi-qr" />
+              {payload.shop_upi_id && <>
+                <a className="vaango-upi-open-btn" href={`upi://pay?pa=${payload.shop_upi_id}&pn=${encodeURIComponent(payload.shop_name || 'Shop')}&cu=INR`}>{t('openUpiAppBtn')}</a>
+                <p className="text-xs text-secondary mt-2">{t('upiIdLabel', { upiId: payload.shop_upi_id })}</p>
+              </>}
+              {!request.payment_screenshot_url || request.payment_status === 'PAYMENT_REJECTED' ? <>
+                <label className="vaango-form-label mt-3" htmlFor="payment-proof">{t('uploadPaymentScreenshotLabel')}</label>
+                <input id="payment-proof" type="file" accept="image/*" className="vaango-file-input" onChange={(e) => { const file = e.target.files?.[0] || null; setPaymentProofFile(file); setPaymentProofPreview(file ? URL.createObjectURL(file) : null); }} />
+                {paymentProofPreview && <img src={paymentProofPreview} alt="Payment screenshot preview" className="vaango-payment-proof-preview" />}
+                <Button type="button" variant="primary" size="sm" isLoading={isSubmittingProof} disabled={!paymentProofFile} onClick={() => void handleSubmitPaymentProof()}>{t('submitPaymentProofBtn')}</Button>
+              </> : <Badge variant="warning" size="md">{t('paymentScreenshotSubmittedBadge')}</Badge>}
+              {request.payment_status === 'PAYMENT_VERIFIED' ? <Badge variant="success" size="md">Payment verified by shop</Badge> : <Badge variant="warning" size="md">Payment proof submitted · awaiting verification</Badge>}
+            </>}
           </div>
         )}
         {request.customer_paid && <div className="vaango-paid-confirm">{t('paymentConfirmedBanner')}</div>}
