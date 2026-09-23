@@ -158,7 +158,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       setFormError('Government identity proof document is required.');
       return;
     }
-    if (!upiQrFile || !upiQrFile.type.startsWith('image/') || upiQrFile.size === 0) {
+    if (upiId.trim() && (!upiQrFile || !upiQrFile.type.startsWith('image/') || upiQrFile.size === 0)) {
       setFormError('UPI QR code is required to accept UPI payments.');
       return;
     }
@@ -381,7 +381,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       setFormError('Government ID proof is required.');
       return;
     }
-    if (!upiQrFile || !upiQrFile.type.startsWith('image/') || upiQrFile.size === 0) {
+    if (upiId.trim() && (!upiQrFile || !upiQrFile.type.startsWith('image/') || upiQrFile.size === 0)) {
       setFormError('UPI QR code is required to accept UPI payments.');
       return;
     }
@@ -416,7 +416,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
           ? uploadFile('shop-photos', `${activeUserId}/upi-qr/upi_qr_${Date.now()}.${upiQrFile.name.split('.').pop()?.toLowerCase() || 'jpg'}`, upiQrFile)
           : Promise.resolve(null),
       ]);
-      if (!isValidUpiQrUrl(upiQrUrl)) {
+      if (upiId.trim() && !isValidUpiQrUrl(upiQrUrl)) {
         throw new Error('UPI QR code is required to accept UPI payments.');
       }
 
@@ -1098,7 +1098,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
               </div>
 
               <div className="vaango-form-group mt-4">
-                <label className="vaango-form-label" htmlFor="app-upi-qr">UPI QR Photo (Required)</label>
+                <label className="vaango-form-label" htmlFor="app-upi-qr">UPI QR Photo (Required when UPI is enabled)</label>
                 <input
                   ref={upiQrInputRef}
                   id="app-upi-qr"
