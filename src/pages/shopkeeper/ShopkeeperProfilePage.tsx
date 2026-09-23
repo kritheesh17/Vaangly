@@ -53,6 +53,8 @@ export const ShopkeeperProfilePage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   // Editable fields
+  const [shopName, setShopName] = useState('');
+  const [addressLine, setAddressLine] = useState('');
   const [tagline, setTagline] = useState('');
   const [phone, setPhone] = useState('');
   const [openingTime, setOpeningTime] = useState('07:30');
@@ -66,6 +68,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
   const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5, 6]);
   const [timeRanges, setTimeRanges] = useState<TimeRange[]>([{ id: 'range-1', start: '09:00', end: '17:00', concurrent: 1 }]);
   const [upiQrFile, setUpiQrFile] = useState<File | null>(null);
+  const [shopPhotoFile, setShopPhotoFile] = useState<File | null>(null);
   const [customisedCakeAvailable, setCustomisedCakeAvailable] = useState(false);
 
   // Security & Password states
@@ -105,6 +108,8 @@ export const ShopkeeperProfilePage: React.FC = () => {
         const data = await getShopkeeperShop(user.id);
         if (data) {
           setShop(data);
+          setShopName(data.name || '');
+          setAddressLine(data.address_line || '');
           setTagline(data.tagline || '');
           setPhone(data.phone || '');
           setOpeningTime(data.opening_time || '08:00');
@@ -137,11 +142,28 @@ export const ShopkeeperProfilePage: React.FC = () => {
     e.preventDefault();
     if (!shop) return;
 
+    if (!shopName.trim()) {
+      toastError('Shop name is required.');
+      return;
+    }
+    if (!addressLine.trim()) {
+      toastError('Shop address is required.');
+      return;
+    }
+    if (!phone.trim()) {
+      toastError('Store contact phone number is required.');
+      return;
+    }
+    if (shopPhotoFile && (!shopPhotoFile.type.startsWith('image/') || shopPhotoFile.size === 0)) {
+      toastError('Please select a valid shop photo.');
+      return;
+    }
+
     if (upiQrFile && (!upiQrFile.type.startsWith('image/') || upiQrFile.size === 0)) {
       toastError('UPI QR code is required to accept UPI payments.');
       return;
     }
-    if (!isValidUpiQrUrl(shop.upi_qr_url) && !upiQrFile) {
+    if (upiId.trim() && !isValidUpiQrUrl(shop.upi_qr_url) && !upiQrFile) {
       toastError('UPI QR code is required to accept UPI payments.');
       return;
     }
@@ -150,11 +172,31 @@ export const ShopkeeperProfilePage: React.FC = () => {
     try {
       const parsedFee = parseFloat(deliveryFee);
       let upiQrUrl = shop.upi_qr_url || null;
+      let photoUrl = shop.photo_url || null;
+
+      if (shopPhotoFile) {
+        const extension = shopPhotoFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const path = `${user?.id}/shops/${shop.id}/storefront_${Date.now()}.${extension}`;
+        if (isSupabaseConfigured) {
+          const { error } = await supabase.storage.from('shop-photos').upload(path, shopPhotoFile, {
+            upsert: true,
+            contentType: shopPhotoFile.type,
+          });
+          if (error) throw new Error(error.message);
+          photoUrl = supabase.storage.from('shop-photos').getPublicUrl(path).data.publicUrl;
+        } else {
+          photoUrl = await readFileAsDataUrl(shopPhotoFile);
+        }
+      }
 
       if (upiQrFile) {
         if (isSupabaseConfigured) {
-          const path = `shop-photos/${shop.id}/upi_qr.jpg`;
-          const { error } = await supabase.storage.from('shop-photos').upload(path, upiQrFile, { upsert: true });
+          const extension = upiQrFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+          const path = `${user?.id}/shops/${shop.id}/upi_qr_${Date.now()}.${extension}`;
+          const { error } = await supabase.storage.from('shop-photos').upload(path, upiQrFile, {
+            upsert: true,
+            contentType: upiQrFile.type,
+          });
           if (error) throw new Error(error.message);
           upiQrUrl = supabase.storage.from('shop-photos').getPublicUrl(path).data.publicUrl;
         } else {
@@ -162,13 +204,16 @@ export const ShopkeeperProfilePage: React.FC = () => {
         }
       }
 
-      if (!isValidUpiQrUrl(upiQrUrl)) {
+      if (upiId.trim() && !isValidUpiQrUrl(upiQrUrl)) {
         throw new Error('UPI QR code is required to accept UPI payments.');
       }
 
       const res = await updateShopProfile(shop.id, {
+        name: shopName.trim(),
+        address_line: addressLine.trim(),
         tagline: tagline.trim() || null,
         phone: phone.trim(),
+        photo_url: photoUrl,
         opening_time: openingTime,
         closing_time: closingTime,
         is_open_today: isOpenToday,
@@ -250,18 +295,8 @@ export const ShopkeeperProfilePage: React.FC = () => {
 
           <div className="vaango-settings-identity-grid">
             <div className="vaango-identity-item">
-              <span className="vaango-identity-label">Shop Name</span>
-              <span className="vaango-identity-val font-bold">{shop?.name || 'Store'}</span>
-            </div>
-
-            <div className="vaango-identity-item">
               <span className="vaango-identity-label">Registered Owner</span>
               <span className="vaango-identity-val">{user?.full_name}</span>
-            </div>
-
-            <div className="vaango-identity-item">
-              <span className="vaango-identity-label">Address</span>
-              <span className="vaango-identity-val">{shop?.address_line}</span>
             </div>
 
             <div className="vaango-identity-item">
@@ -277,6 +312,17 @@ export const ShopkeeperProfilePage: React.FC = () => {
                 )}
               </span>
             </div>
+          </div>
+
+          <div className="vaango-form-group mt-4">
+            <label className="vaango-form-label" htmlFor="shop-name">Shop Name</label>
+            <Input id="shop-name" value={shopName} onChange={(e) => setShopName(e.target.value)} required />
+          </div>
+
+          <div className="vaango-form-group mt-3">
+            <label className="vaango-form-label" htmlFor="shop-address">Shop Address</label>
+            <Input id="shop-address" value={addressLine} onChange={(e) => setAddressLine(e.target.value)} required />
+            <span className="text-xs text-secondary mt-1">This physical address is shown to customers.</span>
           </div>
 
           <div className="vaango-form-group mt-4">
@@ -304,6 +350,13 @@ export const ShopkeeperProfilePage: React.FC = () => {
               leftIcon={<Phone size={18} />}
               required
             />
+          </div>
+
+          <div className="vaango-form-group mt-3">
+            <label className="vaango-form-label" htmlFor="shop-photo">Shop Photo</label>
+            {shop?.photo_url && <img src={shop.photo_url} alt={`${shop.name} storefront`} className="vaango-upi-qr" />}
+            <input id="shop-photo" type="file" accept="image/jpeg,image/png,image/webp" className="vaango-file-input" onChange={(e) => setShopPhotoFile(e.target.files?.[0] || null)} />
+            <span className="text-xs text-secondary mt-1">Upload a new photo to replace the current storefront image.</span>
           </div>
         </Card>
 

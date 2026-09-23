@@ -129,7 +129,7 @@ export const getShopkeeperShop = async (ownerId: string): Promise<Shop | null> =
  */
 export const updateShopProfile = async (
   shopId: string,
-  updates: Partial<Pick<Shop, 'tagline' | 'phone' | 'opening_time' | 'closing_time' | 'is_open_today' | 'delivery_available' | 'delivery_fee' | 'upi_id' | 'upi_qr_url' | 'customised_cake_available' | 'subscription_tier'>>
+  updates: Partial<Pick<Shop, 'name' | 'tagline' | 'address_line' | 'phone' | 'photo_url' | 'opening_time' | 'closing_time' | 'is_open_today' | 'delivery_available' | 'delivery_fee' | 'upi_id' | 'upi_qr_url' | 'customised_cake_available' | 'subscription_tier'>>
 ): Promise<{ success: boolean; shop?: Shop; error?: string }> => {
   if (updates.delivery_fee !== undefined && updates.delivery_fee < 0) {
     return { success: false, error: 'Delivery fee cannot be negative.' };
