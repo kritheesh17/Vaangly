@@ -32,7 +32,6 @@ import {
 import { useToast } from '../../context/ToastContext';
 import { ShopStatusCard } from '../../components/shopkeeper/ShopStatusCard';
 import { RequestCard } from '../../components/shopkeeper/RequestCard';
-import { NotificationBell } from '../../components/shopkeeper/NotificationBell';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -259,7 +258,6 @@ export const ShopkeeperDashboardPage: React.FC = () => {
         </div>
 
         <div className="vaango-shop-dash__header-actions">
-          {shop && <NotificationBell shopId={shop.id} />}
           <Button
             variant="outline"
             size="sm"

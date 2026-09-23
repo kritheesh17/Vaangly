@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell,
@@ -17,6 +17,7 @@ import {
 } from '../../lib/notificationApi';
 import { useAuth } from '../../context/AuthContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import './NotificationBell.css';
 
 interface NotificationBellProps {
@@ -29,19 +30,21 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const userId = user?.id;
 
-  const loadNotifs = async () => {
-    if (!user) return;
+  const loadNotifs = useCallback(async () => {
+    if (!userId) return;
     try {
-      const list = await fetchShopNotifications(user.id, shopId);
+      const list = await fetchShopNotifications(userId, shopId);
       setNotifications(list);
     } catch (err) {
       console.error('Failed to load notifications:', err);
     }
-  };
+  }, [shopId, userId]);
 
   useEffect(() => {
-    loadNotifs();
+    void loadNotifs();
 
     const handleUpdate = () => {
       loadNotifs();
@@ -51,23 +54,45 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
     window.addEventListener('vaango-requests-changed', handleUpdate);
 
     // Supabase Realtime live sync
-    let channel: any = null;
-    if (isSupabaseConfigured && user) {
-      channel = supabase
-        .channel(`user-notifications-${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'notifications',
-            filter: `recipient_id=eq.${user.id}`,
-          },
-          () => {
-            loadNotifs();
+    if (isSupabaseConfigured && userId) {
+      if (channelRef.current) {
+        void supabase.removeChannel(channelRef.current).catch((err: unknown) => {
+          console.error('Failed to remove previous notification channel:', err);
+        });
+        channelRef.current = null;
+      }
+
+      const channel = supabase.channel(`user-notifications-${userId}`);
+      try {
+        channel
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'notifications',
+              filter: `recipient_id=eq.${userId}`,
+            },
+            () => {
+              void loadNotifs();
+            }
+          );
+
+        channelRef.current = channel;
+        channel.subscribe((status, error) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('Notification realtime subscription failed:', error || status);
           }
-        )
-        .subscribe();
+        });
+      } catch (err) {
+        console.error('Failed to initialize notification realtime subscription:', err);
+        if (channelRef.current === channel) {
+          channelRef.current = null;
+        }
+        void supabase.removeChannel(channel).catch((removeError: unknown) => {
+          console.error('Failed to clean up notification channel:', removeError);
+        });
+      }
     }
 
     // Close on outside click
@@ -82,11 +107,15 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
       window.removeEventListener('vaango-notifications-changed', handleUpdate);
       window.removeEventListener('vaango-requests-changed', handleUpdate);
       document.removeEventListener('mousedown', handleClickOutside);
-      if (channel && isSupabaseConfigured) {
-        supabase.removeChannel(channel);
+      if (channelRef.current) {
+        const channel = channelRef.current;
+        channelRef.current = null;
+        void supabase.removeChannel(channel).catch((err: unknown) => {
+          console.error('Failed to remove notification channel:', err);
+        });
       }
     };
-  }, [user, shopId]);
+  }, [loadNotifs, shopId, userId]);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
   const displayBadge = unreadCount > 99 ? '99+' : unreadCount.toString();
