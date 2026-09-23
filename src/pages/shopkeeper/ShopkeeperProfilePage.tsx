@@ -29,6 +29,7 @@ import { TimePicker12h } from '../../components/ui/TimePicker12h';
 import { useToast } from '../../context/ToastContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { isValidUpiQrUrl } from '../../lib/upi';
+import { GPSLocationPicker } from '../../components/shopkeeper/GPSLocationPicker';
 import { Switch } from '../../components/ui/Switch';
 import { CreditCard, Info } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
@@ -55,6 +56,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
   // Editable fields
   const [shopName, setShopName] = useState('');
   const [addressLine, setAddressLine] = useState('');
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [tagline, setTagline] = useState('');
   const [phone, setPhone] = useState('');
   const [openingTime, setOpeningTime] = useState('07:30');
@@ -110,6 +112,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
           setShop(data);
           setShopName(data.name || '');
           setAddressLine(data.address_line || '');
+          setGpsCoords(data.gps_lat != null && data.gps_lng != null ? { lat: data.gps_lat, lng: data.gps_lng } : null);
           setTagline(data.tagline || '');
           setPhone(data.phone || '');
           setOpeningTime(data.opening_time || '08:00');
@@ -211,6 +214,8 @@ export const ShopkeeperProfilePage: React.FC = () => {
       const res = await updateShopProfile(shop.id, {
         name: shopName.trim(),
         address_line: addressLine.trim(),
+        gps_lat: gpsCoords?.lat ?? shop.gps_lat,
+        gps_lng: gpsCoords?.lng ?? shop.gps_lng,
         tagline: tagline.trim() || null,
         phone: phone.trim(),
         photo_url: photoUrl,
@@ -334,6 +339,18 @@ export const ShopkeeperProfilePage: React.FC = () => {
               placeholder="e.g. Farm-fresh daily groceries, country pulses & pure spices"
               value={tagline}
               onChange={(e) => setTagline(e.target.value)}
+            />
+          </div>
+
+          <div className="vaango-form-group mt-4">
+            <GPSLocationPicker
+              initialLat={shop?.gps_lat}
+              initialLng={shop?.gps_lng}
+              initialAddress={addressLine}
+              onLocationCaptured={(coords) => {
+                setGpsCoords({ lat: coords.lat, lng: coords.lng });
+                if (coords.address) setAddressLine(coords.address);
+              }}
             />
           </div>
 

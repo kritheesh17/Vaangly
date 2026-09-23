@@ -3,18 +3,21 @@ import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { MapPin, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { reverseGeocodeCoordinates } from '../../lib/reverseGeocode';
 import './GPSLocationPicker.css';
 
 interface GPSLocationPickerProps {
   initialLat?: number | null;
   initialLng?: number | null;
-  onLocationCaptured: (coords: { lat: number; lng: number; accuracy: number }) => void;
+  initialAddress?: string | null;
+  onLocationCaptured: (coords: { lat: number; lng: number; accuracy: number; address: string | null }) => void;
   disabled?: boolean;
 }
 
 export const GPSLocationPicker: React.FC<GPSLocationPickerProps> = ({
   initialLat,
   initialLng,
+  initialAddress,
   onLocationCaptured,
   disabled = false,
 }) => {
@@ -23,6 +26,21 @@ export const GPSLocationPicker: React.FC<GPSLocationPickerProps> = ({
   );
   const [isLocating, setIsLocating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [address, setAddress] = useState<string | null>(initialAddress || null);
+
+  const finishCapture = async (lat: number, lng: number, accuracy: number) => {
+    setCoords({ lat, lng, accuracy });
+    try {
+      const detectedAddress = await reverseGeocodeCoordinates(lat, lng);
+      setAddress(detectedAddress);
+      onLocationCaptured({ lat, lng, accuracy, address: detectedAddress });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unable to detect a readable address. Please enter it manually.';
+      setAddress(null);
+      setErrorMsg(`${message} Coordinates were captured successfully.`);
+      onLocationCaptured({ lat, lng, accuracy, address: null });
+    }
+  };
 
   const handleCaptureLocation = async () => {
     setErrorMsg(null);
@@ -48,8 +66,7 @@ export const GPSLocationPicker: React.FC<GPSLocationPickerProps> = ({
         const lat = parseFloat(position.coords.latitude.toFixed(6));
         const lng = parseFloat(position.coords.longitude.toFixed(6));
         const accuracy = Math.round(position.coords.accuracy || 0);
-        setCoords({ lat, lng, accuracy });
-        onLocationCaptured({ lat, lng, accuracy });
+        await finishCapture(lat, lng, accuracy);
       } catch (err) {
         setErrorMsg(err instanceof Error ? err.message : 'Unable to retrieve device GPS coordinates. Please check that device Location/GPS is turned on.');
       } finally {
@@ -92,9 +109,7 @@ export const GPSLocationPicker: React.FC<GPSLocationPickerProps> = ({
         const lng = parseFloat(position.coords.longitude.toFixed(6));
         const accuracy = Math.round(position.coords.accuracy);
 
-        setCoords({ lat, lng, accuracy });
-        setIsLocating(false);
-        onLocationCaptured({ lat, lng, accuracy });
+        void finishCapture(lat, lng, accuracy).finally(() => setIsLocating(false));
       },
       (err) => {
         setIsLocating(false);
@@ -103,11 +118,7 @@ export const GPSLocationPicker: React.FC<GPSLocationPickerProps> = ({
             setErrorMsg('GPS permission was denied. Please allow location access in your browser settings.');
             break;
           case err.POSITION_UNAVAILABLE:
-            // Fallback for desktop simulators or offline mode
-            const mockLat = 11.4533;
-            const mockLng = 77.4361;
-            setCoords({ lat: mockLat, lng: mockLng, accuracy: 15 });
-            onLocationCaptured({ lat: mockLat, lng: mockLng, accuracy: 15 });
+            setErrorMsg('Your location is currently unavailable. You can enter the shop address manually.');
             break;
           case err.TIMEOUT:
             setErrorMsg('GPS request timed out. Please try again.');
@@ -151,6 +162,7 @@ export const GPSLocationPicker: React.FC<GPSLocationPickerProps> = ({
                   GPS Accuracy: ±{coords.accuracy} meters
                 </div>
               )}
+              {address && <div className="vaango-gps-picker__accuracy">Detected address: {address}</div>}
             </div>
             <Button
               type="button"

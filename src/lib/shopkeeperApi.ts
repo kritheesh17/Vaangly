@@ -129,7 +129,7 @@ export const getShopkeeperShop = async (ownerId: string): Promise<Shop | null> =
  */
 export const updateShopProfile = async (
   shopId: string,
-  updates: Partial<Pick<Shop, 'name' | 'tagline' | 'address_line' | 'phone' | 'photo_url' | 'opening_time' | 'closing_time' | 'is_open_today' | 'delivery_available' | 'delivery_fee' | 'upi_id' | 'upi_qr_url' | 'customised_cake_available' | 'subscription_tier'>>
+  updates: Partial<Pick<Shop, 'name' | 'tagline' | 'address_line' | 'phone' | 'photo_url' | 'opening_time' | 'closing_time' | 'is_open_today' | 'delivery_available' | 'delivery_fee' | 'upi_id' | 'upi_qr_url' | 'customised_cake_available' | 'subscription_tier' | 'gps_lat' | 'gps_lng'>>
 ): Promise<{ success: boolean; shop?: Shop; error?: string }> => {
   if (updates.delivery_fee !== undefined && updates.delivery_fee < 0) {
     return { success: false, error: 'Delivery fee cannot be negative.' };
@@ -946,6 +946,9 @@ export const submitShopApplication = async (
   if (!application.contact_phone.trim()) {
     return { success: false, error: 'Contact phone number is required.' };
   }
+  if (!application.address_line?.trim()) {
+    return { success: false, error: 'Shop address is required. Please detect or enter the physical address.' };
+  }
   if (!application.gps_lat || !application.gps_lng) {
     return { success: false, error: 'Live device GPS location capture is required.' };
   }
@@ -1068,6 +1071,7 @@ export const submitShopApplication = async (
         shop_type_id: resolvedShopTypeId,
         location_id: resolvedLocationId,
         contact_phone: application.contact_phone.trim(),
+        address_line: application.address_line.trim(),
         status: 'submitted' as const,
         photo_url: application.photo_url || null,
         photo_urls: application.photo_urls || (application.photo_url ? [application.photo_url] : []),
@@ -1116,6 +1120,7 @@ export const submitShopApplication = async (
     shop_type_id: application.shop_type_id,
     location_id: application.location_id,
     contact_phone: application.contact_phone.trim(),
+    address_line: application.address_line?.trim() || null,
     status: 'submitted' as const,
     photo_url: application.photo_url || null,
     photo_urls: application.photo_urls || (application.photo_url ? [application.photo_url] : []),

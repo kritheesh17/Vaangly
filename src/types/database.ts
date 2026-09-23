@@ -238,6 +238,7 @@ export interface ShopApplication {
   shop_type_id: string;
   location_id: string;
   contact_phone: string;
+  address_line?: string | null;
   status: ApplicationStatus;
   photo_url?: string | null;
   photo_urls?: string[];

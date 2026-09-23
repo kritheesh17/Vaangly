@@ -87,6 +87,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
   const [idProofFile, setIdProofFile] = useState<File | null>(null);
   const [googleMapsUrl, setGoogleMapsUrl] = useState('');
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [addressLine, setAddressLine] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
@@ -147,6 +148,10 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
     }
     if (!gpsCoords) {
       setFormError('Please capture your storefront live GPS coordinates.');
+      return;
+    }
+    if (!addressLine.trim()) {
+      setFormError('Shop address is required. Detect it from GPS or enter it manually.');
       return;
     }
     if (!idProofFile) {
@@ -423,6 +428,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         shop_type_id: shopTypeId,
         location_id: selectedLocation.id,
         contact_phone: contactPhone.trim(),
+        address_line: addressLine.trim(),
         photo_url: photoUrls[0] || null,
         photo_urls: photoUrls,
         upi_id: upiId.trim() || null,
@@ -978,8 +984,23 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
               </div>
 
               <GPSLocationPicker
-                onLocationCaptured={(coords) => setGpsCoords({ lat: coords.lat, lng: coords.lng })}
+                onLocationCaptured={(coords) => {
+                  setGpsCoords({ lat: coords.lat, lng: coords.lng });
+                  if (coords.address) setAddressLine(coords.address);
+                }}
               />
+
+              <div className="vaango-form-group mt-4">
+                <label className="vaango-form-label" htmlFor="app-address">Shop Address</label>
+                <Input
+                  id="app-address"
+                  value={addressLine}
+                  onChange={(e) => setAddressLine(e.target.value)}
+                  placeholder="Enter or correct the physical shop address"
+                  required
+                />
+                <span className="text-xs text-secondary mt-1">Review the detected address and correct it before submitting.</span>
+              </div>
 
               <div className="vaango-gmaps-alt">
                 <p className="vaango-gmaps-alt__label">OR — Already on Google Maps? (Optional)</p>
