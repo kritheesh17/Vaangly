@@ -10,6 +10,7 @@ import {
   Store,
   Calendar,
   Wrench,
+  ExternalLink,
 } from 'lucide-react';
 import { MOCK_SHOPS, MOCK_SHOP_TYPES } from '../data/mockData';
 import { getShopProductsList } from '../lib/shopkeeperApi';
@@ -30,6 +31,21 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Modal } from '../components/ui/Modal';
 import { Textarea } from '../components/ui/Textarea';
+
+const hasValidCoordinates = (lat: unknown, lng: unknown): boolean => {
+  if (lat == null || lng == null) return false;
+  const nLat = typeof lat === 'number' ? lat : parseFloat(String(lat));
+  const nLng = typeof lng === 'number' ? lng : parseFloat(String(lng));
+  return (
+    !isNaN(nLat) &&
+    !isNaN(nLng) &&
+    nLat >= -90 &&
+    nLat <= 90 &&
+    nLng >= -180 &&
+    nLng <= 180 &&
+    !(nLat === 0 && nLng === 0)
+  );
+};
 
 export const ShopDetailPage: React.FC = () => {
   const { shopId } = useParams<{ shopId: string }>();
@@ -259,10 +275,38 @@ export const ShopDetailPage: React.FC = () => {
             )}
 
             <div className="vaango-shop-hero__meta">
-              <div className="vaango-shop-meta-item">
-                <MapPin size={16} className="vaango-shop-meta-icon" />
-                <span>{shop.address_line}</span>
-              </div>
+              {shop.address_line ? (
+                <div className="vaango-shop-meta-item vaango-shop-meta-item--address">
+                  <MapPin size={16} className="vaango-shop-meta-icon" />
+                  <span className="vaango-shop-address-text">{shop.address_line}</span>
+                  {hasValidCoordinates(shop.gps_lat, shop.gps_lng) && (
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shop.gps_lat},${shop.gps_lng}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="vaango-shop-map-btn"
+                      aria-label={t('openInMaps')}
+                    >
+                      <ExternalLink size={12} />
+                      <span>{t('openInMaps')}</span>
+                    </a>
+                  )}
+                </div>
+              ) : hasValidCoordinates(shop.gps_lat, shop.gps_lng) ? (
+                <div className="vaango-shop-meta-item vaango-shop-meta-item--address">
+                  <MapPin size={16} className="vaango-shop-meta-icon" />
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shop.gps_lat},${shop.gps_lng}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="vaango-shop-map-btn"
+                    aria-label={t('openInMaps')}
+                  >
+                    <ExternalLink size={12} />
+                    <span>{t('openInMaps')}</span>
+                  </a>
+                </div>
+              ) : null}
 
               {shop.opening_time && shop.closing_time && (
                 <div className="vaango-shop-meta-item">

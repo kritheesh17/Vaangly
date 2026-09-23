@@ -29,6 +29,7 @@ import {
   getLatestApplication,
   updateShopSubscriptionTier,
 } from '../../lib/shopkeeperApi';
+import { fetchShopServices } from '../../lib/appointmentServiceApi';
 import { useToast } from '../../context/ToastContext';
 import { ShopStatusCard } from '../../components/shopkeeper/ShopStatusCard';
 import { RequestCard } from '../../components/shopkeeper/RequestCard';
@@ -48,6 +49,7 @@ export const ShopkeeperDashboardPage: React.FC = () => {
 
   const [shop, setShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<ShopProduct[]>([]);
+  const [catalogueItemCount, setCatalogueItemCount] = useState<number>(0);
   const [requests, setRequests] = useState<Request[]>([]);
   const [applicationStatus, setApplicationStatus] = useState<'submitted' | 'under_review' | 'approved' | 'rejected' | undefined>(undefined);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
@@ -65,9 +67,20 @@ export const ShopkeeperDashboardPage: React.FC = () => {
       setShop(shopData);
 
       if (shopData) {
+        const wfGroup = getShopType(shopData.shop_type_id)?.workflow_group_code || 'ORDER';
+
         // 2. Fetch products
         const prodData = await getShopProductsList(shopData.id);
         setProducts(prodData);
+
+        if (wfGroup === 'ORDER') {
+          setCatalogueItemCount(prodData.length);
+        } else {
+          // Fetch services for SERVICE / APPOINTMENT shops
+          const srvData = await fetchShopServices(shopData.id);
+          const count = srvData.length > 0 ? srvData.length : (shopData.slot_config ? 1 : prodData.length);
+          setCatalogueItemCount(count);
+        }
 
         // 3. Fetch requests
         const reqData = await getShopRequests(shopData.id);
@@ -295,7 +308,8 @@ export const ShopkeeperDashboardPage: React.FC = () => {
           shop={shop}
           applicationStatus={applicationStatus}
           rejectionReason={rejectionReason}
-          productCount={products.length}
+          productCount={catalogueItemCount}
+          workflowGroup={workflowGroup}
           onToggleLive={handleToggleLive}
           isToggling={isTogglingLive}
         />
@@ -382,7 +396,7 @@ export const ShopkeeperDashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {shop && !shop.is_live && products.length === 0 && (
+      {shop && !shop.is_live && catalogueItemCount === 0 && (
         <div className="vaango-onboarding-checklist">
           <h3>🎉 Your shop is approved! Complete setup to go live.</h3>
           <div className="vaango-checklist-steps">

@@ -198,9 +198,25 @@ export const toggleShopLive = async (
 ): Promise<{ success: boolean; shop?: Shop; error?: string }> => {
   if (isSupabaseConfigured) {
     try {
+      // 1. Try secure controlled RPC first
+      const { data: rpcData, error: rpcError } = await supabase.rpc('toggle_shop_live', {
+        p_shop_id: shopId,
+        p_is_live: targetLive,
+      });
+
+      if (!rpcError && rpcData?.success) {
+        return { success: true, shop: rpcData.shop as Shop };
+      }
+
+      if (rpcError && !rpcError.message.includes('function') && !rpcError.message.includes('does not exist')) {
+        // Return clear, user-friendly business error from RPC
+        return { success: false, error: rpcError.message };
+      }
+
+      // 2. Direct fallback if RPC is not deployed yet
       const { data: currentShop, error: fetchError } = await supabase
         .from('shops')
-        .select('status')
+        .select('*')
         .eq('id', shopId)
         .single();
 
@@ -222,7 +238,7 @@ export const toggleShopLive = async (
             .eq('is_available', true),
         ]);
         const services = servicesRes.data || [];
-        if (products.length === 0 && services.length === 0) {
+        if (products.length === 0 && services.length === 0 && !currentShop.slot_config) {
           return {
             success: false,
             error: 'Your catalogue has no items yet. Add at least one product or service before making your shop visible to customers.',
@@ -234,9 +250,6 @@ export const toggleShopLive = async (
         is_live: targetLive,
         updated_at: new Date().toISOString(),
       };
-      if (targetLive && currentShop.status !== 'suspended') {
-        updatePayload.status = 'active';
-      }
 
       const { data, error } = await supabase
         .from('shops')
@@ -267,7 +280,7 @@ export const toggleShopLive = async (
   if (targetLive) {
     const products = getStoredMockProducts(shopId);
     const services = getShopServices(shopId);
-    if (products.length === 0 && services.length === 0) {
+    if (products.length === 0 && services.length === 0 && !allShops[index].slot_config) {
       return {
         success: false,
         error: 'Your catalogue has no items yet. Add at least one product or service before making your shop visible to customers.',
