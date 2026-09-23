@@ -35,6 +35,11 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_requests_payment_status
   ON public.requests(shop_id, payment_method, payment_status, created_at DESC);
 
+-- Historical rows are backfilled by the migration role, not an authenticated
+-- customer. Temporarily remove only the request mutation authorization trigger;
+-- it is recreated immediately after the backfill with its original definition.
+DROP TRIGGER IF EXISTS vaangly_validate_request_creation_and_mutation ON public.requests;
+
 DO $$
 DECLARE
   v_request RECORD;
@@ -58,6 +63,10 @@ BEGIN
     WHERE id = v_request.id;
   END LOOP;
 END $$;
+
+CREATE TRIGGER vaangly_validate_request_creation_and_mutation
+BEFORE INSERT OR UPDATE ON public.requests
+FOR EACH ROW EXECUTE FUNCTION public.validate_request_creation_and_mutation();
 
 CREATE OR REPLACE FUNCTION public.validate_request_payment_fields()
 RETURNS trigger
