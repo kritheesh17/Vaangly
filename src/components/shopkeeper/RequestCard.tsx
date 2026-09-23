@@ -188,6 +188,11 @@ export const RequestCard: React.FC<RequestCardProps> = ({
               <span className="vaango-shop-req-card__item-more">{t('moreItems', { count: items.length - 3 })}</span>
             )}
           </div>
+          {request.fulfillment_type && (
+            <strong className="text-sm text-primary mt-2">
+              Order Type: {['DINE_IN', 'dine_in'].includes(request.fulfillment_type) ? '🍽️ Dine-in' : '📦 Parcel / Takeaway'}
+            </strong>
+          )}
         </div>
       )}
 

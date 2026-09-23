@@ -30,8 +30,8 @@ interface CartContextType {
   totalAmount: number;
   orderNotes: string;
   setOrderNotes: (notes: string) => void;
-  fulfillmentType: 'parcel' | 'dine_in' | null;
-  setFulfillmentType: (type: 'parcel' | 'dine_in' | null) => void;
+  fulfillmentType: 'DINE_IN' | 'TAKEAWAY' | null;
+  setFulfillmentType: (type: 'DINE_IN' | 'TAKEAWAY' | null) => void;
   addItem: (product: ShopProduct, shop: Shop, variant?: ProductVariant | null) => { success: boolean; requiresClear?: boolean; error?: string };
   removeItem: (productId: string, variantId?: string | null) => void;
   updateQuantity: (productId: string, quantity: number, variantId?: string | null) => void;
@@ -42,7 +42,7 @@ interface CartContextType {
   submitShopRequest: (
     shopId: string,
     paymentMethod?: 'cash' | 'upi',
-    overrideFulfillment?: 'parcel' | 'dine_in' | null,
+    overrideFulfillment?: 'DINE_IN' | 'TAKEAWAY' | null,
     shopNotes?: string,
     paymentProofPath?: string | null
   ) => Promise<{ success: boolean; request?: Request; error?: string }>;
@@ -51,6 +51,12 @@ interface CartContextType {
 }
 
 const CART_STORAGE_KEY = 'vaango-customer-cart';
+
+const normalizeFulfillmentType = (value: unknown): 'DINE_IN' | 'TAKEAWAY' | null => {
+  if (value === 'DINE_IN' || value === 'dine_in') return 'DINE_IN';
+  if (value === 'TAKEAWAY' || value === 'parcel' || value === 'pickup' || value === 'delivery') return 'TAKEAWAY';
+  return null;
+};
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
@@ -86,10 +92,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [orderNotes, setOrderNotes] = useState<string>('');
-  const [fulfillmentType, setFulfillmentType] = useState<'parcel' | 'dine_in' | null>(() => {
+  const [fulfillmentType, setFulfillmentType] = useState<'DINE_IN' | 'TAKEAWAY' | null>(() => {
     try {
       const saved = localStorage.getItem(CART_STORAGE_KEY);
-      return saved ? JSON.parse(saved).fulfillmentType || null : null;
+      return saved ? normalizeFulfillmentType(JSON.parse(saved).fulfillmentType) : null;
     } catch {
       return null;
     }
@@ -247,7 +253,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const submitShopRequest = async (
     shopId: string,
     paymentMethod: 'cash' | 'upi' = 'cash',
-    overrideFulfillment?: 'parcel' | 'dine_in' | null,
+    overrideFulfillment?: 'DINE_IN' | 'TAKEAWAY' | null,
     shopNotes?: string,
     paymentProofPath?: string | null
   ): Promise<{ success: boolean; request?: Request; error?: string }> => {
@@ -277,7 +283,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const shopType = MOCK_SHOP_TYPES.find((type) => type.id === targetShop.shop_type_id);
     const offersDineIn = ['restaurant', 'hotel', 'bakery'].includes(shopType?.code || '');
     if (offersDineIn && !chosenFulfillment) {
-      return { success: false, error: 'Please choose Parcel or Eat there before submitting.' };
+      return { success: false, error: 'Please choose Dine-in or Parcel / Takeaway before submitting.' };
     }
 
     // Client-side pre-validation

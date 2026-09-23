@@ -433,7 +433,7 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
           {groupCode === 'ORDER' && (request.fulfillment_type || decoded.fulfillment_type) && (
             <div className="vaango-req-cust-col">
               <span className="vaango-req-label">Fulfillment</span>
-              <div className="vaango-req-val"><span>{(request.fulfillment_type || decoded.fulfillment_type) === 'dine_in' ? '🍽️ Eat there' : '🥡 Parcel'}</span></div>
+              <div className="vaango-req-val"><span>{['DINE_IN', 'dine_in'].includes(request.fulfillment_type || decoded.fulfillment_type || '') ? '🍽️ Dine-in' : '📦 Parcel / Takeaway'}</span></div>
             </div>
           )}
         </div>

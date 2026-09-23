@@ -121,7 +121,7 @@ export const CartPage: React.FC = () => {
   const [submittingShopId, setSubmittingShopId] = useState<string | null>(null);
   const [shopErrors, setShopErrors] = useState<Record<string, string>>({});
   const [shopNotes, setShopNotes] = useState<Record<string, string>>({});
-  const [shopFulfillments, setShopFulfillments] = useState<Record<string, 'parcel' | 'dine_in' | null>>({});
+  const [shopFulfillments, setShopFulfillments] = useState<Record<string, 'DINE_IN' | 'TAKEAWAY' | null>>({});
   const [shopPaymentMethods, setShopPaymentMethods] = useState<Record<string, 'cash' | 'upi'>>({});
   const [paymentProofPaths, setPaymentProofPaths] = useState<Record<string, string | null>>({});
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -389,7 +389,7 @@ export const CartPage: React.FC = () => {
                   <div className="vaango-cart-fulfillment-box">
                     <span className="vaango-cart-opt-label">{t('chooseFulfillment')}</span>
                     <div className="vaango-fulfillment-toggle" role="radiogroup">
-                      {(['parcel', 'dine_in'] as const).map((opt) => (
+                      {(['DINE_IN', 'TAKEAWAY'] as const).map((opt) => (
                         <button
                           key={opt}
                           type="button"
@@ -400,7 +400,8 @@ export const CartPage: React.FC = () => {
                             setShopFulfillments((prev) => ({ ...prev, [shopId]: opt }))
                           }
                         >
-                          {opt === 'parcel' ? t('parcelOption') : t('dineInOption')}
+                          <span>{opt === 'TAKEAWAY' ? 'Parcel / Takeaway' : 'Dine-in'}</span>
+                          <small>{opt === 'TAKEAWAY' ? 'I want to take it with me' : "I'm going to eat here"}</small>
                         </button>
                       ))}
                     </div>

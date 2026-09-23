@@ -465,7 +465,7 @@ export const RequestDetailPage: React.FC = () => {
         </div>
         {groupCode === 'ORDER' && (request.fulfillment_type || payload.fulfillment_type) && (
           <div className="vaango-shop-row">
-            <span>{(request.fulfillment_type || payload.fulfillment_type) === 'dine_in' ? t('eatThere') : t('takeParcel')}</span>
+            <span>{['DINE_IN', 'dine_in'].includes(request.fulfillment_type || payload.fulfillment_type || '') ? '🍽️ Dine-in' : '📦 Parcel / Takeaway'}</span>
           </div>
         )}
         {groupCode === 'ORDER' && payload.payment_method === 'upi' && !request.customer_paid && (
