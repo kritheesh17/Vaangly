@@ -433,12 +433,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!cleanName) {
       return { success: false, error: 'Please enter your full name.' };
     }
-    if (phone && phone.trim().length > 0) {
-      if (!isValidIndianMobile(phone.trim())) {
-        return { success: false, error: 'Please enter a valid 10-digit Indian mobile number.' };
-      }
-      normalizedPhone = normalizeIndianPhone(phone.trim());
+    if (!phone || !phone.trim()) {
+      return { success: false, error: 'Mobile number is required.' };
     }
+    if (!isValidIndianMobile(phone.trim())) {
+      return { success: false, error: 'Please enter a valid 10-digit Indian mobile number.' };
+    }
+    normalizedPhone = normalizeIndianPhone(phone.trim());
     if (!password || password.length < 6) {
       return { success: false, error: 'Password must be at least 6 characters long.' };
     }

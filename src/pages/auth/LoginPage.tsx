@@ -227,7 +227,7 @@ export const LoginPage: React.FC = () => {
         localStorage.setItem('vaangly_auth_redirect', from);
       }
 
-      const result = await signUpWithEmail(email, password, fullName, 'customer', phone.trim() || undefined, from);
+      const result = await signUpWithEmail(email, password, fullName, 'customer', phone.trim(), from);
       if (result.success) {
         if (result.requiresEmailConfirmation) {
           setSuccessMsg(
@@ -634,11 +634,13 @@ export const LoginPage: React.FC = () => {
               <Input
                 id="signup-phone"
                 type="tel"
+                inputMode="numeric"
                 required
                 autoComplete="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="9876543210"
+                maxLength={15}
                 leftIcon={<Phone size={18} />}
               />
             </FormField>
