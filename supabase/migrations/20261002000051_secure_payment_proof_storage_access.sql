@@ -15,12 +15,25 @@ ON CONFLICT (id) DO UPDATE SET public = false;
 -- 1. Helper function to check if the caller can access the payment proof
 CREATE OR REPLACE FUNCTION public.can_read_payment_proof(p_name text)
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
 STABLE
+SET search_path = public, auth, storage, pg_temp
 AS $$
-  SELECT EXISTS (
+DECLARE
+  v_user_id uuid := auth.uid();
+BEGIN
+  IF v_user_id IS NULL THEN
+    RETURN false;
+  END IF;
+
+  -- Platform admins have universal read access
+  IF public.is_admin() THEN
+    RETURN true;
+  END IF;
+
+  -- Check if this storage object path is associated with a request owned by the shopkeeper or created by the customer
+  RETURN EXISTS (
     SELECT 1
     FROM public.requests r
     JOIN public.shops s ON s.id = r.shop_id
@@ -33,12 +46,14 @@ AS $$
       OR r.payment_screenshot_url LIKE '%' || p_name
     )
     AND (
-      r.customer_id = auth.uid()
-      OR s.owner_id = auth.uid()
-      OR public.is_admin()
+      r.customer_id = v_user_id
+      OR s.owner_id = v_user_id
     )
   );
+END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.can_read_payment_proof(text) TO authenticated, anon, service_role;
 
 -- 2. Update storage policy on payment-proofs
 DROP POLICY IF EXISTS "Request parties read payment proofs" ON storage.objects;
