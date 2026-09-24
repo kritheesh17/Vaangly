@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { ChevronLeft, ChevronRight, Plus, Minus, PackageX } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { useToast } from '../../context/ToastContext';
 import './ProductDetailModal.css';
 import { findVariantForSelections, optionIsReachable, variantAttributeGroups, variantIsAvailable, variantLabel } from '../../lib/productVariants';
 
@@ -24,6 +25,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   currentCartQty: _currentCartQty = 0,
 }) => {
   const { t } = useLanguage();
+  const { success, warning, error: toastError } = useToast();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
@@ -64,12 +66,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   const variantGroups = variantAttributeGroups(product.variants || []);
   const hasAttributeVariants = Object.keys(variantGroups).length > 0;
-  const resolvedVariant = hasAttributeVariants
-    ? findVariantForSelections(product.variants || [], selectedAttributes)
-    : selectedVariant;
+  const hasVariants = Boolean(product.has_variants && product.variants && product.variants.length > 0);
+  const resolvedVariant = hasVariants
+    ? (hasAttributeVariants
+        ? findVariantForSelections(product.variants || [], selectedAttributes)
+        : selectedVariant)
+    : null;
   const effectivePrice = resolvedVariant ? resolvedVariant.price : product.price;
   const effectiveUnit = resolvedVariant ? variantLabel(resolvedVariant) : product.unit;
-  const selectedStock = resolvedVariant?.stock_quantity;
+  const selectedStock = resolvedVariant?.stock_quantity ?? product.stock_quantity;
+  const isOutOfStock = !product.is_available || (hasVariants && resolvedVariant !== null && !variantIsAvailable(resolvedVariant));
 
   const handlePrevImage = () => {
     setActiveImageIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
@@ -80,8 +86,26 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   };
 
   const handleAdd = () => {
-    onAddToCart(product, resolvedVariant, quantity);
-    onClose();
+    if (hasVariants && !resolvedVariant) {
+      warning('Please select a variant.');
+      return;
+    }
+    if (!product.is_available || (resolvedVariant && !variantIsAvailable(resolvedVariant))) {
+      toastError('Product is currently out of stock');
+      return;
+    }
+
+    const productToAdd = resolvedVariant
+      ? { ...product, price: resolvedVariant.price, unit: variantLabel(resolvedVariant) }
+      : product;
+
+    try {
+      onAddToCart(productToAdd, resolvedVariant, quantity);
+      success(`${productToAdd.name} added to cart`);
+      onClose();
+    } catch (err: any) {
+      toastError('Unable to add this product. Please try again.');
+    }
   };
 
   return (
@@ -197,7 +221,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
           {/* Quantity Controls & Add to Cart */}
           <div className="vaango-prod-modal__cta-row">
-            {product.is_available && (!product.has_variants || (resolvedVariant !== null && variantIsAvailable(resolvedVariant))) ? (
+            {!isOutOfStock ? (
               <>
                 <div className="vaango-qty-control" role="group" aria-label="Quantity">
                   <button
@@ -223,10 +247,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   variant="primary"
                   size="lg"
                   fullWidth
-                  onClick={() => resolvedVariant && handleAdd()}
+                  onClick={handleAdd}
                   leftIcon={<Plus size={18} />}
                 >
-                  {t('add')} · ₹{effectivePrice * quantity}
+                  {hasVariants && !resolvedVariant
+                    ? 'Please Select Variant'
+                    : `${t('add')} · ₹${effectivePrice * quantity}`}
                 </Button>
               </>
             ) : (

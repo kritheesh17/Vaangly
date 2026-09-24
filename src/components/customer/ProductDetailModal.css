@@ -237,3 +237,65 @@
   padding-top: 14px;
   border-top: 1px solid var(--color-border);
 }
+
+/* Quantity Control inside Product Details Modal */
+.vaango-prod-modal .vaango-qty-control {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--brand-primary-light);
+  border: 1.5px solid var(--brand-primary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .vaango-prod-modal .vaango-qty-control,
+.dark .vaango-prod-modal .vaango-qty-control {
+  background-color: rgba(34, 211, 238, 0.12);
+  border-color: #22D3EE;
+}
+
+.vaango-prod-modal .vaango-qty-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 100%;
+  color: var(--brand-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+[data-theme='dark'] .vaango-prod-modal .vaango-qty-btn,
+.dark .vaango-prod-modal .vaango-qty-btn {
+  color: #22D3EE;
+}
+
+.vaango-prod-modal .vaango-qty-btn:hover {
+  background-color: rgba(10, 123, 131, 0.15);
+}
+
+[data-theme='dark'] .vaango-prod-modal .vaango-qty-btn:hover,
+.dark .vaango-prod-modal .vaango-qty-btn:hover {
+  background-color: rgba(34, 211, 238, 0.2);
+}
+
+.vaango-prod-modal .vaango-qty-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-base);
+  color: var(--brand-primary);
+  user-select: none;
+}
+
+[data-theme='dark'] .vaango-prod-modal .vaango-qty-display,
+.dark .vaango-prod-modal .vaango-qty-display {
+  color: #E2E8F0;
+}
+
