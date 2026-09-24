@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Image, AlertCircle, Check } from 'lucide-react';
+import { X, Image, AlertCircle, Check, Sparkles, ShieldCheck } from 'lucide-react';
 import { ShopProduct, ProductAttributeGroup, ProductVariant } from '../../types/database';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { compressImage } from '../../lib/imageCompressor';
@@ -8,6 +8,16 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import './ProductFormModal.css';
+
+export interface MasterProductTemplate {
+  id?: string;
+  name: string;
+  description?: string | null;
+  image_url?: string | null;
+  brand?: string | null;
+  shop_type_id?: string | null;
+  is_proposal?: boolean;
+}
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -28,8 +38,12 @@ interface ProductFormModalProps {
     attribute_groups?: ProductAttributeGroup[];
     track_inventory?: boolean;
     stock_quantity?: number | null;
+    master_product_id?: string | null;
+    propose_to_master?: boolean;
+    brand?: string | null;
   }) => Promise<{ success: boolean; error?: string }>;
   initialProduct?: ShopProduct | null;
+  masterProductTemplate?: MasterProductTemplate | null;
   shopId: string;
 }
 
@@ -51,6 +65,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   onClose,
   onSubmit,
   initialProduct,
+  masterProductTemplate,
   shopId,
 }) => {
   const { user } = useAuth();
@@ -76,6 +91,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [stockQuantity, setStockQuantity] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Master Catalogue Link State
+  const [masterProductId, setMasterProductId] = useState<string | null>(null);
+  const [isProposal, setIsProposal] = useState(false);
+  const [brand, setBrand] = useState<string>('');
 
   useEffect(() => {
     if (initialProduct) {
@@ -103,6 +123,33 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setAttributeGroups(initialProduct.attribute_groups || []);
       setTrackInventory(Boolean(initialProduct.track_inventory));
       setStockQuantity(initialProduct.stock_quantity == null ? '' : String(initialProduct.stock_quantity));
+      setMasterProductId(initialProduct.master_product_id || null);
+      setIsProposal(false);
+      setBrand('');
+    } else if (masterProductTemplate) {
+      // Adding from Master Catalogue or Proposing New Product
+      setName(masterProductTemplate.name);
+      setDescription(masterProductTemplate.description || '');
+      setPrice('');
+      setUnit('kg');
+      setCustomUnit('');
+      setIsAvailable(true);
+      setImageUrl(masterProductTemplate.image_url || '');
+      setExistingImageUrls(masterProductTemplate.image_url ? [masterProductTemplate.image_url] : []);
+      setImageFiles([]);
+      setImageFilePreviews([]);
+      setOfferLabel('');
+      setOfferType(null);
+      setOfferValue('');
+      setHasVariants(false);
+      setVariants([]);
+      setVariantAttributeText({});
+      setAttributeGroups([]);
+      setTrackInventory(false);
+      setStockQuantity('');
+      setMasterProductId(masterProductTemplate.id || null);
+      setIsProposal(Boolean(masterProductTemplate.is_proposal));
+      setBrand(masterProductTemplate.brand || '');
     } else {
       setName('');
       setDescription('');
@@ -123,9 +170,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setAttributeGroups([]);
       setTrackInventory(false);
       setStockQuantity('');
+      setMasterProductId(null);
+      setIsProposal(false);
+      setBrand('');
     }
     setError(null);
-  }, [initialProduct, isOpen]);
+  }, [initialProduct, masterProductTemplate, isOpen]);
 
   if (!isOpen) return null;
 
@@ -234,6 +284,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         attribute_groups: hasVariants ? [] : attributeGroups,
         track_inventory: !hasVariants && trackInventory,
         stock_quantity: !hasVariants && trackInventory ? (stockQuantity === '' ? null : Number(stockQuantity)) : null,
+        master_product_id: masterProductId || null,
+        propose_to_master: isProposal,
+        brand: brand.trim() || null,
       });
 
       if (result.success) {
@@ -267,6 +320,27 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           </button>
         </div>
 
+        {/* Master Catalogue Information Banner */}
+        {masterProductId && (
+          <div className="vaango-product-modal__catalogue-badge vaango-product-modal__catalogue-badge--linked">
+            <ShieldCheck size={18} />
+            <div>
+              <strong>Linked to Global Master Catalogue</strong>
+              <p>Your shop's price, stock, variants, and customizations are completely independent.</p>
+            </div>
+          </div>
+        )}
+
+        {isProposal && !masterProductId && (
+          <div className="vaango-product-modal__catalogue-badge vaango-product-modal__catalogue-badge--propose">
+            <Sparkles size={18} />
+            <div>
+              <strong>Proposing New Catalogue Product</strong>
+              <p>This product will be added to your shop immediately and submitted to the catalogue for admin approval.</p>
+            </div>
+          </div>
+        )}
+
         {/* Error Alert */}
         {error && (
           <div className="vaango-product-modal__error" role="alert">
@@ -277,6 +351,21 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="vaango-product-modal__form">
+          {/* Brand field if proposing new product */}
+          {isProposal && (
+            <div className="vaango-form-group">
+              <label className="vaango-form-label" htmlFor="prod-brand">
+                Brand / Manufacturer (Optional)
+              </label>
+              <Input
+                id="prod-brand"
+                placeholder="e.g. Aashirvaad, Amul, Tata..."
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+              />
+            </div>
+          )}
+
           {/* Product Name */}
           <div className="vaango-form-group">
             <label className="vaango-form-label" htmlFor="prod-name">

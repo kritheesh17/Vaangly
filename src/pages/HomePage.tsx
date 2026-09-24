@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useLocationContext } from '../context/LocationContext';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Shop, ShopProduct } from '../types/database';
@@ -34,6 +35,7 @@ import './HomePage.css';
 
 export const HomePage: React.FC = () => {
   const { selectedLocation, setIsLocationModalOpen } = useLocationContext();
+  const { role } = useAuth();
   const { addItem } = useCart();
   const { success, error: toastError } = useToast();
   const { t, language } = useLanguage();
@@ -395,116 +397,120 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="vaangly-landing">
-      {/* 1. Location Bar */}
-      <section className="vaangly-location-bar">
-        <div className="container vaangly-location-bar__inner">
+      {/* 1. LOCATION CONTEXT BAR (Reference card: 📍 Browsing local businesses in: Kangeyam, Tamil Nadu ⌵) */}
+      <section className="vaangly-context-bar-section">
+        <div className="container vaangly-context-bar__container">
           <button
             type="button"
-            className="vaangly-location-chip"
+            className="vaangly-location-context-card"
             onClick={() => setIsLocationModalOpen(true)}
-            aria-label={`${t('browsingIn')} ${selectedLocation.name}. ${t('changeLocation')}.`}
+            aria-label={`${t('browsingIn')} ${selectedLocation.name}, ${selectedLocation.state}. ${t('changeLocation')}.`}
           >
-            <MapPin size={16} className="vaangly-location-icon" />
-            <span className="vaangly-location-label">{t('browsingIn')}</span>
-            <strong className="vaangly-location-name">
-              {selectedLocation.name}, {selectedLocation.state}
-            </strong>
-            <ChevronDown size={14} />
+            <div className="vaangly-location-context-card__left">
+              <MapPin size={18} className="vaangly-location-context-card__pin" />
+              <div className="vaangly-location-context-card__text">
+                <span className="vaangly-location-context-card__lead">{t('browsingIn')}</span>{' '}
+                <strong className="vaangly-location-context-card__city">
+                  {selectedLocation.name}, {selectedLocation.state}
+                </strong>
+              </div>
+            </div>
+            <ChevronDown size={16} className="vaangly-location-context-card__chevron" />
           </button>
-          <div className="vaangly-location-badge">
-            <span className="vaangly-location-pulse" />
-            <span>{t('activeMarketplace')}</span>
+
+          {/* 2. MARKETPLACE STATUS PILL */}
+          <div className="vaangly-marketplace-status-wrap">
+            <div className="vaangly-marketplace-status-pill">
+              <span className="vaangly-status-dot" aria-hidden="true" />
+              <span>{t('activeMarketplace')}</span>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* 2. Hero Section — Primary Proposition */}
-      <section className="vaangly-hero">
-        <div className="container vaangly-hero__container">
-          <div className="vaangly-hero__content">
-            <div className="vaangly-hero__pill">
-              <Sparkles size={15} />
+      {/* 3. HERO & PRIMARY EXPERIENCE */}
+      <section className="vaangly-hero-card-section">
+        <div className="container vaangly-hero-card__container">
+          <div className="vaangly-hero-card">
+            {/* Tag / Badge */}
+            <div className="vaangly-hero-sparkle-pill">
+              <Sparkles size={14} className="vaangly-hero-sparkle-icon" />
               <span>{t('heroPill')}</span>
             </div>
-            <h1 className="vaangly-hero__title">
-              {t('heroTitlePrefix')} <br />
-              <span className="vaangly-hero__title--highlight">{t('heroTitleHighlight')}</span>
+
+            {/* Bold Headline in deep forest green */}
+            <h1 className="vaangly-hero-headline">
+              {t('heroTitlePrefix')}
+              <br />
+              <span className="vaangly-hero-headline--green">{t('heroTitleHighlight')}</span>
             </h1>
-            <p className="vaangly-hero__subtitle">
+
+            {/* Supporting Subtitle */}
+            <p className="vaangly-hero-description">
               {t('heroSubtitle')}
             </p>
-            <div className="vaangly-hero__actions">
-              <Link to="/shops?group=ORDER" className="vaangly-btn vaangly-btn--primary">
-                {t('heroStartOrdering')} <ArrowRight size={18} />
+
+            {/* 3 Primary Action Buttons (Pill Row): Order, Booking, Services */}
+            <div className="vaangly-primary-actions-row">
+              <Link
+                to="/shops?group=ORDER"
+                className="vaangly-action-pill vaangly-action-pill--solid"
+                aria-label={t('heroStartOrdering')}
+              >
+                <ShoppingBag size={18} className="vaangly-action-pill__icon" />
+                <span>{t('heroStartOrdering')}</span>
+                <ArrowRight size={16} className="vaangly-action-pill__arrow" />
               </Link>
-              <Link to="/shopkeeper/apply" className="vaangly-btn vaangly-btn--outline">
-                {t('heroOpenShop')}
+
+              <Link
+                to="/shops?group=APPOINTMENT"
+                className="vaangly-action-pill vaangly-action-pill--outline"
+                aria-label={t('heroStartBooking')}
+              >
+                <Calendar size={18} className="vaangly-action-pill__icon" />
+                <span>{t('heroStartBooking')}</span>
+                <ArrowRight size={16} className="vaangly-action-pill__arrow" />
+              </Link>
+
+              <Link
+                to="/shops?group=SERVICE"
+                className="vaangly-action-pill vaangly-action-pill--outline"
+                aria-label={t('heroStartServices')}
+              >
+                <Wrench size={18} className="vaangly-action-pill__icon" />
+                <span>{t('heroStartServices')}</span>
+                <ArrowRight size={16} className="vaangly-action-pill__arrow" />
               </Link>
             </div>
 
-            {/* Quick Hero Highlights */}
-            <div className="vaangly-hero__features">
-              <div className="vaangly-hero__feature-item">
-                <CheckCircle2 size={16} className="vaangly-hero__check" />
+            {/* Secondary Shopkeeper CTA (Full width outlined pill) */}
+            <div className="vaangly-shopkeeper-cta-wrap">
+              <Link
+                to={role === 'shopkeeper' ? '/shopkeeper/dashboard' : '/shopkeeper/apply'}
+                className="vaangly-action-pill vaangly-action-pill--shopkeeper"
+              >
+                <Store size={19} className="vaangly-action-pill__icon" />
+                <span>
+                  {role === 'shopkeeper'
+                    ? (language === 'ta' ? 'கடைக்காரர் கட்டுப்பாட்டகம் →' : 'Go to Shopkeeper Dashboard →')
+                    : `${t('heroOpenShop')} →`}
+                </span>
+              </Link>
+            </div>
+
+            {/* Trust / Benefit Checklist (Clean 2-column on mobile, with green check circles) */}
+            <div className="vaangly-trust-checklist">
+              <div className="vaangly-trust-item">
+                <CheckCircle2 size={18} className="vaangly-trust-icon" />
                 <span>{t('heroFeatureStores')}</span>
               </div>
-              <div className="vaangly-hero__feature-item">
-                <CheckCircle2 size={16} className="vaangly-hero__check" />
+              <div className="vaangly-trust-item">
+                <CheckCircle2 size={18} className="vaangly-trust-icon" />
                 <span>{t('heroFeaturePickup')}</span>
               </div>
-              <div className="vaangly-hero__feature-item">
-                <CheckCircle2 size={16} className="vaangly-hero__check" />
+              <div className="vaangly-trust-item">
+                <CheckCircle2 size={18} className="vaangly-trust-icon" />
                 <span>{t('heroFeatureServices')}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Hero Visual — Local Ecosystem Showcase */}
-          <div className="vaangly-hero__visual">
-            <div className="vaangly-ecosystem-card">
-              {/* Storefront Mini Badge 1: Grocery */}
-              <div className="vaangly-mini-card vaangly-mini-card--grocery">
-                <div className="vaangly-mini-card__icon">🥦</div>
-                <div className="vaangly-mini-card__details">
-                  <h4>Green Mart Provisions</h4>
-                  <p>Farm-fresh vegetables & spices • 1.2 km</p>
-                  <span className="vaangly-mini-card__status">{t('status_READY')}</span>
-                </div>
-              </div>
-
-              {/* Storefront Mini Badge 2: Bakery */}
-              <div className="vaangly-mini-card vaangly-mini-card--bakery">
-                <div className="vaangly-mini-card__icon">🥖</div>
-                <div className="vaangly-mini-card__details">
-                  <h4>Crown Bakery & Sweets</h4>
-                  <p>Fresh whole wheat bread & snacks • 0.8 km</p>
-                  <span className="vaangly-mini-card__price">Bread from ₹40</span>
-                </div>
-              </div>
-
-              {/* Storefront Mini Badge 3: Appointment Booking */}
-              <div className="vaangly-mini-card vaangly-mini-card--clinic">
-                <div className="vaangly-mini-card__icon">🩺</div>
-                <div className="vaangly-mini-card__details">
-                  <h4>Ayush Care Clinic</h4>
-                  <p>Dr. R. Vijayakumar (MBBS)</p>
-                  <span className="vaangly-mini-card__slot">{t('appointmentsOpen')}</span>
-                </div>
-              </div>
-
-              {/* Storefront Mini Badge 4: Local Two-Wheeler Workshop */}
-              <div className="vaangly-mini-card vaangly-mini-card--service">
-                <div className="vaangly-mini-card__icon">🛵</div>
-                <div className="vaangly-mini-card__details">
-                  <h4>Velan Bike Workshop</h4>
-                  <p>Quick oil service & brake repair • Verified</p>
-                </div>
-              </div>
-
-              {/* Ecosystem Caption */}
-              <div className="vaangly-ecosystem-footer">
-                <Store size={16} />
-                <span>{t('tagline')}</span>
               </div>
             </div>
           </div>

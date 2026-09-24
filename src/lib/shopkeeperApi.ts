@@ -348,6 +348,7 @@ export const createShopProduct = async (
     attribute_groups?: ShopProduct['attribute_groups'];
     track_inventory?: boolean;
     stock_quantity?: number | null;
+    master_product_id?: string | null;
   }
 ): Promise<{ success: boolean; product?: ShopProduct; error?: string }> => {
   if (!product.name.trim()) {
@@ -382,6 +383,7 @@ export const createShopProduct = async (
             attribute_groups: product.attribute_groups ?? [],
             track_inventory: product.track_inventory ?? false,
             stock_quantity: product.stock_quantity ?? null,
+            master_product_id: product.master_product_id || null,
           })
           .select()
           .single();
@@ -422,6 +424,7 @@ export const createShopProduct = async (
     attribute_groups: product.attribute_groups ?? [],
     track_inventory: product.track_inventory ?? false,
     stock_quantity: product.stock_quantity ?? null,
+    master_product_id: product.master_product_id || null,
     created_at: new Date().toISOString(),
   };
 
@@ -436,7 +439,7 @@ export const createShopProduct = async (
 export const updateShopProduct = async (
   shopId: string,
   productId: string,
-  updates: Partial<Pick<ShopProduct, 'name' | 'description' | 'price' | 'unit' | 'is_available' | 'image_url' | 'image_urls' | 'offer_label' | 'offer_type' | 'offer_value' | 'has_variants' | 'variants' | 'attribute_groups' | 'track_inventory' | 'stock_quantity'>>
+  updates: Partial<Pick<ShopProduct, 'name' | 'description' | 'price' | 'unit' | 'is_available' | 'image_url' | 'image_urls' | 'offer_label' | 'offer_type' | 'offer_value' | 'has_variants' | 'variants' | 'attribute_groups' | 'track_inventory' | 'stock_quantity' | 'master_product_id'>>
 ): Promise<{ success: boolean; product?: ShopProduct; error?: string }> => {
   if (updates.price !== undefined && (updates.price < 0 || isNaN(updates.price))) {
     return { success: false, error: 'Price must be non-negative.' };

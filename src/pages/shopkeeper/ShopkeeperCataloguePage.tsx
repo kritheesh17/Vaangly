@@ -31,7 +31,9 @@ import {
   saveShopService,
   deleteShopService,
 } from '../../lib/appointmentServiceApi';
-import { ProductFormModal } from '../../components/shopkeeper/ProductFormModal';
+import { ProductFormModal, MasterProductTemplate } from '../../components/shopkeeper/ProductFormModal';
+import { MasterCatalogueModal } from '../../components/shopkeeper/MasterCatalogueModal';
+import { createMasterProductProposal } from '../../lib/masterCatalogueApi';
 import { ServiceFormModal } from '../../components/shopkeeper/ServiceFormModal';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -55,6 +57,10 @@ export const ShopkeeperCataloguePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [stockFilter, setStockFilter] = useState<'all' | 'in_stock' | 'out_of_stock'>('all');
+
+  // Master Catalogue Modal State
+  const [masterModalOpen, setMasterModalOpen] = useState(false);
+  const [masterTemplate, setMasterTemplate] = useState<MasterProductTemplate | null>(null);
 
   // Product Modal State (Group A)
   const [modalOpen, setModalOpen] = useState(false);
@@ -185,6 +191,11 @@ export const ShopkeeperCataloguePage: React.FC = () => {
     has_variants?: boolean;
     variants?: ProductVariant[];
     attribute_groups?: ProductAttributeGroup[];
+    track_inventory?: boolean;
+    stock_quantity?: number | null;
+    master_product_id?: string | null;
+    propose_to_master?: boolean;
+    brand?: string | null;
   }) => {
     if (!shop) return { success: false, error: 'No shop associated with account.' };
 
@@ -200,10 +211,36 @@ export const ShopkeeperCataloguePage: React.FC = () => {
         }
         return { success: false, error: res.error || t('genericError') };
       } else {
-        const res = await createShopProduct(shop.id, productData);
+        let masterId: string | null = productData.master_product_id || null;
+
+        // Path B: Propose new master catalogue product if not already linked
+        if (productData.propose_to_master && !masterId) {
+          try {
+            const proposal = await createMasterProductProposal({
+              name: productData.name,
+              description: productData.description || null,
+              image_url: productData.image_url || null,
+              shop_type_id: shop.shop_type_id || null,
+              brand: productData.brand || null,
+            });
+            masterId = proposal.id;
+          } catch (proposalErr) {
+            console.warn('Could not submit master catalogue proposal:', proposalErr);
+          }
+        }
+
+        const res = await createShopProduct(shop.id, {
+          ...productData,
+          master_product_id: masterId,
+        });
+
         if (res.success && res.product) {
           setProducts((prev) => [res.product!, ...prev]);
-          success(t('productSavedSuccess', { name: productData.name }));
+          if (productData.propose_to_master) {
+            success(`Product created in shop! Catalogue proposal submitted for admin approval.`);
+          } else {
+            success(t('productSavedSuccess', { name: productData.name }));
+          }
           return { success: true };
         }
         return { success: false, error: res.error || t('genericError') };
@@ -386,7 +423,8 @@ export const ShopkeeperCataloguePage: React.FC = () => {
             onClick={() => {
               if (workflowGroup === 'ORDER') {
                 setEditingProduct(null);
-                setModalOpen(true);
+                setMasterTemplate(null);
+                setMasterModalOpen(true);
               } else {
                 setEditingService(null);
                 setServiceModalOpen(true);
@@ -700,14 +738,46 @@ export const ShopkeeperCataloguePage: React.FC = () => {
         )}
       </div>
 
+      {/* Modal: Master Catalogue Discovery & Proposal */}
+      {workflowGroup === 'ORDER' && (
+        <MasterCatalogueModal
+          isOpen={masterModalOpen}
+          onClose={() => setMasterModalOpen(false)}
+          shopTypeId={shop?.shop_type_id}
+          onSelectMasterProduct={(masterProd) => {
+            setMasterTemplate({
+              id: masterProd.id,
+              name: masterProd.name,
+              description: masterProd.description,
+              image_url: masterProd.image_url,
+              brand: masterProd.brand,
+            });
+            setMasterModalOpen(false);
+            setEditingProduct(null);
+            setModalOpen(true);
+          }}
+          onCreateCustomProduct={(customName) => {
+            setMasterTemplate({
+              name: customName || '',
+              is_proposal: true,
+            });
+            setMasterModalOpen(false);
+            setEditingProduct(null);
+            setModalOpen(true);
+          }}
+        />
+      )}
+
       {/* Modal: Add/Edit Product (Group A) */}
       <ProductFormModal
         isOpen={modalOpen}
         onClose={() => {
           setModalOpen(false);
           setEditingProduct(null);
+          setMasterTemplate(null);
         }}
         initialProduct={editingProduct}
+        masterProductTemplate={masterTemplate}
         onSubmit={handleProductModalSubmit}
         shopId={shop?.id || ''}
       />

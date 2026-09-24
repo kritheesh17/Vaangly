@@ -1,0 +1,321 @@
+/* Admin Master Catalogue Page */
+.vaango-admin-catalogue {
+  padding-top: 1.5rem;
+  padding-bottom: 3rem;
+}
+
+.vaango-admin-catalogue__header {
+  margin-bottom: 1.5rem;
+}
+
+.vaango-admin-catalogue__breadcrumb {
+  margin-bottom: 0.75rem;
+}
+
+.vaango-admin-catalogue__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.vaango-admin-catalogue__title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.vaango-admin-catalogue__title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text-primary, #111827);
+  margin: 0 0 0.25rem;
+}
+
+.vaango-admin-catalogue__subtitle {
+  font-size: 0.95rem;
+  color: var(--text-secondary, #6b7280);
+  margin: 0;
+  max-width: 680px;
+}
+
+/* Stats */
+.vaango-admin-catalogue__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.vaango-admin-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: 12px;
+}
+
+.vaango-admin-stat-card__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vaango-admin-stat-card__icon--blue {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.vaango-admin-stat-card__icon--amber {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.vaango-admin-stat-card__icon--green {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.vaango-admin-stat-card__icon--gray {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.vaango-admin-stat-card__data {
+  display: flex;
+  flex-direction: column;
+}
+
+.vaango-admin-stat-card__count {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary, #111827);
+  line-height: 1.2;
+}
+
+.vaango-admin-stat-card__label {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6b7280);
+  font-weight: 500;
+}
+
+/* Filters */
+.vaango-admin-catalogue__filters {
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.vaango-admin-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.vaango-admin-search-box {
+  flex: 1;
+  min-width: 260px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.vaango-admin-search-icon {
+  position: absolute;
+  left: 0.85rem;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.vaango-admin-search-input {
+  width: 100%;
+  padding: 0.6rem 1rem 0.6rem 2.4rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.vaango-admin-search-input:focus {
+  border-color: #6366f1;
+}
+
+.vaango-admin-select-group {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.vaango-admin-select {
+  padding: 0.6rem 2rem 0.6rem 0.85rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background-color: #ffffff;
+  color: var(--text-primary, #111827);
+  outline: none;
+  cursor: pointer;
+}
+
+/* Table */
+.vaango-admin-table-container {
+  overflow-x: auto;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.vaango-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.vaango-admin-table th {
+  padding: 0.85rem 1rem;
+  background: #f9fafb;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.vaango-admin-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+.vaango-admin-table tr:hover td {
+  background-color: #faf5ff;
+}
+
+.vaango-admin-product-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  max-width: 320px;
+}
+
+.vaango-admin-product-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.vaango-admin-product-placeholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vaango-admin-product-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.vaango-admin-product-name {
+  font-size: 0.95rem;
+  color: var(--text-primary, #111827);
+}
+
+.vaango-admin-product-brand {
+  font-size: 0.75rem;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.vaango-admin-product-desc {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin: 0.15rem 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.vaango-admin-product-reason {
+  font-size: 0.72rem;
+  color: #b91c1c;
+  background: #fef2f2;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  margin-top: 0.2rem;
+  display: inline-block;
+}
+
+.vaango-admin-meta-text {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.vaango-admin-actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Modals & Forms */
+.vaango-admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.vaango-admin-textarea {
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.vaango-admin-textarea:focus {
+  border-color: #6366f1;
+}
+
+.vaango-admin-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.vaango-admin-empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  border-radius: 12px;
+}
+
+.vaango-admin-empty-icon {
+  color: #9ca3af;
+  margin-bottom: 0.75rem;
+}

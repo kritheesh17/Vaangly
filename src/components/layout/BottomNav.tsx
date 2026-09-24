@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Store, ClipboardList, User, Package, LayoutDashboard, FileCheck2, CreditCard, TrendingUp } from 'lucide-react';
+import { Home, Store, Compass, ClipboardList, User, Package, LayoutDashboard, FileCheck2, CreditCard, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './BottomNav.css';
 import { useLanguage } from '../../context/LanguageContext';
@@ -164,12 +164,12 @@ export const BottomNav: React.FC = () => {
           className={({ isActive }) =>
             `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
           }
-          aria-label={t('shops')}
+          aria-label={t('explore')}
         >
           <div className="vaango-bottom-nav__icon-wrap">
-            <Store size={22} />
+            <Compass size={22} />
           </div>
-          <span className="vaango-bottom-nav__label">{t('shops')}</span>
+          <span className="vaango-bottom-nav__label">{t('explore')}</span>
         </NavLink>
 
         <NavLink
@@ -177,12 +177,12 @@ export const BottomNav: React.FC = () => {
           className={({ isActive }) =>
             `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
           }
-          aria-label={t('requests')}
+          aria-label={t('activity')}
         >
           <div className="vaango-bottom-nav__icon-wrap">
             <ClipboardList size={22} />
           </div>
-          <span className="vaango-bottom-nav__label">{t('requests')}</span>
+          <span className="vaango-bottom-nav__label">{t('activity')}</span>
         </NavLink>
 
         <NavLink

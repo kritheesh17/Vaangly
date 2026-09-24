@@ -9,112 +9,167 @@
   overflow-x: hidden;
 }
 
-/* 1. Location Bar */
-.vaangly-location-bar {
-  background-color: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-  padding: 10px 0;
+/* ==========================================================================
+   1. LOCATION CONTEXT BAR & MARKETPLACE STATUS
+   ========================================================================== */
+
+.vaangly-context-bar-section {
+  padding: var(--space-3) 0 var(--space-2);
+  background-color: var(--color-bg);
+  width: 100%;
 }
 
-.vaangly-location-bar__inner {
+.vaangly-context-bar__container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+/* Reference card: 📍 Browsing local businesses in: Kangeyam, Tamil Nadu ⌵ */
+.vaangly-location-context-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-.vaangly-location-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 6px 14px;
-  background-color: var(--color-surface-sunken);
+  width: 100%;
+  max-width: 680px;
+  background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
+  padding: 8px 16px;
   cursor: pointer;
   transition: all var(--transition-fast);
   color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  text-align: left;
 }
 
-.vaangly-location-chip:hover {
+.vaangly-location-context-card:hover {
   border-color: var(--brand-primary);
   background-color: var(--brand-primary-light);
 }
 
-.vaangly-location-icon {
+.vaangly-location-context-card__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.vaangly-location-context-card__pin {
   color: var(--brand-primary);
+  flex-shrink: 0;
 }
 
-.vaangly-location-label {
+.vaangly-location-context-card__text {
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vaangly-location-context-card__lead {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  font-weight: 500;
 }
 
-.vaangly-location-name {
+.vaangly-location-context-card__city {
   color: var(--brand-primary);
   font-weight: 700;
 }
 
-.vaangly-location-badge {
+[data-theme='dark'] .vaangly-location-context-card__city,
+.dark .vaangly-location-context-card__city {
+  color: #34D399;
+}
+
+.vaangly-location-context-card__chevron {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+/* 2. Active Marketplace Status Pill */
+.vaangly-marketplace-status-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.vaangly-marketplace-status-pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--font-size-xs);
-  color: var(--brand-accent);
-  font-weight: 600;
-  background-color: var(--brand-accent-light);
   padding: 4px 12px;
   border-radius: var(--radius-full);
+  background-color: var(--brand-primary-light);
+  color: var(--brand-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  border: 1px solid rgba(27, 77, 62, 0.12);
 }
 
-.vaangly-location-pulse {
-  width: 8px;
-  height: 8px;
+[data-theme='dark'] .vaangly-marketplace-status-pill,
+.dark .vaangly-marketplace-status-pill {
+  background-color: rgba(52, 211, 153, 0.12);
+  color: #34D399;
+  border-color: rgba(52, 211, 153, 0.25);
+}
+
+.vaangly-status-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background-color: var(--brand-accent);
-  animation: pulseDot 2s infinite ease-in-out;
+  background-color: var(--brand-primary);
+  display: inline-block;
+  box-shadow: 0 0 0 2px rgba(27, 77, 62, 0.2);
 }
 
-@keyframes pulseDot {
-  0% { transform: scale(0.9); opacity: 0.8; }
-  50% { transform: scale(1.3); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.8; }
+[data-theme='dark'] .vaangly-status-dot,
+.dark .vaangly-status-dot {
+  background-color: #34D399;
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.25);
 }
 
-/* 2. Hero Section */
-.vaangly-hero {
-  padding: var(--space-12) 0;
-  background: radial-gradient(circle at 10% 20%, rgba(27, 77, 62, 0.05) 0%, transparent 50%),
-              radial-gradient(circle at 90% 80%, rgba(46, 125, 50, 0.05) 0%, transparent 50%);
+/* ==========================================================================
+   3. HERO CARD SECTION (Reference Clean Design)
+   ========================================================================== */
+
+.vaangly-hero-card-section {
+  padding: var(--space-4) 0 var(--space-8);
+  background-color: var(--color-bg);
+  width: 100%;
 }
 
-.vaangly-hero__container {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-10);
-  align-items: center;
+.vaangly-hero-card__container {
+  display: flex;
+  justify-content: flex-start;
 }
 
-@media (min-width: 960px) {
-  .vaangly-hero__container {
-    grid-template-columns: 1.15fr 0.85fr;
-    gap: var(--space-12);
-  }
-}
-
-.vaangly-hero__content {
+.vaangly-hero-card {
+  width: 100%;
+  max-width: 680px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl, 24px);
+  padding: var(--space-6) var(--space-5);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
 
-.vaangly-hero__pill {
+@media (min-width: 640px) {
+  .vaangly-hero-card {
+    padding: var(--space-8) var(--space-8);
+  }
+}
+
+/* Sparkle tag: ✦ Local • Trustworthy • Simple */
+.vaangly-hero-sparkle-pill {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 6px 14px;
+  gap: 6px;
+  padding: 5px 12px;
   background-color: var(--brand-primary-light);
   color: var(--brand-primary);
   border-radius: var(--radius-full);
@@ -124,132 +179,221 @@
   margin-bottom: var(--space-4);
 }
 
-.vaangly-hero__title {
-  font-size: 2.35rem;
-  line-height: 1.2;
+[data-theme='dark'] .vaangly-hero-sparkle-pill,
+.dark .vaangly-hero-sparkle-pill {
+  background-color: rgba(52, 211, 153, 0.12);
+  color: #34D399;
+}
+
+.vaangly-hero-sparkle-icon {
+  color: var(--brand-primary);
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .vaangly-hero-sparkle-icon,
+.dark .vaangly-hero-sparkle-icon {
+  color: #34D399;
+}
+
+/* Bold Headline */
+.vaangly-hero-headline {
+  font-size: 2.1rem;
+  line-height: 1.15;
   font-weight: 800;
-  color: var(--color-text-primary);
-  letter-spacing: -0.025em;
-  margin-bottom: var(--space-4);
+  color: var(--brand-primary);
+  letter-spacing: -0.03em;
+  margin: 0 0 var(--space-3) 0;
+}
+
+[data-theme='dark'] .vaangly-hero-headline,
+.dark .vaangly-hero-headline {
+  color: #F8FAFC;
+}
+
+.vaangly-hero-headline--green {
+  color: var(--brand-primary);
+}
+
+[data-theme='dark'] .vaangly-hero-headline--green,
+.dark .vaangly-hero-headline--green {
+  color: #34D399;
+}
+
+@media (min-width: 480px) {
+  .vaangly-hero-headline {
+    font-size: 2.65rem;
+  }
 }
 
 @media (min-width: 768px) {
-  .vaangly-hero__title {
-    font-size: 3.25rem;
+  .vaangly-hero-headline {
+    font-size: 3.1rem;
   }
 }
 
-.vaangly-hero__title--highlight {
-  color: var(--brand-primary);
-  display: inline-block;
-  position: relative;
-}
-
-.vaangly-hero__title--highlight::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: 4px;
-  width: 100%;
-  height: 8px;
-  background-color: var(--brand-accent-light);
-  z-index: -1;
-  border-radius: 4px;
-}
-
-.vaangly-hero__subtitle {
-  font-size: var(--font-size-lg);
-  line-height: 1.6;
+/* Subtitle description */
+.vaangly-hero-description {
+  font-size: 0.98rem;
+  line-height: 1.55;
   color: var(--color-text-secondary);
-  margin-bottom: var(--space-8);
-  max-width: 560px;
+  margin: 0 0 var(--space-6) 0;
+  max-width: 580px;
 }
 
-.vaangly-hero__actions {
+@media (min-width: 640px) {
+  .vaangly-hero-description {
+    font-size: 1.05rem;
+  }
+}
+
+/* Primary Action Pills Row [ 🛍 Start Ordering → ] [ 📅 Start Booking → ] [ 🔧 Start Services → ] */
+.vaangly-primary-actions-row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-4);
-  margin-bottom: var(--space-8);
+  gap: 10px;
   width: 100%;
+  margin-bottom: var(--space-4);
 }
 
-@media (min-width: 500px) {
-  .vaangly-hero__actions {
-    width: auto;
-  }
-}
-
-.vaangly-btn {
+.vaangly-action-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
-  padding: 12px 24px;
+  gap: 8px;
+  padding: 10px 18px;
   border-radius: var(--radius-full);
-  font-size: var(--font-size-base);
+  font-size: 0.92rem;
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
   transition: all var(--transition-fast);
-  border: 1.5px solid transparent;
+  white-space: nowrap;
 }
 
-.vaangly-btn--lg {
-  padding: 14px 28px;
-  font-size: var(--font-size-lg);
+.vaangly-action-pill__icon {
+  flex-shrink: 0;
 }
 
-.vaangly-btn--primary {
+.vaangly-action-pill__arrow {
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.vaangly-action-pill:hover .vaangly-action-pill__arrow {
+  transform: translateX(3px);
+}
+
+/* Solid Brand Pill (Start Ordering) */
+.vaangly-action-pill--solid {
   background-color: var(--brand-primary);
-  color: #FFFFFF;
-  box-shadow: 0 4px 14px rgba(27, 77, 62, 0.25);
+  color: #FFFFFF !important;
+  border: 1.5px solid var(--brand-primary);
+  box-shadow: 0 2px 8px rgba(27, 77, 62, 0.25);
 }
 
-.vaangly-btn--primary:hover {
+.vaangly-action-pill--solid:hover {
   background-color: var(--brand-primary-hover);
-  box-shadow: 0 6px 20px rgba(27, 77, 62, 0.35);
-  transform: translateY(-2px);
+  border-color: var(--brand-primary-hover);
+  box-shadow: 0 4px 12px rgba(27, 77, 62, 0.35);
+  transform: translateY(-1px);
 }
 
-.vaangly-btn--outline {
-  background-color: transparent;
-  color: var(--brand-primary);
-  border-color: var(--brand-primary);
+/* Outline Pill (Start Booking & Start Services) */
+.vaangly-action-pill--outline {
+  background-color: var(--color-surface);
+  color: var(--brand-primary) !important;
+  border: 1.5px solid var(--brand-primary);
 }
 
-.vaangly-btn--outline:hover {
+[data-theme='dark'] .vaangly-action-pill--outline,
+.dark .vaangly-action-pill--outline {
+  background-color: var(--color-surface);
+  color: #34D399 !important;
+  border-color: #34D399;
+}
+
+.vaangly-action-pill--outline:hover {
   background-color: var(--brand-primary-light);
+  transform: translateY(-1px);
 }
 
-.vaangly-btn--white {
-  background-color: #FFFFFF;
-  color: var(--brand-primary);
-  border-color: #FFFFFF;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+[data-theme='dark'] .vaangly-action-pill--outline:hover,
+.dark .vaangly-action-pill--outline:hover {
+  background-color: rgba(52, 211, 153, 0.15);
 }
 
-.vaangly-btn--white:hover {
-  background-color: var(--brand-primary-light);
-  transform: translateY(-2px);
+/* Shopkeeper CTA (Full width pill card) */
+.vaangly-shopkeeper-cta-wrap {
+  width: 100%;
+  margin-bottom: var(--space-6);
 }
 
-.vaangly-hero__features {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-}
-
-.vaangly-hero__feature-item {
+.vaangly-action-pill--shopkeeper {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: var(--font-size-xs);
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 12px 20px;
+  background-color: var(--color-surface);
+  color: var(--brand-primary) !important;
+  border: 1.5px solid var(--brand-primary);
+  border-radius: var(--radius-full);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+[data-theme='dark'] .vaangly-action-pill--shopkeeper,
+.dark .vaangly-action-pill--shopkeeper {
+  color: #34D399 !important;
+  border-color: #34D399;
+}
+
+.vaangly-action-pill--shopkeeper:hover {
+  background-color: var(--brand-primary-light);
+  transform: translateY(-1px);
+}
+
+[data-theme='dark'] .vaangly-action-pill--shopkeeper:hover,
+.dark .vaangly-action-pill--shopkeeper:hover {
+  background-color: rgba(52, 211, 153, 0.15);
+}
+
+/* Trust / Benefit Checklist (2 Columns) */
+.vaangly-trust-checklist {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px 24px;
+  width: 100%;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-5);
+}
+
+@media (min-width: 480px) {
+  .vaangly-trust-checklist {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.vaangly-trust-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
   font-weight: 600;
   color: var(--color-text-secondary);
 }
 
-.vaangly-hero__check {
-  color: var(--brand-accent);
+.vaangly-trust-icon {
+  color: var(--brand-primary);
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .vaangly-trust-icon,
+.dark .vaangly-trust-icon {
+  color: #34D399;
 }
 
 /* Hero Ecosystem Showcase Card */

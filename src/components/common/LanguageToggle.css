@@ -59,17 +59,17 @@
 
 /* Active Segment Indicator */
 .vaangly-lang-toggle__option--active {
-  background: var(--brand-primary, #0A7B83);
+  background: var(--brand-primary, #1B4D3E);
   color: #FFFFFF !important;
   font-weight: 700;
-  box-shadow: 0 1px 4px rgba(10, 123, 131, 0.3);
+  box-shadow: 0 1px 4px rgba(27, 77, 62, 0.3);
 }
 
 [data-theme='dark'] .vaangly-lang-toggle__option--active,
 .dark .vaangly-lang-toggle__option--active {
-  background: #0EA5E9;
+  background: var(--brand-primary, #1B4D3E);
   color: #FFFFFF !important;
-  box-shadow: 0 1px 6px rgba(14, 165, 233, 0.35);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
 }
 
 /* Vertical Divider */

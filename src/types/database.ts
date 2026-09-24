@@ -111,7 +111,33 @@ export interface ShopProduct {
   moderation_reason?: string | null;
   moderated_at?: string | null;
   moderated_by?: string | null;
+  master_product_id?: string | null;
   created_at: string;
+}
+
+export type MasterProductStatus = 'pending' | 'approved' | 'rejected' | 'archived';
+
+export interface MasterProduct {
+  id: string;
+  name: string;
+  normalized_name?: string;
+  description: string | null;
+  image_url: string | null;
+  shop_type_id: string | null;
+  brand: string | null;
+  status: MasterProductStatus;
+  created_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  moderation_reason: string | null;
+  metadata?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+  shop_types?: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
 }
 
 export interface ProductVariant {

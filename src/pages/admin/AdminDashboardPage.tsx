@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   RefreshCw,
   MapPin,
+  Layers,
 } from 'lucide-react';
 import { fetchOperationalMetrics, fetchAdminAuditLogsList } from '../../lib/adminApi';
 import { OperationalMetrics } from '../../types/admin';
@@ -198,6 +199,20 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
           <div className="vaango-admin-stat-card__value">{metrics?.suspendedShops || 0}</div>
           <div className="vaango-admin-stat-card__hint">Hidden from discovery (data intact)</div>
+        </Card>
+
+        <Card
+          variant="default"
+          padding="md"
+          className="vaango-admin-stat-card"
+          onClick={() => navigate('/admin/catalogue')}
+        >
+          <div className="vaango-admin-stat-card__header">
+            <span className="vaango-admin-stat-card__label">Master Catalogue</span>
+            <Layers size={18} className="vaango-admin-stat-card__icon vaango-admin-stat-card__icon--accent" />
+          </div>
+          <div className="vaango-admin-stat-card__value">Global Catalogue</div>
+          <div className="vaango-admin-stat-card__hint">Standard reference products & merchant proposals</div>
         </Card>
       </div>
 

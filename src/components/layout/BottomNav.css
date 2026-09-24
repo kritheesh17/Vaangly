@@ -59,17 +59,23 @@
   letter-spacing: 0.01em;
 }
 
-/* Active State in Deep Teal #0A7B83 */
+/* Active State in Forest Green --brand-primary */
 .vaango-bottom-nav__item--active {
   color: var(--brand-primary);
 }
 
 .vaango-bottom-nav__item--active .vaango-bottom-nav__icon-wrap {
   background-color: var(--brand-primary-light);
-  transform: translateY(-2px);
+  color: var(--brand-primary);
 }
 
 [data-theme='dark'] .vaango-bottom-nav__item--active,
 .dark .vaango-bottom-nav__item--active {
-  color: #22D3EE;
+  color: #34D399;
+}
+
+[data-theme='dark'] .vaango-bottom-nav__item--active .vaango-bottom-nav__icon-wrap,
+.dark .vaango-bottom-nav__item--active .vaango-bottom-nav__icon-wrap {
+  background-color: rgba(52, 211, 153, 0.15);
+  color: #34D399;
 }

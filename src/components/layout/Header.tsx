@@ -194,16 +194,33 @@ export const Header: React.FC = () => {
               <LanguageToggle size="sm" />
             </div>
 
-            {/* Theme Toggle Button */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="vaango-header__theme-btn"
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            {/* Segmented Theme Toggle Pill [ ☀️ | 🌙 ] */}
+            <div
+              className="vaango-header__theme-segmented"
+              role="group"
+              aria-label="Color theme toggle"
             >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
+              <button
+                type="button"
+                className={`vaango-header__theme-opt ${theme === 'light' ? 'vaango-header__theme-opt--active' : ''}`}
+                onClick={() => theme !== 'light' && toggleTheme()}
+                aria-pressed={theme === 'light'}
+                aria-label="Light mode"
+                title="Light mode"
+              >
+                <Sun size={14} />
+              </button>
+              <button
+                type="button"
+                className={`vaango-header__theme-opt ${theme === 'dark' ? 'vaango-header__theme-opt--active' : ''}`}
+                onClick={() => theme !== 'dark' && toggleTheme()}
+                aria-pressed={theme === 'dark'}
+                aria-label="Dark mode"
+                title="Dark mode"
+              >
+                <Moon size={14} />
+              </button>
+            </div>
 
             {/* Auth Profile / Login & Get Started Buttons */}
             {user ? (

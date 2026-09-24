@@ -69,6 +69,9 @@ const AdminShopDetailPage = React.lazy(() =>
 const AdminSubscriptionsPage = React.lazy(() =>
   import('./pages/admin/AdminSubscriptionsPage').then((m) => ({ default: m.AdminSubscriptionsPage }))
 );
+const AdminMasterCataloguePage = React.lazy(() =>
+  import('./pages/admin/AdminMasterCataloguePage').then((m) => ({ default: m.AdminMasterCataloguePage }))
+);
 const AdminAuditPage = React.lazy(() =>
   import('./pages/admin/AdminAuditPage').then((m) => ({ default: m.AdminAuditPage }))
 );
@@ -210,6 +213,7 @@ export const App: React.FC = () => {
                             <Route path="applications/:applicationId" element={<AdminApplicationDetailPage />} />
                             <Route path="shops" element={<AdminShopsPage />} />
                             <Route path="shops/:shopId" element={<AdminShopDetailPage />} />
+                            <Route path="catalogue" element={<AdminMasterCataloguePage />} />
                             <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
                             <Route path="audit" element={<AdminAuditPage />} />
                           </Route>

@@ -8,6 +8,7 @@ import {
   CreditCard,
   History,
   ShieldCheck,
+  Layers,
 } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { useLanguage } from '../../context/LanguageContext';
@@ -66,6 +67,16 @@ export const AdminLayout: React.FC = () => {
             >
               <Store size={16} />
               <span>{t('adminShops')}</span>
+            </NavLink>
+
+            <NavLink
+              to="/admin/catalogue"
+              className={({ isActive }) =>
+                `vaango-admin-nav-item ${isActive ? 'vaango-admin-nav-item--active' : ''}`
+              }
+            >
+              <Layers size={16} />
+              <span>Master Catalogue</span>
             </NavLink>
 
             <NavLink
