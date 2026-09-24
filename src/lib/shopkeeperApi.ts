@@ -5,6 +5,7 @@ import { WorkflowStateCode, WorkflowGroupCode } from '../types/workflow';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { MOCK_SHOPS, MOCK_PRODUCTS, MOCK_SHOP_TYPES, getShopServices } from '../data/mockData';
 import { getStoredDemoRequests } from './demoData';
+import { normalizeIndianPhone } from './phoneUtils';
 
 const DEMO_SHOPS_KEY = 'vaango_demo_shops';
 const DEMO_PRODUCTS_KEY = 'vaango_demo_products';
@@ -133,6 +134,9 @@ export const updateShopProfile = async (
 ): Promise<{ success: boolean; shop?: Shop; error?: string }> => {
   if (updates.delivery_fee !== undefined && updates.delivery_fee < 0) {
     return { success: false, error: 'Delivery fee cannot be negative.' };
+  }
+  if (updates.phone) {
+    updates.phone = normalizeIndianPhone(updates.phone) || updates.phone;
   }
 
   if (isSupabaseConfigured) {
@@ -983,9 +987,11 @@ export const submitShopApplication = async (
       // Ensure profile exists in public.profiles to satisfy foreign key REFERENCES public.profiles(id)
       const { data: profileCheck } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, phone')
         .eq('id', verifiedApplicantId)
         .maybeSingle();
+
+      const normalizedContactPhone = normalizeIndianPhone(application.contact_phone.trim()) || application.contact_phone.trim();
 
       if (!profileCheck) {
         await supabase
@@ -994,10 +1000,16 @@ export const submitShopApplication = async (
             id: verifiedApplicantId,
             role: 'customer',
             full_name: application.owner_name?.trim() || authData.user.user_metadata?.full_name || 'Partner Applicant',
-            phone: application.contact_phone.trim(),
+            phone: normalizedContactPhone,
             email: authData.user.email || null,
             is_verified: Boolean(authData.user.email_confirmed_at || authData.user.confirmed_at),
           });
+      } else if (!profileCheck.phone && normalizedContactPhone) {
+        // Sync phone onto applicant's profile if it was null
+        await supabase
+          .from('profiles')
+          .update({ phone: normalizedContactPhone })
+          .eq('id', verifiedApplicantId);
       }
 
       // 2. Prevent duplicate application creation on refresh/retry
@@ -1083,7 +1095,7 @@ export const submitShopApplication = async (
         description: application.description?.trim() || null,
         shop_type_id: resolvedShopTypeId,
         location_id: resolvedLocationId,
-        contact_phone: application.contact_phone.trim(),
+        contact_phone: normalizedContactPhone,
         address_line: application.address_line.trim(),
         status: 'submitted' as const,
         photo_url: application.photo_url || null,

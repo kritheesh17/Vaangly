@@ -401,13 +401,13 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {decoded.customer_phone && (
+          {(request.customer_phone || decoded.customer_phone) && (
             <div className="vaango-req-cust-col">
               <span className="vaango-req-label">Phone</span>
               <div className="vaango-req-val">
                 <Phone size={15} />
-                <a href={`tel:${decoded.customer_phone}`} className="hover:underline">
-                  {decoded.customer_phone}
+                <a href={`tel:${request.customer_phone || decoded.customer_phone}`} className="hover:underline">
+                  {request.customer_phone || decoded.customer_phone}
                 </a>
               </div>
             </div>

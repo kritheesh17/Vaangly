@@ -3,6 +3,7 @@ import { Shop, ShopProduct, Request, ProductVariant } from '../types/database';
 import { MOCK_SHOP_TYPES, isValidUuid } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { isValidIndianMobile, normalizeIndianPhone } from '../lib/phoneUtils';
 
 export interface CartItem {
   product: ShopProduct;
@@ -272,6 +273,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'Please sign in to complete your request.' };
     }
 
+    const customerPhone = user.phone ? (normalizeIndianPhone(user.phone) || user.phone) : null;
+    if (!customerPhone || !isValidIndianMobile(customerPhone)) {
+      return {
+        success: false,
+        error: 'Please complete your phone number in your profile before placing an order.',
+      };
+    }
+
     if (targetShop.status !== 'active' || !targetShop.is_live) {
       return {
         success: false,
@@ -323,7 +332,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }),
         notes: (shopNotes || orderNotes || '').trim() || null,
         customer_name: user.full_name || user.email || 'Customer',
-        customer_phone: user.phone || '',
+        customer_phone: customerPhone,
         shop_name: targetShop.name,
         shop_address: targetShop.address_line,
         shop_phone: targetShop.phone,
@@ -378,6 +387,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .insert({
             reference_code: referenceCode,
             customer_id: user.id,
+            customer_phone: customerPhone,
             shop_id: targetShop.id,
             workflow_group_code: 'ORDER',
             current_state: 'REQUESTED',

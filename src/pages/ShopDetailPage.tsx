@@ -28,6 +28,7 @@ import { ShopProduct } from '../types/database';
 import './ShopDetailPage.css';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { isValidIndianMobile, normalizeIndianPhone } from '../lib/phoneUtils';
 import { useToast } from '../context/ToastContext';
 import { Modal } from '../components/ui/Modal';
 import { Textarea } from '../components/ui/Textarea';
@@ -199,11 +200,41 @@ export const ShopDetailPage: React.FC = () => {
 
   const handleCustomCakeSubmit = async () => {
     if (!user || !shop || cakeDescription.trim().length < 10) return;
+
+    const customerPhone = user.phone ? (normalizeIndianPhone(user.phone) || user.phone) : null;
+    if (!customerPhone || !isValidIndianMobile(customerPhone)) {
+      toastError('Please complete your phone number in your profile before submitting a custom order.');
+      navigate('/complete-profile?redirect=' + encodeURIComponent(window.location.pathname));
+      return;
+    }
+
     setIsSubmittingCake(true);
     try {
       const referenceCode = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
-      const notes = JSON.stringify({ type: 'custom_cake', description: cakeDescription.trim(), shop_name: shop.name, shop_address: shop.address_line, shop_phone: shop.phone, payment_method: 'cash' });
-      const { data, error } = await supabase.from('requests').insert({ reference_code: referenceCode, customer_id: user.id, shop_id: shop.id, workflow_group_code: 'ORDER', current_state: 'REQUESTED', total_estimate: 0, notes }).select().single();
+      const notes = JSON.stringify({
+        type: 'custom_cake',
+        description: cakeDescription.trim(),
+        shop_name: shop.name,
+        shop_address: shop.address_line,
+        shop_phone: shop.phone,
+        customer_name: user.full_name || 'Customer',
+        customer_phone: customerPhone,
+        payment_method: 'cash',
+      });
+      const { data, error } = await supabase
+        .from('requests')
+        .insert({
+          reference_code: referenceCode,
+          customer_id: user.id,
+          customer_phone: customerPhone,
+          shop_id: shop.id,
+          workflow_group_code: 'ORDER',
+          current_state: 'REQUESTED',
+          total_estimate: 0,
+          notes,
+        })
+        .select()
+        .single();
       if (error || !data) {
         toastError(error?.message || t('cakeRequestError'));
         return;

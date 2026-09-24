@@ -28,6 +28,7 @@ import { Checkbox } from '../../components/ui/Checkbox';
 import { TimePicker12h } from '../../components/ui/TimePicker12h';
 import { useToast } from '../../context/ToastContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { isValidIndianMobile, normalizeIndianPhone } from '../../lib/phoneUtils';
 import { isValidUpiQrUrl } from '../../lib/upi';
 import { GPSLocationPicker } from '../../components/shopkeeper/GPSLocationPicker';
 import { Switch } from '../../components/ui/Switch';
@@ -211,13 +212,20 @@ export const ShopkeeperProfilePage: React.FC = () => {
         throw new Error('UPI QR code is required to accept UPI payments.');
       }
 
+      if (phone.trim() && !isValidIndianMobile(phone.trim())) {
+        toastError('Please enter a valid 10-digit Indian phone number.');
+        setIsSaving(false);
+        return;
+      }
+      const normalizedPhone = phone.trim() ? normalizeIndianPhone(phone.trim()) : '';
+
       const res = await updateShopProfile(shop.id, {
         name: shopName.trim(),
         address_line: addressLine.trim(),
         gps_lat: gpsCoords?.lat ?? shop.gps_lat,
         gps_lng: gpsCoords?.lng ?? shop.gps_lng,
         tagline: tagline.trim() || null,
-        phone: phone.trim(),
+        phone: normalizedPhone || '',
         photo_url: photoUrl,
         opening_time: openingTime,
         closing_time: closingTime,
@@ -228,6 +236,13 @@ export const ShopkeeperProfilePage: React.FC = () => {
         upi_qr_url: upiQrUrl,
         customised_cake_available: customisedCakeAvailable,
       });
+
+      if (user?.id && normalizedPhone && isSupabaseConfigured) {
+        await supabase
+          .from('profiles')
+          .update({ phone: normalizedPhone })
+          .eq('id', user.id);
+      }
 
       if (res.success && res.shop) {
         setShop(res.shop);

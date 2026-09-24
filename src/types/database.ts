@@ -210,6 +210,7 @@ export interface Request {
   payment_verified_by?: string | null;
   payment_rejection_reason?: string | null;
   fulfillment_type?: 'DINE_IN' | 'TAKEAWAY' | 'parcel' | 'dine_in' | 'pickup' | 'delivery' | null;
+  customer_phone?: string | null;
   notes: string | null;
   scheduled_for: string | null;
   created_at: string;

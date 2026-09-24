@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/Button';
+import { isValidIndianMobile, normalizeIndianPhone } from '../../lib/phoneUtils';
 import './Auth.css';
 
 type CallbackState = 'loading' | 'success' | 'error';
@@ -82,6 +83,7 @@ export const AuthCallbackPage: React.FC = () => {
         .maybeSingle();
 
       const metadata = confirmedUser.user_metadata || {};
+      const metadataPhone = normalizeIndianPhone(metadata.phone) || normalizeIndianPhone(confirmedUser.phone) || null;
       let activeProfile = profile;
 
       if (!activeProfile) {
@@ -92,7 +94,7 @@ export const AuthCallbackPage: React.FC = () => {
             role: 'customer',
             full_name: metadata.full_name || metadata.name || confirmedUser.email?.split('@')[0] || 'Customer',
             email: confirmedUser.email || null,
-            phone: confirmedUser.phone || null,
+            phone: metadataPhone,
             avatar_url: metadata.avatar_url || metadata.picture || null,
             is_verified: isEmailConfirmed,
           })
@@ -136,6 +138,15 @@ export const AuthCallbackPage: React.FC = () => {
         return;
       }
 
+      // If active profile exists but phone is missing in profiles, sync it from metadata
+      if (activeProfile && !activeProfile.phone && metadataPhone) {
+        await supabase
+          .from('profiles')
+          .update({ phone: metadataPhone })
+          .eq('id', confirmedUser.id);
+        activeProfile.phone = metadataPhone;
+      }
+
       // Check profile completeness for customer strictly from authoritative public.profiles
       // Existing shopkeeper and admin profiles are never downgraded to customer
       const targetRole = activeProfile?.role || 'customer';
@@ -146,7 +157,7 @@ export const AuthCallbackPage: React.FC = () => {
       const isComplete =
         targetRole !== 'customer' ||
         (Boolean(resolvedName.trim()) &&
-         Boolean(resolvedPhone.trim().length >= 7) &&
+         Boolean(resolvedPhone.trim() && isValidIndianMobile(resolvedPhone.trim())) &&
          Boolean(resolvedAddress.trim()));
 
       localStorage.removeItem('vaangly_pending_confirmation_email');

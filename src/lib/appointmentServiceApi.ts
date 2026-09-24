@@ -1,7 +1,7 @@
-// Phase 4: Appointments and Services API & Data Access Layer
 import { AppointmentSlot, ShopService, Request, RequestEvent, PriceType } from '../types/database';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { getShopServices as getMockServices, generateDailySlots } from '../data/mockData';
+import { normalizeIndianPhone } from './phoneUtils';
 
 const DEMO_REQUESTS_KEY = 'vaango_demo_requests';
 const DEMO_REQUEST_EVENTS_KEY = 'vaango_demo_request_events';
@@ -160,12 +160,14 @@ export const bookAppointmentRequest = async (
 
   if (isSupabaseConfigured) {
     try {
+      const normalizedCustomerPhone = customerPhone ? (normalizeIndianPhone(customerPhone) || customerPhone) : null;
       // Step 1: Create request record
       const { data: reqData, error: reqErr } = await supabase
         .from('requests')
         .insert({
           reference_code: referenceCode,
           customer_id: customerId,
+          customer_phone: normalizedCustomerPhone,
           shop_id: shopId,
           workflow_group_code: 'APPOINTMENT',
           current_state: 'REQUESTED',

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Shield, MapPin, Phone, Mail, LogOut, CheckCircle2, Languages, Lock, KeyRound, AlertCircle } from 'lucide-react';
+import { User, Shield, MapPin, Phone, Mail, LogOut, CheckCircle2, Languages, Lock, KeyRound, AlertCircle, Edit3, Save, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLocationContext } from '../context/LocationContext';
@@ -8,15 +8,17 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { FormField } from '../components/ui/FormField';
 import { Checkbox } from '../components/ui/Checkbox';
 import { Switch } from '../components/ui/Switch';
 import { UserRole } from '../types/database';
 import { Language } from '../lib/i18n';
 import { useLanguage } from '../context/LanguageContext';
+import { isValidIndianMobile, formatPhoneDisplay } from '../lib/phoneUtils';
 import './ProfilePage.css';
 
 export const ProfilePage: React.FC = () => {
-  const { user, role, switchDemoRole, signOut, updatePassword } = useAuth();
+  const { user, role, switchDemoRole, signOut, updatePassword, updateCustomerProfile } = useAuth();
   const { toggleTheme, isDark } = useTheme();
   const { selectedLocation, setIsLocationModalOpen } = useLocationContext();
   const navigate = useNavigate();
@@ -27,6 +29,53 @@ export const ProfilePage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordFeedback, setPasswordFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Profile details editing
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [contactName, setContactName] = useState(user?.full_name || '');
+  const [contactPhone, setContactPhone] = useState(user?.phone || '');
+  const [contactAddress, setContactAddress] = useState(user?.address || '');
+  const [isSavingContact, setIsSavingContact] = useState(false);
+  const [contactFeedback, setContactFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      setContactName(user.full_name || '');
+      setContactPhone(user.phone || '');
+      setContactAddress(user.address || '');
+    }
+  }, [user]);
+
+  const handleSaveContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setContactFeedback(null);
+    if (!contactName.trim()) {
+      setContactFeedback({ type: 'error', message: 'Name cannot be empty.' });
+      return;
+    }
+    if (!contactPhone.trim() || !isValidIndianMobile(contactPhone.trim())) {
+      setContactFeedback({ type: 'error', message: 'Please enter a valid 10-digit Indian phone number.' });
+      return;
+    }
+    setIsSavingContact(true);
+    try {
+      const res = await updateCustomerProfile({
+        full_name: contactName.trim(),
+        phone: contactPhone.trim(),
+        address: contactAddress.trim() || (user?.address || 'Self Pickup / Not Specified'),
+      });
+      if (res.success) {
+        setContactFeedback({ type: 'success', message: 'Contact details saved successfully!' });
+        setIsEditingContact(false);
+      } else {
+        setContactFeedback({ type: 'error', message: res.error || 'Failed to save contact details.' });
+      }
+    } catch (err: unknown) {
+      setContactFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Error saving profile' });
+    } finally {
+      setIsSavingContact(false);
+    }
+  };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,25 +153,113 @@ export const ProfilePage: React.FC = () => {
             </div>
           </div>
 
-          <div className="vaango-profile-card__details">
-            <div className="vaango-profile-card__item">
-              <Phone size={18} className="vaango-profile-card__item-icon" />
-              <span>{user?.phone || '+91 98765 43210'}</span>
+          {contactFeedback && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: 'var(--space-3)',
+                fontSize: 'var(--font-size-sm)',
+                backgroundColor: contactFeedback.type === 'success' ? 'var(--color-success-bg, rgba(46, 125, 50, 0.1))' : 'var(--color-error-bg, rgba(211, 47, 47, 0.1))',
+                color: contactFeedback.type === 'success' ? 'var(--color-success, #2e7d32)' : 'var(--color-error, #d32f2f)',
+              }}
+            >
+              {contactFeedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+              <span>{contactFeedback.message}</span>
             </div>
-            <div className="vaango-profile-card__item">
-              <Mail size={18} className="vaango-profile-card__item-icon" />
-              <span>{user?.email || 'customer@vaangly.in'}</span>
-            </div>
-            <div className="vaango-profile-card__item" style={{ justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                <MapPin size={18} className="vaango-profile-card__item-icon" />
-                <span>{selectedLocation.name}, {selectedLocation.state}</span>
+          )}
+
+          {isEditingContact ? (
+            <form onSubmit={handleSaveContact} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <FormField id="profile-edit-name" label="Full Name" required>
+                <Input
+                  id="profile-edit-name"
+                  type="text"
+                  required
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="Your Full Name"
+                />
+              </FormField>
+
+              <FormField id="profile-edit-phone" label="Mobile Number" required hint="10-digit Indian mobile number for order delivery">
+                <Input
+                  id="profile-edit-phone"
+                  type="tel"
+                  required
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  placeholder="9876543210"
+                />
+              </FormField>
+
+              <FormField id="profile-edit-address" label="Delivery Address" hint="House / Flat, Street, Area">
+                <Input
+                  id="profile-edit-address"
+                  type="text"
+                  value={contactAddress}
+                  onChange={(e) => setContactAddress(e.target.value)}
+                  placeholder="House / Street / Landmark"
+                />
+              </FormField>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <Button type="submit" variant="primary" size="sm" isLoading={isSavingContact} leftIcon={<Save size={16} />}>
+                  Save Changes
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isSavingContact}
+                  onClick={() => {
+                    setIsEditingContact(false);
+                    setContactFeedback(null);
+                    setContactName(user?.full_name || '');
+                    setContactPhone(user?.phone || '');
+                    setContactAddress(user?.address || '');
+                  }}
+                  leftIcon={<X size={16} />}
+                >
+                  Cancel
+                </Button>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setIsLocationModalOpen(true)}>
-                {t('changeBtn')}
-              </Button>
+            </form>
+          ) : (
+            <div className="vaango-profile-card__details">
+              <div className="vaango-profile-card__item" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                  <Phone size={18} className="vaango-profile-card__item-icon" />
+                  <span>{user?.phone ? formatPhoneDisplay(user.phone) : 'No phone number provided'}</span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => { setIsEditingContact(true); setContactFeedback(null); }}>
+                  <Edit3 size={15} style={{ marginRight: '4px' }} /> Edit
+                </Button>
+              </div>
+              <div className="vaango-profile-card__item">
+                <Mail size={18} className="vaango-profile-card__item-icon" />
+                <span>{user?.email || 'customer@vaangly.in'}</span>
+              </div>
+              {user?.address && (
+                <div className="vaango-profile-card__item">
+                  <MapPin size={18} className="vaango-profile-card__item-icon" />
+                  <span>{user.address}</span>
+                </div>
+              )}
+              <div className="vaango-profile-card__item" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                  <MapPin size={18} className="vaango-profile-card__item-icon" />
+                  <span>{selectedLocation.name}, {selectedLocation.state}</span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setIsLocationModalOpen(true)}>
+                  {t('changeBtn')}
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </Card>
 
         {/* Language Preference */}

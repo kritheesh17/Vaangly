@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase, isSupabaseConfigured, getAuthRedirectUrl } from '../lib/supabase';
 import { Profile, UserRole } from '../types/database';
+import { isValidIndianMobile, normalizeIndianPhone } from '../lib/phoneUtils';
 
 export const isCustomerProfileComplete = (profile: Profile | null): boolean => {
   if (!profile) return false;
   if (profile.role !== 'customer') return true;
   const hasName = Boolean(profile.full_name && profile.full_name.trim().length > 0);
-  const hasPhone = Boolean(profile.phone && profile.phone.trim().length >= 7);
+  const hasPhone = Boolean(profile.phone && isValidIndianMobile(profile.phone));
   const hasAddress = Boolean(profile.address && profile.address.trim().length > 0);
   return hasName && hasPhone && hasAddress;
 };
@@ -157,6 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const profileData = profile as Profile;
               setUser({
                 ...profileData,
+                phone: profileData.phone ? normalizeIndianPhone(profileData.phone) : (normalizeIndianPhone(session.user.user_metadata?.phone) || null),
                 address: profileData.address || null,
                 is_verified: isEmailConfirmed,
               });
@@ -167,7 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 id: session.user.id,
                 role: 'customer',
                 full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Customer',
-                phone: session.user.phone || null,
+                phone: normalizeIndianPhone(session.user.user_metadata?.phone) || normalizeIndianPhone(session.user.phone) || null,
                 email: session.user.email || null,
                 address: null,
                 avatar_url: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null,
@@ -227,6 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const profileData = profile as Profile;
             setUser({
               ...profileData,
+              phone: profileData.phone ? normalizeIndianPhone(profileData.phone) : (normalizeIndianPhone(session.user.user_metadata?.phone) || null),
               address: profileData.address || null,
               is_verified: isEmailConfirmed,
             });
@@ -235,7 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               id: session.user.id,
               role: 'customer',
               full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Customer',
-              phone: session.user.phone || null,
+              phone: normalizeIndianPhone(session.user.user_metadata?.phone) || normalizeIndianPhone(session.user.phone) || null,
               email: session.user.email || null,
               address: null,
               avatar_url: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null,
@@ -286,6 +289,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (profile) {
         activeProfile = {
           ...(profile as Profile),
+          phone: (profile as Profile).phone ? normalizeIndianPhone((profile as Profile).phone) : (normalizeIndianPhone(authUser.user_metadata?.phone) || null),
           address: (profile as Profile).address || null,
           is_verified: isEmailConfirmed,
         };
@@ -294,7 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: authUser.id,
           role: 'customer',
           full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Customer',
-          phone: authUser.phone || null,
+          phone: normalizeIndianPhone(authUser.user_metadata?.phone) || normalizeIndianPhone(authUser.phone) || null,
           email: authUser.email || null,
           address: null,
           avatar_url: authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || null,
@@ -364,6 +368,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (profile) {
             setUser({
               ...(profile as Profile),
+              phone: (profile as Profile).phone ? normalizeIndianPhone((profile as Profile).phone) : (normalizeIndianPhone(data.user.user_metadata?.phone) || null),
               is_verified: isEmailConfirmed,
             });
           } else {
@@ -371,7 +376,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               id: data.user.id,
               role: 'customer',
               full_name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Customer',
-              phone: data.user.phone || null,
+              phone: normalizeIndianPhone(data.user.user_metadata?.phone) || normalizeIndianPhone(data.user.phone) || null,
               email: data.user.email || null,
               address: null,
               avatar_url: data.user.user_metadata?.avatar_url || null,
@@ -420,12 +425,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = fullName.trim();
+    let normalizedPhone: string | null = null;
 
     if (!cleanEmail) {
       return { success: false, error: 'Please enter your email address.' };
     }
     if (!cleanName) {
       return { success: false, error: 'Please enter your full name.' };
+    }
+    if (phone && phone.trim().length > 0) {
+      if (!isValidIndianMobile(phone.trim())) {
+        return { success: false, error: 'Please enter a valid 10-digit Indian mobile number.' };
+      }
+      normalizedPhone = normalizeIndianPhone(phone.trim());
     }
     if (!password || password.length < 6) {
       return { success: false, error: 'Password must be at least 6 characters long.' };
@@ -438,7 +450,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: cleanEmail,
         password,
         options: {
-          data: { full_name: cleanName, role: role || 'customer', phone: phone?.trim() || null },
+          data: { full_name: cleanName, role: role || 'customer', phone: normalizedPhone },
           emailRedirectTo,
         },
       });
@@ -457,13 +469,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .maybeSingle();
 
         if (profile) {
-          setUser({ ...(profile as Profile), is_verified: isEmailConfirmed });
+          setUser({
+            ...(profile as Profile),
+            phone: (profile as Profile).phone ? normalizeIndianPhone((profile as Profile).phone) : normalizedPhone,
+            is_verified: isEmailConfirmed,
+          });
         } else {
           setUser({
             id: data.user.id,
             role: 'customer',
             full_name: cleanName,
-            phone: phone?.trim() || null,
+            phone: normalizedPhone,
             email: cleanEmail,
             address: null,
             avatar_url: null,
@@ -568,9 +584,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!cleanName) {
       return { success: false, error: 'Please enter your full name.' };
     }
-    if (!cleanPhone || cleanPhone.length < 10) {
-      return { success: false, error: 'Please enter a valid 10-digit phone number.' };
+    if (!cleanPhone || !isValidIndianMobile(cleanPhone)) {
+      return { success: false, error: 'Please enter a valid 10-digit Indian mobile number.' };
     }
+    const normalizedPhone = normalizeIndianPhone(cleanPhone)!;
+
     if (!cleanAddress || cleanAddress.length < 5) {
       return { success: false, error: 'Please enter your full delivery address.' };
     }
@@ -598,7 +616,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('profiles')
         .update({
           full_name: cleanName,
-          phone: cleanPhone,
+          phone: normalizedPhone,
           address: cleanAddress,
           preferred_location_id: user?.preferred_location_id || '10000000-0000-0000-0000-000000000004',
           updated_at: new Date().toISOString(),
@@ -617,6 +635,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
+      // Also sync user_metadata in Supabase Auth asynchronously
+      await supabase.auth.updateUser({
+        data: {
+          phone: normalizedPhone,
+          full_name: cleanName,
+        },
+      }).catch((err) => {
+        // Log non-fatal auth sync error without leaking sensitive phone
+        console.warn('[Profile] Auth metadata sync notice:', err?.message);
+      });
+
       // Reload updated authoritative profile directly from database
       const { data: refreshedProfile, error: fetchError } = await supabase
         .from('profiles')
@@ -633,6 +662,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUser({
         ...(refreshedProfile as Profile),
+        phone: (refreshedProfile as Profile).phone ? normalizeIndianPhone((refreshedProfile as Profile).phone) : normalizedPhone,
         is_verified: Boolean(sessionData?.session?.user?.email_confirmed_at || sessionData?.session?.user?.confirmed_at),
       });
 

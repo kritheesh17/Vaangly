@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { MOCK_SHOP_TYPES } from '../../data/mockData';
 import { useLocationContext } from '../../context/LocationContext';
+import { isValidIndianMobile, normalizeIndianPhone } from '../../lib/phoneUtils';
 import {
   submitShopApplication,
   getLatestApplication,
@@ -111,8 +112,8 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       setFormError('Owner / Proprietor name is required.');
       return;
     }
-    if (!contactPhone.trim() || contactPhone.trim().length < 10) {
-      setFormError('Please enter a valid 10-digit contact phone number.');
+    if (!contactPhone.trim() || !isValidIndianMobile(contactPhone.trim())) {
+      setFormError('Please enter a valid 10-digit Indian contact phone number.');
       return;
     }
     if (!shopTypeId) {
@@ -365,8 +366,8 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       setFormError('Shop name is required.');
       return;
     }
-    if (!contactPhone.trim()) {
-      setFormError('Contact phone number is required.');
+    if (!contactPhone.trim() || !isValidIndianMobile(contactPhone.trim())) {
+      setFormError('Please enter a valid 10-digit Indian contact phone number.');
       return;
     }
     if (!gpsCoords) {
@@ -427,7 +428,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         description: description.trim() || null,
         shop_type_id: shopTypeId,
         location_id: selectedLocation.id,
-        contact_phone: contactPhone.trim(),
+        contact_phone: normalizeIndianPhone(contactPhone.trim()) || contactPhone.trim(),
         address_line: addressLine.trim(),
         photo_url: photoUrls[0] || null,
         photo_urls: photoUrls,

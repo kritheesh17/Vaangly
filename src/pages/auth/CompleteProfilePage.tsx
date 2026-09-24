@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { FormField } from '../../components/ui/FormField';
 import { Checkbox } from '../../components/ui/Checkbox';
+import { isValidIndianMobile } from '../../lib/phoneUtils';
 import './Auth.css';
 
 export const CompleteProfilePage: React.FC = () => {
@@ -65,8 +66,8 @@ export const CompleteProfilePage: React.FC = () => {
       return;
     }
 
-    if (!cleanPhone || cleanPhone.length < 10) {
-      setErrorMessage(t('validPhonePrompt'));
+    if (!cleanPhone || !isValidIndianMobile(cleanPhone)) {
+      setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
       return;
     }
 

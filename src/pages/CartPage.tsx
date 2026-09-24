@@ -22,6 +22,7 @@ import { getShopType, isValidUuid } from '../data/mockData';
 import { useLanguage } from '../context/LanguageContext';
 import { removePendingPaymentProof, uploadPendingPaymentProof, validatePaymentProofFile } from '../lib/paymentProof';
 import { isValidUpiQrUrl } from '../lib/upi';
+import { isValidIndianMobile } from '../lib/phoneUtils';
 import './CartPage.css';
 
 interface UpiPaymentPanelProps {
@@ -152,6 +153,12 @@ export const CartPage: React.FC = () => {
 
     if (!user) {
       setAuthModalOpen(true);
+      return;
+    }
+
+    if (!user.phone || !isValidIndianMobile(user.phone)) {
+      toastError('Please add your mobile number to your profile before placing an order.');
+      navigate('/complete-profile?redirect=/cart');
       return;
     }
 

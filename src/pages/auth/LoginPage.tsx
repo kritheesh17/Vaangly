@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { User, Lock, Mail, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, Mail, Phone, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { Card } from '../../components/ui/Card';
@@ -9,6 +9,7 @@ import { Input } from '../../components/ui/Input';
 import { FormField } from '../../components/ui/FormField';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { isValidIndianMobile } from '../../lib/phoneUtils';
 import './Auth.css';
 
 type AuthMode = 'signin' | 'signup' | 'forgot' | 'recovery';
@@ -40,6 +41,7 @@ export const LoginPage: React.FC = () => {
 
   // Form states
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -209,6 +211,10 @@ export const LoginPage: React.FC = () => {
       setErrorMsg(t('passwordMismatch'));
       return;
     }
+    if (phone.trim() && !isValidIndianMobile(phone.trim())) {
+      setErrorMsg('Please enter a valid 10-digit Indian mobile number.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -217,7 +223,7 @@ export const LoginPage: React.FC = () => {
         localStorage.setItem('vaangly_auth_redirect', from);
       }
 
-      const result = await signUpWithEmail(email, password, fullName, 'customer', undefined, from);
+      const result = await signUpWithEmail(email, password, fullName, 'customer', phone.trim() || undefined, from);
       if (result.success) {
         if (result.requiresEmailConfirmation) {
           setSuccessMsg(
@@ -617,6 +623,18 @@ export const LoginPage: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 leftIcon={<Mail size={18} />}
+              />
+            </FormField>
+
+            <FormField id="signup-phone" label="Mobile Number (Optional)" hint="10-digit Indian mobile number for order delivery">
+              <Input
+                id="signup-phone"
+                type="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="9876543210"
+                leftIcon={<Phone size={18} />}
               />
             </FormField>
 
