@@ -295,3 +295,206 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Enhanced Payment Proof Reviewer */
+.vaango-payment-review-card {
+  margin-bottom: var(--space-4, 16px);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg, 12px);
+}
+
+.vaango-payment-review-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.vaango-payment-review-card__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vaango-proof-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-surface-hover, rgba(0, 0, 0, 0.03));
+  margin: 10px 0;
+  font-size: 0.88rem;
+}
+
+.vaango-proof-state--loading {
+  color: var(--color-text-secondary);
+}
+
+.vaango-proof-state--error {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.vaango-proof-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-primary);
+}
+
+.vaango-proof-viewer-box {
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vaango-proof-thumb-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 320px;
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  border: 1.5px solid var(--color-border);
+  background: #000;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.vaango-proof-thumb-wrap:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.vaango-payment-proof-preview {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  background-color: var(--color-surface-sunken, #111);
+}
+
+.vaango-proof-zoom-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.9;
+  transition: opacity var(--transition-fast);
+}
+
+.vaango-proof-thumb-wrap:hover .vaango-proof-zoom-overlay {
+  opacity: 1;
+}
+
+.vaango-proof-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 320px;
+  gap: 12px;
+}
+
+.vaango-proof-external-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--brand-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.vaango-proof-external-link:hover {
+  text-decoration: underline;
+}
+
+.vaango-proof-btn-group {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.vaango-proof-note {
+  margin: 8px 0;
+  font-style: italic;
+}
+
+.vaango-proof-verified-note--rejected {
+  color: var(--color-error, #EF4444);
+}
+
+/* Lightbox Modal */
+.vaango-proof-lightbox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.vaango-proof-lightbox__img-wrap {
+  width: 100%;
+  max-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-sunken, #0f172a);
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+}
+
+.vaango-proof-lightbox__img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+.vaango-proof-lightbox__footer {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.vaango-proof-lightbox__open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--brand-primary);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.vaango-proof-lightbox__open-btn:hover {
+  opacity: 0.92;
+}
+
+.vaango-spin {
+  animation: vaango-spin-keyframes 1s linear infinite;
+}
+
+@keyframes vaango-spin-keyframes {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+

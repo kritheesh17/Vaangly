@@ -14,6 +14,9 @@ import {
   Wrench,
   DollarSign,
   UserX,
+  Maximize2,
+  ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Request, RequestEvent } from '../../types/database';
@@ -21,11 +24,13 @@ import { WorkflowStateCode, WorkflowGroupCode } from '../../types/workflow';
 import { markRequestCustomerPaid, rejectRequestPayment, transitionRequestState } from '../../lib/shopkeeperApi';
 import { confirmServicePrice } from '../../lib/appointmentServiceApi';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { resolvePaymentProofUrl } from '../../lib/paymentProof';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Modal } from '../../components/ui/Modal';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
 import './ShopkeeperRequestDetailPage.css';
@@ -65,6 +70,9 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
 
   const [request, setRequest] = useState<Request | null>(null);
   const [paymentProofUrl, setPaymentProofUrl] = useState<string | null>(null);
+  const [isProofLoading, setIsProofLoading] = useState(false);
+  const [proofError, setProofError] = useState<string | null>(null);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [events, setEvents] = useState<RequestEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
@@ -109,13 +117,31 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
 
         if (!reqErr && reqData) {
           setRequest(reqData as Request);
-          if (reqData.payment_screenshot_url && isSupabaseConfigured) {
-            const { data: signedData } = await supabase.storage
-              .from('payment-proofs')
-              .createSignedUrl(reqData.payment_screenshot_url, 600);
-            setPaymentProofUrl(signedData?.signedUrl || null);
+          if (reqData.payment_screenshot_url) {
+            setIsProofLoading(true);
+            setProofError(null);
+            try {
+              const res = await resolvePaymentProofUrl(reqData.payment_screenshot_url);
+              if (res.error === 'NONE' && res.url) {
+                setPaymentProofUrl(res.url);
+                setProofError(null);
+              } else if (res.error === 'UNAVAILABLE') {
+                setPaymentProofUrl(null);
+                setProofError('Payment proof was submitted, but the uploaded file is currently unavailable.');
+              } else {
+                setPaymentProofUrl(null);
+                setProofError('Unable to load payment proof. Try again.');
+              }
+            } catch {
+              setPaymentProofUrl(null);
+              setProofError('Unable to load payment proof. Try again.');
+            } finally {
+              setIsProofLoading(false);
+            }
           } else {
-            setPaymentProofUrl(reqData.payment_screenshot_url || null);
+            setPaymentProofUrl(null);
+            setProofError(null);
+            setIsProofLoading(false);
           }
         }
 
@@ -354,14 +380,117 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
 
             {request.payment_method === 'upi' && (
               <Card variant="outlined" padding="md" className="vaango-payment-review-card">
-                <h2 className="vaango-proof-review__title">Payment Method: UPI</h2>
-                <p className="text-secondary text-sm">Payment status: {request.payment_status || (request.payment_screenshot_url ? 'PAYMENT_PROOF_SUBMITTED' : 'PAYMENT_PENDING')}</p>
-                {paymentProofUrl ? (
-                  <a href={paymentProofUrl} target="_blank" rel="noopener noreferrer"><img src={paymentProofUrl} alt="Customer payment proof" className="vaango-payment-proof-preview" /></a>
+                <div className="vaango-payment-review-card__header">
+                  <h2 className="vaango-proof-review__title">Payment Method: UPI</h2>
+                  <div className="vaango-payment-review-card__status">
+                    <span className="text-secondary text-sm">Payment status: </span>
+                    {request.payment_status === 'PAYMENT_VERIFIED' ? (
+                      <Badge variant="success" size="sm" withDot>Payment Verified</Badge>
+                    ) : request.payment_status === 'PAYMENT_REJECTED' ? (
+                      <Badge variant="error" size="sm">Proof Rejected</Badge>
+                    ) : request.payment_screenshot_url ? (
+                      <Badge variant="warning" size="sm" withDot>Proof Submitted · Awaiting Verification</Badge>
+                    ) : (
+                      <Badge variant="neutral" size="sm">Payment Pending</Badge>
+                    )}
+                  </div>
+                </div>
+
+                {/* Separate state rendering for payment proof */}
+                {!request.payment_screenshot_url ? (
+                  <p className="text-secondary text-sm vaango-proof-note">Payment proof has not been submitted.</p>
+                ) : isProofLoading ? (
+                  <div className="vaango-proof-state vaango-proof-state--loading">
+                    <Loader2 size={18} className="vaango-spin text-primary flex-shrink-0" />
+                    <span>Loading payment proof...</span>
+                  </div>
+                ) : proofError ? (
+                  <div className="vaango-proof-state vaango-proof-state--error">
+                    <div className="vaango-proof-error-msg">
+                      <AlertTriangle size={18} className="text-warning flex-shrink-0" />
+                      <span>{proofError}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void loadRequestAndHistory()}
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                ) : paymentProofUrl ? (
+                  <div className="vaango-proof-viewer-box">
+                    <div
+                      className="vaango-proof-thumb-wrap"
+                      onClick={() => setIsLightboxOpen(true)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setIsLightboxOpen(true)}
+                      aria-label="Click to enlarge payment proof"
+                      title="Click to enlarge payment proof"
+                    >
+                      <img
+                        src={paymentProofUrl}
+                        alt="Customer UPI payment proof"
+                        className="vaango-payment-proof-preview"
+                      />
+                      <div className="vaango-proof-zoom-overlay">
+                        <Maximize2 size={16} />
+                        <span>Enlarge / Inspect</span>
+                      </div>
+                    </div>
+                    <div className="vaango-proof-meta-row">
+                      <span className="text-xs text-secondary">
+                        Click image to inspect full size
+                      </span>
+                      <a
+                        href={paymentProofUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="vaango-proof-external-link"
+                      >
+                        <ExternalLink size={13} />
+                        <span>Open original</span>
+                      </a>
+                    </div>
+                  </div>
                 ) : (
-                  <p className="text-secondary text-sm">Payment proof has not been submitted.</p>
+                  <p className="text-secondary text-sm vaango-proof-note">Payment proof was submitted, but the uploaded file is currently unavailable.</p>
                 )}
-                {request.payment_status !== 'PAYMENT_VERIFIED' && request.payment_status !== 'PAYMENT_REJECTED' && request.payment_screenshot_url ? <div className="vaango-req-action-card__btn-group"><Button variant="primary" onClick={() => void handleMarkPaid()} leftIcon={<CheckCircle size={16} />}>Confirm Payment Received</Button><Button variant="outline" onClick={() => void handleRejectPayment()} leftIcon={<AlertTriangle size={16} />}>Reject Proof</Button></div> : request.payment_status === 'PAYMENT_REJECTED' ? <p className="vaango-proof-verified-note">Rejected: {request.payment_rejection_reason || 'No reason provided.'}</p> : request.payment_status === 'PAYMENT_VERIFIED' ? <p className="vaango-proof-verified-note">Payment confirmed. Screenshot kept for your records.</p> : null}
+
+                {/* Action buttons */}
+                {request.payment_status !== 'PAYMENT_VERIFIED' && request.payment_status !== 'PAYMENT_REJECTED' && (
+                  <div className="vaango-req-action-card__btn-group vaango-proof-btn-group">
+                    <Button
+                      variant="primary"
+                      onClick={() => void handleMarkPaid()}
+                      leftIcon={<CheckCircle size={16} />}
+                      isLoading={isActionLoading}
+                    >
+                      Confirm Payment Received
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => void handleRejectPayment()}
+                      leftIcon={<AlertTriangle size={16} />}
+                      isLoading={isActionLoading}
+                    >
+                      Reject Proof
+                    </Button>
+                  </div>
+                )}
+
+                {request.payment_status === 'PAYMENT_REJECTED' && (
+                  <p className="vaango-proof-verified-note vaango-proof-verified-note--rejected">
+                    Rejected: {request.payment_rejection_reason || 'No reason provided.'}
+                  </p>
+                )}
+
+                {request.payment_status === 'PAYMENT_VERIFIED' && (
+                  <p className="vaango-proof-verified-note">
+                    Payment confirmed. Screenshot kept for your records.
+                  </p>
+                )}
               </Card>
             )}
             <span className="vaango-req-header__kicker">
@@ -1223,6 +1352,37 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Payment Proof Full-Size Lightbox Modal */}
+      {paymentProofUrl && (
+        <Modal
+          isOpen={isLightboxOpen}
+          onClose={() => setIsLightboxOpen(false)}
+          title={`Payment Proof — ${request?.reference_code || 'Order'}`}
+          maxWidth="lg"
+        >
+          <div className="vaango-proof-lightbox">
+            <div className="vaango-proof-lightbox__img-wrap">
+              <img
+                src={paymentProofUrl}
+                alt="Full customer payment proof"
+                className="vaango-proof-lightbox__img"
+              />
+            </div>
+            <div className="vaango-proof-lightbox__footer">
+              <a
+                href={paymentProofUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="vaango-proof-lightbox__open-btn"
+              >
+                <ExternalLink size={15} />
+                <span>Open in New Tab / Download</span>
+              </a>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

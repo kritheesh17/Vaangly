@@ -43,6 +43,24 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+button.vaango-bottom-nav__item {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  margin: 0;
+  outline: none;
+}
+
+button.vaango-bottom-nav__item:hover {
+  color: var(--color-text-primary);
+}
+
+button.vaango-bottom-nav__item:active .vaango-bottom-nav__icon-wrap {
+  transform: scale(0.92);
+}
+
 .vaango-bottom-nav__icon-wrap {
   display: flex;
   align-items: center;

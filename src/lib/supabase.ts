@@ -1,20 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const configuredAppUrl = import.meta.env.VITE_APP_URL?.trim().replace(/\/$/, '');
+const getEnvVar = (key: string): string => {
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+    return import.meta.env[key];
+  }
+  if (typeof process !== 'undefined' && process.env && process.env[key]) {
+    return process.env[key] as string;
+  }
+  return '';
+};
 
-if (!supabaseUrl) {
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
+const supabasePublishableKey = getEnvVar('VITE_SUPABASE_PUBLISHABLE_KEY');
+const configuredAppUrl = getEnvVar('VITE_APP_URL')?.trim().replace(/\/$/, '');
+
+if (!supabaseUrl && typeof window !== 'undefined') {
   throw new Error('Missing VITE_SUPABASE_URL environment variable');
 }
 
-if (!supabasePublishableKey) {
+if (!supabasePublishableKey && typeof window !== 'undefined') {
   throw new Error('Missing VITE_SUPABASE_PUBLISHABLE_KEY environment variable');
 }
 
 export const supabase = createClient(
-  supabaseUrl,
-  supabasePublishableKey
+  supabaseUrl || 'http://127.0.0.1:54321',
+  supabasePublishableKey || 'dummy-key'
 );
 
 export const getAuthRedirectUrl = (redirectPath?: string): string => {

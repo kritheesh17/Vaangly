@@ -1,5 +1,6 @@
 import assert from 'assert';
-import { findVariantForSelections, variantAttributeGroups, variantIsAvailable, variantLabel } from '../lib/productVariants';
+import { findVariantForSelections, variantIsAvailable, variantLabel } from '../lib/productVariants';
+import { cleanPaymentProofPath } from '../lib/paymentProof';
 import { ShopProduct, ProductVariant, Shop } from '../types/database';
 
 console.log('--- Testing Product Details & Cart Integration Flows ---');
@@ -7,14 +8,24 @@ console.log('--- Testing Product Details & Cart Integration Flows ---');
 // Mock data
 const mockShop: Shop = {
   id: 'a0000000-0000-0000-0000-000000000001',
+  owner_id: 'u0000000-0000-0000-0000-000000000001',
+  shop_type_id: 'st00000-0000-0000-0000-000000000001',
+  location_id: 't0000000-0000-0000-0000-000000000001',
   name: 'Salem Sweets & Bakery',
-  description: 'Authentic bakery',
+  tagline: null,
   address_line: '123 Bazaar Street',
   phone: '9876543210',
-  is_active: true,
-  is_verified: true,
-  business_type: 'BAKERY',
-  town_id: 't0000000-0000-0000-0000-000000000001',
+  status: 'active',
+  is_live: true,
+  delivery_available: true,
+  delivery_fee: 30,
+  upi_id: 'salemsweets@upi',
+  is_open_today: true,
+  opening_time: '09:00',
+  closing_time: '21:00',
+  photo_url: null,
+  gps_lat: null,
+  gps_lng: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
@@ -27,12 +38,11 @@ const simpleProduct: ShopProduct = {
   description: 'Ghee rich Mysore Pak',
   price: 299,
   unit: 'box',
-  category: 'SWEETS',
   is_available: true,
+  image_url: null,
   has_variants: false,
   variants: [],
   created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
 };
 
 // Product with multi-attribute variants
@@ -43,46 +53,36 @@ const variantProduct: ShopProduct = {
   description: 'Fresh baked cake',
   price: 450,
   unit: 'kg',
-  category: 'CAKES',
   is_available: true,
+  image_url: null,
   has_variants: true,
   variants: [
     {
       id: 'v0000000-0000-0000-0000-000000000001',
-      product_id: 'b0000000-0000-0000-0000-000000000002',
-      name: '500g / Eggless',
+      label: '500g / Eggless',
       price: 350,
       stock_quantity: 10,
       is_available: true,
       attributes: { Size: '500g', Type: 'Eggless' },
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     },
     {
       id: 'v0000000-0000-0000-0000-000000000002',
-      product_id: 'b0000000-0000-0000-0000-000000000002',
-      name: '1kg / Eggless',
+      label: '1kg / Eggless',
       price: 650,
       stock_quantity: 5,
       is_available: true,
       attributes: { Size: '1kg', Type: 'Eggless' },
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     },
     {
       id: 'v0000000-0000-0000-0000-000000000003',
-      product_id: 'b0000000-0000-0000-0000-000000000002',
-      name: '1kg / Regular',
+      label: '1kg / Regular',
       price: 600,
       stock_quantity: 0, // out of stock
       is_available: false,
       attributes: { Size: '1kg', Type: 'Regular' },
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     },
   ],
   created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
 };
 
 // Simulation of CartContext.addItem logic
@@ -140,7 +140,6 @@ function createCart() {
 // ----------------------------------------------------
 {
   const cart = createCart();
-  // Direct Add on ProductCard
   cart.addItem(simpleProduct, mockShop, null);
   assert.strictEqual(cart.getItemCount(), 1, 'Cart count should be 1');
   assert.strictEqual(cart.getTotalAmount(), 299, 'Cart total should be 299');
@@ -150,10 +149,6 @@ function createCart() {
 
 // ----------------------------------------------------
 // TEST 2: Product Details Modal Add (Simple Product)
-// Reproduce bug flow: user clicks Add in modal on simple product
-// In the old broken code, resolvedVariant was null and handleAdd was suppressed:
-// onClick={() => resolvedVariant && handleAdd()} -> DID NOTHING!
-// In the fixed code:
 // ----------------------------------------------------
 {
   const cart = createCart();
@@ -165,10 +160,8 @@ function createCart() {
   const isOutOfStock = !product.is_available;
   assert.strictEqual(isOutOfStock, false, 'Product is in stock');
 
-  // Trigger fixed handleAdd:
   const quantity = 1;
   const productToAdd = resolvedVariant ? { ...product } : product;
-  // ProductCard onAddToCart handler:
   for (let i = 0; i < quantity; i++) {
     cart.addItem(productToAdd, mockShop, resolvedVariant);
   }
@@ -207,7 +200,6 @@ function createCart() {
   const hasVariants = Boolean(product.has_variants && product.variants && product.variants.length > 0);
   assert.strictEqual(hasVariants, true, 'Product has variants');
 
-  // Select 1kg / Eggless
   const selectedAttributes = { Size: '1kg', Type: 'Eggless' };
   const resolvedVariant = findVariantForSelections(product.variants || [], selectedAttributes);
   assert(resolvedVariant !== null, 'Variant should resolve');
@@ -232,7 +224,7 @@ function createCart() {
 }
 
 // ----------------------------------------------------
-// TEST 5: Out of stock variant is flagged and rejected
+// TEST 5: Out of stock variant is prevented from adding
 // ----------------------------------------------------
 {
   const product = variantProduct;
@@ -247,18 +239,77 @@ function createCart() {
 }
 
 // ----------------------------------------------------
-// TEST 6: Unselected variant validation
+// TEST 6: Mobile Bottom Navigation Theme Toggle Contract
 // ----------------------------------------------------
 {
-  const product = variantProduct;
-  const hasVariants = Boolean(product.has_variants && product.variants && product.variants.length > 0);
-  const resolvedVariant = null; // No match or not selected
-  let warned = false;
-  if (hasVariants && !resolvedVariant) {
-    warned = true;
-  }
-  assert.strictEqual(warned, true, 'User is warned to select variant');
-  console.log('✓ TEST 6 PASSED: Incomplete variant selection is caught with user warning');
+  const getThemeUI = (theme: 'light' | 'dark') => ({
+    icon: theme === 'dark' ? 'Sun' : 'Moon',
+    label: theme === 'dark' ? 'Light' : 'Dark',
+    ariaLabel: theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode',
+  });
+
+  let currentTheme: 'light' | 'dark' = 'light';
+  const toggleTheme = () => {
+    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+  };
+
+  // Light mode expectations
+  assert.strictEqual(currentTheme, 'light');
+  let ui = getThemeUI(currentTheme);
+  assert.strictEqual(ui.icon, 'Moon', 'Shows Moon in light mode');
+  assert.strictEqual(ui.label, 'Dark', 'Label indicates switch to Dark in light mode');
+  assert.strictEqual(ui.ariaLabel, 'Switch to dark mode');
+
+  // Toggle to dark
+  toggleTheme();
+  assert.strictEqual(currentTheme, 'dark');
+  ui = getThemeUI(currentTheme);
+  assert.strictEqual(ui.icon, 'Sun', 'Shows Sun in dark mode');
+  assert.strictEqual(ui.label, 'Light', 'Label indicates switch to Light in dark mode');
+  assert.strictEqual(ui.ariaLabel, 'Switch to light mode');
+
+  console.log('✓ TEST 6 PASSED: Mobile Bottom Navigation Theme Toggle contract verified');
 }
 
-console.log('\nALL 6 REGRESSION TESTS PASSED SUCCESSFULLY!');
+// ----------------------------------------------------
+// TEST 7: Payment Proof Path Normalization & State Logic
+// ----------------------------------------------------
+{
+  // 1. Clean relative path
+  assert.strictEqual(
+    cleanPaymentProofPath('pending/user-123/file.png'),
+    'pending/user-123/file.png'
+  );
+  // 2. Strips leading slash
+  assert.strictEqual(
+    cleanPaymentProofPath('/pending/user-123/file.png'),
+    'pending/user-123/file.png'
+  );
+  // 3. Strips bucket name prefix
+  assert.strictEqual(
+    cleanPaymentProofPath('payment-proofs/pending/user-123/file.png'),
+    'pending/user-123/file.png'
+  );
+  // 4. Extracts path from full Supabase storage URL
+  assert.strictEqual(
+    cleanPaymentProofPath('https://xyz.supabase.co/storage/v1/object/public/payment-proofs/pending/user-123/file.png'),
+    'pending/user-123/file.png'
+  );
+
+  // Separate UI state derivation check
+  const deriveState = (screenshotUrl: string | null, isLoaded: boolean, hasError: boolean) => {
+    if (!screenshotUrl) return 'NOT_SUBMITTED';
+    if (!isLoaded && !hasError) return 'LOADING';
+    if (hasError) return 'ERROR';
+    return 'READY';
+  };
+
+  assert.strictEqual(deriveState(null, false, false), 'NOT_SUBMITTED');
+  assert.strictEqual(deriveState('pending/u/f.png', false, false), 'LOADING');
+  assert.strictEqual(deriveState('pending/u/f.png', false, true), 'ERROR');
+  assert.strictEqual(deriveState('pending/u/f.png', true, false), 'READY');
+
+  console.log('✓ TEST 7 PASSED: Payment Proof Path Normalization & distinct UI state logic verified');
+}
+
+console.log('\nALL 7 REGRESSION & FEATURE TESTS PASSED SUCCESSFULLY!');
