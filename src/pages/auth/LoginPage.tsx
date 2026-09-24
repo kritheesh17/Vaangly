@@ -211,8 +211,12 @@ export const LoginPage: React.FC = () => {
       setErrorMsg(t('passwordMismatch'));
       return;
     }
-    if (phone.trim() && !isValidIndianMobile(phone.trim())) {
-      setErrorMsg('Please enter a valid 10-digit Indian mobile number.');
+    if (!phone.trim()) {
+      setErrorMsg(t('validPhonePrompt') || 'Please enter your 10-digit mobile number.');
+      return;
+    }
+    if (!isValidIndianMobile(phone.trim())) {
+      setErrorMsg(t('validPhonePrompt') || 'Please enter a valid 10-digit Indian mobile number.');
       return;
     }
 
@@ -626,10 +630,11 @@ export const LoginPage: React.FC = () => {
               />
             </FormField>
 
-            <FormField id="signup-phone" label="Mobile Number (Optional)" hint="10-digit Indian mobile number for order delivery">
+            <FormField id="signup-phone" label={t('phoneLabel') || 'Mobile Number'} required hint="10-digit Indian mobile number for order delivery">
               <Input
                 id="signup-phone"
                 type="tel"
+                required
                 autoComplete="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
