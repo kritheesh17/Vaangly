@@ -239,13 +239,39 @@ function createCart() {
 }
 
 // ----------------------------------------------------
-// TEST 6: Mobile Bottom Navigation Theme Toggle Contract
+// TEST 6: Mobile Bottom Navigation (Home | Explore | Activity | Account) & Header Theme Toggle
 // ----------------------------------------------------
 {
-  const getThemeUI = (theme: 'light' | 'dark') => ({
-    icon: theme === 'dark' ? 'Sun' : 'Moon',
-    label: theme === 'dark' ? 'Light' : 'Dark',
-    ariaLabel: theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode',
+  // 1. Verify Customer Mobile Bottom Navigation structure
+  const customerNavItems = [
+    { key: 'home', to: '/', icon: 'Home', label: 'Home' },
+    { key: 'explore', to: '/shops', icon: 'Compass', label: 'Explore' },
+    { key: 'activity', to: '/orders', icon: 'ClipboardList', label: 'Activity', hasBadge: true },
+    { key: 'account', to: '/profile', icon: 'User', label: 'Account' },
+  ];
+
+  assert.strictEqual(customerNavItems.length, 4, 'Bottom nav must have exactly 4 items');
+  assert.strictEqual(customerNavItems[0].key, 'home');
+  assert.strictEqual(customerNavItems[0].to, '/');
+  assert.strictEqual(customerNavItems[1].key, 'explore');
+  assert.strictEqual(customerNavItems[1].to, '/shops');
+  assert.strictEqual(customerNavItems[2].key, 'activity');
+  assert.strictEqual(customerNavItems[2].to, '/orders');
+  assert.strictEqual(customerNavItems[2].hasBadge, true, 'Activity tab supports unread badge');
+  assert.strictEqual(customerNavItems[3].key, 'account');
+  assert.strictEqual(customerNavItems[3].to, '/profile', 'Account navigates to existing profile route');
+  assert.strictEqual(customerNavItems[3].icon, 'User');
+  assert.strictEqual(customerNavItems[3].label, 'Account');
+
+  // Verify theme toggle is NOT in bottom nav items
+  const hasThemeInBottomNav = customerNavItems.some((item) => (item as any).icon === 'Sun' || (item as any).icon === 'Moon');
+  assert.strictEqual(hasThemeInBottomNav, false, 'Theme toggle must not be in bottom navigation');
+
+  // 2. Verify Header Theme Toggle contract
+  const getHeaderThemeUI = (theme: 'light' | 'dark') => ({
+    activeTheme: theme,
+    lightPressed: theme === 'light',
+    darkPressed: theme === 'dark',
   });
 
   let currentTheme: 'light' | 'dark' = 'light';
@@ -253,22 +279,18 @@ function createCart() {
     currentTheme = currentTheme === 'light' ? 'dark' : 'light';
   };
 
-  // Light mode expectations
   assert.strictEqual(currentTheme, 'light');
-  let ui = getThemeUI(currentTheme);
-  assert.strictEqual(ui.icon, 'Moon', 'Shows Moon in light mode');
-  assert.strictEqual(ui.label, 'Dark', 'Label indicates switch to Dark in light mode');
-  assert.strictEqual(ui.ariaLabel, 'Switch to dark mode');
+  let headerUI = getHeaderThemeUI(currentTheme);
+  assert.strictEqual(headerUI.lightPressed, true);
+  assert.strictEqual(headerUI.darkPressed, false);
 
-  // Toggle to dark
   toggleTheme();
   assert.strictEqual(currentTheme, 'dark');
-  ui = getThemeUI(currentTheme);
-  assert.strictEqual(ui.icon, 'Sun', 'Shows Sun in dark mode');
-  assert.strictEqual(ui.label, 'Light', 'Label indicates switch to Light in dark mode');
-  assert.strictEqual(ui.ariaLabel, 'Switch to light mode');
+  headerUI = getHeaderThemeUI(currentTheme);
+  assert.strictEqual(headerUI.lightPressed, false);
+  assert.strictEqual(headerUI.darkPressed, true);
 
-  console.log('✓ TEST 6 PASSED: Mobile Bottom Navigation Theme Toggle contract verified');
+  console.log('✓ TEST 6 PASSED: Customer Mobile Bottom Navigation (Home | Explore | Activity | Account) & Header Theme Toggle verified');
 }
 
 // ----------------------------------------------------

@@ -1,8 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Store, Compass, ClipboardList, Package, LayoutDashboard, FileCheck2, CreditCard, TrendingUp, Sun, Moon } from 'lucide-react';
+import { Home, Store, Compass, ClipboardList, Package, LayoutDashboard, FileCheck2, CreditCard, TrendingUp, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 import { NotificationBadge } from '../ui/NotificationBadge';
 import { useSectionUnreadCounts } from '../../hooks/useSectionUnreadCounts';
 import './BottomNav.css';
@@ -11,7 +10,6 @@ import { useLanguage } from '../../context/LanguageContext';
 export const BottomNav: React.FC = () => {
   const { role } = useAuth();
   const { t } = useLanguage();
-  const { toggleTheme, isDark } = useTheme();
   const { pendingApplications, shopkeeperNewRequests, customerActiveOrders } = useSectionUnreadCounts();
 
   if (role === 'admin') {
@@ -193,19 +191,20 @@ export const BottomNav: React.FC = () => {
           <span className="vaango-bottom-nav__label">{t('activity')}</span>
         </NavLink>
 
-        <button
-          type="button"
-          className="vaango-bottom-nav__item vaango-bottom-nav__theme-btn"
-          onClick={toggleTheme}
-          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        <NavLink
+          to="/profile"
+          className={({ isActive }) =>
+            `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
+          }
+          aria-label={t('account')}
         >
           <div className="vaango-bottom-nav__icon-wrap">
-            {isDark ? <Sun size={22} /> : <Moon size={22} />}
+            <User size={22} />
           </div>
-          <span className="vaango-bottom-nav__label">{isDark ? 'Light' : 'Dark'}</span>
-        </button>
+          <span className="vaango-bottom-nav__label">{t('account')}</span>
+        </NavLink>
       </div>
     </nav>
   );
 };
+
