@@ -11,7 +11,7 @@ interface ShopStatusCardProps {
   applicationStatus?: ApplicationStatus;
   rejectionReason?: string | null;
   productCount: number;
-  workflowGroup?: 'ORDER' | 'SERVICE' | 'APPOINTMENT';
+  workflowGroup?: 'ORDER' | 'SERVICE' | 'APPOINTMENT' | 'SALES_SERVICE';
   onToggleLive: (nextLiveState: boolean) => Promise<void>;
   isToggling?: boolean;
 }
@@ -129,7 +129,11 @@ export const ShopStatusCard: React.FC<ShopStatusCardProps> = ({
               </Badge>
             )}
             <span className="vaango-shop-status-card__item-count">
-              {workflowGroup === 'SERVICE' || workflowGroup === 'APPOINTMENT'
+              {workflowGroup === 'SALES_SERVICE'
+                ? productCount === 1
+                  ? '1 item/service in catalogue'
+                  : `${productCount} items/services in catalogue`
+                : workflowGroup === 'SERVICE' || workflowGroup === 'APPOINTMENT'
                 ? productCount === 1
                   ? '1 service in catalogue'
                   : `${productCount} services in catalogue`

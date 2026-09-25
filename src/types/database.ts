@@ -74,6 +74,8 @@ export interface Shop {
   cancellation_rate?: number;
   google_maps_url?: string | null;
   subscription_tier?: 'FREE' | 'PRO';
+  business_type?: string | null;
+  capabilities?: string[] | null;
 }
 
 export interface SlotConfig {
@@ -279,6 +281,9 @@ export interface ShopApplication {
   gps_lat?: number | null;
   gps_lng?: number | null;
   google_maps_url?: string | null;
+  business_type?: string | null;
+  offerings?: string[] | Record<string, boolean> | null;
+  capabilities?: string[] | null;
   review_notes: string | null;
   reviewed_by: string | null;
   created_at: string;

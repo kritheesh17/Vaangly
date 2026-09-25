@@ -16,6 +16,7 @@ import {
   ImagePlus,
   FileText,
   Check,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { MOCK_SHOP_TYPES } from '../../data/mockData';
@@ -39,16 +40,136 @@ import { compressImage } from '../../lib/imageCompressor';
 import { isValidUpiQrUrl } from '../../lib/upi';
 import './ShopkeeperOnboardingPage.css';
 
+export interface BusinessCategoryOption {
+  code: string;
+  name: string;
+  description: string;
+  defaultOfferings: { products: boolean; services: boolean; appointments: boolean };
+  isFood?: boolean;
+  defaultDineIn?: boolean;
+  defaultTakeaway?: boolean;
+  targetShopTypeCode: string;
+  groupLabel: string;
+}
+
+export const BUSINESS_CATEGORIES: BusinessCategoryOption[] = [
+  {
+    code: 'grocery',
+    name: 'Grocery / Provision Store',
+    description: 'Packaged foods, daily staples, provisions, grains, snacks & household items',
+    defaultOfferings: { products: true, services: false, appointments: false },
+    targetShopTypeCode: 'grocery',
+    groupLabel: 'Retail Ordering',
+  },
+  {
+    code: 'bakery',
+    name: 'Bakery / Sweets & Confectionery',
+    description: 'Freshly baked breads, pastries, custom cakes, tea/coffee, sweets & snacks',
+    defaultOfferings: { products: true, services: false, appointments: false },
+    isFood: true,
+    defaultDineIn: true,
+    defaultTakeaway: true,
+    targetShopTypeCode: 'bakery',
+    groupLabel: 'Food & Bakery',
+  },
+  {
+    code: 'restaurant',
+    name: 'Restaurant / Eatery / Food Joint',
+    description: 'Meals, breakfast, dinner, beverages & takeaway dining',
+    defaultOfferings: { products: true, services: false, appointments: false },
+    isFood: true,
+    defaultDineIn: true,
+    defaultTakeaway: true,
+    targetShopTypeCode: 'restaurant',
+    groupLabel: 'Food & Dining',
+  },
+  {
+    code: 'pharmacy',
+    name: 'Pharmacy & Medicals',
+    description: 'Medicines, healthcare essentials, vitamins & first-aid',
+    defaultOfferings: { products: true, services: false, appointments: false },
+    targetShopTypeCode: 'pharmacy',
+    groupLabel: 'Retail Ordering',
+  },
+  {
+    code: 'stationery',
+    name: 'Stationery & Books',
+    description: 'School/office supplies, stationery, books, copies & gifts',
+    defaultOfferings: { products: true, services: false, appointments: false },
+    targetShopTypeCode: 'stationery',
+    groupLabel: 'Retail Ordering',
+  },
+  {
+    code: 'salon',
+    name: 'Salon & Grooming Parlour',
+    description: 'Haircuts, styling, beauty treatments, bridal & personal grooming',
+    defaultOfferings: { products: false, services: true, appointments: true },
+    targetShopTypeCode: 'salon',
+    groupLabel: 'Appointment Booking',
+  },
+  {
+    code: 'clinic',
+    name: 'Clinic & Healthcare Centre',
+    description: 'Doctor consultations, clinical checkups & patient appointments',
+    defaultOfferings: { products: false, services: false, appointments: true },
+    targetShopTypeCode: 'clinic',
+    groupLabel: 'Appointment Booking',
+  },
+  {
+    code: 'tailor',
+    name: 'Tailoring & Garment Stitching',
+    description: 'Custom suit/shirt/blouse tailoring, stitching & alterations',
+    defaultOfferings: { products: false, services: true, appointments: false },
+    targetShopTypeCode: 'tailor',
+    groupLabel: 'Service Requests',
+  },
+  {
+    code: 'mechanic',
+    name: 'Auto Workshop & Two-Wheeler Garage',
+    description: 'Bike & car servicing, oil change, tyre & mechanical repairs',
+    defaultOfferings: { products: false, services: true, appointments: false },
+    targetShopTypeCode: 'mechanic',
+    groupLabel: 'Service Requests',
+  },
+  {
+    code: 'repair',
+    name: 'Mobile & Electronics Repair',
+    description: 'Smartphones, computers, laptops & home appliance repair',
+    defaultOfferings: { products: false, services: true, appointments: false },
+    targetShopTypeCode: 'repair',
+    groupLabel: 'Service Requests',
+  },
+  {
+    code: 'laundry',
+    name: 'Laundry & Dry Cleaners',
+    description: 'Clothes wash, steam iron pressing & fabric dry cleaning',
+    defaultOfferings: { products: false, services: true, appointments: false },
+    targetShopTypeCode: 'laundry',
+    groupLabel: 'Service Requests',
+  },
+  {
+    code: 'sales_service',
+    name: 'Sales & Services',
+    description: 'Combined business offering retail product sales as well as repairs, servicing, or custom work',
+    defaultOfferings: { products: true, services: true, appointments: false },
+    targetShopTypeCode: 'sales_service',
+    groupLabel: 'Sales & Services (Group D)',
+  },
+  {
+    code: 'other',
+    name: 'Other / Multi-Service Business',
+    description: 'General local services, enterprise, or multi-faceted commercial establishment',
+    defaultOfferings: { products: true, services: true, appointments: false },
+    targetShopTypeCode: 'other',
+    groupLabel: 'Sales & Services (Group D)',
+  },
+];
+
 export const ShopkeeperOnboardingPage: React.FC = () => {
   const { user } = useAuth();
   const { selectedLocation } = useLocationContext();
   const navigate = useNavigate();
   const { success, error: toastError, info } = useToast();
-  const groupLabels = {
-    ORDER: 'Group A - Order-Based',
-    APPOINTMENT: 'Group B - Appointment',
-    SERVICE: 'Group C - Quote/Service',
-  } as const;
 
   type OnboardingStep = 'basic' | 'verification' | 'review';
   const [step, setStep] = useState<OnboardingStep>('basic');
@@ -63,20 +184,86 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
   const [shopTypes, setShopTypes] = useState<ShopType[]>(MOCK_SHOP_TYPES);
   const [shopTypeId, setShopTypeId] = useState(MOCK_SHOP_TYPES[0]?.id || '');
 
+  // Business Category & Offering State (Human business language instead of technical specifications)
+  const [selectedCategoryCode, setSelectedCategoryCode] = useState<string>('grocery');
+  const [offersProducts, setOffersProducts] = useState(true);
+  const [offersServices, setOffersServices] = useState(false);
+  const [offersAppointments, setOffersAppointments] = useState(false);
+  const [hasDineIn, setHasDineIn] = useState(false);
+  const [hasTakeaway, setHasTakeaway] = useState(false);
+
   // Load canonical shop types from Supabase
   useEffect(() => {
     fetchShopTypes().then((types) => {
       if (types && types.length > 0) {
         setShopTypes(types);
-        setShopTypeId((prev) => {
-          if (!prev || !types.some((t) => t.id === prev)) {
-            return types[0].id;
-          }
-          return prev;
-        });
       }
     });
   }, []);
+
+  const handleCategoryChange = (code: string) => {
+    setSelectedCategoryCode(code);
+    const cat = BUSINESS_CATEGORIES.find((c) => c.code === code) || BUSINESS_CATEGORIES[0];
+    setOffersProducts(cat.defaultOfferings.products);
+    setOffersServices(cat.defaultOfferings.services);
+    setOffersAppointments(cat.defaultOfferings.appointments);
+    if (cat.isFood) {
+      setHasDineIn(Boolean(cat.defaultDineIn));
+      setHasTakeaway(Boolean(cat.defaultTakeaway));
+    } else {
+      setHasDineIn(false);
+      setHasTakeaway(false);
+    }
+  };
+
+  const currentCategory = BUSINESS_CATEGORIES.find((c) => c.code === selectedCategoryCode) || BUSINESS_CATEGORIES[0];
+  const isFoodBusiness = Boolean(currentCategory.isFood || ['bakery', 'restaurant'].includes(selectedCategoryCode));
+
+  // Determine effective target shop type code deterministically
+  const effectiveShopTypeCode = React.useMemo(() => {
+    if (offersProducts && offersServices) {
+      return 'sales_service';
+    }
+    if (offersProducts && !offersServices && !offersAppointments) {
+      if (['grocery', 'bakery', 'restaurant', 'pharmacy', 'stationery'].includes(selectedCategoryCode)) {
+        return selectedCategoryCode;
+      }
+      return 'sales_service';
+    }
+    if (offersServices && !offersProducts && !offersAppointments) {
+      if (['tailor', 'mechanic', 'repair', 'laundry'].includes(selectedCategoryCode)) {
+        return selectedCategoryCode;
+      }
+      return 'sales_service';
+    }
+    if (offersAppointments && !offersProducts) {
+      if (['salon', 'clinic'].includes(selectedCategoryCode)) {
+        return selectedCategoryCode;
+      }
+    }
+    return currentCategory.targetShopTypeCode || 'sales_service';
+  }, [selectedCategoryCode, offersProducts, offersServices, offersAppointments, currentCategory]);
+
+  // Derived capabilities array
+  const derivedCapabilities = React.useMemo(() => {
+    const caps: string[] = [];
+    if (offersProducts) caps.push('PRODUCT_SALES', 'COUNTER_PICKUP', 'DELIVERY');
+    if (offersServices) caps.push('SERVICES', 'SERVICE_REQUESTS');
+    if (offersAppointments) caps.push('APPOINTMENTS');
+    if (isFoodBusiness) {
+      if (hasDineIn) caps.push('DINE_IN');
+      if (hasTakeaway) caps.push('TAKEAWAY');
+    }
+    return caps;
+  }, [offersProducts, offersServices, offersAppointments, isFoodBusiness, hasDineIn, hasTakeaway]);
+
+  // Sync resolved shopTypeId whenever effectiveShopTypeCode updates
+  useEffect(() => {
+    const matched = shopTypes.find((t) => t.code === effectiveShopTypeCode);
+    if (matched) {
+      setShopTypeId(matched.id);
+    }
+  }, [effectiveShopTypeCode, shopTypes]);
   const [area, setArea] = useState('');
   const [district, setDistrict] = useState('');
   const [taluk, setTaluk] = useState('');
@@ -114,6 +301,14 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
     }
     if (!contactPhone.trim() || !isValidIndianMobile(contactPhone.trim())) {
       setFormError('Please enter a valid 10-digit Indian contact phone number.');
+      return;
+    }
+    if (!offersProducts && !offersServices && !offersAppointments) {
+      setFormError('Please select at least one offering for your business (Products, Services, or Appointments).');
+      return;
+    }
+    if (isFoodBusiness && !hasDineIn && !hasTakeaway) {
+      setFormError('Food & Bakery businesses must offer at least one fulfillment option (Dine-in or Takeaway).');
       return;
     }
     if (!shopTypeId) {
@@ -442,6 +637,15 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         district: district.trim(),
         taluk: taluk.trim(),
         pincode: pincode.trim(),
+        business_type: selectedCategoryCode,
+        offerings: {
+          products: offersProducts,
+          services: offersServices,
+          appointments: offersAppointments,
+          dine_in: hasDineIn,
+          takeaway: hasTakeaway,
+        },
+        capabilities: derivedCapabilities,
       });
 
       if (res.success && res.application) {
@@ -738,21 +942,159 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
               </div>
 
               <div className="vaango-form-group mt-3">
-                <label className="vaango-form-label" htmlFor="app-type">
-                  Shop Category / Group <span className="vaango-required">*</span>
+                <label className="vaango-form-label" htmlFor="app-business-category">
+                  What type of business do you run? <span className="vaango-required">*</span>
                 </label>
                 <select
-                  id="app-type"
+                  id="app-business-category"
                   className="vaango-select-input"
-                  value={shopTypeId}
-                  onChange={(e) => setShopTypeId(e.target.value)}
+                  value={selectedCategoryCode}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
                 >
-                  {shopTypes.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({groupLabels[t.workflow_group_code as keyof typeof groupLabels] || t.workflow_group_code})
+                  {BUSINESS_CATEGORIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
+                <span className="text-xs text-secondary mt-1 block">
+                  Select your primary trade. Vaangly configures your store capabilities automatically.
+                </span>
+              </div>
+
+              {/* Offerings Selector */}
+              <div className="vaango-form-group mt-4">
+                <label className="vaango-form-label">
+                  What does your business offer to customers? <span className="vaango-required">*</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1">
+                  <div
+                    className={`vaango-offering-card ${offersProducts ? 'vaango-offering-card--selected' : ''}`}
+                    onClick={() => setOffersProducts(!offersProducts)}
+                  >
+                    <input
+                      type="checkbox"
+                      id="offering-products"
+                      checked={offersProducts}
+                      onChange={(e) => setOffersProducts(e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <div className="vaango-offering-card__content">
+                      <span className="vaango-offering-card__title">📦 Products</span>
+                      <span className="vaango-offering-card__desc">Sell physical items, packaged goods, or inventory</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`vaango-offering-card ${offersServices ? 'vaango-offering-card--selected' : ''}`}
+                    onClick={() => setOffersServices(!offersServices)}
+                  >
+                    <input
+                      type="checkbox"
+                      id="offering-services"
+                      checked={offersServices}
+                      onChange={(e) => setOffersServices(e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <div className="vaango-offering-card__content">
+                      <span className="vaango-offering-card__title">🛠️ Services</span>
+                      <span className="vaango-offering-card__desc">Repairs, tailoring, maintenance, or custom labor</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`vaango-offering-card ${offersAppointments ? 'vaango-offering-card--selected' : ''}`}
+                    onClick={() => setOffersAppointments(!offersAppointments)}
+                  >
+                    <input
+                      type="checkbox"
+                      id="offering-appointments"
+                      checked={offersAppointments}
+                      onChange={(e) => setOffersAppointments(e.target.checked)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <div className="vaango-offering-card__content">
+                      <span className="vaango-offering-card__title">📅 Appointments</span>
+                      <span className="vaango-offering-card__desc">Slot bookings or in-person consultations</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Food & Bakery Fulfillment Modes (Dine-in + Takeaway) */}
+              {isFoodBusiness && (
+                <div className="vaango-food-modes-box mt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-bold text-sm">🍽️ Food Fulfillment Modes</span>
+                    <span className="text-xs bg-primary/10 text-primary font-semibold px-2 py-0.5 rounded-full">
+                      Bakery & Food Spec
+                    </span>
+                  </div>
+                  <p className="text-xs text-secondary mb-3">
+                    Bakery and food shops support both Dine-in seating and Takeaway packaging on Vaangly.
+                  </p>
+                  <div className="flex flex-wrap gap-4">
+                    <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={hasDineIn}
+                        onChange={(e) => setHasDineIn(e.target.checked)}
+                      />
+                      <span>🍽️ Dine-in Seating</span>
+                    </label>
+                    <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={hasTakeaway}
+                        onChange={(e) => setHasTakeaway(e.target.checked)}
+                      />
+                      <span>🥡 Takeaway Packaging</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Automatic Classification Indicator */}
+              <div className="vaango-smart-classification mt-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-primary flex-shrink-0" />
+                  <span className="text-xs font-semibold text-primary uppercase">
+                    Vaangly Intelligent Classification
+                  </span>
+                </div>
+                <div className="mt-1 text-xs text-secondary flex flex-wrap items-center gap-2">
+                  <span>Assigned Category: <strong>{currentCategory?.name || 'General'}</strong></span>
+                  <span>•</span>
+                  <span>
+                    Classification:{' '}
+                    <strong>
+                      {effectiveShopTypeCode === 'sales_service'
+                        ? 'Sales & Services (Group D)'
+                        : effectiveShopTypeCode === 'grocery'
+                        ? 'Retail & Provision (Group A)'
+                        : effectiveShopTypeCode === 'bakery' || effectiveShopTypeCode === 'restaurant'
+                        ? 'Food & Dining (Group A)'
+                        : effectiveShopTypeCode === 'clinic' || effectiveShopTypeCode === 'salon'
+                        ? 'Appointments & Services (Group B)'
+                        : 'Services & Operations (Group C)'}
+                    </strong>
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {derivedCapabilities.map((cap) => (
+                    <span
+                      key={cap}
+                      className="text-xs px-2 py-0.5 rounded-full font-medium"
+                      style={{
+                        background: 'var(--color-surface)',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text)',
+                      }}
+                    >
+                      ✓ {cap.toLowerCase().replace(/_/g, ' ')}
+                    </span>
+                  ))}
+                </div>
               </div>
 
               <div className="vaango-form-group mt-3">
@@ -1191,8 +1533,32 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                     <div><strong>Shop Name:</strong> {shopName}</div>
                     <div><strong>Owner / Proprietor:</strong> {ownerName}</div>
                     <div><strong>Contact Phone:</strong> {contactPhone}</div>
-                    <div><strong>Category:</strong> {selectedType?.name || 'General'}</div>
+                    <div><strong>Trade / Category:</strong> {currentCategory?.name || selectedType?.name || 'General'}</div>
+                    <div><strong>Offerings:</strong> {[offersProducts && 'Products', offersServices && 'Services', offersAppointments && 'Appointments'].filter(Boolean).join(', ')}</div>
+                    {isFoodBusiness && (
+                      <div><strong>Fulfillment:</strong> {[hasDineIn && '🍽️ Dine-in', hasTakeaway && '🥡 Takeaway'].filter(Boolean).join(' • ')}</div>
+                    )}
                     <div><strong>Town:</strong> {selectedLocation.name}</div>
+                    <div style={{ marginTop: '4px' }}>
+                      <strong style={{ fontSize: 'var(--font-size-xs)', display: 'block', marginBottom: '2px' }}>Configured Capabilities:</strong>
+                      <div className="flex flex-wrap gap-1">
+                        {derivedCapabilities.map((cap) => (
+                          <span
+                            key={cap}
+                            style={{
+                              fontSize: '11px',
+                              padding: '2px 8px',
+                              borderRadius: '9999px',
+                              background: 'var(--color-primary-subtle, rgba(37, 99, 235, 0.1))',
+                              color: 'var(--color-primary)',
+                              fontWeight: 600,
+                            }}
+                          >
+                            ✓ {cap.toLowerCase().replace(/_/g, ' ')}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                     {description && <div><strong>Description:</strong> {description}</div>}
                   </div>
                 </div>

@@ -101,6 +101,7 @@ export const BrowseShopsPage: React.FC = () => {
   // Dynamic page title
   const pageTitle = useMemo(() => {
     if (activeShopType) return activeShopType.name;
+    if (selectedGroup === 'SALES_SERVICE') return 'Sales & Services';
     if (selectedGroup === 'APPOINTMENT') return t('coreAppointmentsTitle');
     if (selectedGroup === 'SERVICE') return t('coreServicesTitle');
     if (selectedGroup === 'ORDER') return t('coreOrderTitle');
@@ -166,7 +167,9 @@ export const BrowseShopsPage: React.FC = () => {
             id="shop-search-input"
             type="search"
             placeholder={
-              selectedGroup === 'APPOINTMENT'
+              selectedGroup === 'SALES_SERVICE'
+                ? 'Search sales, repairs, workshop, accessories...'
+                : selectedGroup === 'APPOINTMENT'
                 ? language === 'ta'
                   ? 'டாக்டர், சலூன், கிளினிக் தேடுக...'
                   : 'Search doctor, clinic, haircut, salon...'

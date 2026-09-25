@@ -70,6 +70,7 @@ export const ShopDetailPage: React.FC = () => {
   const [cakeModalOpen, setCakeModalOpen] = useState(false);
   const [cakeDescription, setCakeDescription] = useState('');
   const [isSubmittingCake, setIsSubmittingCake] = useState(false);
+  const [activeGroupDTab, setActiveGroupDTab] = useState<'products' | 'services'>('products');
 
   // Find shop (supports both mock data and Supabase live UUIDs)
   const [shop, setShop] = useState<any>(() => {
@@ -121,7 +122,7 @@ export const ShopDetailPage: React.FC = () => {
   const workflowGroup = shopType?.workflow_group_code || 'ORDER';
 
   const loadProducts = useCallback(async () => {
-    if (!shopId || workflowGroup !== 'ORDER') {
+    if (!shopId || (workflowGroup !== 'ORDER' && workflowGroup !== 'SALES_SERVICE')) {
       setProducts([]);
       return;
     }
@@ -131,7 +132,7 @@ export const ShopDetailPage: React.FC = () => {
   useEffect(() => {
     void loadProducts();
 
-    if (!shopId || workflowGroup !== 'ORDER') return;
+    if (!shopId || (workflowGroup !== 'ORDER' && workflowGroup !== 'SALES_SERVICE')) return;
 
     if (!isSupabaseConfigured) {
       const handleLocalProductChange = (event: Event) => {
@@ -354,7 +355,9 @@ export const ShopDetailPage: React.FC = () => {
               <div className="vaango-shop-meta-item vaango-shop-meta-item--highlight">
                 <Truck size={16} className="vaango-shop-meta-icon" />
                 <span>
-                  {workflowGroup === 'APPOINTMENT'
+                  {workflowGroup === 'SALES_SERVICE'
+                    ? 'Products & Local Services'
+                    : workflowGroup === 'APPOINTMENT'
                     ? t('inPersonAppointment')
                     : workflowGroup === 'SERVICE'
                     ? t('inShopService')
@@ -368,14 +371,44 @@ export const ShopDetailPage: React.FC = () => {
 
       {/* Main Content Area based on Workflow Group */}
       <div className="container vaango-shop-workflow-container">
+        {workflowGroup === 'SALES_SERVICE' && (
+          <div
+            className="flex gap-2 mb-6 p-1.5 rounded-xl border border-border"
+            style={{ background: 'var(--color-surface)', maxWidth: 440, margin: '0 auto 24px' }}
+          >
+            <button
+              type="button"
+              className="flex-1 py-2 px-4 rounded-lg font-bold text-sm transition-all"
+              style={{
+                background: activeGroupDTab === 'products' ? 'var(--color-primary)' : 'transparent',
+                color: activeGroupDTab === 'products' ? '#fff' : 'var(--color-text-secondary)',
+              }}
+              onClick={() => setActiveGroupDTab('products')}
+            >
+              📦 Products ({filteredProducts.length})
+            </button>
+            <button
+              type="button"
+              className="flex-1 py-2 px-4 rounded-lg font-bold text-sm transition-all"
+              style={{
+                background: activeGroupDTab === 'services' ? 'var(--color-primary)' : 'transparent',
+                color: activeGroupDTab === 'services' ? '#fff' : 'var(--color-text-secondary)',
+              }}
+              onClick={() => setActiveGroupDTab('services')}
+            >
+              🛠️ Request Service
+            </button>
+          </div>
+        )}
+
         {workflowGroup === 'APPOINTMENT' ? (
           /* Group B: Salon & Clinic Appointment Booking */
           <AppointmentBookingCard shop={shop} />
-        ) : workflowGroup === 'SERVICE' ? (
-          /* Group C: Tailor, Mechanic, Repair, Laundry Service Requests */
+        ) : workflowGroup === 'SERVICE' || (workflowGroup === 'SALES_SERVICE' && activeGroupDTab === 'services') ? (
+          /* Group C or Group D Services */
           <ServiceRequestCard shop={shop} />
         ) : (
-          /* Group A: Order Workflow (Catalogue & Cart) */
+          /* Group A or Group D Products */
           <div className="vaango-shop-catalogue">
             {shopType?.code === 'bakery' && shop.customised_cake_available && (
               <div className="vaango-custom-cake-card">

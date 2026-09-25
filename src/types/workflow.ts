@@ -1,6 +1,6 @@
 // Workflow Group & State Machine Definitions
 
-export type WorkflowGroupCode = 'ORDER' | 'APPOINTMENT' | 'SERVICE';
+export type WorkflowGroupCode = 'ORDER' | 'APPOINTMENT' | 'SERVICE' | 'SALES_SERVICE';
 
 export type WorkflowStateCode =
   | 'REQUESTED'
@@ -77,6 +77,14 @@ export const WORKFLOW_GROUPS: Record<
     title: 'Service-Based',
     description: 'Request skilled hands-on repairs, custom tailoring, and maintenance',
     examples: ['Tailor', 'Mechanic', 'Mobile/Electronics Repair', 'Laundry'],
+    happyPath: ['REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'READY', 'COMPLETED'],
+    branchStates: ['REJECTED', 'EXPIRED', 'CANCELLED', 'DELAYED'],
+  },
+  SALES_SERVICE: {
+    code: 'SALES_SERVICE',
+    title: 'Sales & Services',
+    description: 'Combined product sales and on-demand repair, maintenance, or custom services',
+    examples: ['Mobile/Electronics with Repair', 'Workshop with Spares', 'Tailoring with Fabrics', 'Computer Service'],
     happyPath: ['REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'READY', 'COMPLETED'],
     branchStates: ['REJECTED', 'EXPIRED', 'CANCELLED', 'DELAYED'],
   },

@@ -57,6 +57,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [stockFilter, setStockFilter] = useState<'all' | 'in_stock' | 'out_of_stock'>('all');
+  const [salesServiceTab, setSalesServiceTab] = useState<'products' | 'services'>('products');
 
   // Master Catalogue Modal State
   const [masterModalOpen, setMasterModalOpen] = useState(false);
@@ -86,7 +87,14 @@ export const ShopkeeperCataloguePage: React.FC = () => {
         const type = getShopType(userShop.shop_type_id);
         const group = type?.workflow_group_code || 'ORDER';
 
-        if (group === 'ORDER') {
+        if (group === 'SALES_SERVICE') {
+          const [prodList, srvList] = await Promise.all([
+            getShopProductsList(userShop.id),
+            fetchShopServices(userShop.id),
+          ]);
+          setProducts(prodList);
+          setServices(srvList);
+        } else if (group === 'ORDER') {
           const prodList = await getShopProductsList(userShop.id);
           setProducts(prodList);
         } else {
@@ -373,15 +381,17 @@ export const ShopkeeperCataloguePage: React.FC = () => {
     return true;
   });
 
-  const totalItemCount = workflowGroup === 'ORDER' ? products.length : services.length;
-  const inStockCount =
-    workflowGroup === 'ORDER'
-      ? products.filter((p) => p.is_available).length
-      : services.filter((s) => s.is_available).length;
-  const outOfStockCount =
-    workflowGroup === 'ORDER'
-      ? products.filter((p) => !p.is_available).length
-      : services.filter((s) => !s.is_available).length;
+  const isProductView =
+    workflowGroup === 'ORDER' ||
+    (workflowGroup === 'SALES_SERVICE' && salesServiceTab === 'products');
+
+  const totalItemCount = isProductView ? products.length : services.length;
+  const inStockCount = isProductView
+    ? products.filter((p) => p.is_available).length
+    : services.filter((s) => s.is_available).length;
+  const outOfStockCount = isProductView
+    ? products.filter((p) => !p.is_available).length
+    : services.filter((s) => !s.is_available).length;
 
   if (!isLoading && !shop) {
     return (
@@ -411,14 +421,18 @@ export const ShopkeeperCataloguePage: React.FC = () => {
         <div className="vaango-catalogue__title-row">
           <div>
             <h1 className="vaango-catalogue__title">
-              {workflowGroup === 'APPOINTMENT'
+              {workflowGroup === 'SALES_SERVICE'
+                ? 'Sales & Services Catalogue'
+                : workflowGroup === 'APPOINTMENT'
                 ? 'Appointment Services & Doctor Schedule'
                 : workflowGroup === 'SERVICE'
                 ? 'Service & Repair Catalogue'
                 : 'Catalogue Management'}
             </h1>
             <p className="vaango-catalogue__subtitle">
-              {workflowGroup === 'APPOINTMENT'
+              {workflowGroup === 'SALES_SERVICE'
+                ? 'Manage both your physical product inventory and repair/tailoring/support services.'
+                : workflowGroup === 'APPOINTMENT'
                 ? 'Manage appointment services, doctors, durations, and session fees.'
                 : workflowGroup === 'SERVICE'
                 ? 'Manage repair services, tailoring types, and fixed or estimated price ranges.'
@@ -426,27 +440,55 @@ export const ShopkeeperCataloguePage: React.FC = () => {
             </p>
           </div>
 
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => {
-              if (workflowGroup === 'ORDER') {
-                setEditingProduct(null);
-                setMasterTemplate(null);
-                setMasterModalOpen(true);
-              } else {
-                setEditingService(null);
-                setServiceModalOpen(true);
-              }
-            }}
-            leftIcon={<Plus size={18} />}
-          >
-            {workflowGroup === 'APPOINTMENT'
-              ? 'Add Appointment Service'
-              : workflowGroup === 'SERVICE'
-              ? 'Add New Service'
-              : 'Add New Product'}
-          </Button>
+          {workflowGroup === 'SALES_SERVICE' ? (
+            <div className="flex gap-2">
+              <Button
+                variant={salesServiceTab === 'products' ? 'primary' : 'outline'}
+                size="md"
+                onClick={() => {
+                  setEditingProduct(null);
+                  setMasterTemplate(null);
+                  setMasterModalOpen(true);
+                }}
+                leftIcon={<Plus size={18} />}
+              >
+                Add Product
+              </Button>
+              <Button
+                variant={salesServiceTab === 'services' ? 'primary' : 'outline'}
+                size="md"
+                onClick={() => {
+                  setEditingService(null);
+                  setServiceModalOpen(true);
+                }}
+                leftIcon={<Plus size={18} />}
+              >
+                Add Service
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => {
+                if (workflowGroup === 'ORDER') {
+                  setEditingProduct(null);
+                  setMasterTemplate(null);
+                  setMasterModalOpen(true);
+                } else {
+                  setEditingService(null);
+                  setServiceModalOpen(true);
+                }
+              }}
+              leftIcon={<Plus size={18} />}
+            >
+              {workflowGroup === 'APPOINTMENT'
+                ? 'Add Appointment Service'
+                : workflowGroup === 'SERVICE'
+                ? 'Add New Service'
+                : 'Add New Product'}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -470,16 +512,47 @@ export const ShopkeeperCataloguePage: React.FC = () => {
         </div>
       )}
 
+      {/* Group D: Sales & Services Dual Catalogue Switcher */}
+      {workflowGroup === 'SALES_SERVICE' && (
+        <div
+          className="flex gap-2 mb-4 p-1.5 rounded-xl border border-border"
+          style={{ background: 'var(--color-surface)' }}
+        >
+          <button
+            type="button"
+            className="flex-1 py-2 px-4 rounded-lg font-bold text-sm transition-all"
+            style={{
+              background: salesServiceTab === 'products' ? 'var(--color-primary)' : 'transparent',
+              color: salesServiceTab === 'products' ? '#fff' : 'var(--color-text-secondary)',
+            }}
+            onClick={() => setSalesServiceTab('products')}
+          >
+            📦 Products Catalogue ({products.length})
+          </button>
+          <button
+            type="button"
+            className="flex-1 py-2 px-4 rounded-lg font-bold text-sm transition-all"
+            style={{
+              background: salesServiceTab === 'services' ? 'var(--color-primary)' : 'transparent',
+              color: salesServiceTab === 'services' ? '#fff' : 'var(--color-text-secondary)',
+            }}
+            onClick={() => setSalesServiceTab('services')}
+          >
+            🛠️ Services Catalogue ({services.length})
+          </button>
+        </div>
+      )}
+
       {/* Search and Stock Filters */}
       <div className="vaango-catalogue__toolbar">
         <div className="vaango-catalogue__search">
           <Input
             type="search"
             placeholder={
-              workflowGroup === 'APPOINTMENT'
-                ? 'Search appointment services or doctors...'
-                : workflowGroup === 'SERVICE'
-                ? 'Search services, repairs or alterations...'
+              !isProductView
+                ? workflowGroup === 'APPOINTMENT'
+                  ? 'Search appointment services or doctors...'
+                  : 'Search services, repairs or alterations...'
                 : 'Search items in your catalogue...'
             }
             value={searchQuery}
@@ -521,7 +594,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
             <Skeleton height="90px" borderRadius="12px" />
             <Skeleton height="90px" borderRadius="12px" />
           </div>
-        ) : workflowGroup !== 'ORDER' ? (
+        ) : !isProductView ? (
           /* GROUP B & C: SERVICES LIST */
           filteredServices.length === 0 ? (
             <EmptyState

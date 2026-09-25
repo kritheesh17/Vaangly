@@ -660,6 +660,20 @@ export const VALID_TRANSITIONS_BY_GROUP: Record<WorkflowGroupCode, Record<Workfl
     NO_SHOW: [],
     PREPARING: [],
   },
+  SALES_SERVICE: {
+    REQUESTED: ['ACCEPTED', 'REJECTED', 'CANCELLED'],
+    ACCEPTED: ['PREPARING', 'IN_PROGRESS', 'DELAYED', 'CANCELLED'],
+    PREPARING: ['READY', 'DELAYED', 'CANCELLED'],
+    IN_PROGRESS: ['READY', 'DELAYED', 'CANCELLED'],
+    DELAYED: ['ACCEPTED', 'PREPARING', 'IN_PROGRESS', 'READY', 'CANCELLED'],
+    READY: ['COMPLETED'],
+    COMPLETED: [],
+    REJECTED: [],
+    CANCELLED: [],
+    EXPIRED: [],
+    CONFIRMED: [],
+    NO_SHOW: [],
+  },
 };
 
 /**
@@ -1113,6 +1127,9 @@ export const submitShopApplication = async (
         district: application.district?.trim() || null,
         taluk: application.taluk?.trim() || null,
         pincode: application.pincode?.trim() || null,
+        business_type: application.business_type || null,
+        offerings: application.offerings || [],
+        capabilities: application.capabilities || [],
         review_notes: null,
         reviewed_by: null,
       };
@@ -1158,6 +1175,9 @@ export const submitShopApplication = async (
     gps_lat: application.gps_lat,
     gps_lng: application.gps_lng,
     google_maps_url: application.google_maps_url || null,
+    business_type: application.business_type || null,
+    offerings: application.offerings || [],
+    capabilities: application.capabilities || [],
     review_notes: null,
     reviewed_by: null,
   };

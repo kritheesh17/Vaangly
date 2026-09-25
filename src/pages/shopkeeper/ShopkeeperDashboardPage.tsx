@@ -74,7 +74,10 @@ export const ShopkeeperDashboardPage: React.FC = () => {
         const prodData = await getShopProductsList(shopData.id);
         setProducts(prodData);
 
-        if (wfGroup === 'ORDER') {
+        if (wfGroup === 'SALES_SERVICE') {
+          const srvData = await fetchShopServices(shopData.id);
+          setCatalogueItemCount(prodData.length + srvData.length);
+        } else if (wfGroup === 'ORDER') {
           setCatalogueItemCount(prodData.length);
         } else {
           // Fetch services for SERVICE / APPOINTMENT shops
@@ -277,7 +280,9 @@ export const ShopkeeperDashboardPage: React.FC = () => {
             size="sm"
             onClick={() => navigate('/shopkeeper/catalogue')}
             leftIcon={
-              workflowGroup === 'APPOINTMENT' ? (
+              workflowGroup === 'SALES_SERVICE' ? (
+                <Wrench size={16} />
+              ) : workflowGroup === 'APPOINTMENT' ? (
                 <Calendar size={16} />
               ) : workflowGroup === 'SERVICE' ? (
                 <Wrench size={16} />
@@ -286,7 +291,9 @@ export const ShopkeeperDashboardPage: React.FC = () => {
               )
             }
           >
-            {workflowGroup === 'APPOINTMENT'
+            {workflowGroup === 'SALES_SERVICE'
+              ? 'Manage Catalogue & Services'
+              : workflowGroup === 'APPOINTMENT'
               ? 'Manage Appointments & Services'
               : workflowGroup === 'SERVICE'
               ? 'Manage Services'

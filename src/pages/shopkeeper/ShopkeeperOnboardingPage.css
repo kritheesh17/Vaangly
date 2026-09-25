@@ -618,3 +618,56 @@
   border-radius: var(--radius-md);
   border: 1px dashed var(--color-border);
 }
+
+/* Business Offerings & Capability Selector Cards */
+.vaango-offering-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background-color: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast, 150ms ease);
+  user-select: none;
+}
+
+.vaango-offering-card:hover {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-light);
+}
+
+.vaango-offering-card--active {
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-light);
+  box-shadow: 0 0 0 1px var(--brand-primary);
+}
+
+.vaango-offering-card input[type="checkbox"] {
+  margin-top: 3px;
+  cursor: pointer;
+  accent-color: var(--brand-primary);
+}
+
+.vaango-offering-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Specific Food Fulfillment Box (Dine-in / Takeaway) */
+.vaango-food-modes-box {
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.08) 0%, rgba(251, 191, 36, 0.08) 100%);
+  border: 1.5px solid var(--brand-primary);
+  border-radius: var(--radius-md);
+}
+
+/* Vaangly Smart Determination Banner */
+.vaango-smart-classification {
+  background-color: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+

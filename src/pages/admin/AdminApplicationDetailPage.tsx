@@ -252,17 +252,52 @@ export const AdminApplicationDetailPage: React.FC = () => {
                 <span className="vaango-field-value">{application.shop_name}</span>
               </div>
               <div>
-                <span className="vaango-field-label">Selected Shop Type</span>
+                <span className="vaango-field-label">Assigned Shop Type</span>
                 <span className="vaango-field-value">{shopType?.name || 'Retail Store'}</span>
               </div>
               <div>
-                <span className="vaango-field-label">Workflow Vertical</span>
+                <span className="vaango-field-label">Business Trade / Category</span>
+                <span className="vaango-field-value" style={{ textTransform: 'capitalize' }}>
+                  {application.business_type?.replace(/_/g, ' ') || shopType?.name || 'Retail'}
+                </span>
+              </div>
+              <div>
+                <span className="vaango-field-label">Workflow Classification</span>
                 <span className="vaango-field-value">
-                  <Badge variant="neutral" size="sm">
-                    {shopType?.workflow_group_code || 'ORDER'}
+                  <Badge variant={shopType?.workflow_group_code === 'SALES_SERVICE' ? 'primary' : 'neutral'} size="sm">
+                    {shopType?.workflow_group_code === 'SALES_SERVICE'
+                      ? 'Group D — Sales & Services'
+                      : shopType?.workflow_group_code === 'ORDER'
+                      ? 'Group A — Retail / Food Orders'
+                      : shopType?.workflow_group_code === 'APPOINTMENT'
+                      ? 'Group B — Appointments'
+                      : 'Group C — Services'}
                   </Badge>
                 </span>
               </div>
+              {application.capabilities && application.capabilities.length > 0 && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <span className="vaango-field-label">Assigned Business Capabilities</span>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {application.capabilities.map((cap) => (
+                      <span
+                        key={cap}
+                        style={{
+                          fontSize: '11px',
+                          padding: '2px 8px',
+                          borderRadius: '9999px',
+                          background: 'var(--color-surface)',
+                          border: '1px solid var(--color-border)',
+                          fontWeight: 600,
+                          color: 'var(--color-text)',
+                        }}
+                      >
+                        ✓ {cap.toLowerCase().replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <span className="vaango-field-label">Operating Hometown</span>
                 <span className="vaango-field-value">

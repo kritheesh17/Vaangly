@@ -130,6 +130,26 @@ export const MOCK_SHOP_TYPES: ShopType[] = [
     is_active: true,
     display_order: 110,
   },
+
+  // Group D: Sales & Services
+  {
+    id: 'type-sales-service',
+    code: 'sales_service',
+    name: 'Sales & Services',
+    workflow_group_code: 'SALES_SERVICE',
+    icon: 'Layers',
+    is_active: true,
+    display_order: 120,
+  },
+  {
+    id: 'type-other',
+    code: 'other',
+    name: 'General & Other Services',
+    workflow_group_code: 'SALES_SERVICE',
+    icon: 'Store',
+    is_active: true,
+    display_order: 130,
+  },
 ];
 
 export const SHOP_TYPE_UUIDS: Record<string, string> = {

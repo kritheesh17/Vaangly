@@ -163,7 +163,11 @@ export const CartPage: React.FC = () => {
     }
 
     const shopType = getShopType(group.shop.shop_type_id);
-    const offersDineIn = ['restaurant', 'hotel', 'bakery'].includes(shopType?.code || '');
+    const offersDineIn =
+      ['restaurant', 'hotel', 'bakery'].includes(shopType?.code || '') ||
+      (Array.isArray(group.shop.capabilities) && group.shop.capabilities.includes('DINE_IN')) ||
+      group.shop.business_type === 'bakery' ||
+      group.shop.business_type === 'restaurant';
     const chosenFulfillment = shopFulfillments[shopId] || null;
 
     if (offersDineIn && !chosenFulfillment) {
@@ -275,7 +279,11 @@ export const CartPage: React.FC = () => {
           const shopId = shop.id;
           const isInvalidShopId = !isValidUuid(shopId);
           const shopType = getShopType(shop.shop_type_id);
-          const offersDineIn = ['restaurant', 'hotel', 'bakery'].includes(shopType?.code || '');
+          const offersDineIn =
+            ['restaurant', 'hotel', 'bakery'].includes(shopType?.code || '') ||
+            (Array.isArray(shop.capabilities) && shop.capabilities.includes('DINE_IN')) ||
+            shop.business_type === 'bakery' ||
+            shop.business_type === 'restaurant';
           const currentFulfillment = shopFulfillments[shopId] || null;
           const currentPayment = shopPaymentMethods[shopId] || 'cash';
           const currentNote = shopNotes[shopId] || '';
