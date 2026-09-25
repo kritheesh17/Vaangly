@@ -163,3 +163,195 @@
 .vaango-browse__empty {
   padding: var(--space-8) 0;
 }
+
+/* --- Phase 3: Near Me & GIS Discovery Styles --- */
+
+.vaango-browse__mode-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.vaango-browse__location-tag--near-me {
+  color: var(--brand-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.vaango-browse__near-icon {
+  color: var(--brand-primary);
+  animation: vaango-pulse 2s infinite ease-in-out;
+}
+
+@keyframes vaango-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.15); }
+}
+
+.vaango-near-me-trigger-btn,
+.vaango-switch-town-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaango-near-me-trigger-btn {
+  background-color: var(--brand-primary-light);
+  color: var(--brand-primary);
+  border: 1px solid var(--brand-primary);
+}
+
+.vaango-near-me-trigger-btn:hover:not(:disabled) {
+  background-color: var(--brand-primary);
+  color: var(--color-text-inverse);
+}
+
+.vaango-near-me-trigger-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.vaango-switch-town-trigger-btn {
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.vaango-switch-town-trigger-btn:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.vaango-browse__radius-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: 8px var(--space-3);
+  background-color: var(--color-surface-sunken);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  margin-top: -4px;
+}
+
+.vaango-browse__radius-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+}
+
+.vaango-radius-pill {
+  padding: 3px 10px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaango-radius-pill:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.vaango-radius-pill--active {
+  background-color: var(--brand-primary);
+  color: var(--color-text-inverse);
+  border-color: var(--brand-primary);
+}
+
+.vaango-browse__geo-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px var(--space-3);
+  background-color: #FEF3C7;
+  color: #92400E;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  margin-top: -4px;
+}
+
+[data-theme="dark"] .vaango-browse__geo-alert {
+  background-color: rgba(146, 64, 14, 0.25);
+  color: #FCD34D;
+  border: 1px solid rgba(252, 211, 77, 0.2);
+}
+
+.vaango-browse__geo-alert-icon {
+  flex-shrink: 0;
+}
+
+.vaango-spin {
+  animation: vaango-spin 1s linear infinite;
+}
+
+@keyframes vaango-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* --- Phase 4: LIST | MAP View Toggle Styles --- */
+
+.vaango-browse__view-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  background-color: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  align-self: flex-start;
+}
+
+.vaango-view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaango-view-toggle-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.vaango-view-toggle-btn--active {
+  background-color: var(--color-surface, #FFFFFF);
+  color: var(--brand-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="dark"] .vaango-view-toggle-btn--active {
+  background-color: var(--color-surface);
+  color: #34D399;
+}
+
+.vaango-browse__map-wrap {
+  width: 100%;
+  animation: fadeIn 0.25s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+

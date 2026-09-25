@@ -1,0 +1,27 @@
+.vaango-storefront-map-preview {
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  margin: var(--space-2) 0;
+  background-color: var(--color-surface-sunken);
+}
+
+.vaango-preview-pin {
+  width: 28px;
+  height: 28px;
+  border-radius: 50% 50% 50% 0;
+  background-color: var(--brand-primary, #1B4D3E);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-45deg);
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.vaango-preview-pin svg {
+  transform: rotate(45deg);
+}

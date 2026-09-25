@@ -28,6 +28,7 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { StorefrontMapPreview } from '../../components/gis/StorefrontMapPreview';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import './AdminApplicationDetailPage.css';
@@ -503,6 +504,12 @@ export const AdminApplicationDetailPage: React.FC = () => {
                   <span>Latitude: <strong>{application.gps_lat}</strong></span>
                   <span>Longitude: <strong>{application.gps_lng}</strong></span>
                 </div>
+                <StorefrontMapPreview
+                  lat={Number(application.gps_lat)}
+                  lng={Number(application.gps_lng)}
+                  title={application.shop_name}
+                  height={180}
+                />
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${application.gps_lat},${application.gps_lng}`}
                   target="_blank"

@@ -89,11 +89,43 @@
   margin-left: 8px;
 }
 
+.vaangly-context-bar__actions-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 /* 2. Active Marketplace Status Pill */
 .vaangly-marketplace-status-wrap {
   display: flex;
   align-items: center;
 }
+
+.vaangly-context-bar__near-me-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  background-color: var(--brand-primary);
+  color: var(--color-text-inverse);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.vaangly-context-bar__near-me-btn:hover {
+  background-color: var(--brand-primary-hover, #153c30);
+  transform: translateY(-1px);
+}
+
+.vaango-pulse-icon {
+  animation: vaango-pulse 2s infinite ease-in-out;
+}
+
 
 .vaangly-marketplace-status-pill {
   display: inline-flex;

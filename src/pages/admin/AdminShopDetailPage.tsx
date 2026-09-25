@@ -42,6 +42,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { StorefrontMapPreview } from '../../components/gis/StorefrontMapPreview';
 import './AdminShopDetailPage.css';
 
 export const AdminShopDetailPage: React.FC = () => {
@@ -786,6 +787,12 @@ export const AdminShopDetailPage: React.FC = () => {
                 <p style={{ margin: 0, fontSize: '0.85rem' }}>
                   {shop.gps_lat}, {shop.gps_lng}
                 </p>
+                <StorefrontMapPreview
+                  lat={Number(shop.gps_lat)}
+                  lng={Number(shop.gps_lng)}
+                  title={shop.name}
+                  height={180}
+                />
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${shop.gps_lat},${shop.gps_lng}`}
                   target="_blank"

@@ -62,6 +62,8 @@ export interface Shop {
   customised_cake_available?: boolean;
   gps_lat: number | null;
   gps_lng: number | null;
+  geom_location?: string | null;
+  distance_meters?: number | null;
   photo_url: string | null;
   opening_time: string | null; // e.g. "09:00"
   closing_time: string | null; // e.g. "21:00"

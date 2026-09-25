@@ -4,6 +4,7 @@ import { Badge } from '../ui/Badge';
 import { Clock, MapPin, Store, Truck } from 'lucide-react';
 import { StarRating } from '../ui/StarRating';
 import { useLanguage } from '../../context/LanguageContext';
+import { formatDistance } from '../../lib/distance';
 import './ShopCard.css';
 
 export interface ShopCardProps {
@@ -36,11 +37,19 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, categoryName, onClick 
       <div className="vaango-shop-card__body">
         <div className="vaango-shop-card__header">
           <h3 className="vaango-shop-card__name">{shop.name}</h3>
-          {categoryName && (
-            <Badge variant="primary" size="sm">
-              {categoryName}
-            </Badge>
-          )}
+          <div className="vaango-shop-card__badges">
+            {shop.distance_meters != null && (
+              <span className="vaango-shop-card__distance-badge">
+                <MapPin size={11} className="vaango-shop-card__distance-icon" />
+                {formatDistance(shop.distance_meters)}
+              </span>
+            )}
+            {categoryName && (
+              <Badge variant="primary" size="sm">
+                {categoryName}
+              </Badge>
+            )}
+          </div>
         </div>
 
         {shop.tagline && <p className="vaango-shop-card__tagline">{shop.tagline}</p>}

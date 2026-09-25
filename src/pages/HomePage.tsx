@@ -24,6 +24,7 @@ import {
   Users,
   Heart,
   ShoppingBag,
+  Navigation,
 } from 'lucide-react';
 import { useLocationContext } from '../context/LocationContext';
 import { useCart } from '../context/CartContext';
@@ -133,7 +134,7 @@ export const HomePage: React.FC = () => {
       name: 'Green Mart Provisions',
       category: t('groceriesCategory'),
       categoryKey: 'groceries',
-      distance: '1.2 km away',
+      distance: selectedLocation.name,
       location: selectedLocation.name,
       rating: 4.8,
       reviewsCount: 142,
@@ -146,7 +147,7 @@ export const HomePage: React.FC = () => {
       name: 'Crown Bakery & Sweets',
       category: t('bakeryCategory'),
       categoryKey: 'bakery',
-      distance: '0.8 km away',
+      distance: selectedLocation.name,
       location: selectedLocation.name,
       rating: 4.9,
       reviewsCount: 210,
@@ -159,7 +160,7 @@ export const HomePage: React.FC = () => {
       name: 'Karpagam Silks & Tailors',
       category: t('fashionCategory'),
       categoryKey: 'fashion',
-      distance: '1.5 km away',
+      distance: selectedLocation.name,
       location: selectedLocation.name,
       rating: 4.7,
       reviewsCount: 88,
@@ -172,7 +173,7 @@ export const HomePage: React.FC = () => {
       name: 'Ayush Care Clinic & Pharmacy',
       category: t('healthCategory'),
       categoryKey: 'health',
-      distance: '0.5 km away',
+      distance: selectedLocation.name,
       location: selectedLocation.name,
       rating: 4.9,
       reviewsCount: 164,
@@ -185,7 +186,7 @@ export const HomePage: React.FC = () => {
       name: 'Elite Grooming Studio & Salon',
       category: t('salonCategory'),
       categoryKey: 'salon',
-      distance: '1.0 km away',
+      distance: selectedLocation.name,
       location: selectedLocation.name,
       rating: 4.8,
       reviewsCount: 125,
@@ -198,7 +199,7 @@ export const HomePage: React.FC = () => {
       name: 'Velan Two-Wheeler Workshop',
       category: t('servicesCategory'),
       categoryKey: 'services',
-      distance: '2.1 km away',
+      distance: selectedLocation.name,
       location: selectedLocation.name,
       rating: 4.9,
       reviewsCount: 94,
@@ -418,12 +419,24 @@ export const HomePage: React.FC = () => {
             <ChevronDown size={16} className="vaangly-location-context-card__chevron" />
           </button>
 
-          {/* 2. MARKETPLACE STATUS PILL */}
-          <div className="vaangly-marketplace-status-wrap">
-            <div className="vaangly-marketplace-status-pill">
-              <span className="vaangly-status-dot" aria-hidden="true" />
-              <span>{t('activeMarketplace')}</span>
+          <div className="vaangly-context-bar__actions-row">
+            {/* 2. MARKETPLACE STATUS PILL */}
+            <div className="vaangly-marketplace-status-wrap">
+              <div className="vaangly-marketplace-status-pill">
+                <span className="vaangly-status-dot" aria-hidden="true" />
+                <span>{t('activeMarketplace')}</span>
+              </div>
             </div>
+
+            {/* 3. QUICK NEAR ME DISCOVERY */}
+            <Link
+              to="/shops?nearMe=true"
+              className="vaangly-context-bar__near-me-btn"
+              aria-label={t('nearMe')}
+            >
+              <Navigation size={13} className="vaango-pulse-icon" />
+              <span>{t('nearMe')}</span>
+            </Link>
           </div>
         </div>
       </section>

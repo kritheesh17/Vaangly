@@ -981,10 +981,7 @@ export const submitShopApplication = async (
     return { success: false, error: 'Contact phone number is required.' };
   }
   if (!application.address_line?.trim()) {
-    return { success: false, error: 'Shop address is required. Please detect or enter the physical address.' };
-  }
-  if (!application.gps_lat || !application.gps_lng) {
-    return { success: false, error: 'Live device GPS location capture is required.' };
+    return { success: false, error: 'Shop address is required. Please detect from GPS or enter the physical address.' };
   }
 
   if (isSupabaseConfigured) {
@@ -1120,8 +1117,8 @@ export const submitShopApplication = async (
         upi_id: application.upi_id || null,
         upi_qr_url: application.upi_qr_url || null,
         id_proof_url: application.id_proof_url || null,
-        gps_lat: application.gps_lat,
-        gps_lng: application.gps_lng,
+        gps_lat: application.gps_lat != null ? application.gps_lat : null,
+        gps_lng: application.gps_lng != null ? application.gps_lng : null,
         google_maps_url: application.google_maps_url || null,
         area: application.area?.trim() || null,
         district: application.district?.trim() || null,
@@ -1172,8 +1169,8 @@ export const submitShopApplication = async (
     upi_id: application.upi_id || null,
     upi_qr_url: application.upi_qr_url || null,
     id_proof_url: application.id_proof_url || null,
-    gps_lat: application.gps_lat,
-    gps_lng: application.gps_lng,
+    gps_lat: application.gps_lat != null ? application.gps_lat : null,
+    gps_lng: application.gps_lng != null ? application.gps_lng : null,
     google_maps_url: application.google_maps_url || null,
     business_type: application.business_type || null,
     offerings: application.offerings || [],

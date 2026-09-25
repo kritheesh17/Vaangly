@@ -1,0 +1,383 @@
+/* Customer GIS Map Component Styles */
+
+.vaango-customer-map-wrapper {
+  position: relative;
+  width: 100%;
+  height: 480px;
+  max-height: 75vh;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  background-color: var(--color-surface-sunken);
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .vaango-customer-map-wrapper {
+    height: 420px;
+  }
+}
+
+.vaango-customer-map {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Customer Current Location Pulsing Pin */
+.vaango-map-customer-marker {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vaango-map-customer-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: #2563EB;
+  border: 2.5px solid #FFFFFF;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+}
+
+.vaango-map-customer-pulse {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: rgba(37, 99, 235, 0.35);
+  animation: vaango-customer-pulse 2s infinite ease-out;
+  z-index: 1;
+}
+
+@keyframes vaango-customer-pulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Shop Marker Pin */
+.vaango-map-shop-marker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.vaango-map-shop-marker:hover,
+.vaango-map-shop-marker--selected {
+  transform: translateY(-4px) scale(1.08);
+  z-index: 500 !important;
+}
+
+.vaango-map-shop-marker__pin {
+  width: 32px;
+  height: 32px;
+  border-radius: 50% 50% 50% 0;
+  background-color: var(--brand-primary, #1B4D3E);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  border: 2px solid #FFFFFF;
+}
+
+.vaango-map-shop-marker__pin svg {
+  transform: rotate(45deg);
+}
+
+.vaango-map-shop-marker--selected .vaango-map-shop-marker__pin {
+  background-color: #D97706;
+}
+
+.vaango-map-shop-marker__dist {
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface, #FFFFFF);
+  color: var(--color-text-primary, #111827);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--color-border);
+}
+
+/* Custom Leaflet Popup Styling */
+.vaango-custom-leaflet-popup .leaflet-popup-content-wrapper {
+  background-color: var(--color-surface, #FFFFFF);
+  color: var(--color-text-primary, #111827);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.vaango-custom-leaflet-popup .leaflet-popup-content {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.vaango-custom-leaflet-popup .leaflet-popup-tip {
+  background-color: var(--color-surface, #FFFFFF);
+}
+
+.vaango-map-popup {
+  display: flex;
+  flex-direction: column;
+}
+
+.vaango-map-popup__img {
+  width: 100%;
+  height: 95px;
+  object-fit: cover;
+}
+
+.vaango-map-popup__content {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vaango-map-popup__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vaango-map-popup__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vaango-map-popup__dist {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--brand-primary);
+  background-color: var(--brand-primary-light);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.vaango-map-popup__tagline {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.vaango-map-popup__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.vaango-map-popup__status {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.vaango-map-popup__status--open {
+  background-color: #D1FAE5;
+  color: #065F46;
+}
+
+.vaango-map-popup__status--closed {
+  background-color: #F3F4F6;
+  color: #6B7280;
+}
+
+.vaango-map-popup__rating {
+  font-size: 11px;
+  font-weight: 600;
+  color: #D97706;
+}
+
+.vaango-map-popup__address {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin: 2px 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vaango-map-popup__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.vaango-map-popup__btn {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background-color: var(--brand-primary);
+  color: var(--color-text-inverse, #FFFFFF);
+  border: none;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.vaango-map-popup__btn:hover {
+  opacity: 0.9;
+}
+
+.vaango-map-popup__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.vaango-map-popup__link:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+/* Recenter Button */
+.vaango-map-recenter-btn {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: var(--color-surface, #FFFFFF);
+  color: var(--brand-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaango-map-recenter-btn:hover {
+  background-color: var(--brand-primary-light);
+}
+
+/* Map Legend Info Bar */
+.vaango-map-info-bar {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  background-color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(4px);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .vaango-map-info-bar {
+  background-color: rgba(26, 32, 44, 0.92);
+}
+
+.vaango-map-info-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vaango-map-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.vaango-map-legend-dot--customer {
+  background-color: #2563EB;
+}
+
+.vaango-map-legend-dot--shop {
+  background-color: var(--brand-primary);
+}
+
+/* Notice for unlocated shops */
+.vaango-map-unlocated-notice {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background-color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(4px);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  max-width: calc(100% - 160px);
+}
+
+[data-theme="dark"] .vaango-map-unlocated-notice {
+  background-color: rgba(26, 32, 44, 0.92);
+}
+
+.vaango-map-fallback-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  text-align: center;
+  background-color: var(--color-surface-sunken);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-muted);
+  gap: var(--space-2);
+}
+
+.vaango-map-fallback-icon {
+  color: #D97706;
+}

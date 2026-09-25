@@ -1,5 +1,6 @@
 /* Vaango Global CSS */
 @import './tokens.css';
+@import 'leaflet/dist/leaflet.css';
 
 *,
 *::before,

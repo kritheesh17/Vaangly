@@ -275,6 +275,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
   const [idProofFile, setIdProofFile] = useState<File | null>(null);
   const [googleMapsUrl, setGoogleMapsUrl] = useState('');
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [addressLine, setAddressLine] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -342,12 +343,8 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       setFormError('Please upload between 4 and 10 storefront photos (mandatory for business verification).');
       return;
     }
-    if (!gpsCoords) {
-      setFormError('Please capture your storefront live GPS coordinates.');
-      return;
-    }
     if (!addressLine.trim()) {
-      setFormError('Shop address is required. Detect it from GPS or enter it manually.');
+      setFormError('Shop address is required. Please detect it from GPS or enter it manually.');
       return;
     }
     if (!idProofFile) {
@@ -630,8 +627,8 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         upi_id: upiId.trim() || null,
         upi_qr_url: upiQrUrl,
         id_proof_url: idProofPath,
-        gps_lat: gpsCoords.lat,
-        gps_lng: gpsCoords.lng,
+        gps_lat: gpsCoords?.lat ?? null,
+        gps_lng: gpsCoords?.lng ?? null,
         google_maps_url: googleMapsUrl.trim() || null,
         area: area.trim(),
         district: district.trim(),
@@ -1323,26 +1320,42 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
             <Card variant="default" padding="lg" className="vaango-onboarding-card">
               <div className="vaango-onboarding-card__header">
                 <MapPin size={20} className="text-primary" />
-                <h2 className="vaango-onboarding-card__title">Storefront Device GPS Location</h2>
+                <h2 className="vaango-onboarding-card__title">Storefront Location Verification</h2>
               </div>
 
               <GPSLocationPicker
+                initialLat={gpsCoords?.lat}
+                initialLng={gpsCoords?.lng}
+                initialAccuracy={gpsAccuracy}
+                initialAddress={addressLine}
                 onLocationCaptured={(coords) => {
                   setGpsCoords({ lat: coords.lat, lng: coords.lng });
+                  setGpsAccuracy(coords.accuracy);
                   if (coords.address) setAddressLine(coords.address);
+                }}
+                onManualFallback={() => {
+                  const addrInput = document.getElementById('app-address');
+                  addrInput?.focus();
+                  addrInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }}
               />
 
               <div className="vaango-form-group mt-4">
-                <label className="vaango-form-label" htmlFor="app-address">Shop Address</label>
+                <label className="vaango-form-label" htmlFor="app-address">
+                  Shop Physical Address <span className="vaango-required">*</span>
+                </label>
                 <Input
                   id="app-address"
                   value={addressLine}
                   onChange={(e) => setAddressLine(e.target.value)}
-                  placeholder="Enter or correct the physical shop address"
+                  placeholder="Enter or confirm your physical shop door number, street, and landmark"
                   required
                 />
-                <span className="text-xs text-secondary mt-1">Review the detected address and correct it before submitting.</span>
+                <span className="text-xs text-secondary mt-1">
+                  {gpsCoords
+                    ? 'Review the detected address above and correct it before submitting.'
+                    : 'If live GPS is unavailable on your device, provide your complete physical address for manual verification.'}
+                </span>
               </div>
 
               <div className="vaango-gmaps-alt">
@@ -1570,7 +1583,19 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                   </span>
                   <div style={{ marginTop: 'var(--space-2)', fontSize: 'var(--font-size-sm)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <div><strong>Storefront Photos:</strong> {shopPhotos.length} photos attached</div>
-                    <div><strong>GPS Coordinates:</strong> {gpsCoords ? `${gpsCoords.lat.toFixed(5)}, ${gpsCoords.lng.toFixed(5)}` : 'Captured'}</div>
+                    <div>
+                      <strong>GPS Coordinates:</strong>{' '}
+                      {gpsCoords ? (
+                        <span style={{ color: 'var(--color-success, #10b981)', fontWeight: 600 }}>
+                          {gpsCoords.lat.toFixed(5)}°, {gpsCoords.lng.toFixed(5)}°
+                          {gpsAccuracy != null && ` (±${gpsAccuracy}m)`}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+                          Not detected — Physical address will be verified by admin
+                        </span>
+                      )}
+                    </div>
                     <div><strong>ID Document:</strong> {idProofFile?.name || 'Attached'} (Private KYC)</div>
                     <div><strong>Payment Info:</strong> {upiId ? `UPI: ${upiId}` : 'Not provided'}</div>
                     {googleMapsUrl && <div><strong>Google Maps:</strong> Linked</div>}

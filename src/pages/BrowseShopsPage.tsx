@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Store, ArrowLeft } from 'lucide-react';
+import { Search, MapPin, Store, ArrowLeft, Navigation, Loader2, AlertCircle, LayoutGrid, Map } from 'lucide-react';
 import { useLocationContext } from '../context/LocationContext';
 import { useLanguage } from '../context/LanguageContext';
 import { MOCK_SHOP_TYPES } from '../data/mockData';
-import { searchLocationCatalog, fetchCustomerLocationCatalog, CustomerCatalogData } from '../lib/search';
+import { searchLocationCatalog, fetchCustomerLocationCatalog, fetchNearbyShopCatalog, CustomerCatalogData } from '../lib/search';
+import { formatDistance } from '../lib/distance';
 import { ShopCard } from '../components/customer/ShopCard';
+import { CustomerMapView } from '../components/gis/CustomerMapView';
 import { Input } from '../components/ui/Input';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -26,6 +28,16 @@ export const BrowseShopsPage: React.FC = () => {
   const selectedGroup = (rawGroup?.toUpperCase() as WorkflowGroupCode) || null;
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Near Me / GIS Discovery State (Transient customer coordinates only - NEVER persisted)
+  const [isNearMeMode, setIsNearMeMode] = useState<boolean>(() => {
+    return searchParams.get('nearMe') === 'true';
+  });
+  const [customerCoords, setCustomerCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [radiusMeters, setRadiusMeters] = useState<number>(5000);
+  const [geoState, setGeoState] = useState<'idle' | 'requesting' | 'active' | 'denied' | 'error'>('idle');
+  const [geoErrorMessage, setGeoErrorMessage] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+
   // Live database customer catalog state
   const [catalogData, setCatalogData] = useState<CustomerCatalogData>({
     shops: [],
@@ -35,18 +47,86 @@ export const BrowseShopsPage: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load authoritative live shops, products, and services for selected town
+  // Request customer browser location with fallback to town mode on rejection
+  const handleRequestNearMe = useCallback(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setGeoState('error');
+      setGeoErrorMessage('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setGeoState('requesting');
+    setGeoErrorMessage(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCustomerCoords({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+        setIsNearMeMode(true);
+        setGeoState('active');
+        const params = new URLSearchParams(searchParams);
+        params.set('nearMe', 'true');
+        setSearchParams(params);
+      },
+      (err) => {
+        console.warn('Customer geolocation error:', err);
+        if (err.code === err.PERMISSION_DENIED) {
+          setGeoState('denied');
+          setGeoErrorMessage(t('locationAccessOff'));
+        } else {
+          setGeoState('error');
+          setGeoErrorMessage('Unable to determine location. Showing town shops.');
+        }
+        setIsNearMeMode(false);
+        const params = new URLSearchParams(searchParams);
+        params.delete('nearMe');
+        setSearchParams(params);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      }
+    );
+  }, [searchParams, setSearchParams, t]);
+
+  // If URL has ?nearMe=true on initial load, trigger request
+  useEffect(() => {
+    if (searchParams.get('nearMe') === 'true' && geoState === 'idle') {
+      handleRequestNearMe();
+    }
+  }, [searchParams, geoState, handleRequestNearMe]);
+
+  const handleSwitchToTown = () => {
+    setIsNearMeMode(false);
+    const params = new URLSearchParams(searchParams);
+    params.delete('nearMe');
+    setSearchParams(params);
+  };
+
+  const handleRadiusChange = (newRadius: number) => {
+    setRadiusMeters(newRadius);
+  };
+
+  // Load authoritative live shops, products, and services for selected mode
   const loadCatalog = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await fetchCustomerLocationCatalog(selectedLocation.id);
-      setCatalogData(data);
+      if (isNearMeMode && customerCoords) {
+        const data = await fetchNearbyShopCatalog(customerCoords.lat, customerCoords.lng, radiusMeters);
+        setCatalogData(data);
+      } else {
+        const data = await fetchCustomerLocationCatalog(selectedLocation.id);
+        setCatalogData(data);
+      }
     } catch (err) {
       console.error('Failed to load customer catalog:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedLocation.id]);
+  }, [isNearMeMode, customerCoords, radiusMeters, selectedLocation.id]);
 
   useEffect(() => {
     void loadCatalog();
@@ -54,8 +134,9 @@ export const BrowseShopsPage: React.FC = () => {
     if (!isSupabaseConfigured) return;
 
     // Realtime listener: Automatically update customer view when a shop goes live or updates
+    const channelId = isNearMeMode ? 'customer-near-me' : `customer-shops-${selectedLocation.id}`;
     const channel = supabase
-      .channel(`customer-shops-${selectedLocation.id}`)
+      .channel(channelId)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'shops' },
@@ -71,7 +152,7 @@ export const BrowseShopsPage: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedLocation.id, loadCatalog]);
+  }, [loadCatalog, isNearMeMode, selectedLocation.id]);
 
   const allShopTypes = catalogData.shopTypes.length > 0 ? catalogData.shopTypes : MOCK_SHOP_TYPES;
 
@@ -154,12 +235,102 @@ export const BrowseShopsPage: React.FC = () => {
         <div className="vaango-browse__title-row">
           <div>
             <h1 className="vaango-browse__title">{pageTitle}</h1>
-            <div className="vaango-browse__location-tag">
-              <MapPin size={15} />
-              <span>{t('location')}: {selectedLocation.name}</span>
+            <div className="vaango-browse__mode-row">
+              {isNearMeMode ? (
+                <div className="vaango-browse__location-tag vaango-browse__location-tag--near-me">
+                  <Navigation size={14} className="vaango-browse__near-icon" />
+                  <span>
+                    {t('nearYou')} • {formatDistance(radiusMeters)}
+                    {finalShops.length > 0 && ` (${t('shopsNearbyCount', { count: finalShops.length })})`}
+                  </span>
+                </div>
+              ) : (
+                <div className="vaango-browse__location-tag">
+                  <MapPin size={15} />
+                  <span>{t('location')}: {selectedLocation.name}</span>
+                </div>
+              )}
+
+              {/* Mode Toggle Action */}
+              {!isNearMeMode ? (
+                <button
+                  type="button"
+                  className="vaango-near-me-trigger-btn"
+                  onClick={handleRequestNearMe}
+                  disabled={geoState === 'requesting'}
+                >
+                  {geoState === 'requesting' ? (
+                    <>
+                      <Loader2 size={13} className="vaango-spin" />
+                      <span>{t('gettingLocation')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Navigation size={13} />
+                      <span>{t('nearMe')}</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="vaango-switch-town-trigger-btn"
+                  onClick={handleSwitchToTown}
+                >
+                  <MapPin size={13} />
+                  <span>{t('switchToTownMode')}</span>
+                </button>
+              )}
             </div>
           </div>
+
+          {/* LIST | MAP View Toggle */}
+          <div className="vaango-browse__view-toggle" role="group" aria-label="View format">
+            <button
+              type="button"
+              className={`vaango-view-toggle-btn ${viewMode === 'list' ? 'vaango-view-toggle-btn--active' : ''}`}
+              onClick={() => setViewMode('list')}
+              aria-label="List view"
+            >
+              <LayoutGrid size={15} />
+              <span>List</span>
+            </button>
+            <button
+              type="button"
+              className={`vaango-view-toggle-btn ${viewMode === 'map' ? 'vaango-view-toggle-btn--active' : ''}`}
+              onClick={() => setViewMode('map')}
+              aria-label="Map view"
+            >
+              <Map size={15} />
+              <span>Map</span>
+            </button>
+          </div>
         </div>
+
+        {/* Radius Selector Pills (Active in Near Me mode) */}
+        {isNearMeMode && (
+          <div className="vaango-browse__radius-bar">
+            <span className="vaango-browse__radius-label">{t('withinRadius', { radius: '' }).replace('{{radius}}', '').trim() || 'Within'}:</span>
+            {[1000, 3000, 5000, 10000].map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={`vaango-radius-pill ${radiusMeters === m ? 'vaango-radius-pill--active' : ''}`}
+                onClick={() => handleRadiusChange(m)}
+              >
+                {m < 1000 ? `${m} m` : `${m / 1000} km`}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Informational Notification for Geo Permission Issues */}
+        {geoErrorMessage && !isNearMeMode && (
+          <div className="vaango-browse__geo-alert">
+            <AlertCircle size={15} className="vaango-browse__geo-alert-icon" />
+            <span>{geoErrorMessage}</span>
+          </div>
+        )}
 
         {/* Search Bar with Tanglish Support */}
         <div className="vaango-browse__search-wrap">
@@ -283,40 +454,87 @@ export const BrowseShopsPage: React.FC = () => {
           ))}
         </div>
       ) : finalShops.length > 0 ? (
-        /* Shops Grid */
-        <div className="vaango-browse__grid">
-          {finalShops.map((shop) => {
-            const category = getShopCategory(shop);
-            return (
-              <ShopCard
-                key={shop.id}
-                shop={shop}
-                categoryName={category?.name}
-                onClick={() => navigate(`/shop/${shop.id}`)}
-              />
-            );
-          })}
-        </div>
+        viewMode === 'map' ? (
+          /* Interactive GIS Map View */
+          <div className="vaango-browse__map-wrap">
+            <CustomerMapView
+              shops={finalShops}
+              customerCoords={customerCoords}
+              radiusMeters={isNearMeMode ? radiusMeters : undefined}
+              selectedLocationName={selectedLocation.name}
+              onSwitchToList={() => setViewMode('list')}
+            />
+          </div>
+        ) : (
+          /* Shops Grid */
+          <div className="vaango-browse__grid">
+            {finalShops.map((shop) => {
+              const category = getShopCategory(shop);
+              return (
+                <ShopCard
+                  key={shop.id}
+                  shop={shop}
+                  categoryName={category?.name}
+                  onClick={() => navigate(`/shop/${shop.id}`)}
+                />
+              );
+            })}
+          </div>
+        )
       ) : (
         /* Empty State */
         <div className="vaango-browse__empty">
           <EmptyState
             icon={<Store size={44} />}
-            title={t('noShopsFound')}
-            description={t('noShopsFoundDesc', {
-              query: searchQuery || activeShopType?.name || '',
-              location: selectedLocation.name,
-            })}
-            actionLabel={t('viewAllShops')}
+            title={
+              isNearMeMode
+                ? t('noNearbyShops', { radius: formatDistance(radiusMeters) })
+                : t('noShopsFound')
+            }
+            description={
+              isNearMeMode
+                ? (language === 'ta'
+                    ? `${formatDistance(radiusMeters)} சுற்றளவில் எந்தக் கடையும் காணப்படவில்லை. சுற்றளவை அதிகரிக்கலாம் அல்லது ${selectedLocation.name} ஊர் வாரியாகப் பார்க்கலாம்.`
+                    : `No active shops found within ${formatDistance(radiusMeters)}. Try a larger search radius or browse all shops in ${selectedLocation.name}.`)
+                : t('noShopsFoundDesc', {
+                    query: searchQuery || activeShopType?.name || '',
+                    location: selectedLocation.name,
+                  })
+            }
+            actionLabel={
+              isNearMeMode
+                ? radiusMeters < 10000
+                  ? t('tryLargerRadius')
+                  : t('browseTown', { town: selectedLocation.name })
+                : t('viewAllShops')
+            }
             onAction={() => {
-              setSearchQuery('');
-              handleCategorySelect('all');
+              if (isNearMeMode) {
+                if (radiusMeters < 10000) {
+                  setRadiusMeters(10000);
+                } else {
+                  handleSwitchToTown();
+                }
+              } else {
+                setSearchQuery('');
+                handleCategorySelect('all');
+              }
             }}
-            secondaryActionLabel={t('restoreSampleShops')}
+            secondaryActionLabel={
+              isNearMeMode && radiusMeters < 10000
+                ? t('browseTown', { town: selectedLocation.name })
+                : !isNearMeMode
+                ? t('restoreSampleShops')
+                : undefined
+            }
             onSecondaryAction={() => {
-              resetDemoData();
-              setSearchQuery('');
-              handleCategorySelect('all');
+              if (isNearMeMode) {
+                handleSwitchToTown();
+              } else {
+                resetDemoData();
+                setSearchQuery('');
+                handleCategorySelect('all');
+              }
             }}
           />
         </div>

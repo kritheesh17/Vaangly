@@ -3,6 +3,7 @@
 import { Shop, ShopProduct, ShopService, ShopType } from '../types/database';
 import { MOCK_SHOPS, MOCK_SHOP_TYPES, getShopProducts, getShopServices } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { calculateHaversineDistance } from './distance';
 
 // Common Tanglish and Tamil phonetic alias dictionary
 export const TANGLISH_ALIASES: Record<string, string[]> = {
@@ -171,6 +172,102 @@ export const fetchCustomerLocationCatalog = async (
 
   return {
     shops: mockShops,
+    products: mockProducts,
+    services: mockServices,
+    shopTypes: MOCK_SHOP_TYPES,
+  };
+};
+
+/**
+ * Asynchronously fetches live active shops, products, and services within a geographic radius
+ * using the PostGIS get_nearby_shops RPC. Transient customer lat/lng are passed as RPC arguments
+ * and NEVER saved to the database.
+ */
+export const fetchNearbyShopCatalog = async (
+  latitude: number,
+  longitude: number,
+  radiusMeters: number = 5000
+): Promise<CustomerCatalogData> => {
+  if (isSupabaseConfigured) {
+    try {
+      // 1. Call PostGIS get_nearby_shops RPC
+      const { data: nearbyData, error: rpcErr } = await supabase.rpc('get_nearby_shops', {
+        p_customer_lat: latitude,
+        p_customer_lng: longitude,
+        p_radius_meters: radiusMeters,
+        p_limit: 50,
+        p_offset: 0,
+      });
+
+      if (rpcErr) throw rpcErr;
+
+      // 2. Fetch active shop types
+      const { data: typesData } = await supabase
+        .from('shop_types')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      const loadedShopTypes: ShopType[] =
+        typesData && typesData.length > 0 ? (typesData as ShopType[]) : MOCK_SHOP_TYPES;
+
+      const liveShops: Shop[] = (nearbyData || []).map((shop: Record<string, unknown>) => ({
+        ...shop,
+        avg_rating: shop.avg_rating != null ? Number(shop.avg_rating) : null,
+        total_ratings: shop.total_ratings != null ? Number(shop.total_ratings) : 0,
+        distance_meters: shop.distance_meters != null ? Number(shop.distance_meters) : null,
+      })) as Shop[];
+
+      const shopIds = liveShops.map((s) => s.id);
+      let productsData: ShopProduct[] = [];
+      let servicesData: ShopService[] = [];
+
+      if (shopIds.length > 0) {
+        const [prodRes, servRes] = await Promise.all([
+          supabase
+            .from('shop_products')
+            .select('*')
+            .in('shop_id', shopIds)
+            .eq('is_available', true)
+            .eq('is_banned', false),
+          supabase
+            .from('shop_services')
+            .select('*')
+            .in('shop_id', shopIds)
+            .eq('is_available', true),
+        ]);
+        productsData = ((prodRes.data as ShopProduct[]) || []).filter((p) => !p.is_banned);
+        servicesData = (servRes.data as ShopService[]) || [];
+      }
+
+      return {
+        shops: liveShops,
+        products: productsData,
+        services: servicesData,
+        shopTypes: loadedShopTypes,
+      };
+    } catch (err) {
+      console.error('Failed to fetch nearby customer catalog from Supabase:', err);
+    }
+  }
+
+  // Fallback to local/mock demo data using Haversine calculation for demo coordinates
+  const visibleShops = getCustomerVisibleShops();
+  const nearbyMockShops = visibleShops
+    .filter((s) => s.gps_lat != null && s.gps_lng != null)
+    .map((s) => {
+      const distance = calculateHaversineDistance(latitude, longitude, s.gps_lat!, s.gps_lng!);
+      return { ...s, distance_meters: distance };
+    })
+    .filter((s) => (s.distance_meters ?? Infinity) <= radiusMeters)
+    .sort((a, b) => (a.distance_meters ?? 0) - (b.distance_meters ?? 0));
+
+  const mockShopIds = nearbyMockShops.map((s) => s.id);
+  const mockProducts = mockShopIds.flatMap((id) => getShopProducts(id)).filter((p) => !p.is_banned);
+  const mockServices = mockShopIds.flatMap((id) => getShopServices(id));
+
+  return {
+    shops: nearbyMockShops,
     products: mockProducts,
     services: mockServices,
     shopTypes: MOCK_SHOP_TYPES,

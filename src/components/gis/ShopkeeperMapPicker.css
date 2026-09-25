@@ -1,0 +1,206 @@
+/* Shopkeeper Map Picker Styles */
+
+.vaango-shopkeeper-map-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  margin-top: var(--space-3);
+}
+
+.vaango-map-picker__header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vaango-map-picker__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.vaango-map-picker__icon {
+  color: var(--brand-primary);
+}
+
+.vaango-map-picker__title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.vaango-map-picker__subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.vaango-map-picker__warning {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 12px;
+  background-color: #FEF3C7;
+  color: #92400E;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+[data-theme="dark"] .vaango-map-picker__warning {
+  background-color: rgba(146, 64, 14, 0.25);
+  color: #FCD34D;
+  border: 1px solid rgba(252, 211, 77, 0.2);
+}
+
+.vaango-map-picker__canvas-wrapper {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.vaango-map-picker__canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.vaango-map-picker__reset-gps-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background-color: var(--color-surface, #FFFFFF);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaango-map-picker__reset-gps-btn:hover {
+  background-color: var(--color-surface-sunken);
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+/* Draggable Pin Icon */
+.vaango-picker-draggable-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: grab;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.35));
+}
+
+.vaango-picker-draggable-pin:active {
+  cursor: grabbing;
+}
+
+.vaango-picker-pin-head {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2.5px solid #FFFFFF;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.vaango-picker-pin-point {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 10px solid #059669;
+  margin-top: -2px;
+}
+
+/* Coordinates & Address Preview Card */
+.vaango-map-picker__info-card {
+  padding: 10px 12px;
+  background-color: var(--color-surface-sunken);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vaango-map-picker__coords-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.vaango-map-picker__coord-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vaango-map-picker__coord-label {
+  color: var(--color-text-muted);
+}
+
+.vaango-map-picker__address-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vaango-map-picker__address-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.vaango-map-picker__geocoding-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.vaango-map-picker__address-text {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.vaango-map-picker__address-empty {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin: 0;
+  font-style: italic;
+}
+
+.vaango-map-picker__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
