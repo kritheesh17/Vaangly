@@ -18,6 +18,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { NotificationBadge } from '../ui/NotificationBadge';
 import './NotificationBell.css';
 
 interface NotificationBellProps {
@@ -118,7 +119,6 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
   }, [loadNotifs, shopId, userId]);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
-  const displayBadge = unreadCount > 99 ? '99+' : unreadCount.toString();
 
   const handleNotificationClick = async (notif: Notification) => {
     try {
@@ -240,7 +240,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
         title="Storefront Operational Notifications"
       >
         <Bell size={18} />
-        {unreadCount > 0 && <span className="vaango-notif-badge">{displayBadge}</span>}
+        <NotificationBadge count={unreadCount} position="overlap" size="sm" />
       </button>
 
       {isOpen && (

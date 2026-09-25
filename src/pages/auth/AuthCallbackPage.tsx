@@ -26,6 +26,10 @@ export const AuthCallbackPage: React.FC = () => {
       if (pendingEmail) setEmail(pendingEmail);
       if (errorDescription) {
         if (mounted) {
+          if (query.get('type') === 'recovery' || hash.get('type') === 'recovery' || query.get('redirect') === '/reset-password') {
+            navigate(`/reset-password${window.location.search}${window.location.hash}`, { replace: true });
+            return;
+          }
           setState('error');
           const normalized = errorDescription.replace(/\+/g, ' ');
           setMessage(/expired/i.test(normalized)
@@ -39,7 +43,13 @@ export const AuthCallbackPage: React.FC = () => {
 
       const code = query.get('code');
       const tokenHash = query.get('token_hash');
-      const otpType = (query.get('type') || 'signup') as any;
+      const otpType = (query.get('type') || hash.get('type') || 'signup') as any;
+
+      const isRecovery =
+        otpType === 'recovery' ||
+        query.get('type') === 'recovery' ||
+        hash.get('type') === 'recovery' ||
+        query.get('redirect') === '/reset-password';
 
       if (code) {
         try {
@@ -55,6 +65,11 @@ export const AuthCallbackPage: React.FC = () => {
         } catch (verifyErr) {
           console.error('Error verifying OTP token hash:', verifyErr);
         }
+      }
+
+      if (isRecovery) {
+        navigate('/reset-password', { replace: true });
+        return;
       }
 
       const { data, error } = await supabase.auth.getSession();
@@ -173,7 +188,9 @@ export const AuthCallbackPage: React.FC = () => {
         if (sessionRedirect) sessionStorage.removeItem('vaangly_auth_redirect');
         if (localRedirect) localStorage.removeItem('vaangly_auth_redirect');
 
-        if (targetRole === 'admin') {
+        if (pendingRedirect && pendingRedirect.startsWith('/reset-password')) {
+          navigate(pendingRedirect, { replace: true });
+        } else if (targetRole === 'admin') {
           navigate('/admin/dashboard', { replace: true });
         } else if (targetRole === 'shopkeeper') {
           navigate('/shopkeeper/dashboard', { replace: true });

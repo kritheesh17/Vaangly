@@ -35,6 +35,7 @@ import { ShopStatusCard } from '../../components/shopkeeper/ShopStatusCard';
 import { RequestCard } from '../../components/shopkeeper/RequestCard';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
+import { NotificationBadge } from '../../components/ui/NotificationBadge';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { resetDemoData } from '../../lib/demoData';
@@ -433,7 +434,8 @@ export const ShopkeeperDashboardPage: React.FC = () => {
             onClick={() => navigate('/shopkeeper/requests')}
             rightIcon={<ArrowRight size={14} />}
           >
-            View New Requests
+            <span>View New Requests</span>
+            <NotificationBadge count={newRequests.length} size="sm" />
           </Button>
         </div>
       )}
@@ -452,7 +454,10 @@ export const ShopkeeperDashboardPage: React.FC = () => {
             </span>
             <AlertCircle size={18} className="vaango-metric-card__icon vaango-metric-card__icon--primary" />
           </div>
-          <div className="vaango-metric-card__value">{newRequests.length}</div>
+          <div className="vaango-metric-card__value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>{newRequests.length}</span>
+            <NotificationBadge count={newRequests.length} size="sm" />
+          </div>
           <div className="vaango-metric-card__hint">Requires acceptance</div>
         </Card>
 

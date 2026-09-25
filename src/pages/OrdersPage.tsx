@@ -16,6 +16,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { NotificationBadge } from '../components/ui/NotificationBadge';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -220,7 +221,10 @@ export const OrdersPage: React.FC = () => {
             className={`vaango-order-metric-card ${statusFilter === 'pending' ? 'active' : ''}`}
             onClick={() => setStatusFilter('pending')}
           >
-            <span className="vaango-metric-label">Pending</span>
+            <span className="vaango-metric-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <span>Pending</span>
+              <NotificationBadge count={counts.pending} size="sm" />
+            </span>
             <strong className="vaango-metric-val text-primary">{counts.pending}</strong>
           </button>
           <button
@@ -228,7 +232,10 @@ export const OrdersPage: React.FC = () => {
             className={`vaango-order-metric-card ${statusFilter === 'processing' ? 'active' : ''}`}
             onClick={() => setStatusFilter('processing')}
           >
-            <span className="vaango-metric-label">Processing</span>
+            <span className="vaango-metric-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <span>Processing</span>
+              <NotificationBadge count={counts.processing} size="sm" />
+            </span>
             <strong className="vaango-metric-val text-accent">{counts.processing}</strong>
           </button>
           <button
@@ -236,7 +243,10 @@ export const OrdersPage: React.FC = () => {
             className={`vaango-order-metric-card ${statusFilter === 'ready' ? 'active' : ''}`}
             onClick={() => setStatusFilter('ready')}
           >
-            <span className="vaango-metric-label">Ready for Pickup</span>
+            <span className="vaango-metric-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <span>Ready for Pickup</span>
+              <NotificationBadge count={counts.ready} size="sm" />
+            </span>
             <strong className="vaango-metric-val text-success">{counts.ready}</strong>
           </button>
           <button

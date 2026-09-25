@@ -22,6 +22,7 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { CompleteProfilePage } from './pages/auth/CompleteProfilePage';
 import { AuthCallbackPage } from './pages/auth/AuthCallbackPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 // Code-split Shopkeeper modules (lazy loaded on navigation)
@@ -231,6 +232,7 @@ export const App: React.FC = () => {
                         <Route path="/register" element={<RegisterPage />} />
                         <Route path="/complete-profile" element={<CompleteProfilePage />} />
                         <Route path="/auth/callback" element={<AuthCallbackPage />} />
+                        <Route path="/reset-password" element={<ResetPasswordPage />} />
                       </Routes>
                     </React.Suspense>
                   </BrowserRouter>

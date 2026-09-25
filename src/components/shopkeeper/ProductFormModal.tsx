@@ -94,7 +94,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   // Master Catalogue Link State
   const [masterProductId, setMasterProductId] = useState<string | null>(null);
-  const [isProposal, setIsProposal] = useState(false);
   const [brand, setBrand] = useState<string>('');
 
   useEffect(() => {
@@ -124,7 +123,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setTrackInventory(Boolean(initialProduct.track_inventory));
       setStockQuantity(initialProduct.stock_quantity == null ? '' : String(initialProduct.stock_quantity));
       setMasterProductId(initialProduct.master_product_id || null);
-      setIsProposal(false);
       setBrand('');
     } else if (masterProductTemplate) {
       // Adding from Master Catalogue or Proposing New Product
@@ -148,7 +146,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setTrackInventory(false);
       setStockQuantity('');
       setMasterProductId(masterProductTemplate.id || null);
-      setIsProposal(Boolean(masterProductTemplate.is_proposal));
       setBrand(masterProductTemplate.brand || '');
     } else {
       setName('');
@@ -171,7 +168,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setTrackInventory(false);
       setStockQuantity('');
       setMasterProductId(null);
-      setIsProposal(false);
       setBrand('');
     }
     setError(null);
@@ -285,7 +281,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         track_inventory: !hasVariants && trackInventory,
         stock_quantity: !hasVariants && trackInventory ? (stockQuantity === '' ? null : Number(stockQuantity)) : null,
         master_product_id: masterProductId || null,
-        propose_to_master: isProposal,
+        propose_to_master: !masterProductId && !initialProduct,
         brand: brand.trim() || null,
       });
 
@@ -308,7 +304,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         {/* Header */}
         <div className="vaango-product-modal__header">
           <h2 id="product-form-title" className="vaango-product-modal__title">
-            {initialProduct ? t('editProductTitle') : t('addProductTitle')}
+            {initialProduct
+              ? t('editProductTitle')
+              : masterProductId
+              ? `Add ${masterProductTemplate?.name || name} to your shop`
+              : t('addProductTitle')}
           </h2>
           <button
             type="button"
@@ -325,18 +325,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           <div className="vaango-product-modal__catalogue-badge vaango-product-modal__catalogue-badge--linked">
             <ShieldCheck size={18} />
             <div>
-              <strong>Linked to Global Master Catalogue</strong>
-              <p>Your shop's price, stock, variants, and customizations are completely independent.</p>
+              <strong>Master Product: {masterProductTemplate?.name || name}</strong>
+              <p>Your shop's details — Price, stock, variants, and customizations are specific to your shop. This changes YOUR SHOP listing, not the global catalogue.</p>
             </div>
           </div>
         )}
 
-        {isProposal && !masterProductId && (
+        {!masterProductId && !initialProduct && (
           <div className="vaango-product-modal__catalogue-badge vaango-product-modal__catalogue-badge--propose">
             <Sparkles size={18} />
             <div>
-              <strong>Proposing New Catalogue Product</strong>
-              <p>This product will be added to your shop immediately and submitted to the catalogue for admin approval.</p>
+              <strong>Contributing New Product to Master Catalogue</strong>
+              <p>This product will be added to your shop immediately and submitted to the Master Catalogue as pending for admin review.</p>
             </div>
           </div>
         )}
@@ -351,8 +351,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="vaango-product-modal__form">
-          {/* Brand field if proposing new product */}
-          {isProposal && (
+          {/* Brand field if creating/proposing new product */}
+          {!masterProductId && !initialProduct && (
             <div className="vaango-form-group">
               <label className="vaango-form-label" htmlFor="prod-brand">
                 Brand / Manufacturer (Optional)

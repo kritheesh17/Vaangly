@@ -3,6 +3,8 @@ import { NavLink } from 'react-router-dom';
 import { Home, Store, Compass, ClipboardList, Package, LayoutDashboard, FileCheck2, CreditCard, TrendingUp, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { NotificationBadge } from '../ui/NotificationBadge';
+import { useSectionUnreadCounts } from '../../hooks/useSectionUnreadCounts';
 import './BottomNav.css';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -10,6 +12,7 @@ export const BottomNav: React.FC = () => {
   const { role } = useAuth();
   const { t } = useLanguage();
   const { toggleTheme, isDark } = useTheme();
+  const { pendingApplications, shopkeeperNewRequests, customerActiveOrders } = useSectionUnreadCounts();
 
   if (role === 'admin') {
     return (
@@ -37,6 +40,7 @@ export const BottomNav: React.FC = () => {
           >
             <div className="vaango-bottom-nav__icon-wrap">
               <FileCheck2 size={22} />
+              <NotificationBadge count={pendingApplications} position="overlap" size="sm" />
             </div>
             <span className="vaango-bottom-nav__label">{t('adminApplications')}</span>
           </NavLink>
@@ -97,6 +101,7 @@ export const BottomNav: React.FC = () => {
           >
             <div className="vaango-bottom-nav__icon-wrap">
               <ClipboardList size={22} />
+              <NotificationBadge count={shopkeeperNewRequests} position="overlap" size="sm" />
             </div>
             <span className="vaango-bottom-nav__label">{t('navOrders')}</span>
           </NavLink>
@@ -183,6 +188,7 @@ export const BottomNav: React.FC = () => {
         >
           <div className="vaango-bottom-nav__icon-wrap">
             <ClipboardList size={22} />
+            <NotificationBadge count={customerActiveOrders} position="overlap" size="sm" />
           </div>
           <span className="vaango-bottom-nav__label">{t('activity')}</span>
         </NavLink>

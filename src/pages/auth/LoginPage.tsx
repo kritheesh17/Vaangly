@@ -70,21 +70,20 @@ export const LoginPage: React.FC = () => {
     }
   }, [isAuthLoading, isAuthenticated, user, navigate, from]);
 
-  // Check URL hash or Supabase event for password recovery token
+  // Check URL hash or query parameters or Supabase event for password recovery token
   useEffect(() => {
     const hash = window.location.hash;
-    if (hash.includes('type=recovery')) {
-      setMode('recovery');
-      setErrorMsg(null);
-      setSuccessMsg(null);
+    const isRecovery = searchParams.get('mode') === 'recovery' || hash.includes('type=recovery');
+    if (isRecovery) {
+      navigate(`/reset-password${window.location.search}${window.location.hash}`, { replace: true });
+      return;
     }
 
     if (isSupabaseConfigured) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'PASSWORD_RECOVERY') {
-          setMode('recovery');
-          setErrorMsg(null);
-          setSuccessMsg(null);
+          navigate('/reset-password', { replace: true });
+          return;
         } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
           if (session?.user) {
             const updated = await refreshUser();

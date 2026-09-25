@@ -7,6 +7,8 @@ import { useLocationContext } from '../../context/LocationContext';
 import { useCart } from '../../context/CartContext';
 import { useToast } from '../../context/ToastContext';
 import { Badge } from '../ui/Badge';
+import { NotificationBadge } from '../ui/NotificationBadge';
+import { useSectionUnreadCounts } from '../../hooks/useSectionUnreadCounts';
 import { Modal } from '../ui/Modal';
 import { UserRole } from '../../types/database';
 import { resetDemoData } from '../../lib/demoData';
@@ -31,6 +33,7 @@ export const Header: React.FC = () => {
   const { t } = useLanguage();
   const { success } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { pendingApplications, pendingCatalogue, shopkeeperNewRequests, customerActiveOrders } = useSectionUnreadCounts();
 
   const handleRoleChange = (newRole: UserRole) => {
     switchDemoRole(newRole);
@@ -87,7 +90,14 @@ export const Header: React.FC = () => {
             {role === 'admin' ? (
               <>
                 <Link to="/admin/dashboard" className="vaango-header__nav-link">{t('navAdmin')}</Link>
-                <Link to="/admin/applications" className="vaango-header__nav-link">{t('adminAppsTitle')}</Link>
+                <Link to="/admin/applications" className="vaango-header__nav-link">
+                  <span>{t('adminAppsTitle')}</span>
+                  <NotificationBadge count={pendingApplications} size="sm" />
+                </Link>
+                <Link to="/admin/catalogue" className="vaango-header__nav-link">
+                  <span>Master Catalogue</span>
+                  <NotificationBadge count={pendingCatalogue} size="sm" />
+                </Link>
                 <Link to="/admin/shops" className="vaango-header__nav-link">{t('adminShopsTitle')}</Link>
                 <Link to="/admin/locations" className="vaango-header__nav-link">{t('adminLocationsTitle')}</Link>
                 <Link to="/admin/audit" className="vaango-header__nav-link">{t('navAudit')}</Link>
@@ -95,7 +105,10 @@ export const Header: React.FC = () => {
             ) : role === 'shopkeeper' ? (
               <>
                 <Link to="/shopkeeper/dashboard" className="vaango-header__nav-link">{t('navDashboard')}</Link>
-                <Link to="/shopkeeper/requests" className="vaango-header__nav-link">{t('navOrders')}</Link>
+                <Link to="/shopkeeper/requests" className="vaango-header__nav-link">
+                  <span>{t('navOrders')}</span>
+                  <NotificationBadge count={shopkeeperNewRequests} size="sm" />
+                </Link>
                 <Link to="/shopkeeper/catalogue" className="vaango-header__nav-link">{t('navCatalogue')}</Link>
                 <Link to="/shopkeeper/analytics" className="vaango-header__nav-link vaango-header__nav-link--highlight">{t('navAnalytics')} (Pro)</Link>
                 <Link to="/shopkeeper/profile" className="vaango-header__nav-link">{t('navSettings')}</Link>
@@ -126,6 +139,15 @@ export const Header: React.FC = () => {
                 >
                   {t('navServices')}
                 </Link>
+                {user && customerActiveOrders > 0 && (
+                  <Link
+                    to="/orders"
+                    className={`vaango-header__nav-link ${location.pathname === '/orders' ? 'vaango-header__nav-link--active' : ''}`}
+                  >
+                    <span>{t('activity') || 'Orders'}</span>
+                    <NotificationBadge count={customerActiveOrders} size="sm" />
+                  </Link>
+                )}
                 <Link
                   to="/shopkeeper/apply"
                   className="vaango-header__nav-link vaango-header__nav-link--business"
@@ -158,7 +180,7 @@ export const Header: React.FC = () => {
             {itemCount > 0 && (
               <Link to="/cart" className="vaango-header__cart-link" aria-label={t('itemsInCart', { count: itemCount })} onClick={closeMobileMenu}>
                 <ShoppingBag size={19} />
-                <span className="vaango-header__cart-badge">{itemCount}</span>
+                <NotificationBadge count={itemCount} position="overlap" size="sm" />
               </Link>
             )}
 
@@ -291,13 +313,35 @@ export const Header: React.FC = () => {
                 {t('navAbout')}
               </a>
               {role === 'admin' && (
-                <Link to="/admin/dashboard" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
-                  {t('navAdmin')}
-                </Link>
+                <>
+                  <Link to="/admin/dashboard" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                    {t('navAdmin')}
+                  </Link>
+                  <Link to="/admin/applications" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                    <span>{t('adminAppsTitle')}</span>
+                    <NotificationBadge count={pendingApplications} size="sm" />
+                  </Link>
+                  <Link to="/admin/catalogue" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                    <span>Master Catalogue</span>
+                    <NotificationBadge count={pendingCatalogue} size="sm" />
+                  </Link>
+                </>
               )}
               {role === 'shopkeeper' && (
-                <Link to="/shopkeeper/dashboard" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
-                  {t('navDashboard')}
+                <>
+                  <Link to="/shopkeeper/dashboard" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                    {t('navDashboard')}
+                  </Link>
+                  <Link to="/shopkeeper/requests" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                    <span>{t('navOrders')}</span>
+                    <NotificationBadge count={shopkeeperNewRequests} size="sm" />
+                  </Link>
+                </>
+              )}
+              {user && role === 'customer' && (
+                <Link to="/orders" className="vaango-mobile-menu__link" onClick={closeMobileMenu}>
+                  <span>{t('activity') || 'Orders'}</span>
+                  <NotificationBadge count={customerActiveOrders} size="sm" />
                 </Link>
               )}
             </nav>

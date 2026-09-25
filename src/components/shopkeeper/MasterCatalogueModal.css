@@ -376,3 +376,48 @@
   width: 100%;
   justify-content: center;
 }
+
+/* Bottom Bar: Can't find your product? */
+.vaango-master-modal__bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem 1.75rem;
+  background: var(--color-surface-sunken, #f9fafb);
+  border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.vaango-master-modal__bottom-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.vaango-master-modal__bottom-icon {
+  color: var(--brand-primary, #1b4d3e);
+  flex-shrink: 0;
+}
+
+.vaango-master-modal__bottom-info strong {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--text-primary, #111827);
+  margin-bottom: 0.15rem;
+}
+
+.vaango-master-modal__bottom-info p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+@media (max-width: 640px) {
+  .vaango-master-modal__bottom-bar {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left;
+    gap: 0.75rem;
+  }
+}
+

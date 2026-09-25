@@ -33,7 +33,7 @@ import {
 } from '../../lib/appointmentServiceApi';
 import { ProductFormModal, MasterProductTemplate } from '../../components/shopkeeper/ProductFormModal';
 import { MasterCatalogueModal } from '../../components/shopkeeper/MasterCatalogueModal';
-import { createMasterProductProposal } from '../../lib/masterCatalogueApi';
+import { createMasterProductProposal, checkMasterProductDuplicates } from '../../lib/masterCatalogueApi';
 import { ServiceFormModal } from '../../components/shopkeeper/ServiceFormModal';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -213,17 +213,26 @@ export const ShopkeeperCataloguePage: React.FC = () => {
       } else {
         let masterId: string | null = productData.master_product_id || null;
 
-        // Path B: Propose new master catalogue product if not already linked
-        if (productData.propose_to_master && !masterId) {
+        // Auto-link or propose new master catalogue product if not already linked
+        if (!masterId && (productData.propose_to_master || !editingProduct)) {
           try {
-            const proposal = await createMasterProductProposal({
-              name: productData.name,
-              description: productData.description || null,
-              image_url: productData.image_url || null,
-              shop_type_id: shop.shop_type_id || null,
-              brand: productData.brand || null,
-            });
-            masterId = proposal.id;
+            const duplicates = await checkMasterProductDuplicates(productData.name, shop.shop_type_id || undefined);
+            const exact = duplicates.find(
+              (d) => d.name.toLowerCase().trim() === productData.name.toLowerCase().trim()
+            );
+
+            if (exact) {
+              masterId = exact.id;
+            } else {
+              const proposal = await createMasterProductProposal({
+                name: productData.name,
+                description: productData.description || null,
+                image_url: productData.image_url || null,
+                shop_type_id: shop.shop_type_id || null,
+                brand: productData.brand || null,
+              });
+              masterId = proposal.id;
+            }
           } catch (proposalErr) {
             console.warn('Could not submit master catalogue proposal:', proposalErr);
           }
@@ -639,12 +648,18 @@ export const ShopkeeperCataloguePage: React.FC = () => {
                   ? 'Add your everyday products so neighborhood customers can view and pre-order them.'
                   : 'Try adjusting your search query or filter.'
               }
-              actionLabel={products.length === 0 ? 'Add Your First Product' : undefined}
+              actionLabel={products.length === 0 ? (workflowGroup === 'ORDER' ? 'Add From Catalogue' : 'Add Your First Service') : undefined}
               onAction={
                 products.length === 0
                   ? () => {
-                      setEditingProduct(null);
-                      setModalOpen(true);
+                      if (workflowGroup === 'ORDER') {
+                        setEditingProduct(null);
+                        setMasterTemplate(null);
+                        setMasterModalOpen(true);
+                      } else {
+                        setEditingService(null);
+                        setServiceModalOpen(true);
+                      }
                     }
                   : undefined
               }

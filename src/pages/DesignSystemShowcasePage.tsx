@@ -16,6 +16,7 @@ import { Checkbox } from '../components/ui/Checkbox';
 import { Switch } from '../components/ui/Switch';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { NotificationBadge } from '../components/ui/NotificationBadge';
 import { Avatar } from '../components/ui/Avatar';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -188,6 +189,41 @@ export const DesignSystemShowcasePage: React.FC = () => {
             <Badge variant="warning" size="md">Delayed</Badge>
             <Badge variant="error" size="md">Cancelled</Badge>
             <Badge variant="neutral" size="md">Draft</Badge>
+          </div>
+
+          <div style={{ marginTop: 'var(--space-6)', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-4)' }}>
+            <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
+              Standardized Red Notification Badges (Centered Number Inside)
+            </h4>
+            <div className="vaango-component-row" style={{ alignItems: 'center', gap: '16px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                Count 1: <NotificationBadge count={1} size="md" />
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                Count 9: <NotificationBadge count={9} size="md" />
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                Count 25: <NotificationBadge count={25} size="md" />
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                Count 99: <NotificationBadge count={99} size="md" />
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                Count 100+: <NotificationBadge count={120} size="md" />
+              </span>
+            </div>
+
+            <div className="vaango-component-row" style={{ marginTop: '12px', alignItems: 'center', gap: '16px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+                Applications <NotificationBadge count={3} size="sm" />
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+                Orders <NotificationBadge count={12} size="sm" />
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+                Master Catalogue <NotificationBadge count={5} size="sm" />
+              </span>
+            </div>
           </div>
 
           <div className="vaango-component-row" style={{ marginTop: 'var(--space-6)' }}>

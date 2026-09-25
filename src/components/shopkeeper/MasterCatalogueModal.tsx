@@ -9,6 +9,7 @@ import {
   ArrowRight,
   ShieldCheck,
   Tag,
+  HelpCircle,
 } from 'lucide-react';
 import { MasterProduct } from '../../types/database';
 import {
@@ -100,13 +101,13 @@ export const MasterCatalogueModal: React.FC<MasterCatalogueModalProps> = ({
           <div className="vaango-master-modal__header-info">
             <div className="vaango-master-modal__tag">
               <Sparkles size={14} />
-              <span>Global Master Catalogue</span>
+              <span>Master Product Catalogue</span>
             </div>
             <h2 id="catalogue-modal-title" className="vaango-master-modal__title">
-              Select or Propose Product
+              Find from Master Catalogue
             </h2>
             <p className="vaango-master-modal__subtitle">
-              Choose from standardized products or create a brand new product for your shop.
+              Search standardized verified products to quickly add to your shop, or create a new product.
             </p>
           </div>
           <button
@@ -119,14 +120,14 @@ export const MasterCatalogueModal: React.FC<MasterCatalogueModalProps> = ({
           </button>
         </div>
 
-        {/* Search bar & Create Action */}
+        {/* Search bar & Quick Create Action */}
         <div className="vaango-master-modal__controls">
           <div className="vaango-master-modal__search-wrapper">
             <Search size={18} className="vaango-master-modal__search-icon" />
             <input
               type="text"
               className="vaango-master-modal__search-input"
-              placeholder="Search products (e.g. Rice, Milk, Soap)..."
+              placeholder="Search products (e.g. Tomato, Onion, Rice, Milk)..."
               value={searchTerm}
               onChange={handleSearchChange}
               autoFocus
@@ -140,6 +141,7 @@ export const MasterCatalogueModal: React.FC<MasterCatalogueModalProps> = ({
                   setDuplicateWarning(null);
                   fetchProducts('');
                 }}
+                aria-label="Clear search"
               >
                 <X size={16} />
               </button>
@@ -154,21 +156,21 @@ export const MasterCatalogueModal: React.FC<MasterCatalogueModalProps> = ({
             disabled={isCheckingDuplicate}
           >
             <Plus size={16} />
-            <span>{isCheckingDuplicate ? 'Checking...' : 'Create New Product'}</span>
+            <span>{isCheckingDuplicate ? 'Checking...' : '+ Add New Product'}</span>
           </Button>
         </div>
 
-        {/* Duplicate Warning Alert */}
+        {/* Duplicate Warning Alert: "Did you mean one of these?" */}
         {duplicateWarning && duplicateWarning.length > 0 && (
           <div className="vaango-master-duplicate-alert">
             <div className="vaango-master-duplicate-alert__header">
-              <AlertCircle size={18} className="vaango-master-duplicate-alert__icon" />
+              <AlertCircle size={20} className="vaango-master-duplicate-alert__icon" />
               <div>
                 <h4 className="vaango-master-duplicate-alert__title">
-                  Similar products already exist in catalogue
+                  Did you mean one of these?
                 </h4>
                 <p className="vaango-master-duplicate-alert__text">
-                  To prevent duplicate listings, you can select one of these existing products or continue creating your own.
+                  We found similar items already verified in the Master Catalogue. You can use an existing product or continue creating a custom listing.
                 </p>
               </div>
             </div>
@@ -180,12 +182,15 @@ export const MasterCatalogueModal: React.FC<MasterCatalogueModalProps> = ({
                     <img src={item.image_url} alt={item.name} className="vaango-master-duplicate-item__thumb" />
                   ) : (
                     <div className="vaango-master-duplicate-item__placeholder">
-                      <Package size={16} />
+                      <Package size={18} />
                     </div>
                   )}
                   <div className="vaango-master-duplicate-item__details">
                     <span className="vaango-master-duplicate-item__name">{item.name}</span>
                     {item.brand && <span className="vaango-master-duplicate-item__brand">{item.brand}</span>}
+                    {item.description && (
+                      <span className="vaango-master-duplicate-item__desc">{item.description}</span>
+                    )}
                   </div>
                   <Button
                     size="sm"
@@ -208,7 +213,7 @@ export const MasterCatalogueModal: React.FC<MasterCatalogueModalProps> = ({
                       });
                     }}
                   >
-                    Select Existing
+                    Use This Product
                   </Button>
                 </div>
               ))}
@@ -220,7 +225,7 @@ export const MasterCatalogueModal: React.FC<MasterCatalogueModalProps> = ({
                 variant="outline"
                 onClick={() => onCreateCustomProduct(searchTerm.trim())}
               >
-                Continue Creating "{searchTerm.trim()}" Anyway
+                None of these match — Continue creating "{searchTerm.trim()}"
                 <ArrowRight size={14} />
               </Button>
             </div>
@@ -236,7 +241,7 @@ export const MasterCatalogueModal: React.FC<MasterCatalogueModalProps> = ({
             </div>
           ) : products.length === 0 ? (
             <div className="vaango-master-modal__empty">
-              <Package size={40} className="vaango-master-modal__empty-icon" />
+              <Package size={44} className="vaango-master-modal__empty-icon" />
               <h3>No matching products found</h3>
               <p>
                 {searchTerm
@@ -249,7 +254,7 @@ export const MasterCatalogueModal: React.FC<MasterCatalogueModalProps> = ({
                 className="mt-3"
               >
                 <Plus size={16} />
-                <span>Create "{searchTerm.trim() || 'New Product'}"</span>
+                <span>+ Create "{searchTerm.trim() || 'New Product'}"</span>
               </Button>
             </div>
           ) : (
@@ -265,7 +270,7 @@ export const MasterCatalogueModal: React.FC<MasterCatalogueModalProps> = ({
                       </div>
                     )}
                     <span className="vaango-master-card__badge">
-                      <ShieldCheck size={12} /> Standard
+                      <ShieldCheck size={12} /> Master Catalogue
                     </span>
                   </div>
 
@@ -288,14 +293,33 @@ export const MasterCatalogueModal: React.FC<MasterCatalogueModalProps> = ({
                       className="vaango-master-card__select-btn"
                       onClick={() => onSelectMasterProduct(p)}
                     >
-                      <Plus size={14} />
-                      <span>Add to My Shop</span>
+                      Use This Product
                     </Button>
                   </div>
                 </div>
               ))}
             </div>
           )}
+        </div>
+
+        {/* Section 2: Can't find your product? */}
+        <div className="vaango-master-modal__bottom-bar">
+          <div className="vaango-master-modal__bottom-info">
+            <HelpCircle size={18} className="vaango-master-modal__bottom-icon" />
+            <div>
+              <strong>Can't find your product in the catalogue?</strong>
+              <p>Add it manually to your shop. It will also be submitted to the Master Catalogue for platform review.</p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCreateNewClick}
+            disabled={isCheckingDuplicate}
+          >
+            <Plus size={16} />
+            <span>+ Add New Product</span>
+          </Button>
         </div>
       </div>
     </div>

@@ -18,6 +18,8 @@ import { OperationalMetrics } from '../../types/admin';
 import { AdminAuditLog } from '../../types/database';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
+import { NotificationBadge } from '../../components/ui/NotificationBadge';
+import { useSectionUnreadCounts } from '../../hooks/useSectionUnreadCounts';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useLanguage } from '../../context/LanguageContext';
@@ -30,6 +32,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const { pendingApplications, pendingCatalogue } = useSectionUnreadCounts();
 
   const loadDashboardData = async () => {
     setIsLoading(true);
@@ -120,7 +123,8 @@ export const AdminDashboardPage: React.FC = () => {
                 size="sm"
                 onClick={() => navigate('/admin/applications?status=submitted')}
               >
-                Review Applications
+                <span>Review Applications</span>
+                <NotificationBadge count={pendingApplications} size="sm" />
               </Button>
             )}
             {metrics.overdueSubscriptions > 0 && (
@@ -148,7 +152,10 @@ export const AdminDashboardPage: React.FC = () => {
             <span className="vaango-admin-stat-card__label">Pending Applications</span>
             <FileText size={18} className="vaango-admin-stat-card__icon vaango-admin-stat-card__icon--primary" />
           </div>
-          <div className="vaango-admin-stat-card__value">{metrics?.pendingApplications || 0}</div>
+          <div className="vaango-admin-stat-card__value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>{metrics?.pendingApplications || 0}</span>
+            <NotificationBadge count={pendingApplications} size="sm" />
+          </div>
           <div className="vaango-admin-stat-card__hint">Requires KYC & storefront review</div>
         </Card>
 
@@ -295,12 +302,36 @@ export const AdminDashboardPage: React.FC = () => {
             <div className="vaango-admin-module-card__icon-wrap">
               <FileText size={24} />
             </div>
-            <h3 className="vaango-admin-module-card__title">Shop Applications</h3>
+            <h3 className="vaango-admin-module-card__title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>Shop Applications</span>
+              <NotificationBadge count={pendingApplications} size="sm" />
+            </h3>
             <p className="vaango-admin-module-card__desc">
               Inspect merchant onboarding applications, storefront photos, GPS coordinates, and private identity proofs.
             </p>
             <span className="vaango-admin-module-card__link">
               Review Applications ({metrics?.pendingApplications || 0} pending) <ArrowRight size={14} />
+            </span>
+          </Card>
+
+          <Card
+            variant="default"
+            padding="lg"
+            className="vaango-admin-module-card"
+            onClick={() => navigate('/admin/catalogue')}
+          >
+            <div className="vaango-admin-module-card__icon-wrap">
+              <Layers size={24} />
+            </div>
+            <h3 className="vaango-admin-module-card__title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>Master Catalogue & Moderation</span>
+              <NotificationBadge count={pendingCatalogue} size="sm" />
+            </h3>
+            <p className="vaango-admin-module-card__desc">
+              Curate canonical products, review merchant suggestions, and approve pending additions to the global catalogue.
+            </p>
+            <span className="vaango-admin-module-card__link">
+              Manage Master Catalogue <ArrowRight size={14} />
             </span>
           </Card>
 

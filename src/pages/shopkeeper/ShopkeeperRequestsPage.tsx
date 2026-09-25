@@ -20,6 +20,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Textarea } from '../../components/ui/Textarea';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { NotificationBadge } from '../../components/ui/NotificationBadge';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
 import './ShopkeeperRequestsPage.css';
@@ -266,7 +267,7 @@ export const ShopkeeperRequestsPage: React.FC = () => {
             className={`vaango-req-tab ${activeTab === 'all' ? 'vaango-req-tab--active' : ''}`}
             onClick={() => handleTabChange('all')}
           >
-            All ({counts.all})
+            All
           </button>
           <button
             type="button"
@@ -275,7 +276,8 @@ export const ShopkeeperRequestsPage: React.FC = () => {
             className={`vaango-req-tab ${activeTab === 'new' ? 'vaango-req-tab--active' : ''}`}
             onClick={() => handleTabChange('new')}
           >
-            New ({counts.new})
+            <span>{workflowGroup === 'APPOINTMENT' ? 'New Appointments' : 'New Requests'}</span>
+            <NotificationBadge count={counts.new} size="sm" />
           </button>
           <button
             type="button"
@@ -284,7 +286,8 @@ export const ShopkeeperRequestsPage: React.FC = () => {
             className={`vaango-req-tab ${activeTab === 'active' ? 'vaango-req-tab--active' : ''}`}
             onClick={() => handleTabChange('active')}
           >
-            Active ({counts.active})
+            <span>Active</span>
+            <NotificationBadge count={counts.active} size="sm" />
           </button>
           <button
             type="button"
@@ -293,7 +296,8 @@ export const ShopkeeperRequestsPage: React.FC = () => {
             className={`vaango-req-tab ${activeTab === 'ready' ? 'vaango-req-tab--active' : ''}`}
             onClick={() => handleTabChange('ready')}
           >
-            {workflowGroup === 'APPOINTMENT' ? 'In Progress' : 'Ready'} ({counts.ready})
+            <span>{workflowGroup === 'APPOINTMENT' ? 'In Progress' : 'Ready'}</span>
+            <NotificationBadge count={counts.ready} size="sm" />
           </button>
           <button
             type="button"
@@ -302,7 +306,7 @@ export const ShopkeeperRequestsPage: React.FC = () => {
             className={`vaango-req-tab ${activeTab === 'completed' ? 'vaango-req-tab--active' : ''}`}
             onClick={() => handleTabChange('completed')}
           >
-            Completed ({counts.completed})
+            Completed
           </button>
           <button
             type="button"
@@ -311,7 +315,7 @@ export const ShopkeeperRequestsPage: React.FC = () => {
             className={`vaango-req-tab ${activeTab === 'cancelled' ? 'vaango-req-tab--active' : ''}`}
             onClick={() => handleTabChange('cancelled')}
           >
-            Cancelled ({counts.cancelled})
+            Cancelled
           </button>
         </div>
       </div>

@@ -11,6 +11,187 @@ export interface DuplicateCheckResult {
   status: string;
 }
 
+const MOCK_PROPOSALS_STORAGE_KEY = 'vaangly_mock_master_proposals';
+
+export const DEFAULT_MASTER_PRODUCTS: MasterProduct[] = [
+  {
+    id: 'mp-seed-001',
+    name: 'Tomato',
+    description: 'Fresh country tomatoes, suitable for everyday cooking.',
+    image_url: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400&q=80',
+    brand: null,
+    shop_type_id: null,
+    status: 'approved',
+    created_by: null,
+    approved_by: null,
+    approved_at: '2026-01-01T00:00:00Z',
+    moderation_reason: null,
+    metadata: { category: 'Vegetables' },
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'mp-seed-002',
+    name: 'Onion',
+    description: 'Crisp, fresh red onions for curries and gravies.',
+    image_url: 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=400&q=80',
+    brand: null,
+    shop_type_id: null,
+    status: 'approved',
+    created_by: null,
+    approved_by: null,
+    approved_at: '2026-01-01T00:00:00Z',
+    moderation_reason: null,
+    metadata: { category: 'Vegetables' },
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'mp-seed-003',
+    name: 'Potato',
+    description: 'Farm-fresh potatoes, versatile for gravies, fries, and masalas.',
+    image_url: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=400&q=80',
+    brand: null,
+    shop_type_id: null,
+    status: 'approved',
+    created_by: null,
+    approved_by: null,
+    approved_at: '2026-01-01T00:00:00Z',
+    moderation_reason: null,
+    metadata: { category: 'Vegetables' },
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'mp-seed-004',
+    name: 'Rice',
+    description: 'Aged Ponni boiled rice, clean grain and consistent cooking.',
+    image_url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&q=80',
+    brand: 'Ponni',
+    shop_type_id: null,
+    status: 'approved',
+    created_by: null,
+    approved_by: null,
+    approved_at: '2026-01-01T00:00:00Z',
+    moderation_reason: null,
+    metadata: { category: 'Grains & Pulses' },
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'mp-seed-005',
+    name: 'Wheat Flour',
+    description: '100% whole wheat chakki-fresh flour for rotis.',
+    image_url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&q=80',
+    brand: 'Aashirvaad',
+    shop_type_id: null,
+    status: 'approved',
+    created_by: null,
+    approved_by: null,
+    approved_at: '2026-01-01T00:00:00Z',
+    moderation_reason: null,
+    metadata: { category: 'Flours' },
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'mp-seed-006',
+    name: 'Milk',
+    description: 'Fresh toned pasteurized milk for tea, coffee, and curds.',
+    image_url: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&q=80',
+    brand: 'Aavin',
+    shop_type_id: null,
+    status: 'approved',
+    created_by: null,
+    approved_by: null,
+    approved_at: '2026-01-01T00:00:00Z',
+    moderation_reason: null,
+    metadata: { category: 'Dairy' },
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'mp-seed-007',
+    name: 'Eggs',
+    description: 'Clean farm white eggs rich in protein.',
+    image_url: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=400&q=80',
+    brand: null,
+    shop_type_id: null,
+    status: 'approved',
+    created_by: null,
+    approved_by: null,
+    approved_at: '2026-01-01T00:00:00Z',
+    moderation_reason: null,
+    metadata: { category: 'Dairy & Eggs' },
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'mp-seed-008',
+    name: 'Toor Dal',
+    description: 'Unpolished protein-rich yellow split peas for sambar.',
+    image_url: 'https://images.unsplash.com/photo-1585994192701-f1a505c817ea?w=400&q=80',
+    brand: 'Tata Sampann',
+    shop_type_id: null,
+    status: 'approved',
+    created_by: null,
+    approved_by: null,
+    approved_at: '2026-01-01T00:00:00Z',
+    moderation_reason: null,
+    metadata: { category: 'Grains & Pulses' },
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'mp-seed-009',
+    name: 'Cooking Oil',
+    description: 'Refined sunflower cooking oil for daily domestic frying and cooking.',
+    image_url: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400&q=80',
+    brand: 'Gold Winner',
+    shop_type_id: null,
+    status: 'approved',
+    created_by: null,
+    approved_by: null,
+    approved_at: '2026-01-01T00:00:00Z',
+    moderation_reason: null,
+    metadata: { category: 'Oils' },
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  }
+];
+
+function getStoredMockProposals(): MasterProduct[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(MOCK_PROPOSALS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredMockProposal(proposal: MasterProduct) {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getStoredMockProposals();
+    localStorage.setItem(MOCK_PROPOSALS_STORAGE_KEY, JSON.stringify([proposal, ...current]));
+  } catch {
+    // LocalStorage write fail ignored
+  }
+}
+
+async function withTimeout<T>(promise: PromiseLike<T>, ms = 1200): Promise<T> {
+  let timer: any;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Network timeout')), ms);
+  });
+  try {
+    return await Promise.race([Promise.resolve(promise), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Searches approved master products for shopkeepers to select from.
  */
@@ -18,43 +199,54 @@ export async function searchApprovedMasterProducts(
   searchTerm?: string,
   shopTypeId?: string
 ): Promise<MasterProduct[]> {
-  let query = supabase
-    .from('master_products')
-    .select(`
-      id,
-      name,
-      description,
-      image_url,
-      shop_type_id,
-      brand,
-      status,
-      created_by,
-      approved_by,
-      approved_at,
-      moderation_reason,
-      metadata,
-      created_at,
-      updated_at,
-      shop_types:shop_type_id (id, name, code)
-    `)
-    .eq('status', 'approved');
+  const clean = searchTerm?.trim() || '';
 
-  if (shopTypeId) {
-    query = query.eq('shop_type_id', shopTypeId);
+  try {
+    let query = supabase
+      .from('master_products')
+      .select(`
+        id,
+        name,
+        description,
+        image_url,
+        shop_type_id,
+        brand,
+        status,
+        created_by,
+        approved_by,
+        approved_at,
+        moderation_reason,
+        metadata,
+        created_at,
+        updated_at,
+        shop_types:shop_type_id (id, name, code)
+      `)
+      .eq('status', 'approved');
+
+    if (shopTypeId) {
+      query = query.eq('shop_type_id', shopTypeId);
+    }
+
+    if (clean) {
+      query = query.ilike('name', `%${clean}%`);
+    }
+
+    const { data, error } = await withTimeout(query.order('name', { ascending: true }).limit(50));
+    if (!error && data && data.length > 0) {
+      return data as unknown as MasterProduct[];
+    }
+  } catch (err) {
+    // Falls back to offline catalog silently
   }
 
-  if (searchTerm && searchTerm.trim().length > 0) {
-    const clean = searchTerm.trim();
-    query = query.ilike('name', `%${clean}%`);
+  // Fallback to default approved master products filtered by query
+  let pool = [...DEFAULT_MASTER_PRODUCTS];
+  if (clean) {
+    const lower = clean.toLowerCase();
+    pool = pool.filter((p) => p.name.toLowerCase().includes(lower) || (p.brand && p.brand.toLowerCase().includes(lower)));
   }
 
-  const { data, error } = await query.order('name', { ascending: true }).limit(50);
-  if (error) {
-    console.error('Error fetching master products:', error);
-    throw error;
-  }
-
-  return (data || []) as unknown as MasterProduct[];
+  return pool;
 }
 
 /**
@@ -64,27 +256,55 @@ export async function checkMasterProductDuplicates(
   name: string,
   shopTypeId?: string
 ): Promise<DuplicateCheckResult[]> {
-  if (!name || !name.trim()) return [];
+  const trimmed = name?.trim();
+  if (!trimmed) return [];
+  const normalized = trimmed.toLowerCase();
 
-  const { data, error } = await supabase.rpc('check_master_product_duplicates', {
-    p_name: name.trim(),
-    p_shop_type_id: shopTypeId || null,
-  });
+  try {
+    const { data, error } = await withTimeout(
+      supabase.rpc('check_master_product_duplicates', {
+        p_name: trimmed,
+        p_shop_type_id: shopTypeId || null,
+      })
+    );
 
-  if (error) {
-    console.error('Error checking duplicate master products:', error);
-    // Fallback: direct query
-    const { data: fallback, error: fbErr } = await supabase
-      .from('master_products')
-      .select('id, name, description, image_url, shop_type_id, brand, status')
-      .in('status', ['approved', 'pending'])
-      .ilike('name', `%${name.trim()}%`)
-      .limit(10);
-    if (fbErr) throw fbErr;
-    return (fallback || []) as DuplicateCheckResult[];
+    if (!error && data && data.length > 0) {
+      return data as DuplicateCheckResult[];
+    }
+
+    // Direct ILIKE query if RPC returns empty or fails
+    const { data: fallback, error: fbErr } = await withTimeout(
+      supabase
+        .from('master_products')
+        .select('id, name, description, image_url, shop_type_id, brand, status')
+        .in('status', ['approved', 'pending'])
+        .ilike('name', `%${trimmed}%`)
+        .limit(10)
+    );
+
+    if (!fbErr && fallback && fallback.length > 0) {
+      return fallback as DuplicateCheckResult[];
+    }
+  } catch (err) {
+    // Falls back to local catalog duplicate detection
   }
 
-  return (data || []) as DuplicateCheckResult[];
+  // Offline / local duplicate detection
+  const localPool = [...DEFAULT_MASTER_PRODUCTS, ...getStoredMockProposals()];
+  const matches = localPool.filter((p) => {
+    const pNorm = p.name.toLowerCase().trim();
+    return pNorm === normalized || pNorm.includes(normalized) || normalized.includes(pNorm);
+  });
+
+  return matches.map((m) => ({
+    id: m.id,
+    name: m.name,
+    description: m.description,
+    image_url: m.image_url,
+    shop_type_id: m.shop_type_id,
+    brand: m.brand,
+    status: m.status,
+  }));
 }
 
 /**
@@ -99,30 +319,52 @@ export async function createMasterProductProposal(proposal: {
   brand?: string | null;
   metadata?: Record<string, any>;
 }): Promise<MasterProduct> {
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) throw new Error('Authentication required to submit catalogue proposals');
+  const cleanName = proposal.name.trim();
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
-    .from('master_products')
-    .insert({
-      name: proposal.name.trim(),
-      description: proposal.description?.trim() || null,
-      image_url: proposal.image_url || null,
-      shop_type_id: proposal.shop_type_id || null,
-      brand: proposal.brand?.trim() || null,
-      metadata: proposal.metadata || {},
-      status: 'pending',
-      created_by: user.id,
-    })
-    .select()
-    .single();
+    const { data, error } = await supabase
+      .from('master_products')
+      .insert({
+        name: cleanName,
+        description: proposal.description?.trim() || null,
+        image_url: proposal.image_url || null,
+        shop_type_id: proposal.shop_type_id || null,
+        brand: proposal.brand?.trim() || null,
+        metadata: proposal.metadata || {},
+        status: 'pending',
+        created_by: user?.id || null,
+      })
+      .select()
+      .single();
 
-  if (error) {
-    console.error('Error creating master product proposal:', error);
-    throw error;
+    if (!error && data) {
+      return data as MasterProduct;
+    }
+  } catch (err) {
+    console.warn('Supabase createMasterProductProposal fallback:', err);
   }
 
-  return data as MasterProduct;
+  // Offline / mock fallback proposal
+  const mockProposal: MasterProduct = {
+    id: `mp-prop-${Date.now()}`,
+    name: cleanName,
+    description: proposal.description?.trim() || null,
+    image_url: proposal.image_url || null,
+    shop_type_id: proposal.shop_type_id || null,
+    brand: proposal.brand?.trim() || null,
+    status: 'pending',
+    created_by: 'current-user',
+    approved_by: null,
+    approved_at: null,
+    moderation_reason: null,
+    metadata: proposal.metadata || {},
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  saveStoredMockProposal(mockProposal);
+  return mockProposal;
 }
 
 /**

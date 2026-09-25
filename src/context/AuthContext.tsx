@@ -519,7 +519,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-        redirectTo: `${window.location.origin}/login?mode=recovery`,
+        redirectTo: `${window.location.origin}/reset-password`,
       });
       return error ? { success: false, error: mapSupabaseAuthError(error, error.message) } : { success: true };
     } catch (err: unknown) {

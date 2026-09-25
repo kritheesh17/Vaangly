@@ -11,11 +11,14 @@ import {
   Layers,
 } from 'lucide-react';
 import { Badge } from '../ui/Badge';
+import { NotificationBadge } from '../ui/NotificationBadge';
+import { useSectionUnreadCounts } from '../../hooks/useSectionUnreadCounts';
 import { useLanguage } from '../../context/LanguageContext';
 import './AdminLayout.css';
 
 export const AdminLayout: React.FC = () => {
   const { t } = useLanguage();
+  const { pendingApplications, pendingCatalogue } = useSectionUnreadCounts();
 
   return (
     <div className="vaango-admin-layout">
@@ -57,6 +60,7 @@ export const AdminLayout: React.FC = () => {
             >
               <FileCheck2 size={16} />
               <span>{t('adminApplications')}</span>
+              <NotificationBadge count={pendingApplications} size="sm" />
             </NavLink>
 
             <NavLink
@@ -77,6 +81,7 @@ export const AdminLayout: React.FC = () => {
             >
               <Layers size={16} />
               <span>Master Catalogue</span>
+              <NotificationBadge count={pendingCatalogue} size="sm" />
             </NavLink>
 
             <NavLink

@@ -14,6 +14,8 @@ import { getShopType } from '../../data/mockData';
 import { DEFAULT_LOCATIONS } from '../../context/LocationContext';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
+import { NotificationBadge } from '../../components/ui/NotificationBadge';
+import { useSectionUnreadCounts } from '../../hooks/useSectionUnreadCounts';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useLanguage } from '../../context/LanguageContext';
@@ -23,6 +25,7 @@ export const AdminApplicationsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useLanguage();
+  const { pendingApplications } = useSectionUnreadCounts();
 
   const [applications, setApplications] = useState<ShopApplication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,7 +98,8 @@ export const AdminApplicationsPage: React.FC = () => {
             className={`vaango-admin-tab ${activeStatus === 'submitted' ? 'vaango-admin-tab--active' : ''}`}
             onClick={() => handleStatusFilter('submitted')}
           >
-            {t('pendingVerification')}
+            <span>{t('pendingVerification')}</span>
+            <NotificationBadge count={pendingApplications} size="sm" />
           </button>
           <button
             type="button"

@@ -1,0 +1,71 @@
+.vaango-notification-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ef4444;
+  color: #ffffff;
+  font-family: var(--font-family-base, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  border-radius: 9999px;
+  user-select: none;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(239, 68, 68, 0.4);
+  vertical-align: middle;
+  pointer-events: none;
+}
+
+/* Single character count is a perfect circle */
+.vaango-notification-badge--single {
+  aspect-ratio: 1 / 1;
+  padding: 0;
+}
+
+/* Multi-character count (e.g. 25, 99, 99+) forms a pill with centered content */
+.vaango-notification-badge--multi {
+  padding: 0 5px;
+}
+
+/* Sizing Options */
+.vaango-notification-badge--sm {
+  min-width: 16px;
+  height: 16px;
+  font-size: 10px;
+}
+.vaango-notification-badge--sm.vaango-notification-badge--single {
+  width: 16px;
+}
+
+.vaango-notification-badge--md {
+  min-width: 18px;
+  height: 18px;
+  font-size: 11px;
+}
+.vaango-notification-badge--md.vaango-notification-badge--single {
+  width: 18px;
+}
+
+.vaango-notification-badge--lg {
+  min-width: 22px;
+  height: 22px;
+  font-size: 12px;
+}
+.vaango-notification-badge--lg.vaango-notification-badge--single {
+  width: 22px;
+}
+
+/* Position variant when placed on top-right corner of an icon */
+.vaango-notification-badge--overlap {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  border: 2px solid var(--color-surface, #ffffff);
+  z-index: 2;
+}
+
+/* Inline badge beside text */
+.vaango-notification-badge--inline {
+  margin-left: 6px;
+}

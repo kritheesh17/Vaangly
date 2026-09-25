@@ -24,6 +24,7 @@ import { supabase } from '../../lib/supabase';
 import { useToast } from '../../context/ToastContext';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
+import { NotificationBadge } from '../../components/ui/NotificationBadge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
@@ -312,6 +313,39 @@ export const AdminMasterCataloguePage: React.FC = () => {
             <span className="vaango-admin-stat-card__label">Rejected / Archived</span>
           </div>
         </Card>
+      </div>
+
+      {/* Status Filter Tabs */}
+      <div className="vaango-admin-tabs" role="tablist" style={{ marginBottom: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className={`vaango-admin-tab ${statusFilter === 'all' ? 'vaango-admin-tab--active' : ''}`}
+          onClick={() => setStatusFilter('all')}
+        >
+          All Products
+        </button>
+        <button
+          type="button"
+          className={`vaango-admin-tab ${statusFilter === 'pending' ? 'vaango-admin-tab--active' : ''}`}
+          onClick={() => setStatusFilter('pending')}
+        >
+          <span>Pending Proposals</span>
+          <NotificationBadge count={pendingCount} size="sm" />
+        </button>
+        <button
+          type="button"
+          className={`vaango-admin-tab ${statusFilter === 'approved' ? 'vaango-admin-tab--active' : ''}`}
+          onClick={() => setStatusFilter('approved')}
+        >
+          Approved Live
+        </button>
+        <button
+          type="button"
+          className={`vaango-admin-tab ${statusFilter === 'rejected' ? 'vaango-admin-tab--active' : ''}`}
+          onClick={() => setStatusFilter('rejected')}
+        >
+          Rejected
+        </button>
       </div>
 
       {/* Filter and Search Bar */}
