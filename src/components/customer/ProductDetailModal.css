@@ -147,7 +147,7 @@
 
 [data-theme='dark'] .vaango-prod-modal__price,
 .dark .vaango-prod-modal__price {
-  color: #22D3EE;
+  color: var(--brand-primary);
 }
 
 .vaango-prod-modal__unit {
@@ -212,10 +212,10 @@
 
 [data-theme='dark'] .vaango-variant-chip--active,
 .dark .vaango-variant-chip--active {
-  background-color: rgba(34, 211, 238, 0.15);
-  border-color: #22D3EE;
-  color: #22D3EE;
-  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.25);
+  background-color: rgba(52, 211, 153, 0.15);
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.25);
 }
 
 .vaango-variant-chip--out-of-stock {
@@ -252,8 +252,8 @@
 
 [data-theme='dark'] .vaango-prod-modal .vaango-qty-control,
 .dark .vaango-prod-modal .vaango-qty-control {
-  background-color: rgba(34, 211, 238, 0.12);
-  border-color: #22D3EE;
+  background-color: rgba(52, 211, 153, 0.12);
+  border-color: var(--brand-primary);
 }
 
 .vaango-prod-modal .vaango-qty-btn {
@@ -271,7 +271,7 @@
 
 [data-theme='dark'] .vaango-prod-modal .vaango-qty-btn,
 .dark .vaango-prod-modal .vaango-qty-btn {
-  color: #22D3EE;
+  color: var(--brand-primary);
 }
 
 .vaango-prod-modal .vaango-qty-btn:hover {
@@ -280,7 +280,7 @@
 
 [data-theme='dark'] .vaango-prod-modal .vaango-qty-btn:hover,
 .dark .vaango-prod-modal .vaango-qty-btn:hover {
-  background-color: rgba(34, 211, 238, 0.2);
+  background-color: rgba(52, 211, 153, 0.2);
 }
 
 .vaango-prod-modal .vaango-qty-display {

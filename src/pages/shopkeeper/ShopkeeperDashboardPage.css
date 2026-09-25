@@ -438,3 +438,36 @@
   gap: 10px;
   flex-shrink: 0;
 }
+
+.vaango-daily-stats-sub {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+/* Dark Mode Overrides for Shopkeeper Dashboard */
+[data-theme='dark'] .vaango-analytics-pill,
+.dark .vaango-analytics-pill {
+  background-color: rgba(52, 211, 153, 0.15);
+  color: #6EE7B7;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+[data-theme='dark'] .vaango-analytics-teaser,
+.dark .vaango-analytics-teaser {
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.08) 0%, rgba(30, 58, 138, 0.2) 100%);
+  border: 1.5px solid rgba(52, 211, 153, 0.35);
+}
+
+[data-theme='dark'] .vaango-analytics-teaser__icon,
+.dark .vaango-analytics-teaser__icon {
+  background-color: #059669;
+  color: #FFFFFF;
+}
+
+[data-theme='dark'] .vaango-shop-dash__urgent-banner,
+.dark .vaango-shop-dash__urgent-banner {
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.12) 0%, rgba(251, 191, 36, 0.12) 100%);
+  border-color: rgba(52, 211, 153, 0.4);
+}
+

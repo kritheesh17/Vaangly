@@ -120,7 +120,7 @@
 
 [data-theme='dark'] .vaango-prod-card__price,
 .dark .vaango-prod-card__price {
-  color: #22D3EE;
+  color: var(--brand-primary);
 }
 
 .vaango-prod-card__unit {
@@ -207,10 +207,10 @@
 
 [data-theme='dark'] .vaango-product-variants button.active,
 .dark .vaango-product-variants button.active {
-  border-color: #22D3EE;
-  background-color: rgba(34, 211, 238, 0.15);
-  color: #22D3EE;
-  box-shadow: 0 0 0 1px #22D3EE;
+  border-color: var(--brand-primary);
+  background-color: rgba(52, 211, 153, 0.15);
+  color: var(--brand-primary);
+  box-shadow: 0 0 0 1px var(--brand-primary);
 }
 
 .vaango-product-variants button:disabled {

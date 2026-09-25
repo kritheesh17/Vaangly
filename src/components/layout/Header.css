@@ -189,6 +189,43 @@
   border-radius: var(--radius-full, 9999px);
 }
 
+/* Highlight Nav Link e.g. Analytics (Pro) */
+.vaango-header__nav-link--highlight {
+  color: var(--brand-warmth);
+  font-weight: var(--font-weight-bold, 700);
+}
+
+/* Dark Mode Nav Links */
+[data-theme='dark'] .vaango-header__nav-link,
+.dark .vaango-header__nav-link {
+  color: var(--color-text-secondary);
+}
+
+[data-theme='dark'] .vaango-header__nav-link:hover,
+.dark .vaango-header__nav-link:hover {
+  color: #6EE7B7;
+}
+
+[data-theme='dark'] .vaango-header__nav-link--active,
+.dark .vaango-header__nav-link--active {
+  color: #34D399;
+}
+
+[data-theme='dark'] .vaango-header__nav-link--active::after,
+.dark .vaango-header__nav-link--active::after {
+  background-color: #34D399;
+}
+
+[data-theme='dark'] .vaango-header__nav-link--highlight,
+.dark .vaango-header__nav-link--highlight {
+  color: #FBBF24;
+}
+
+[data-theme='dark'] .vaango-header__nav-link--highlight:hover,
+.dark .vaango-header__nav-link--highlight:hover {
+  color: #FDE047;
+}
+
 /* Home Link: Only shown on screens >= 1320px because the Logo already navigates to home */
 .vaango-header__nav-link--home {
   display: none;

@@ -203,6 +203,24 @@ input:disabled + .vaango-switch__slider {
   font-weight: 600;
 }
 
+[data-theme='dark'] .vaango-shop-status-card--live,
+.dark .vaango-shop-status-card--live {
+  border-color: #34D399;
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.08) 0%, rgba(30, 58, 138, 0.15) 100%);
+}
+
+[data-theme='dark'] .vaango-shop-status-card--incomplete,
+.dark .vaango-shop-status-card--incomplete {
+  border-color: #FBBF24;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, transparent 100%);
+}
+
+[data-theme='dark'] .vaango-shop-status-card__live-footer,
+.dark .vaango-shop-status-card__live-footer {
+  border-top: 1px solid rgba(52, 211, 153, 0.25);
+  color: #34D399;
+}
+
 .vaango-radar-icon {
   animation: pulse 2s infinite;
 }

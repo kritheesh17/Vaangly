@@ -39,7 +39,7 @@
   width: 100%;
 }
 
-/* Primary Variant (Deep Teal #0A7B83) */
+/* Primary Variant (Deep Teal #0A7B83 in light, emerald in dark) */
 .vaango-button--primary {
   background-color: var(--brand-primary);
   color: var(--color-text-inverse);
@@ -55,6 +55,18 @@
 .vaango-button--primary:active:not(:disabled) {
   background-color: var(--brand-primary-active);
   transform: translateY(0);
+}
+
+[data-theme='dark'] .vaango-button--primary,
+.dark .vaango-button--primary {
+  background-color: #059669;
+  color: #FFFFFF;
+}
+
+[data-theme='dark'] .vaango-button--primary:hover:not(:disabled),
+.dark .vaango-button--primary:hover:not(:disabled) {
+  background-color: #10B981;
+  color: #061D15;
 }
 
 /* Accent Variant (Warm Amber #F59E0B) */
@@ -95,6 +107,19 @@
 
 .vaango-button--outline:hover:not(:disabled) {
   background-color: var(--brand-primary-light);
+}
+
+[data-theme='dark'] .vaango-button--outline,
+.dark .vaango-button--outline {
+  color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+[data-theme='dark'] .vaango-button--outline:hover:not(:disabled),
+.dark .vaango-button--outline:hover:not(:disabled) {
+  background-color: rgba(52, 211, 153, 0.15);
+  color: #6EE7B7;
+  border-color: #6EE7B7;
 }
 
 /* Ghost Variant */

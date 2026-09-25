@@ -201,12 +201,12 @@
 .vaango-master-duplicate-item__name {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .vaango-master-duplicate-item__brand {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .vaango-master-duplicate-alert__footer {
@@ -255,7 +255,7 @@
 }
 
 .vaango-master-modal__empty-icon {
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-bottom: 0.75rem;
 }
 

@@ -92,6 +92,30 @@
   color: #6b7280;
 }
 
+[data-theme='dark'] .vaango-admin-stat-card__icon--blue,
+.dark .vaango-admin-stat-card__icon--blue {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38BDF8;
+}
+
+[data-theme='dark'] .vaango-admin-stat-card__icon--amber,
+.dark .vaango-admin-stat-card__icon--amber {
+  background: rgba(251, 191, 36, 0.15);
+  color: #FBBF24;
+}
+
+[data-theme='dark'] .vaango-admin-stat-card__icon--green,
+.dark .vaango-admin-stat-card__icon--green {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34D399;
+}
+
+[data-theme='dark'] .vaango-admin-stat-card__icon--gray,
+.dark .vaango-admin-stat-card__icon--gray {
+  background: var(--color-surface-elevated);
+  color: var(--color-text-secondary);
+}
+
 .vaango-admin-stat-card__data {
   display: flex;
   flex-direction: column;
@@ -184,23 +208,23 @@
 
 .vaango-admin-table th {
   padding: 0.85rem 1rem;
-  background: #f9fafb;
+  background: var(--color-surface-sunken);
   font-size: 0.75rem;
   font-weight: 700;
-  color: #4b5563;
+  color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .vaango-admin-table td {
   padding: 0.85rem 1rem;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--color-border-subtle);
   vertical-align: middle;
 }
 
 .vaango-admin-table tr:hover td {
-  background-color: #faf5ff;
+  background-color: var(--color-surface-elevated);
 }
 
 .vaango-admin-product-cell {
@@ -241,7 +265,7 @@
 
 .vaango-admin-product-brand {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
@@ -249,7 +273,7 @@
 
 .vaango-admin-product-desc {
   font-size: 0.78rem;
-  color: #6b7280;
+  color: var(--text-secondary);
   margin: 0.15rem 0 0;
   display: -webkit-box;
   -webkit-line-clamp: 1;
@@ -259,8 +283,8 @@
 
 .vaango-admin-product-reason {
   font-size: 0.72rem;
-  color: #b91c1c;
-  background: #fef2f2;
+  color: var(--color-error);
+  background: var(--color-error-bg);
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
   margin-top: 0.2rem;
@@ -269,7 +293,7 @@
 
 .vaango-admin-meta-text {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .vaango-admin-actions-cell {

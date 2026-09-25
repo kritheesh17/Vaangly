@@ -89,29 +89,29 @@ export const Header: React.FC = () => {
           <nav className="vaango-header__desktop-nav" aria-label="Main Navigation">
             {role === 'admin' ? (
               <>
-                <Link to="/admin/dashboard" className="vaango-header__nav-link">{t('navAdmin')}</Link>
-                <Link to="/admin/applications" className="vaango-header__nav-link">
+                <Link to="/admin/dashboard" className={`vaango-header__nav-link ${location.pathname === '/admin/dashboard' ? 'vaango-header__nav-link--active' : ''}`}>{t('navAdmin')}</Link>
+                <Link to="/admin/applications" className={`vaango-header__nav-link ${location.pathname.startsWith('/admin/applications') ? 'vaango-header__nav-link--active' : ''}`}>
                   <span>{t('adminAppsTitle')}</span>
                   <NotificationBadge count={pendingApplications} size="sm" />
                 </Link>
-                <Link to="/admin/catalogue" className="vaango-header__nav-link">
+                <Link to="/admin/catalogue" className={`vaango-header__nav-link ${location.pathname.startsWith('/admin/catalogue') ? 'vaango-header__nav-link--active' : ''}`}>
                   <span>Master Catalogue</span>
                   <NotificationBadge count={pendingCatalogue} size="sm" />
                 </Link>
-                <Link to="/admin/shops" className="vaango-header__nav-link">{t('adminShopsTitle')}</Link>
-                <Link to="/admin/locations" className="vaango-header__nav-link">{t('adminLocationsTitle')}</Link>
-                <Link to="/admin/audit" className="vaango-header__nav-link">{t('navAudit')}</Link>
+                <Link to="/admin/shops" className={`vaango-header__nav-link ${location.pathname.startsWith('/admin/shops') ? 'vaango-header__nav-link--active' : ''}`}>{t('adminShopsTitle')}</Link>
+                <Link to="/admin/locations" className={`vaango-header__nav-link ${location.pathname.startsWith('/admin/locations') ? 'vaango-header__nav-link--active' : ''}`}>{t('adminLocationsTitle')}</Link>
+                <Link to="/admin/audit" className={`vaango-header__nav-link ${location.pathname.startsWith('/admin/audit') ? 'vaango-header__nav-link--active' : ''}`}>{t('navAudit')}</Link>
               </>
             ) : role === 'shopkeeper' ? (
               <>
-                <Link to="/shopkeeper/dashboard" className="vaango-header__nav-link">{t('navDashboard')}</Link>
-                <Link to="/shopkeeper/requests" className="vaango-header__nav-link">
+                <Link to="/shopkeeper/dashboard" className={`vaango-header__nav-link ${location.pathname === '/shopkeeper/dashboard' ? 'vaango-header__nav-link--active' : ''}`}>{t('navDashboard')}</Link>
+                <Link to="/shopkeeper/requests" className={`vaango-header__nav-link ${location.pathname.startsWith('/shopkeeper/requests') ? 'vaango-header__nav-link--active' : ''}`}>
                   <span>{t('navOrders')}</span>
                   <NotificationBadge count={shopkeeperNewRequests} size="sm" />
                 </Link>
-                <Link to="/shopkeeper/catalogue" className="vaango-header__nav-link">{t('navCatalogue')}</Link>
-                <Link to="/shopkeeper/analytics" className="vaango-header__nav-link vaango-header__nav-link--highlight">{t('navAnalytics')} (Pro)</Link>
-                <Link to="/shopkeeper/profile" className="vaango-header__nav-link">{t('navSettings')}</Link>
+                <Link to="/shopkeeper/catalogue" className={`vaango-header__nav-link ${location.pathname.startsWith('/shopkeeper/catalogue') ? 'vaango-header__nav-link--active' : ''}`}>{t('navCatalogue')}</Link>
+                <Link to="/shopkeeper/analytics" className={`vaango-header__nav-link vaango-header__nav-link--highlight ${location.pathname.startsWith('/shopkeeper/analytics') ? 'vaango-header__nav-link--active' : ''}`}>{t('navAnalytics')} (Pro)</Link>
+                <Link to="/shopkeeper/profile" className={`vaango-header__nav-link ${location.pathname.startsWith('/shopkeeper/profile') ? 'vaango-header__nav-link--active' : ''}`}>{t('navSettings')}</Link>
               </>
             ) : (
               <>

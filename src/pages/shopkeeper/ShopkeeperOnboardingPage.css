@@ -447,14 +447,14 @@
 }
 
 .vaango-photo-status-banner--warning {
-  background-color: rgba(245, 158, 11, 0.1);
-  color: #b45309;
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning);
   border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
 .vaango-photo-status-banner--success {
-  background-color: rgba(16, 185, 129, 0.1);
-  color: #047857;
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
   border: 1px solid rgba(16, 185, 129, 0.25);
 }
 

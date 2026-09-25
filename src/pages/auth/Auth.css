@@ -54,7 +54,7 @@
 
 [data-theme='dark'] .vaango-auth-brand .vaango-header__logo-text,
 .dark .vaango-auth-brand .vaango-header__logo-text {
-  color: #22D3EE;
+  color: var(--brand-primary, #34D399);
 }
 
 .vaango-auth-logo {

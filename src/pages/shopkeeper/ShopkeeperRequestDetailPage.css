@@ -1,6 +1,6 @@
 .vaango-proof-review__title { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
 .vaango-proof-verified-note { font-size: 13px; color: var(--color-success); font-weight: 600; margin-top: 8px; }
-.vaango-bogo-tag { font-size: 12px; font-weight: 700; background: #D1FAE5; color: #065F46; border-radius: 10px; padding: 2px 8px; display: inline-block; margin-top: 4px; }
+.vaango-bogo-tag { font-size: 12px; font-weight: 700; background: var(--color-success-bg, rgba(52, 211, 153, 0.15)); color: var(--color-success); border-radius: 10px; padding: 2px 8px; display: inline-block; margin-top: 4px; }
 .vaango-req-detail {
   padding-top: var(--spacing-lg);
   padding-bottom: 90px;

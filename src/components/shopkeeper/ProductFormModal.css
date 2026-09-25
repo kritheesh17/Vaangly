@@ -94,6 +94,20 @@
   color: #3730a3;
 }
 
+[data-theme='dark'] .vaango-product-modal__catalogue-badge--linked,
+.dark .vaango-product-modal__catalogue-badge--linked {
+  background-color: rgba(52, 211, 153, 0.15);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #6EE7B7;
+}
+
+[data-theme='dark'] .vaango-product-modal__catalogue-badge--propose,
+.dark .vaango-product-modal__catalogue-badge--propose {
+  background-color: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #A5B4FC;
+}
+
 .vaango-product-modal__error {
   display: flex;
   align-items: center;

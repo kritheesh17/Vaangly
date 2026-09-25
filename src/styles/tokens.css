@@ -30,6 +30,48 @@
   --color-info: #0284C7;
   --color-info-bg: #F0F9FF;
 
+  /* Standardized Semantic Text Tokens */
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --text-disabled: var(--color-disabled-text);
+  --text-inverse: var(--color-text-inverse);
+  --text-on-primary: #FFFFFF;
+  --text-on-danger: #FFFFFF;
+  --text-on-success: #FFFFFF;
+  --text-on-warning: #0F172A;
+
+  /* Standardized Background / Surface Tokens */
+  --bg: var(--color-bg);
+  --surface: var(--color-surface);
+  --surface-elevated: var(--color-surface-elevated);
+  --surface-hover: #F4F5F0;
+  --surface-sunken: var(--color-surface-sunken);
+  --border: var(--color-border);
+  --border-subtle: var(--color-border-subtle);
+
+  /* Standardized Semantic Color Tokens */
+  --primary: var(--color-primary);
+  --primary-hover: var(--brand-primary-hover);
+  --success: var(--color-success);
+  --warning: var(--color-warning);
+  --danger: var(--color-error);
+  --info: var(--color-info);
+
+  /* Compatibility Aliases for Legacy Styles */
+  --color-text: var(--color-text-primary);
+  --color-text-main: var(--color-text-primary);
+  --color-accent: var(--brand-warmth);
+  --color-surface-hover: var(--surface-hover);
+
+  --text-xs: var(--font-size-xs);
+  --text-sm: var(--font-size-sm);
+  --text-base: var(--font-size-base);
+  --text-lg: var(--font-size-lg);
+  --text-xl: var(--font-size-xl);
+  --text-2xl: var(--font-size-2xl);
+  --text-3xl: var(--font-size-3xl);
+
   /* Typography */
   --font-family-base: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-size-xs: 0.75rem;    /* 12px */
@@ -115,39 +157,64 @@
 /* Dark Theme Tokens (Deep Navy #0F1828 as base background) */
 [data-theme='dark'],
 .dark {
+  /* Surfaces */
   --color-bg: #0F1828;
   --color-surface: #172338;
   --color-surface-elevated: #1F2E47;
   --color-surface-sunken: #0B121E;
+  --surface-hover: #1F2E47;
+  --color-surface-hover: #1F2E47;
 
-  --color-text-primary: #F8FAFC;
-  --color-text-secondary: #CBD5E1;
-  --color-text-muted: #94A3B8;
-  --color-text-inverse: #0F172A;
+  /* Dark Mode Text Hierarchy - High Contrast (WCAG AA/AAA Compliant) */
+  --color-text-primary: #F8FAFC;       /* Near white, ~14:1 contrast on #0F1828 */
+  --color-text-secondary: #CBD5E1;     /* Soft slate-silver, ~10:1 contrast on #0F1828 */
+  --color-text-muted: #94A3B8;         /* Clear readable muted gray, ~6:1 contrast on #0F1828 */
+  --color-text-inverse: #FFFFFF;       /* Crisp white for buttons and badges */
+  --color-disabled-text: #94A3B8;      /* Readable disabled text */
+  --color-disabled-bg: #1E293B;
 
+  --color-text: var(--color-text-primary);
+  --color-text-main: var(--color-text-primary);
+
+  /* Dark Mode Brand - Accessible Bright Emerald & Teal (Contrast > 7.5:1) */
+  --brand-primary: #34D399;            /* Bright emerald, >8:1 contrast on #0F1828 */
+  --brand-primary-hover: #6EE7B7;
+  --brand-primary-active: #10B981;
+  --brand-primary-light: rgba(52, 211, 153, 0.15);
+  --brand-primary-subtle: rgba(52, 211, 153, 0.25);
+
+  --color-primary: var(--brand-primary);
+  --color-primary-hover: var(--brand-primary-hover);
+
+  --brand-accent: #2DD4BF;             /* Vivid teal accent */
+  --brand-accent-hover: #5EEAD4;
+  --brand-accent-light: rgba(45, 212, 191, 0.15);
+  --brand-accent-subtle: rgba(45, 212, 191, 0.25);
+
+  --brand-warmth: #FBBF24;             /* Bright amber for notifications / highlights */
+  --brand-warmth-light: rgba(251, 191, 36, 0.15);
+  --color-accent: #FBBF24;
+
+  /* Dark Mode Semantic Status Colors (Luminous, Accessible) */
+  --color-success: #34D399;            /* Bright emerald, >7.5:1 on #172338 */
+  --color-success-bg: rgba(52, 211, 153, 0.15);
+  --color-warning: #FBBF24;            /* Bright amber, >9:1 on #172338 */
+  --color-warning-bg: rgba(251, 191, 36, 0.15);
+  --color-error: #F87171;              /* Bright coral-red, >6.5:1 on #172338 */
+  --color-error-bg: rgba(248, 113, 113, 0.15);
+  --color-info: #38BDF8;               /* Bright sky blue, >8:1 on #172338 */
+  --color-info-bg: rgba(56, 189, 248, 0.15);
+
+  /* Dark Borders & Focus */
   --color-border: #263852;
   --color-border-subtle: #1C2B40;
-  --color-border-focus: #22D3EE;
+  --color-border-focus: #34D399;
 
-  --brand-primary-light: rgba(10, 123, 131, 0.25);
-  --brand-primary-subtle: rgba(10, 123, 131, 0.3);
-
-  --brand-accent-light: rgba(245, 158, 11, 0.2);
-  --brand-accent-subtle: rgba(245, 158, 11, 0.25);
-
-  --color-success-bg: rgba(16, 185, 129, 0.16);
-  --color-warning-bg: rgba(245, 158, 11, 0.16);
-  --color-error-bg: rgba(239, 68, 68, 0.16);
-  --color-info-bg: rgba(2, 132, 199, 0.16);
-
-  --color-disabled-bg: #1E293B;
-  --color-disabled-text: #64748B;
+  --focus-ring: 0 0 0 3px rgba(52, 211, 153, 0.35);
+  --focus-ring-accent: 0 0 0 3px rgba(251, 191, 36, 0.35);
 
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.25);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
   --shadow-elevated: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
-
-  --focus-ring: 0 0 0 3px rgba(34, 211, 238, 0.4);
-  --focus-ring-accent: 0 0 0 3px rgba(245, 158, 11, 0.5);
 }

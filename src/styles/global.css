@@ -285,17 +285,30 @@ p {
 
 /* Colors */
 .text-primary { color: var(--color-primary); }
+.text-main { color: var(--color-text-primary); }
 .text-secondary { color: var(--color-text-secondary); }
 .text-muted { color: var(--color-text-muted); }
 .text-accent { color: var(--brand-accent); }
 .text-error { color: var(--color-error); }
 .text-success { color: var(--color-success); }
 .text-warning { color: var(--color-warning); }
+
+/* Surface & Border Utilities */
+.bg-surface { background-color: var(--color-surface); }
+.bg-surface-elevated { background-color: var(--color-surface-elevated); }
+.bg-surface-sunken { background-color: var(--color-surface-sunken); }
+.border-subtle { border-color: var(--color-border); }
+
 /* Form inputs & interactive elements theme support */
 input, select, textarea {
   color: var(--color-text-primary);
   background-color: var(--color-surface);
   border-color: var(--color-border);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-muted);
 }
 
 [data-theme='dark'] input,
@@ -304,16 +317,16 @@ input, select, textarea {
 .dark input,
 .dark select,
 .dark textarea {
-  color: #F8FAFC;
-  background-color: #172338;
-  border-color: #263852;
+  color: var(--color-text-primary);
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
 }
 
 [data-theme='dark'] input::placeholder,
 [data-theme='dark'] textarea::placeholder,
 .dark input::placeholder,
 .dark textarea::placeholder {
-  color: #64748B;
+  color: var(--color-text-muted);
 }
 
 [data-theme='dark'] input:focus,
@@ -322,7 +335,8 @@ input, select, textarea {
 .dark input:focus,
 .dark select:focus,
 .dark textarea:focus {
-  border-color: #22D3EE;
+  border-color: var(--brand-primary);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.3);
+  box-shadow: var(--focus-ring);
 }
+

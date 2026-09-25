@@ -377,12 +377,12 @@
 }
 
 .vaango-admin-mod-banner {
-  background-color: rgba(239, 68, 68, 0.08);
+  background-color: var(--color-error-bg);
   border: 1px solid rgba(239, 68, 68, 0.25);
   border-radius: var(--radius-md);
   padding: 8px 12px;
   font-size: 0.8rem;
-  color: #b91c1c;
+  color: var(--color-error);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -393,12 +393,12 @@
 }
 
 .vaango-admin-mod-banner span {
-  color: #7f1d1d;
+  color: var(--color-text-secondary);
 }
 
 .vaango-admin-mod-banner time {
   font-size: 0.72rem;
-  color: #991b1b;
+  color: var(--color-text-muted);
   margin-top: 2px;
 }
 

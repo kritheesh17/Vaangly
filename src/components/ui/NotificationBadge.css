@@ -69,3 +69,17 @@
 .vaango-notification-badge--inline {
   margin-left: 6px;
 }
+
+/* Dark Mode Overrides */
+[data-theme='dark'] .vaango-notification-badge,
+.dark .vaango-notification-badge {
+  background-color: #EF4444;
+  color: #FFFFFF;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15), 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .vaango-notification-badge--overlap,
+.dark .vaango-notification-badge--overlap {
+  border-color: var(--color-surface, #172338);
+}
+
