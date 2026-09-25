@@ -4,6 +4,10 @@
 
 BEGIN;
 
+-- 0. Update workflow_groups check constraint to allow Group D (SALES_SERVICE)
+ALTER TABLE public.workflow_groups DROP CONSTRAINT IF EXISTS workflow_groups_code_check;
+ALTER TABLE public.workflow_groups ADD CONSTRAINT workflow_groups_code_check CHECK (code IN ('ORDER', 'APPOINTMENT', 'SERVICE', 'SALES_SERVICE'));
+
 -- 1. Insert Group D into public.workflow_groups
 INSERT INTO public.workflow_groups (id, code, name, description, icon)
 VALUES (
