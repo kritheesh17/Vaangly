@@ -14,7 +14,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { Shop, ShopProduct, ShopService, PriceType, ProductVariant, ProductAttributeGroup } from '../../types/database';
+import { Shop, ShopProduct, ShopService, PriceType, ProductVariant, ProductAttributeGroup, SlotConfig } from '../../types/database';
 import { WorkflowGroupCode } from '../../types/workflow';
 import { getShopType } from '../../data/mockData';
 import {
@@ -25,11 +25,13 @@ import {
   toggleProductStock,
   deleteShopProduct,
   toggleShopLive,
+  updateSlotConfig,
 } from '../../lib/shopkeeperApi';
 import {
   fetchShopServices,
   saveShopService,
   deleteShopService,
+  generateAndSyncAppointmentSlots,
 } from '../../lib/appointmentServiceApi';
 import { ProductFormModal, MasterProductTemplate } from '../../components/shopkeeper/ProductFormModal';
 import { MasterCatalogueModal } from '../../components/shopkeeper/MasterCatalogueModal';
@@ -270,7 +272,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
     }
   };
 
-  // Add / Edit Service Submit (Group B & C)
+  // Add / Edit Service or Appointment Submit (Group B & C)
   const handleServiceModalSubmit = async (serviceData: {
     id?: string;
     name: string;
@@ -284,6 +286,8 @@ export const ShopkeeperCataloguePage: React.FC = () => {
     specialization: string | null;
     service_category: string | null;
     is_available: boolean;
+    item_type?: 'appointment' | 'service';
+    slot_config?: SlotConfig;
   }) => {
     if (!shop) return { success: false, error: 'No shop associated with account.' };
 
@@ -299,6 +303,21 @@ export const ShopkeeperCataloguePage: React.FC = () => {
           }
           return [res.service!, ...prev];
         });
+
+        // If appointment slot config was provided, update shop slot_config and sync slots
+        if (serviceData.slot_config) {
+          try {
+            await updateSlotConfig(shop.id, serviceData.slot_config);
+            await generateAndSyncAppointmentSlots(
+              shop.id,
+              res.service.id,
+              serviceData.slot_config
+            );
+          } catch (slotErr) {
+            console.warn('Could not sync appointment slots:', slotErr);
+          }
+        }
+
         success(t('serviceSavedSuccess', { name: serviceData.name }));
         return { success: true };
       }
@@ -465,7 +484,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
                 }}
                 leftIcon={<Plus size={18} />}
               >
-                Add Service
+                Add Service / Slot
               </Button>
             </div>
           ) : (
@@ -484,10 +503,8 @@ export const ShopkeeperCataloguePage: React.FC = () => {
               }}
               leftIcon={<Plus size={18} />}
             >
-              {workflowGroup === 'APPOINTMENT'
-                ? 'Add Appointment Service'
-                : workflowGroup === 'SERVICE'
-                ? 'Add New Service'
+              {workflowGroup === 'APPOINTMENT' || workflowGroup === 'SERVICE'
+                ? 'Add New Service / Slot'
                 : 'Add New Product'}
             </Button>
           )}
@@ -607,7 +624,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
                   ? 'Add your services, doctor sessions, or repair tasks so customers can book them.'
                   : 'Try adjusting your search query or filter.'
               }
-              actionLabel={services.length === 0 ? 'Add First Service' : undefined}
+              actionLabel={services.length === 0 ? 'Add First Service / Slot' : undefined}
               onAction={
                 services.length === 0
                   ? () => {

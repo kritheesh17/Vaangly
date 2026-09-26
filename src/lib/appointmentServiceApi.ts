@@ -1,4 +1,4 @@
-import { AppointmentSlot, ShopService, Request, RequestEvent, PriceType } from '../types/database';
+import { AppointmentSlot, ShopService, Request, RequestEvent, PriceType, SlotConfig } from '../types/database';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { getShopServices as getMockServices, generateDailySlots } from '../data/mockData';
 import { normalizeIndianPhone } from './phoneUtils';
@@ -824,4 +824,169 @@ export const cancelCustomerRequest = async (
     return { success: false, error: msg };
   }
 };
+
+/**
+ * Helper to parse a time string ("09:00 AM" or "14:30") into total minutes from midnight
+ */
+export const parseTimeToMinutes = (timeStr: string): number => {
+  if (!timeStr) return 0;
+  const trimmed = timeStr.trim().toUpperCase();
+  const is12Hour = trimmed.includes('AM') || trimmed.includes('PM');
+
+  if (is12Hour) {
+    const isPM = trimmed.includes('PM');
+    const clean = trimmed.replace('AM', '').replace('PM', '').trim();
+    const [hStr, mStr] = clean.split(':');
+    let hours = parseInt(hStr, 10) || 0;
+    const minutes = parseInt(mStr, 10) || 0;
+    if (isPM && hours < 12) hours += 12;
+    if (!isPM && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  }
+
+  const [hStr, mStr] = trimmed.split(':');
+  const hours = parseInt(hStr, 10) || 0;
+  const minutes = parseInt(mStr, 10) || 0;
+  return hours * 60 + minutes;
+};
+
+/**
+ * Format total minutes from midnight into "hh:mm A" string
+ */
+export const minutesToFormattedTime = (totalMinutes: number): string => {
+  const norm = ((totalMinutes % 1440) + 1440) % 1440;
+  const hours24 = Math.floor(norm / 60);
+  const minutes = norm % 60;
+  const period = hours24 >= 12 ? 'PM' : 'AM';
+  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${pad(hours12)}:${pad(minutes)} ${period}`;
+};
+
+/**
+ * Generate and synchronize appointment slots based on slot configuration
+ */
+export const generateAndSyncAppointmentSlots = async (
+  shopId: string,
+  serviceId: string | null | undefined,
+  config: SlotConfig,
+  daysToGenerate = 14
+): Promise<{ success: boolean; count: number; error?: string }> => {
+  try {
+    const ranges = config.ranges || [];
+    const slotDuration = config.slotDurationMinutes || 30;
+    const buffer = config.bufferMinutes || 0;
+    const availableDays = config.availableDays || [1, 2, 3, 4, 5, 6];
+    const breaks = (config.breaks || []).map((b) => ({
+      start: parseTimeToMinutes(b.start),
+      end: parseTimeToMinutes(b.end),
+    }));
+
+    if (ranges.length === 0 || availableDays.length === 0 || slotDuration <= 0) {
+      return { success: true, count: 0 };
+    }
+
+    const today = new Date();
+    const newSlots: Omit<AppointmentSlot, 'created_at'>[] = [];
+
+    for (let dayOffset = 0; dayOffset < daysToGenerate; dayOffset++) {
+      const targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + dayOffset);
+      const dayOfWeek = targetDate.getDay(); // 0 = Sun, 1 = Mon ...
+      if (!availableDays.includes(dayOfWeek)) continue;
+
+      const dateStr = targetDate.toISOString().slice(0, 10);
+
+      ranges.forEach((range) => {
+        const startMin = parseTimeToMinutes(range.start);
+        const endMin = parseTimeToMinutes(range.end);
+        if (startMin >= endMin) return;
+
+        let current = startMin;
+        while (current + slotDuration <= endMin) {
+          const slotStart = current;
+          const slotEnd = current + slotDuration;
+
+          // Check if slot overlaps any configured break
+          const inBreak = breaks.some(
+            (b) => slotStart < b.end && slotEnd > b.start
+          );
+
+          if (!inBreak) {
+            newSlots.push({
+              id: `slot-${shopId}-${dateStr}-${slotStart}`,
+              shop_id: shopId,
+              service_id: serviceId || null,
+              slot_date: dateStr,
+              start_time: minutesToFormattedTime(slotStart),
+              end_time: minutesToFormattedTime(slotEnd),
+              is_available: true,
+              booked_by_request_id: null,
+              concurrent_capacity: range.concurrent || 1,
+              booked_count: 0,
+            });
+          }
+
+          current += slotDuration + buffer;
+        }
+      });
+    }
+
+    if (isSupabaseConfigured) {
+      const payload = newSlots.map((s) => ({
+        shop_id: s.shop_id,
+        service_id: s.service_id,
+        slot_date: s.slot_date,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        is_available: true,
+        concurrent_capacity: s.concurrent_capacity || 1,
+      }));
+
+      for (let i = 0; i < payload.length; i += 50) {
+        const chunk = payload.slice(i, i + 50);
+        await supabase
+          .from('appointment_slots')
+          .upsert(chunk, { onConflict: 'shop_id,slot_date,start_time', ignoreDuplicates: true });
+      }
+    }
+
+    // Always sync mock/localStorage representation
+    try {
+      const raw = localStorage.getItem(DEMO_SLOTS_KEY);
+      const allSlots: Record<string, AppointmentSlot[]> = raw ? JSON.parse(raw) : {};
+
+      newSlots.forEach((slot) => {
+        const key = `${shopId}_${slot.slot_date}`;
+        if (!allSlots[key]) allSlots[key] = [];
+        const exists = allSlots[key].some((s) => s.start_time === slot.start_time);
+        if (!exists) {
+          allSlots[key].push({
+            ...slot,
+            created_at: new Date().toISOString(),
+          });
+        }
+      });
+
+      // Sort slots by start_time
+      Object.keys(allSlots).forEach((k) => {
+        if (k.startsWith(`${shopId}_`)) {
+          allSlots[k].sort((a, b) => parseTimeToMinutes(a.start_time) - parseTimeToMinutes(b.start_time));
+        }
+      });
+
+      localStorage.setItem(DEMO_SLOTS_KEY, JSON.stringify(allSlots));
+      localStorage.setItem('vaango_demo_appointment_slots', JSON.stringify(allSlots));
+      window.dispatchEvent(new CustomEvent('vaango-slots-changed', { detail: { shopId } }));
+    } catch (e) {
+      console.warn('Could not cache demo appointment slots:', e);
+    }
+
+    return { success: true, count: newSlots.length };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Failed to generate appointment slots.';
+    return { success: false, count: 0, error: msg };
+  }
+};
+
 

@@ -80,10 +80,22 @@ export interface Shop {
   capabilities?: string[] | null;
 }
 
+export interface SlotBreak {
+  id?: string;
+  title: string;
+  start: string;
+  end: string;
+}
+
 export interface SlotConfig {
   ranges: TimeRange[];
   slotDurationMinutes: number;
   availableDays: number[];
+  breaks?: SlotBreak[];
+  bufferMinutes?: number;
+  advanceBookingDays?: number;
+  noticeHours?: number;
+  allowCancellation?: boolean;
 }
 
 export interface TimeRange {

@@ -12,7 +12,7 @@ import {
   AlertCircle,
   History,
   Wrench,
-  DollarSign,
+  IndianRupee,
   UserX,
   Maximize2,
   ExternalLink,
@@ -771,7 +771,7 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
                         setNextStateAfterPrice(null);
                         setPriceModalOpen(true);
                       }}
-                      leftIcon={<DollarSign size={18} />}
+                      leftIcon={<IndianRupee size={18} />}
                     >
                       Confirm Exact Price
                     </Button>
@@ -862,7 +862,7 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
                       size="lg"
                       disabled={isActionLoading}
                       onClick={handleMarkPaid}
-                      leftIcon={<DollarSign size={18} />}
+                      leftIcon={<IndianRupee size={18} />}
                     >
                       Mark as Paid
                     </Button>
@@ -993,7 +993,7 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
                       size="lg"
                       disabled={isActionLoading}
                       onClick={handleMarkPaid}
-                      leftIcon={<DollarSign size={18} />}
+                      leftIcon={<IndianRupee size={18} />}
                     >
                       Mark as Paid
                     </Button>
@@ -1326,7 +1326,7 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
                 value={priceInput}
                 onChange={(e) => setPriceInput(e.target.value)}
                 placeholder={`e.g. ${decoded.min_price || 250}`}
-                leftIcon={<DollarSign size={16} />}
+                leftIcon={<IndianRupee size={16} />}
                 autoFocus
               />
             </div>

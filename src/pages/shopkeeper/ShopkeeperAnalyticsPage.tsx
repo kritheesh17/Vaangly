@@ -5,7 +5,7 @@ import {
   TrendingUp,
   Download,
   Calendar,
-  DollarSign,
+  IndianRupee,
   ShoppingBag,
   Users,
   Clock,
@@ -502,7 +502,7 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
             <div className="vaango-kpi-card">
               <div className="vaango-kpi-card__top">
                 <span>Completed Sales</span>
-                <div className="vaango-kpi-card__icon"><DollarSign size={16} /></div>
+                <div className="vaango-kpi-card__icon"><IndianRupee size={16} /></div>
               </div>
               <div className="vaango-kpi-card__val">
                 ₹{analytics.overview.total_sales.toLocaleString('en-IN')}
