@@ -21,7 +21,7 @@ import { WorkflowGroupCode } from '../../types/workflow';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { formatINR, formatPriceRangeINR } from '../../lib/currency';
-import { parseTimeToMinutes } from '../../lib/appointmentServiceApi';
+import { validateWorkingHoursAndBreaks } from '../../lib/appointmentValidation';
 import './ServiceFormModal.css';
 
 export type CatalogueItemType = 'appointment' | 'service';
@@ -237,40 +237,10 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
         setFormError('Please select at least one working day for appointment availability.');
         return false;
       }
-      if (workingPeriods.length === 0) {
-        setFormError('Please configure at least one working period.');
+      const scheduleValidation = validateWorkingHoursAndBreaks(workingPeriods, breaks);
+      if (!scheduleValidation.valid) {
+        setFormError(scheduleValidation.error || 'Please correct the schedule times and breaks.');
         return false;
-      }
-
-      // Check each working period
-      for (const period of workingPeriods) {
-        const startMin = parseTimeToMinutes(period.start);
-        const endMin = parseTimeToMinutes(period.end);
-        if (startMin >= endMin) {
-          setFormError(`Opening time (${period.start}) must be earlier than closing time (${period.end}).`);
-          return false;
-        }
-      }
-
-      // Check breaks
-      for (const brk of breaks) {
-        const bStart = parseTimeToMinutes(brk.start);
-        const bEnd = parseTimeToMinutes(brk.end);
-        if (bStart >= bEnd) {
-          setFormError(`Break start time (${brk.start}) must be earlier than break end time (${brk.end}).`);
-          return false;
-        }
-        // Must fall inside at least one working period
-        const insidePeriod = workingPeriods.some((p) => {
-          const pStart = parseTimeToMinutes(p.start);
-          const pEnd = parseTimeToMinutes(p.end);
-          return bStart >= pStart && bEnd <= pEnd;
-        });
-
-        if (!insidePeriod) {
-          setFormError(`Break "${brk.title}" (${brk.start} – ${brk.end}) must fall completely inside a working period.`);
-          return false;
-        }
       }
       return true;
     }
@@ -355,6 +325,16 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
 
     try {
       if (itemType === 'appointment') {
+        if (
+          !validateAppointmentStep('DETAILS') ||
+          !validateAppointmentStep('PRICING') ||
+          !validateAppointmentStep('SCHEDULE') ||
+          !validateAppointmentStep('RULES')
+        ) {
+          setIsSubmitting(false);
+          return;
+        }
+
         const ranges = workingPeriods.map((wp) => ({
           id: wp.id,
           start: wp.start,

@@ -2,6 +2,23 @@ import { AppointmentSlot, ShopService, Request, RequestEvent, PriceType, SlotCon
 import { supabase, isSupabaseConfigured } from './supabase';
 import { getShopServices as getMockServices, generateDailySlots } from '../data/mockData';
 import { normalizeIndianPhone } from './phoneUtils';
+import {
+  parseTimeToMinutes,
+  minutesToFormattedTime,
+  validateWorkingHoursAndBreaks,
+  type WorkingPeriodInput,
+  type BreakInput,
+  type ValidationResult,
+} from './appointmentValidation';
+
+export {
+  parseTimeToMinutes,
+  minutesToFormattedTime,
+  validateWorkingHoursAndBreaks,
+  type WorkingPeriodInput,
+  type BreakInput,
+  type ValidationResult,
+};
 
 const DEMO_REQUESTS_KEY = 'vaango_demo_requests';
 const DEMO_REQUEST_EVENTS_KEY = 'vaango_demo_request_events';
@@ -548,9 +565,14 @@ export const confirmServicePrice = async (
  */
 export const saveShopService = async (
   shopId: string,
-  service: Partial<ShopService> & { name: string; price_type: PriceType }
+  service: Partial<ShopService> & {
+    name: string;
+    price_type: PriceType;
+    item_type?: 'appointment' | 'service';
+    slot_config?: SlotConfig;
+  }
 ): Promise<{ success: boolean; service?: ShopService; error?: string }> => {
-  if (!service.name.trim()) {
+  if (!service.name?.trim()) {
     return { success: false, error: 'Service name is required.' };
   }
 
@@ -567,71 +589,95 @@ export const saveShopService = async (
     }
   }
 
-  if (isSupabaseConfigured) {
+  // Sanitize payload: ONLY include valid database columns for public.shop_services table
+  const dbPayload = {
+    name: service.name.trim(),
+    description: service.description ? service.description.trim() : null,
+    price_type: service.price_type || 'fixed',
+    base_price: service.price_type === 'fixed' ? (service.base_price ?? null) : (service.base_price ?? service.min_price ?? null),
+    min_price: service.price_type === 'range' ? (service.min_price ?? null) : (service.base_price ?? null),
+    max_price: service.price_type === 'range' ? (service.max_price ?? null) : (service.base_price ?? null),
+    duration_minutes: service.duration_minutes ?? null,
+    provider_name: service.provider_name ? service.provider_name.trim() : null,
+    specialization: service.specialization ? service.specialization.trim() : null,
+    service_category: service.service_category ? service.service_category.trim() : 'General',
+    is_available: service.is_available ?? true,
+  };
+
+  const isUuid = Boolean(service.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(service.id));
+  const isMockShop = shopId.startsWith('30000000-') || shopId.startsWith('shop-');
+
+  if (isSupabaseConfigured && !isMockShop) {
     try {
-      if (service.id) {
+      if (isUuid) {
+        // Update existing service with strict ownership check
         const { data, error } = await supabase
           .from('shop_services')
-          .update(service)
+          .update(dbPayload)
           .eq('id', service.id)
+          .eq('shop_id', shopId)
           .select()
           .single();
 
-        if (error || !data) throw error || new Error('Failed to update service.');
+        if (error || !data) {
+          console.error('Supabase update shop_services error:', error);
+          throw error || new Error('Failed to update service.');
+        }
         return { success: true, service: data as ShopService };
       } else {
+        // Insert new service with shop_id
         const { data, error } = await supabase
           .from('shop_services')
-          .insert({ ...service, shop_id: shopId })
+          .insert({ ...dbPayload, shop_id: shopId })
           .select()
           .single();
 
-        if (error || !data) throw error || new Error('Failed to create service.');
+        if (error || !data) {
+          console.error('Supabase insert shop_services error:', error);
+          throw error || new Error('Failed to create service.');
+        }
         return { success: true, service: data as ShopService };
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to save service.';
+      console.error('saveShopService Supabase error:', err);
+      const msg = err instanceof Error ? err.message : 'Unable to save appointment. Please try again.';
       return { success: false, error: msg };
     }
   }
 
-  // Mock Mode
+  // Mock Mode / Fallback
   try {
     const services = await fetchShopServices(shopId);
     let updatedService: ShopService;
 
     if (service.id) {
       const idx = services.findIndex((s) => s.id === service.id);
-      if (idx === -1) return { success: false, error: 'Service not found.' };
       updatedService = {
-        ...services[idx],
-        ...service,
-      } as ShopService;
-      services[idx] = updatedService;
-    } else {
-      updatedService = {
-        id: `srv-${Date.now()}`,
+        ...(idx !== -1 ? services[idx] : ({} as ShopService)),
+        ...dbPayload,
+        id: service.id,
         shop_id: shopId,
-        name: service.name,
-        description: service.description || null,
-        price_type: service.price_type,
-        base_price: service.price_type === 'fixed' ? service.base_price! : service.min_price!,
-        min_price: service.price_type === 'range' ? service.min_price! : service.base_price!,
-        max_price: service.price_type === 'range' ? service.max_price! : service.base_price!,
-        duration_minutes: service.duration_minutes || null,
-        provider_name: service.provider_name || null,
-        specialization: service.specialization || null,
-        service_category: service.service_category || 'General',
-        is_available: service.is_available ?? true,
         created_at: new Date().toISOString(),
       };
-      services.push(updatedService);
+      const updatedList = idx !== -1
+        ? services.map((s) => (s.id === service.id ? updatedService : s))
+        : [updatedService, ...services];
+      const raw = localStorage.getItem(DEMO_SERVICES_KEY);
+      const allServices: Record<string, ShopService[]> = raw ? JSON.parse(raw) : {};
+      allServices[shopId] = updatedList;
+      localStorage.setItem(DEMO_SERVICES_KEY, JSON.stringify(allServices));
+    } else {
+      updatedService = {
+        ...dbPayload,
+        id: `srv-${Date.now()}`,
+        shop_id: shopId,
+        created_at: new Date().toISOString(),
+      };
+      const raw = localStorage.getItem(DEMO_SERVICES_KEY);
+      const allServices: Record<string, ShopService[]> = raw ? JSON.parse(raw) : {};
+      allServices[shopId] = [updatedService, ...(allServices[shopId] || [])];
+      localStorage.setItem(DEMO_SERVICES_KEY, JSON.stringify(allServices));
     }
-
-    const raw = localStorage.getItem(DEMO_SERVICES_KEY);
-    const allServices: Record<string, ShopService[]> = raw ? JSON.parse(raw) : {};
-    allServices[shopId] = services;
-    localStorage.setItem(DEMO_SERVICES_KEY, JSON.stringify(allServices));
 
     return { success: true, service: updatedService };
   } catch (err: unknown) {
@@ -642,30 +688,99 @@ export const saveShopService = async (
 
 /**
  * 7. Delete / Deactivate a Shop Service
+ * Preserves historical customer/appointment/order records.
+ * If service has booked slots/appointments, safely deactivates (is_available = false).
+ * If no dependent records exist, performs a clean hard delete.
  */
 export const deleteShopService = async (
   shopId: string,
   serviceId: string
 ): Promise<{ success: boolean; error?: string }> => {
-  if (isSupabaseConfigured) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(serviceId);
+  const isMockShop = shopId.startsWith('30000000-') || shopId.startsWith('shop-');
+
+  if (isSupabaseConfigured && !isMockShop && isUuid) {
     try {
-      const { error } = await supabase.from('shop_services').delete().eq('id', serviceId);
-      if (error) throw error;
-      return { success: true };
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.user) {
+        return { success: false, error: 'You must be signed in to manage services.' };
+      }
+
+      // Check for dependent booked appointment slots
+      const { data: bookedSlots, error: slotCheckErr } = await supabase
+        .from('appointment_slots')
+        .select('id')
+        .eq('service_id', serviceId)
+        .not('booked_by_request_id', 'is', null)
+        .limit(1);
+
+      if (slotCheckErr) {
+        console.warn('Could not inspect booked slots:', slotCheckErr);
+      }
+
+      const hasHistoricalBookings = Boolean(bookedSlots && bookedSlots.length > 0);
+
+      if (hasHistoricalBookings) {
+        // Safe soft-delete / deactivation: preserves historical appointments
+        const { error: updateErr } = await supabase
+          .from('shop_services')
+          .update({ is_available: false })
+          .eq('id', serviceId)
+          .eq('shop_id', shopId);
+
+        if (updateErr) throw updateErr;
+
+        // Clean up unbooked future slots for this service
+        await supabase
+          .from('appointment_slots')
+          .delete()
+          .eq('service_id', serviceId)
+          .is('booked_by_request_id', null);
+      } else {
+        // Safe hard delete: clean up unbooked slots first
+        await supabase
+          .from('appointment_slots')
+          .delete()
+          .eq('service_id', serviceId);
+
+        const { error: delErr } = await supabase
+          .from('shop_services')
+          .delete()
+          .eq('id', serviceId)
+          .eq('shop_id', shopId);
+
+        if (delErr) {
+          // If foreign key constraint still blocks deletion (e.g. error code 23503),
+          // fallback safely to deactivation so history is never broken or lost
+          if (delErr.code === '23503') {
+            const { error: softErr } = await supabase
+              .from('shop_services')
+              .update({ is_available: false })
+              .eq('id', serviceId)
+              .eq('shop_id', shopId);
+            if (softErr) throw softErr;
+          } else {
+            throw delErr;
+          }
+        }
+      }
     } catch (err: unknown) {
+      console.error('Supabase deleteShopService failed:', err);
       const msg = err instanceof Error ? err.message : 'Failed to delete service.';
       return { success: false, error: msg };
     }
   }
 
-  // Mock Mode
+  // Synchronize local cache / mock state in all cases (including mock IDs)
   try {
-    const services = await fetchShopServices(shopId);
-    const filtered = services.filter((s) => s.id !== serviceId);
     const raw = localStorage.getItem(DEMO_SERVICES_KEY);
-    const allServices: Record<string, ShopService[]> = raw ? JSON.parse(raw) : {};
-    allServices[shopId] = filtered;
-    localStorage.setItem(DEMO_SERVICES_KEY, JSON.stringify(allServices));
+    if (raw) {
+      const allServices: Record<string, ShopService[]> = JSON.parse(raw);
+      if (allServices[shopId]) {
+        allServices[shopId] = allServices[shopId].filter((s) => s.id !== serviceId);
+        localStorage.setItem(DEMO_SERVICES_KEY, JSON.stringify(allServices));
+      }
+    }
     return { success: true };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Error deleting service.';
@@ -825,43 +940,6 @@ export const cancelCustomerRequest = async (
   }
 };
 
-/**
- * Helper to parse a time string ("09:00 AM" or "14:30") into total minutes from midnight
- */
-export const parseTimeToMinutes = (timeStr: string): number => {
-  if (!timeStr) return 0;
-  const trimmed = timeStr.trim().toUpperCase();
-  const is12Hour = trimmed.includes('AM') || trimmed.includes('PM');
-
-  if (is12Hour) {
-    const isPM = trimmed.includes('PM');
-    const clean = trimmed.replace('AM', '').replace('PM', '').trim();
-    const [hStr, mStr] = clean.split(':');
-    let hours = parseInt(hStr, 10) || 0;
-    const minutes = parseInt(mStr, 10) || 0;
-    if (isPM && hours < 12) hours += 12;
-    if (!isPM && hours === 12) hours = 0;
-    return hours * 60 + minutes;
-  }
-
-  const [hStr, mStr] = trimmed.split(':');
-  const hours = parseInt(hStr, 10) || 0;
-  const minutes = parseInt(mStr, 10) || 0;
-  return hours * 60 + minutes;
-};
-
-/**
- * Format total minutes from midnight into "hh:mm A" string
- */
-export const minutesToFormattedTime = (totalMinutes: number): string => {
-  const norm = ((totalMinutes % 1440) + 1440) % 1440;
-  const hours24 = Math.floor(norm / 60);
-  const minutes = norm % 60;
-  const period = hours24 >= 12 ? 'PM' : 'AM';
-  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return `${pad(hours12)}:${pad(minutes)} ${period}`;
-};
 
 /**
  * Generate and synchronize appointment slots based on slot configuration
