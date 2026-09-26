@@ -79,25 +79,36 @@ export const fetchAppointmentSlots = async (shopId: string, dateStr: string): Pr
         nextDate.setDate(nextDate.getDate() + 1);
         const { data: requests } = await supabase
           .from('requests')
-          .select('notes, current_state, scheduled_for')
+          .select('notes, current_state, scheduled_for, payment_status, hold_expires_at')
           .eq('shop_id', shopId)
           .eq('workflow_group_code', 'APPOINTMENT')
-          .in('current_state', ['REQUESTED', 'CONFIRMED', 'IN_PROGRESS'])
-          .gte('scheduled_for', `${dateStr} 00:00:00`)
-          .lt('scheduled_for', `${nextDate.toISOString().slice(0, 10)} 00:00:00`);
+          .not('current_state', 'in', '("CANCELLED","REJECTED","EXPIRED","NO_SHOW")');
+
         const bookedBySlot = new Map<string, number>();
         (requests || []).forEach((request) => {
           try {
             const slotId = JSON.parse(request.notes || '{}').slot_id;
-            if (slotId) bookedBySlot.set(slotId, (bookedBySlot.get(slotId) || 0) + 1);
+            const isHoldActive = !request.hold_expires_at || new Date(request.hold_expires_at) >= new Date();
+            if (slotId && isHoldActive) {
+              bookedBySlot.set(slotId, (bookedBySlot.get(slotId) || 0) + 1);
+            }
           } catch {
             // Ignore malformed legacy notes.
           }
         });
+
         return (data as AppointmentSlot[]).map((slot) => {
-          const bookedCount = bookedBySlot.get(slot.id) || 0;
-          const capacity = slot.concurrent_capacity || 1;
-          return { ...slot, booked_count: bookedCount, is_available: bookedCount < capacity };
+          const slotCapacity = slot.capacity || slot.concurrent_capacity || 1;
+          const activeBooked = bookedBySlot.get(slot.id) ?? (slot.confirmed_count || 0);
+          const remaining = Math.max(0, slotCapacity - activeBooked);
+          return {
+            ...slot,
+            capacity: slotCapacity,
+            concurrent_capacity: slotCapacity,
+            booked_count: activeBooked,
+            confirmed_count: activeBooked,
+            is_available: remaining > 0,
+          };
         });
       }
     } catch (err) {
@@ -123,7 +134,7 @@ export const fetchAppointmentSlots = async (shopId: string, dateStr: string): Pr
 };
 
 /**
- * 3. Book Appointment Request (with concurrency double-booking prevention)
+ * 3. Book Appointment Request (with atomic token assignment and double-booking concurrency prevention)
  */
 export interface BookAppointmentParams {
   shopId: string;
@@ -136,11 +147,29 @@ export interface BookAppointmentParams {
   customerName: string;
   customerPhone: string;
   notes?: string;
+  paymentMethod?: 'pay_at_shop' | 'online' | 'cash' | 'upi';
+  isOnlineHold?: boolean;
+  holdMinutes?: number;
+}
+
+export interface BookAppointmentResponse {
+  success: boolean;
+  request?: Request;
+  tokenNumber?: number | null;
+  queueNumber?: string | null;
+  customersAhead?: number;
+  timeWindow?: string;
+  isHold?: boolean;
+  holdExpiresAt?: string | null;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  price?: number;
+  error?: string;
 }
 
 export const bookAppointmentRequest = async (
   params: BookAppointmentParams
-): Promise<{ success: boolean; request?: Request; error?: string }> => {
+): Promise<BookAppointmentResponse> => {
   const {
     shopId,
     shopName,
@@ -152,6 +181,9 @@ export const bookAppointmentRequest = async (
     customerName,
     customerPhone,
     notes,
+    paymentMethod = 'pay_at_shop',
+    isOnlineHold = false,
+    holdMinutes = 10,
   } = params;
 
   const referenceCode = `APT-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -178,53 +210,66 @@ export const bookAppointmentRequest = async (
   if (isSupabaseConfigured) {
     try {
       const normalizedCustomerPhone = customerPhone ? (normalizeIndianPhone(customerPhone) || customerPhone) : null;
-      // Step 1: Create request record
-      const { data: reqData, error: reqErr } = await supabase
-        .from('requests')
-        .insert({
-          reference_code: referenceCode,
-          customer_id: customerId,
-          customer_phone: normalizedCustomerPhone,
-          shop_id: shopId,
-          workflow_group_code: 'APPOINTMENT',
-          current_state: 'REQUESTED',
-          total_estimate: service.base_price || service.min_price || 0,
-          scheduled_for: `${slot.slot_date} ${slot.start_time}`,
-          notes: JSON.stringify(appointmentPayload),
-        })
-        .select()
-        .single();
 
-      if (reqErr || !reqData) {
-        throw new Error(reqErr?.message || 'Failed to create appointment request.');
-      }
-
-      // Step 2: Atomically lock and reserve the slot using database function
-      const { data: slotBooked, error: slotErr } = await supabase.rpc('book_appointment_slot', {
+      // Call database atomic function to lock slot, check capacity, and assign token
+      const { data: res, error: rpcErr } = await supabase.rpc('book_appointment_with_token', {
         p_slot_id: slot.id,
-        p_request_id: reqData.id,
+        p_customer_id: customerId,
+        p_customer_name: customerName,
+        p_customer_phone: normalizedCustomerPhone,
+        p_service_id: service.id,
+        p_service_name: service.name,
+        p_price: service.base_price || service.min_price || 0,
+        p_payment_method: paymentMethod,
+        p_notes: notes?.trim() || null,
+        p_is_online_hold: Boolean(isOnlineHold),
+        p_hold_minutes: holdMinutes,
       });
 
-      if (slotErr || !slotBooked) {
-        // Rollback request if slot already taken
-        await supabase.from('requests').delete().eq('id', reqData.id);
+      if (rpcErr || !res?.success) {
         return {
           success: false,
-          error: 'That appointment slot was just booked by someone else. Please choose another time.',
+          error: res?.error || rpcErr?.message || 'This interval is now full. Please choose another time.',
         };
       }
 
-      // Step 3: Insert initial request event
-      await supabase.from('request_events').insert({
-        request_id: reqData.id,
-        from_state: null,
-        to_state: 'REQUESTED',
-        actor_id: customerId,
-        actor_role: 'customer',
-        notes: `Customer requested appointment for ${service.name} at ${slot.start_time}`,
-      });
+      // Fetch created request record
+      const { data: reqData } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('id', res.request_id)
+        .single();
 
-      return { success: true, request: reqData as Request };
+      return {
+        success: true,
+        request: (reqData as Request) || {
+          id: res.request_id,
+          customer_id: customerId,
+          shop_id: shopId,
+          reference_code: res.reference_code,
+          workflow_group_code: 'APPOINTMENT',
+          current_state: res.is_hold ? 'REQUESTED' : 'CONFIRMED',
+          total_estimate: res.price,
+          customer_paid: res.payment_status === 'PAYMENT_VERIFIED',
+          payment_method: res.payment_method === 'online' ? 'upi' : 'cash',
+          payment_status: res.payment_status,
+          token_number: res.token_number,
+          hold_expires_at: res.hold_expires_at,
+          notes: JSON.stringify(appointmentPayload),
+          scheduled_for: `${slot.slot_date} ${slot.start_time}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as Request,
+        tokenNumber: res.token_number,
+        queueNumber: res.queue_number,
+        customersAhead: res.customers_ahead,
+        timeWindow: res.time_window,
+        isHold: res.is_hold,
+        holdExpiresAt: res.hold_expires_at,
+        paymentMethod: res.payment_method,
+        paymentStatus: res.payment_status,
+        price: res.price,
+      };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Database error booking appointment.';
       return { success: false, error: msg };
@@ -246,21 +291,30 @@ export const bookAppointmentRequest = async (
       };
     }
 
-    const capacity = slotsForDay[slotIndex].concurrent_capacity || 1;
+    const capacity = slotsForDay[slotIndex].capacity || slotsForDay[slotIndex].concurrent_capacity || 1;
     const bookedCount = slotsForDay[slotIndex].booked_count || 0;
     if (bookedCount >= capacity) {
       return {
         success: false,
-        error: 'That appointment slot was just booked by someone else. Please choose another time.',
+        error: 'This interval is now full. Please choose another time.',
       };
     }
 
-    // Reserve one unit of slot capacity.
+    const nextToken = bookedCount + 1;
     const newRequestId = `req-apt-${Date.now()}`;
+    const isHold = Boolean(isOnlineHold && (paymentMethod === 'online' || paymentMethod === 'upi'));
+    const holdExpiresAt = isHold ? new Date(Date.now() + holdMinutes * 60000).toISOString() : null;
+    const pMethod = paymentMethod === 'online' || paymentMethod === 'upi' ? 'upi' : 'cash';
+    const pStatus = isHold ? 'PAYMENT_PENDING' : pMethod === 'cash' ? 'NOT_REQUIRED' : 'PAYMENT_PROOF_SUBMITTED';
+    const currentState = isHold ? 'REQUESTED' : pMethod === 'cash' ? 'CONFIRMED' : 'REQUESTED';
+
     slotsForDay[slotIndex] = {
       ...slotsForDay[slotIndex],
       is_available: bookedCount + 1 < capacity,
       booked_count: bookedCount + 1,
+      confirmed_count: bookedCount + 1,
+      capacity,
+      concurrent_capacity: capacity,
       booked_by_request_id: bookedCount === 0 ? newRequestId : slotsForDay[slotIndex].booked_by_request_id,
     };
     allSlots[key] = slotsForDay;
@@ -273,11 +327,15 @@ export const bookAppointmentRequest = async (
       customer_id: customerId,
       shop_id: shopId,
       workflow_group_code: 'APPOINTMENT',
-      current_state: 'REQUESTED',
+      current_state: currentState,
       reference_code: referenceCode,
       total_estimate: service.base_price || service.min_price || 0,
       customer_paid: false,
-      notes: JSON.stringify(appointmentPayload),
+      payment_method: pMethod,
+      payment_status: pStatus,
+      token_number: isHold ? null : nextToken,
+      hold_expires_at: holdExpiresAt,
+      notes: JSON.stringify({ ...appointmentPayload, token_number: isHold ? null : nextToken }),
       scheduled_for: `${slot.slot_date} ${slot.start_time}`,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -287,23 +345,19 @@ export const bookAppointmentRequest = async (
     localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify([createdRequest, ...existingRequests]));
     window.dispatchEvent(new CustomEvent('vaango-requests-changed', { detail: { newRequest: createdRequest } }));
 
-    // Audit Event
-    const existingEvents: RequestEvent[] = JSON.parse(
-      localStorage.getItem(DEMO_REQUEST_EVENTS_KEY) || '[]'
-    );
-    existingEvents.push({
-      id: `evt-${Date.now()}`,
-      request_id: newRequestId,
-      from_state: null,
-      to_state: 'REQUESTED',
-      actor_id: customerId,
-      actor_role: 'customer',
-      notes: `Customer requested appointment for ${service.name} at ${slot.start_time}`,
-      created_at: new Date().toISOString(),
-    });
-    localStorage.setItem(DEMO_REQUEST_EVENTS_KEY, JSON.stringify(existingEvents));
-
-    return { success: true, request: createdRequest };
+    return {
+      success: true,
+      request: createdRequest,
+      tokenNumber: isHold ? null : nextToken,
+      queueNumber: isHold ? null : `#${nextToken}`,
+      customersAhead: Math.max(0, nextToken - 1),
+      timeWindow: `${slot.start_time} – ${slot.end_time}`,
+      isHold,
+      holdExpiresAt,
+      paymentMethod,
+      paymentStatus: pStatus,
+      price: service.base_price || service.min_price || 0,
+    };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Error processing appointment booking.';
     return { success: false, error: msg };
@@ -589,7 +643,7 @@ export const saveShopService = async (
     }
   }
 
-  // Sanitize payload: ONLY include valid database columns for public.shop_services table
+  // Sanitize payload: include configurable capacity, interval, and payment requirement
   const dbPayload = {
     name: service.name.trim(),
     description: service.description ? service.description.trim() : null,
@@ -598,6 +652,11 @@ export const saveShopService = async (
     min_price: service.price_type === 'range' ? (service.min_price ?? null) : (service.base_price ?? null),
     max_price: service.price_type === 'range' ? (service.max_price ?? null) : (service.base_price ?? null),
     duration_minutes: service.duration_minutes ?? null,
+    interval_minutes: service.interval_minutes ?? (service.slot_config?.slotDurationMinutes ?? 30),
+    capacity_per_interval: service.capacity_per_interval ?? (service.slot_config?.capacityPerInterval ?? 1),
+    buffer_minutes: service.buffer_minutes ?? (service.slot_config?.bufferMinutes ?? 0),
+    advance_booking_days: service.advance_booking_days ?? (service.slot_config?.advanceBookingDays ?? 7),
+    payment_requirement: service.payment_requirement ?? (service.slot_config?.paymentRequirement ?? 'flexible'),
     provider_name: service.provider_name ? service.provider_name.trim() : null,
     specialization: service.specialization ? service.specialization.trim() : null,
     service_category: service.service_category ? service.service_category.trim() : 'General',
@@ -980,6 +1039,8 @@ export const generateAndSyncAppointmentSlots = async (
         const endMin = parseTimeToMinutes(range.end);
         if (startMin >= endMin) return;
 
+        const rangeCapacity = config.capacityPerInterval || range.concurrent || 1;
+
         let current = startMin;
         while (current + slotDuration <= endMin) {
           const slotStart = current;
@@ -1000,8 +1061,10 @@ export const generateAndSyncAppointmentSlots = async (
               end_time: minutesToFormattedTime(slotEnd),
               is_available: true,
               booked_by_request_id: null,
-              concurrent_capacity: range.concurrent || 1,
+              concurrent_capacity: rangeCapacity,
+              capacity: rangeCapacity,
               booked_count: 0,
+              confirmed_count: 0,
             });
           }
 
@@ -1019,13 +1082,14 @@ export const generateAndSyncAppointmentSlots = async (
         end_time: s.end_time,
         is_available: true,
         concurrent_capacity: s.concurrent_capacity || 1,
+        capacity: s.capacity || s.concurrent_capacity || 1,
       }));
 
       for (let i = 0; i < payload.length; i += 50) {
         const chunk = payload.slice(i, i + 50);
         await supabase
           .from('appointment_slots')
-          .upsert(chunk, { onConflict: 'shop_id,slot_date,start_time', ignoreDuplicates: true });
+          .upsert(chunk, { onConflict: 'shop_id,slot_date,start_time', ignoreDuplicates: false });
       }
     }
 
@@ -1065,6 +1129,199 @@ export const generateAndSyncAppointmentSlots = async (
     const msg = err instanceof Error ? err.message : 'Failed to generate appointment slots.';
     return { success: false, count: 0, error: msg };
   }
+};
+
+/**
+ * 10. Confirm Online Appointment Payment and assign atomic token
+ */
+export const confirmAppointmentOnlinePayment = async (
+  requestId: string,
+  screenshotUrl: string
+): Promise<{ success: boolean; tokenNumber?: number; queueNumber?: string; customersAhead?: number; error?: string }> => {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase.rpc('confirm_appointment_online_payment', {
+        p_request_id: requestId,
+        p_screenshot_url: screenshotUrl,
+      });
+
+      if (error || !data?.success) {
+        return { success: false, error: data?.error || error?.message || 'Failed to confirm payment.' };
+      }
+
+      return {
+        success: true,
+        tokenNumber: data.token_number,
+        queueNumber: data.queue_number,
+        customersAhead: data.customers_ahead,
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Database error confirming payment.';
+      return { success: false, error: msg };
+    }
+  }
+
+  // Mock / Demo mode
+  try {
+    const raw = localStorage.getItem(DEMO_REQUESTS_KEY);
+    const allReqs: Request[] = raw ? JSON.parse(raw) : [];
+    const idx = allReqs.findIndex((r) => r.id === requestId);
+    if (idx !== -1) {
+      const existingToken = allReqs[idx].token_number || 1;
+      allReqs[idx] = {
+        ...allReqs[idx],
+        payment_status: 'PAYMENT_PROOF_SUBMITTED',
+        payment_screenshot_url: screenshotUrl,
+        token_number: existingToken,
+        hold_expires_at: null,
+      };
+      localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(allReqs));
+      return {
+        success: true,
+        tokenNumber: existingToken,
+        queueNumber: `#${existingToken}`,
+        customersAhead: Math.max(0, existingToken - 1),
+      };
+    }
+    return { success: false, error: 'Request not found.' };
+  } catch (e: unknown) {
+    return { success: false, error: 'Failed to confirm demo payment.' };
+  }
+};
+
+/**
+ * 11. Mark Pay-at-Shop Appointment as Paid (Shopkeeper/Staff only)
+ */
+export const markAppointmentPaid = async (
+  requestId: string
+): Promise<{ success: boolean; paid_at?: string; error?: string }> => {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase.rpc('mark_appointment_paid', {
+        p_request_id: requestId,
+      });
+
+      if (error || !data?.success) {
+        return { success: false, error: data?.error || error?.message || 'Failed to mark as paid.' };
+      }
+
+      return { success: true, paid_at: data.paid_at };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Database error marking payment.';
+      return { success: false, error: msg };
+    }
+  }
+
+  // Mock / Demo mode
+  try {
+    const raw = localStorage.getItem(DEMO_REQUESTS_KEY);
+    const allReqs: Request[] = raw ? JSON.parse(raw) : [];
+    const idx = allReqs.findIndex((r) => r.id === requestId);
+    if (idx !== -1) {
+      allReqs[idx] = {
+        ...allReqs[idx],
+        customer_paid: true,
+        payment_status: 'PAYMENT_VERIFIED',
+        paid_at: new Date().toISOString(),
+      };
+      localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(allReqs));
+      return { success: true, paid_at: allReqs[idx].paid_at || undefined };
+    }
+    return { success: false, error: 'Request not found.' };
+  } catch (e: unknown) {
+    return { success: false, error: 'Failed to mark demo payment.' };
+  }
+};
+
+/**
+ * 12. Update Appointment Queue Status (waiting, called, serving, completed, cancelled, no_show)
+ */
+export const updateAppointmentQueueStatus = async (
+  requestId: string,
+  status: 'waiting' | 'called' | 'serving' | 'completed' | 'cancelled' | 'no_show',
+  notes?: string
+): Promise<{ success: boolean; currentState?: string; error?: string }> => {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase.rpc('update_appointment_queue_status', {
+        p_request_id: requestId,
+        p_status: status,
+        p_notes: notes || null,
+      });
+
+      if (error || !data?.success) {
+        return { success: false, error: data?.error || error?.message || 'Failed to update queue status.' };
+      }
+
+      return { success: true, currentState: data.current_state };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Database error updating status.';
+      return { success: false, error: msg };
+    }
+  }
+
+  // Mock mode
+  return { success: true, currentState: status.toUpperCase() };
+};
+
+/**
+ * 13. Fetch Appointment Queue for a shop and date
+ */
+export interface QueueIntervalBooking {
+  request_id: string;
+  reference_code: string;
+  token_number: number;
+  queue_number: string;
+  customer_name: string;
+  customer_phone?: string;
+  service_name: string;
+  current_state: string;
+  queue_status: 'waiting' | 'called' | 'serving' | 'completed' | 'cancelled' | 'no_show';
+  payment_method: string;
+  payment_status: string;
+  customer_paid: boolean;
+  total_amount: number;
+  paid_at?: string | null;
+  customer_notes?: string | null;
+}
+
+export interface QueueInterval {
+  slot_id: string;
+  start_time: string;
+  end_time: string;
+  capacity: number;
+  confirmed_count: number;
+  is_available: boolean;
+  bookings: QueueIntervalBooking[];
+}
+
+export const fetchShopAppointmentQueue = async (
+  shopId: string,
+  dateStr: string
+): Promise<{ success: boolean; date?: string; intervals?: QueueInterval[]; error?: string }> => {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase.rpc('get_shop_appointment_queue', {
+        p_shop_id: shopId,
+        p_date: dateStr,
+      });
+
+      if (error || !data?.success) {
+        return { success: false, error: data?.error || error?.message || 'Failed to fetch queue.' };
+      }
+
+      return {
+        success: true,
+        date: data.date,
+        intervals: data.intervals as QueueInterval[],
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Database error fetching queue.';
+      return { success: false, error: msg };
+    }
+  }
+
+  return { success: true, date: dateStr, intervals: [] };
 };
 
 

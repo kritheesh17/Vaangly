@@ -90,12 +90,16 @@ export interface SlotBreak {
 export interface SlotConfig {
   ranges: TimeRange[];
   slotDurationMinutes: number;
+  serviceDurationMinutes?: number;
+  capacityPerInterval?: number;
   availableDays: number[];
   breaks?: SlotBreak[];
   bufferMinutes?: number;
   advanceBookingDays?: number;
   noticeHours?: number;
   allowCancellation?: boolean;
+  paymentRequirement?: 'flexible' | 'online_only' | 'shop_only';
+  tokenScope?: 'interval' | 'daily';
 }
 
 export interface TimeRange {
@@ -185,6 +189,11 @@ export interface ShopService {
   min_price: number | null;
   max_price: number | null;
   duration_minutes: number | null;
+  interval_minutes?: number | null;
+  capacity_per_interval?: number | null;
+  buffer_minutes?: number | null;
+  advance_booking_days?: number | null;
+  payment_requirement?: 'flexible' | 'online_only' | 'shop_only' | null;
   provider_name: string | null; // e.g. Doctor name, Senior Stylist
   specialization: string | null; // e.g. General Medicine, Bridal
   service_category: string | null;
@@ -202,7 +211,9 @@ export interface AppointmentSlot {
   is_available: boolean;
   booked_by_request_id: string | null;
   concurrent_capacity?: number;
+  capacity?: number;
   booked_count?: number;
+  confirmed_count?: number;
   created_at: string;
 }
 
@@ -245,12 +256,16 @@ export interface Request {
   total_estimate: number | null;
   customer_paid: boolean;
   payment_screenshot_url?: string | null;
-  payment_method?: 'cash' | 'upi' | null;
+  payment_method?: 'cash' | 'upi' | 'pay_at_shop' | 'online' | null;
   payment_amount?: number | null;
-  payment_status?: 'NOT_REQUIRED' | 'PAYMENT_PENDING' | 'PAYMENT_PROOF_SUBMITTED' | 'PAYMENT_VERIFIED' | 'PAYMENT_REJECTED';
+  payment_status?: 'NOT_REQUIRED' | 'PAYMENT_PENDING' | 'PAYMENT_PROOF_SUBMITTED' | 'PAYMENT_VERIFIED' | 'PAYMENT_REJECTED' | 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
   payment_verified_at?: string | null;
   payment_verified_by?: string | null;
   payment_rejection_reason?: string | null;
+  token_number?: number | null;
+  hold_expires_at?: string | null;
+  paid_at?: string | null;
+  paid_by?: string | null;
   fulfillment_type?: 'DINE_IN' | 'TAKEAWAY' | 'parcel' | 'dine_in' | 'pickup' | 'delivery' | null;
   customer_phone?: string | null;
   notes: string | null;
