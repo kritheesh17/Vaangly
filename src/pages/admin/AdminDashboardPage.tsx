@@ -170,7 +170,10 @@ export const AdminDashboardPage: React.FC = () => {
             <Store size={18} className="vaango-admin-stat-card__icon vaango-admin-stat-card__icon--success" />
           </div>
           <div className="vaango-admin-stat-card__value">
-            {metrics?.liveShops || 0} <span className="vaango-admin-stat-card__subval">/ {metrics?.approvedShops || 0} approved</span>
+            <span className="vaango-admin-stat-group">
+              <span>{metrics?.liveShops || 0}</span>
+              <span className="vaango-admin-stat-card__subval">/ {metrics?.approvedShops || 0} approved</span>
+            </span>
           </div>
           <div className="vaango-admin-stat-card__hint">Visible to customers in hometown</div>
         </Card>
@@ -186,8 +189,15 @@ export const AdminDashboardPage: React.FC = () => {
             <CreditCard size={18} className="vaango-admin-stat-card__icon vaango-admin-stat-card__icon--accent" />
           </div>
           <div className="vaango-admin-stat-card__value">
-            {metrics?.trialSubscriptions || 0} <span className="vaango-admin-stat-card__subval">Trial</span> |{' '}
-            {metrics?.activeSubscriptions || 0} <span className="vaango-admin-stat-card__subval">Paid</span>
+            <span className="vaango-admin-stat-group">
+              <span>{metrics?.trialSubscriptions || 0}</span>
+              <span className="vaango-admin-stat-card__subval">Trial</span>
+            </span>
+            <span className="vaango-admin-stat-card__divider" aria-hidden="true">|</span>
+            <span className="vaango-admin-stat-group">
+              <span>{metrics?.activeSubscriptions || 0}</span>
+              <span className="vaango-admin-stat-card__subval">Paid</span>
+            </span>
           </div>
           <div className="vaango-admin-stat-card__hint">
             {metrics?.overdueSubscriptions || 0} overdue renewals (₹20/day cap)
@@ -218,7 +228,9 @@ export const AdminDashboardPage: React.FC = () => {
             <span className="vaango-admin-stat-card__label">Master Catalogue</span>
             <Layers size={18} className="vaango-admin-stat-card__icon vaango-admin-stat-card__icon--accent" />
           </div>
-          <div className="vaango-admin-stat-card__value">Global Catalogue</div>
+          <div className="vaango-admin-stat-card__value vaango-admin-stat-card__value--text">
+            <span>Global Catalogue</span>
+          </div>
           <div className="vaango-admin-stat-card__hint">Standard reference products & merchant proposals</div>
         </Card>
       </div>

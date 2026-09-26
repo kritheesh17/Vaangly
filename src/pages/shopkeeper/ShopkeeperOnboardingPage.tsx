@@ -38,6 +38,7 @@ import { useToast } from '../../context/ToastContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { compressImage } from '../../lib/imageCompressor';
 import { isValidUpiQrUrl } from '../../lib/upi';
+import { classifyApplicationError } from '../../lib/productErrorHelper';
 import './ShopkeeperOnboardingPage.css';
 
 export interface BusinessCategoryOption {
@@ -635,13 +636,13 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         taluk: taluk.trim(),
         pincode: pincode.trim(),
         business_type: selectedCategoryCode,
-        offerings: {
-          products: offersProducts,
-          services: offersServices,
-          appointments: offersAppointments,
-          dine_in: hasDineIn,
-          takeaway: hasTakeaway,
-        },
+        offerings: [
+          offersProducts ? 'products' : null,
+          offersServices ? 'services' : null,
+          offersAppointments ? 'appointments' : null,
+          hasDineIn ? 'dine_in' : null,
+          hasTakeaway ? 'takeaway' : null,
+        ].filter(Boolean) as string[],
         capabilities: derivedCapabilities,
       });
 
@@ -655,9 +656,9 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         toastError(errMsg);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error submitting application';
-      setFormError(msg);
-      toastError(msg);
+      const classified = classifyApplicationError(err);
+      setFormError(classified.userMessage);
+      toastError(classified.userMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -1643,6 +1644,28 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                 </p>
               </div>
             </Card>
+
+            {formError && (
+              <div
+                className="vaango-form-error-alert"
+                role="alert"
+                style={{
+                  marginTop: 'var(--space-4)',
+                  marginBottom: 'var(--space-2)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                }}
+              >
+                <AlertCircle size={20} className="flex-shrink-0" style={{ marginTop: '2px' }} />
+                <div>
+                  <strong style={{ display: 'block', fontSize: 'var(--font-size-sm)', marginBottom: '2px' }}>
+                    Action Required
+                  </strong>
+                  <span style={{ fontSize: 'var(--font-size-xs)', lineHeight: 1.4 }}>{formError}</span>
+                </div>
+              </div>
+            )}
 
             <div className="vaango-onboarding__submit-bar" style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
               <Button

@@ -6,7 +6,7 @@ import { supabase, isSupabaseConfigured } from './supabase';
 import { MOCK_SHOPS, MOCK_PRODUCTS, MOCK_SHOP_TYPES, getShopServices } from '../data/mockData';
 import { getStoredDemoRequests } from './demoData';
 import { normalizeIndianPhone } from './phoneUtils';
-import { classifyProductError } from './productErrorHelper';
+import { classifyProductError, classifyApplicationError } from './productErrorHelper';
 
 const DEMO_SHOPS_KEY = 'vaango_demo_shops';
 const DEMO_PRODUCTS_KEY = 'vaango_demo_products';
@@ -1015,7 +1015,13 @@ export const fetchShopTypes = async (): Promise<ShopType[]> => {
  */
 export const submitShopApplication = async (
   application: Omit<ShopApplication, 'id' | 'status' | 'created_at' | 'updated_at' | 'review_notes' | 'reviewed_by'>
-): Promise<{ success: boolean; application?: ShopApplication; error?: string }> => {
+): Promise<{
+  success: boolean;
+  application?: ShopApplication;
+  error?: string;
+  isRetryable?: boolean;
+  category?: string;
+}> => {
   if (!application.shop_name.trim()) {
     return { success: false, error: 'Shop name is required.' };
   }
@@ -1036,7 +1042,7 @@ export const submitShopApplication = async (
       const { data: authData, error: authError } = await Promise.race([authUserPromise, authTimeout]);
 
       if (authError || !authData?.user) {
-        return { success: false, error: 'You must be signed in to submit an application.' };
+        return { success: false, error: 'Your session has expired. Please sign in again to submit your application.' };
       }
       const verifiedApplicantId = authData.user.id;
 
@@ -1167,8 +1173,16 @@ export const submitShopApplication = async (
         taluk: application.taluk?.trim() || null,
         pincode: application.pincode?.trim() || null,
         business_type: application.business_type || null,
-        offerings: application.offerings || [],
-        capabilities: application.capabilities || [],
+        offerings: Array.isArray(application.offerings)
+          ? application.offerings.map((item) => String(item).trim()).filter(Boolean)
+          : (application.offerings && typeof application.offerings === 'object')
+            ? Object.entries(application.offerings as Record<string, unknown>)
+                .filter(([_, val]) => Boolean(val))
+                .map(([key]) => key.trim())
+            : [],
+        capabilities: Array.isArray(application.capabilities)
+          ? application.capabilities.map((item) => String(item).trim()).filter(Boolean)
+          : [],
         review_notes: null,
         reviewed_by: null,
       };
@@ -1180,22 +1194,39 @@ export const submitShopApplication = async (
         .single();
 
       if (error) {
-        if (error.code === '42501') {
-          return { success: false, error: 'Permission denied: Please ensure you are submitting from your verified partner account.' };
-        }
-        if (error.code === '23503') {
-          return { success: false, error: 'Invalid location or category selected. Please re-select your town and category.' };
-        }
-        throw error;
+        const classified = classifyApplicationError(error);
+        return {
+          success: false,
+          error: classified.userMessage,
+          isRetryable: classified.isRetryable,
+          category: classified.category,
+        };
       }
       return { success: true, application: data as ShopApplication };
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to submit application.';
-      return { success: false, error: message };
+      const classified = classifyApplicationError(err);
+      return {
+        success: false,
+        error: classified.userMessage,
+        isRetryable: classified.isRetryable,
+        category: classified.category,
+      };
     }
   }
 
   // Mock mode
+  const normalizedOfferings: string[] = Array.isArray(application.offerings)
+    ? application.offerings.map((item) => String(item).trim()).filter(Boolean)
+    : (application.offerings && typeof application.offerings === 'object')
+      ? Object.entries(application.offerings as Record<string, unknown>)
+          .filter(([_, val]) => Boolean(val))
+          .map(([key]) => key.trim())
+      : [];
+
+  const normalizedCapabilities: string[] = Array.isArray(application.capabilities)
+    ? application.capabilities.map((item) => String(item).trim()).filter(Boolean)
+    : [];
+
   const newAppPayload = {
     applicant_id: application.applicant_id,
     shop_name: application.shop_name.trim(),
@@ -1215,8 +1246,8 @@ export const submitShopApplication = async (
     gps_lng: application.gps_lng != null ? application.gps_lng : null,
     google_maps_url: application.google_maps_url || null,
     business_type: application.business_type || null,
-    offerings: application.offerings || [],
-    capabilities: application.capabilities || [],
+    offerings: normalizedOfferings,
+    capabilities: normalizedCapabilities,
     review_notes: null,
     reviewed_by: null,
   };
