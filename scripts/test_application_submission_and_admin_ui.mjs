@@ -218,6 +218,12 @@ console.log('--- PART A: Application Submission Tests (20 Required Invariants) -
   }
 }
 
+// 21. Generic failure message eliminated completely from UI
+{
+  const onboardingSrc = fs.readFileSync(path.resolve(__dirname, '../src/pages/shopkeeper/ShopkeeperOnboardingPage.tsx'), 'utf-8');
+  assert(!onboardingSrc.includes("'Failed to submit application.'"), "Generic 'Failed to submit application.' eliminated from ShopkeeperOnboardingPage.tsx");
+}
+
 // ----------------------------------------------------------------
 // PART B: ADMIN DASHBOARD UI INVARIANTS
 // ----------------------------------------------------------------

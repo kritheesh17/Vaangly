@@ -651,7 +651,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         success('Storefront application submitted for verification!');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        const errMsg = res.error || 'Failed to submit application.';
+        const errMsg = res.error || "Couldn't submit your application right now. Your entered information has been preserved. Please try again.";
         setFormError(errMsg);
         toastError(errMsg);
       }
