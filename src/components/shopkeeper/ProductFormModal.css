@@ -110,15 +110,66 @@
 
 .vaango-product-modal__error {
   display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
+  align-items: flex-start;
+  gap: var(--spacing-sm, 8px);
   background-color: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  color: var(--color-error);
-  padding: var(--spacing-sm);
-  border-radius: var(--radius-md);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: var(--color-error, #EF4444);
+  padding: 10px 14px;
+  border-radius: var(--radius-md, 8px);
   margin-bottom: var(--spacing-md);
   font-size: var(--font-size-sm);
+  line-height: 1.4;
+}
+
+.vaango-product-modal__error-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-error, #EF4444);
+}
+
+.vaango-product-modal__error-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.vaango-product-modal__error-msg {
+  color: var(--color-error, #EF4444);
+  font-weight: 500;
+  font-size: 0.88rem;
+}
+
+.vaango-product-modal__retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  background-color: var(--color-error, #EF4444);
+  color: #ffffff;
+  border: none;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.vaango-product-modal__retry-btn:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.vaango-product-modal__retry-btn:active {
+  transform: translateY(0);
+}
+
+.vaango-product-modal__retry-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .vaango-product-modal__form {

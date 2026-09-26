@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Image, AlertCircle, Check, Sparkles, ShieldCheck } from 'lucide-react';
+import { X, Image, AlertCircle, Check, Sparkles, ShieldCheck, RefreshCw } from 'lucide-react';
 import { ShopProduct, ProductAttributeGroup, ProductVariant } from '../../types/database';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { compressImage } from '../../lib/imageCompressor';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
+import { classifyProductError } from '../../lib/productErrorHelper';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import './ProductFormModal.css';
@@ -41,7 +42,7 @@ interface ProductFormModalProps {
     master_product_id?: string | null;
     propose_to_master?: boolean;
     brand?: string | null;
-  }) => Promise<{ success: boolean; error?: string }>;
+  }) => Promise<{ success: boolean; error?: string; isRetryable?: boolean }>;
   initialProduct?: ShopProduct | null;
   masterProductTemplate?: MasterProductTemplate | null;
   shopId: string;
@@ -90,7 +91,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [trackInventory, setTrackInventory] = useState(false);
   const [stockQuantity, setStockQuantity] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<{ message: string; isRetryable: boolean } | null>(null);
+
+  const setError = (message: string | null, isRetryable = false) => {
+    if (!message) {
+      setErrorState(null);
+    } else {
+      setErrorState({ message, isRetryable });
+    }
+  };
 
   // Master Catalogue Link State
   const [masterProductId, setMasterProductId] = useState<string | null>(null);
@@ -288,11 +297,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       if (result.success) {
         onClose();
       } else {
-        setError(result.error || t('genericError'));
+        setError(result.error || t('genericError'), result.isRetryable ?? false);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('genericError');
-      setError(msg);
+      const classified = classifyProductError(err);
+      setError(classified.userMessage, classified.isRetryable);
     } finally {
       setIsSubmitting(false);
     }
@@ -342,10 +351,26 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         )}
 
         {/* Error Alert */}
-        {error && (
+        {errorState && (
           <div className="vaango-product-modal__error" role="alert">
-            <AlertCircle size={16} />
-            <span>{error}</span>
+            <AlertCircle size={16} className="vaango-product-modal__error-icon" />
+            <div className="vaango-product-modal__error-content">
+              <span className="vaango-product-modal__error-msg">{errorState.message}</span>
+              {errorState.isRetryable && (
+                <button
+                  type="button"
+                  className="vaango-product-modal__retry-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  <RefreshCw size={12} className={isSubmitting ? 'animate-spin' : ''} />
+                  Try Again
+                </button>
+              )}
+            </div>
           </div>
         )}
 

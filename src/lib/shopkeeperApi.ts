@@ -6,6 +6,7 @@ import { supabase, isSupabaseConfigured } from './supabase';
 import { MOCK_SHOPS, MOCK_PRODUCTS, MOCK_SHOP_TYPES, getShopServices } from '../data/mockData';
 import { getStoredDemoRequests } from './demoData';
 import { normalizeIndianPhone } from './phoneUtils';
+import { classifyProductError } from './productErrorHelper';
 
 const DEMO_SHOPS_KEY = 'vaango_demo_shops';
 const DEMO_PRODUCTS_KEY = 'vaango_demo_products';
@@ -350,12 +351,12 @@ export const createShopProduct = async (
     stock_quantity?: number | null;
     master_product_id?: string | null;
   }
-): Promise<{ success: boolean; product?: ShopProduct; error?: string }> => {
+): Promise<{ success: boolean; product?: ShopProduct; error?: string; isRetryable?: boolean }> => {
   if (!product.name.trim()) {
-    return { success: false, error: 'Product name is required.' };
+    return { success: false, error: 'Product name is required.', isRetryable: false };
   }
   if (product.price === undefined || product.price === null || product.price < 0 || isNaN(product.price)) {
-    return { success: false, error: 'Price must be a valid non-negative number.' };
+    return { success: false, error: 'Price must be a valid non-negative number.', isRetryable: false };
   }
 
   const isMockShop = shopId.startsWith('30000000-') || shopId.startsWith('shop-');
@@ -388,7 +389,15 @@ export const createShopProduct = async (
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase createShopProduct error:', error);
+          const classified = classifyProductError(error);
+          return {
+            success: false,
+            error: classified.userMessage,
+            isRetryable: classified.isRetryable,
+          };
+        }
 
         // Keep local mock cache in sync for instant offline and fast UI updates
         const current = getStoredMockProducts(shopId);
@@ -396,10 +405,12 @@ export const createShopProduct = async (
         return { success: true, product: data as ShopProduct };
       }
     } catch (err: unknown) {
-      console.error('Supabase createShopProduct failed:', err);
+      console.error('Supabase createShopProduct exception:', err);
+      const classified = classifyProductError(err);
       return {
         success: false,
-        error: err instanceof Error ? err.message : 'Failed to save product to database.',
+        error: classified.userMessage,
+        isRetryable: classified.isRetryable,
       };
     }
   }
@@ -439,10 +450,10 @@ export const createShopProduct = async (
 export const updateShopProduct = async (
   shopId: string,
   productId: string,
-  updates: Partial<Pick<ShopProduct, 'name' | 'description' | 'price' | 'unit' | 'is_available' | 'image_url' | 'image_urls' | 'offer_label' | 'offer_type' | 'offer_value' | 'has_variants' | 'variants' | 'attribute_groups' | 'track_inventory' | 'stock_quantity' | 'master_product_id'>>
-): Promise<{ success: boolean; product?: ShopProduct; error?: string }> => {
+  updates: Partial<Pick<ShopProduct, 'name' | 'description' | 'price' | 'unit' | 'is_available' | 'image_url' | 'image_urls' | 'offer_label' | 'offer_type' | 'offer_value' | 'has_variants' | 'variants' | 'attribute_groups' | 'track_inventory' | 'stock_quantity' | 'master_product_id'>> & Record<string, unknown>
+): Promise<{ success: boolean; product?: ShopProduct; error?: string; isRetryable?: boolean }> => {
   if (updates.price !== undefined && (updates.price < 0 || isNaN(updates.price))) {
-    return { success: false, error: 'Price must be non-negative.' };
+    return { success: false, error: 'Price must be non-negative.', isRetryable: true };
   }
 
   const currentProds = getStoredMockProducts(shopId);
@@ -451,8 +462,29 @@ export const updateShopProduct = async (
     return {
       success: false,
       error: 'This product has been restricted or banned by platform administration. Contact support to request review.',
+      isRetryable: false,
     };
   }
+
+  // Construct strictly sanitized payload matching public.shop_products database schema.
+  // Excludes UI-only / master-catalogue fields (e.g. brand, propose_to_master) that trigger PostgREST schema errors.
+  const sanitizedUpdates: Record<string, unknown> = {};
+  if (updates.name !== undefined) sanitizedUpdates.name = String(updates.name).trim();
+  if (updates.description !== undefined) sanitizedUpdates.description = updates.description ? String(updates.description).trim() : null;
+  if (updates.price !== undefined) sanitizedUpdates.price = Number(updates.price);
+  if (updates.unit !== undefined) sanitizedUpdates.unit = String(updates.unit).trim() || 'item';
+  if (updates.is_available !== undefined) sanitizedUpdates.is_available = Boolean(updates.is_available);
+  if (updates.image_url !== undefined) sanitizedUpdates.image_url = updates.image_url ?? null;
+  if (updates.image_urls !== undefined) sanitizedUpdates.image_urls = Array.isArray(updates.image_urls) ? updates.image_urls : [];
+  if (updates.offer_label !== undefined) sanitizedUpdates.offer_label = updates.offer_label ? String(updates.offer_label).trim() : null;
+  if (updates.offer_type !== undefined) sanitizedUpdates.offer_type = updates.offer_type ?? null;
+  if (updates.offer_value !== undefined) sanitizedUpdates.offer_value = updates.offer_value ?? null;
+  if (updates.has_variants !== undefined) sanitizedUpdates.has_variants = Boolean(updates.has_variants);
+  if (updates.variants !== undefined) sanitizedUpdates.variants = Array.isArray(updates.variants) ? updates.variants : [];
+  if (updates.attribute_groups !== undefined) sanitizedUpdates.attribute_groups = Array.isArray(updates.attribute_groups) ? updates.attribute_groups : [];
+  if (updates.track_inventory !== undefined) sanitizedUpdates.track_inventory = Boolean(updates.track_inventory);
+  if (updates.stock_quantity !== undefined) sanitizedUpdates.stock_quantity = updates.stock_quantity == null || (updates.stock_quantity as unknown) === '' ? null : Number(updates.stock_quantity);
+  if (updates.master_product_id !== undefined) sanitizedUpdates.master_product_id = updates.master_product_id || null;
 
   const isMockShop = shopId.startsWith('30000000-') || shopId.startsWith('shop-');
   const isMockProduct = productId.startsWith('prod-');
@@ -463,12 +495,20 @@ export const updateShopProduct = async (
       if (sessionData?.session?.user) {
         const { data, error } = await supabase
           .from('shop_products')
-          .update(updates)
+          .update(sanitizedUpdates)
           .eq('id', productId)
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase updateShopProduct error:', error);
+          const classified = classifyProductError(error);
+          return {
+            success: false,
+            error: classified.userMessage,
+            isRetryable: classified.isRetryable,
+          };
+        }
 
         // Keep local cache in sync
         const current = getStoredMockProducts(shopId);
@@ -480,10 +520,12 @@ export const updateShopProduct = async (
         return { success: true, product: data as ShopProduct };
       }
     } catch (err: unknown) {
-      console.error('Supabase updateShopProduct failed:', err);
+      console.error('Supabase updateShopProduct exception:', err);
+      const classified = classifyProductError(err);
       return {
         success: false,
-        error: err instanceof Error ? err.message : 'Failed to update product in database.',
+        error: classified.userMessage,
+        isRetryable: classified.isRetryable,
       };
     }
   }

@@ -43,6 +43,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { classifyProductError } from '../../lib/productErrorHelper';
 import './ShopkeeperCataloguePage.css';
 
 export const ShopkeeperCataloguePage: React.FC = () => {
@@ -209,7 +210,8 @@ export const ShopkeeperCataloguePage: React.FC = () => {
 
     try {
       if (editingProduct) {
-        const res = await updateShopProduct(shop.id, editingProduct.id, productData);
+        const { propose_to_master, brand, ...cleanProductData } = productData;
+        const res = await updateShopProduct(shop.id, editingProduct.id, cleanProductData);
         if (res.success && res.product) {
           setProducts((prev) =>
             prev.map((p) => (p.id === editingProduct.id ? res.product! : p))
@@ -217,7 +219,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
           success(t('productSavedSuccess', { name: productData.name }));
           return { success: true };
         }
-        return { success: false, error: res.error || t('genericError') };
+        return { success: false, error: res.error || t('genericError'), isRetryable: res.isRetryable };
       } else {
         let masterId: string | null = productData.master_product_id || null;
 
@@ -260,11 +262,11 @@ export const ShopkeeperCataloguePage: React.FC = () => {
           }
           return { success: true };
         }
-        return { success: false, error: res.error || t('genericError') };
+        return { success: false, error: res.error || t('genericError'), isRetryable: res.isRetryable };
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t('genericError');
-      return { success: false, error: message };
+      const classified = classifyProductError(err);
+      return { success: false, error: classified.userMessage, isRetryable: classified.isRetryable };
     }
   };
 
