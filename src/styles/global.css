@@ -2,6 +2,11 @@
 @import './tokens.css';
 @import 'leaflet/dist/leaflet.css';
 
+/* Dark mode filter for keyless OpenStreetMap raster tiles */
+.vaango-map-tiles--dark {
+  filter: brightness(0.65) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
 *,
 *::before,
 *::after {

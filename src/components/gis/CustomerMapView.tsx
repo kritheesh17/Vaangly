@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import { Shop } from '../../types/database';
 import { formatDistance } from '../../lib/distance';
-import { getTileLayerConfig } from '../../lib/mapConfig';
+import { createTileLayer } from '../../lib/mapConfig';
 import { useTheme } from '../../context/ThemeContext';
 import { Navigation, Store, AlertTriangle } from 'lucide-react';
 import './CustomerMapView.css';
@@ -77,14 +77,9 @@ export const CustomerMapView: React.FC<CustomerMapViewProps> = ({
       // Add Zoom control at top-right to avoid mobile bottom bars
       L.control.zoom({ position: 'topright' }).addTo(map);
 
-      // Tile layer
-      const tileCfg = getTileLayerConfig(isDark);
-      const tiles = L.tileLayer(tileCfg.url, {
-        attribution: tileCfg.attribution,
-        maxZoom: tileCfg.maxZoom,
-        minZoom: tileCfg.minZoom,
-        subdomains: tileCfg.subdomains,
-      }).addTo(map);
+      // Keyless OpenStreetMap Tile layer with automatic error fallback
+      const tiles = createTileLayer(isDark);
+      tiles.addTo(map);
 
       tileLayerRef.current = tiles;
       markersLayerRef.current = L.layerGroup().addTo(map);
@@ -114,16 +109,11 @@ export const CustomerMapView: React.FC<CustomerMapViewProps> = ({
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    const tileCfg = getTileLayerConfig(isDark);
     if (tileLayerRef.current) {
       map.removeLayer(tileLayerRef.current);
     }
-    const newTiles = L.tileLayer(tileCfg.url, {
-      attribution: tileCfg.attribution,
-      maxZoom: tileCfg.maxZoom,
-      minZoom: tileCfg.minZoom,
-      subdomains: tileCfg.subdomains,
-    }).addTo(map);
+    const newTiles = createTileLayer(isDark);
+    newTiles.addTo(map);
     tileLayerRef.current = newTiles;
   }, [isDark]);
 

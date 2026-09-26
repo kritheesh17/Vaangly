@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
-import { getTileLayerConfig } from '../../lib/mapConfig';
+import { createTileLayer } from '../../lib/mapConfig';
 import { reverseGeocodeCoordinates } from '../../lib/reverseGeocode';
 import { useTheme } from '../../context/ThemeContext';
 import { Button } from '../ui/Button';
@@ -66,13 +66,8 @@ export const ShopkeeperMapPicker: React.FC<ShopkeeperMapPickerProps> = ({
       zoomControl: true,
     });
 
-    const tileCfg = getTileLayerConfig(isDark);
-    L.tileLayer(tileCfg.url, {
-      attribution: tileCfg.attribution,
-      maxZoom: tileCfg.maxZoom,
-      minZoom: tileCfg.minZoom,
-      subdomains: tileCfg.subdomains,
-    }).addTo(map);
+    // Create keyless OpenStreetMap tile layer with automatic fallback
+    createTileLayer(isDark).addTo(map);
 
     // Draggable Storefront Pin
     const pinIcon = L.divIcon({

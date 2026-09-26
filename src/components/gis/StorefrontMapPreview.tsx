@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import { getTileLayerConfig } from '../../lib/mapConfig';
+import { createTileLayer } from '../../lib/mapConfig';
 import { useTheme } from '../../context/ThemeContext';
 import './StorefrontMapPreview.css';
 
@@ -36,12 +36,7 @@ export const StorefrontMapPreview: React.FC<StorefrontMapPreviewProps> = ({
       touchZoom: false,
     });
 
-    const tileCfg = getTileLayerConfig(isDark);
-    L.tileLayer(tileCfg.url, {
-      maxZoom: tileCfg.maxZoom,
-      minZoom: tileCfg.minZoom,
-      subdomains: tileCfg.subdomains,
-    }).addTo(map);
+    createTileLayer(isDark).addTo(map);
 
     const pinIcon = L.divIcon({
       className: 'vaango-preview-pin-icon',
