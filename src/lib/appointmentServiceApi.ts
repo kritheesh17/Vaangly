@@ -64,59 +64,79 @@ export const fetchShopServices = async (shopId: string): Promise<ShopService[]> 
 /**
  * 2. Fetch Available Appointment Slots for a Shop on a specific date
  */
-export const fetchAppointmentSlots = async (shopId: string, dateStr: string): Promise<AppointmentSlot[]> => {
+export const fetchAppointmentSlots = async (
+  shopId: string,
+  dateStr: string,
+  serviceId?: string | null
+): Promise<AppointmentSlot[]> => {
   if (isSupabaseConfigured) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('appointment_slots')
         .select('*')
         .eq('shop_id', shopId)
-        .eq('slot_date', dateStr)
-        .order('start_time', { ascending: true });
+        .eq('slot_date', dateStr);
 
-      if (!error && data && data.length > 0) {
-        const nextDate = new Date(`${dateStr}T00:00:00`);
-        nextDate.setDate(nextDate.getDate() + 1);
-        const { data: requests } = await supabase
-          .from('requests')
-          .select('notes, current_state, scheduled_for, payment_status, hold_expires_at')
-          .eq('shop_id', shopId)
-          .eq('workflow_group_code', 'APPOINTMENT')
-          .not('current_state', 'in', '("CANCELLED","REJECTED","EXPIRED","NO_SHOW")');
-
-        const bookedBySlot = new Map<string, number>();
-        (requests || []).forEach((request) => {
-          try {
-            const slotId = JSON.parse(request.notes || '{}').slot_id;
-            const isHoldActive = !request.hold_expires_at || new Date(request.hold_expires_at) >= new Date();
-            if (slotId && isHoldActive) {
-              bookedBySlot.set(slotId, (bookedBySlot.get(slotId) || 0) + 1);
-            }
-          } catch {
-            // Ignore malformed legacy notes.
-          }
-        });
-
-        return (data as AppointmentSlot[]).map((slot) => {
-          const slotCapacity = slot.capacity || slot.concurrent_capacity || 1;
-          const activeBooked = bookedBySlot.get(slot.id) ?? (slot.confirmed_count || 0);
-          const remaining = Math.max(0, slotCapacity - activeBooked);
-          return {
-            ...slot,
-            capacity: slotCapacity,
-            concurrent_capacity: slotCapacity,
-            booked_count: activeBooked,
-            confirmed_count: activeBooked,
-            is_available: remaining > 0,
-          };
-        });
+      if (serviceId) {
+        query = query.eq('service_id', serviceId);
       }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching appointment slots from Supabase:', error);
+        return [];
+      }
+
+      if (!data || data.length === 0) {
+        return [];
+      }
+
+      const nextDate = new Date(`${dateStr}T00:00:00`);
+      nextDate.setDate(nextDate.getDate() + 1);
+      const { data: requests } = await supabase
+        .from('requests')
+        .select('notes, current_state, scheduled_for, payment_status, hold_expires_at')
+        .eq('shop_id', shopId)
+        .eq('workflow_group_code', 'APPOINTMENT')
+        .not('current_state', 'in', '("CANCELLED","REJECTED","EXPIRED","NO_SHOW")');
+
+      const bookedBySlot = new Map<string, number>();
+      (requests || []).forEach((request) => {
+        try {
+          const slotId = JSON.parse(request.notes || '{}').slot_id;
+          const isHoldActive = !request.hold_expires_at || new Date(request.hold_expires_at) >= new Date();
+          if (slotId && isHoldActive) {
+            bookedBySlot.set(slotId, (bookedBySlot.get(slotId) || 0) + 1);
+          }
+        } catch {
+          // Ignore malformed legacy notes.
+        }
+      });
+
+      const mapped = (data as AppointmentSlot[]).map((slot) => {
+        const slotCapacity = slot.capacity || slot.concurrent_capacity || 1;
+        const activeBooked = bookedBySlot.get(slot.id) ?? (slot.confirmed_count || 0);
+        const remaining = Math.max(0, slotCapacity - activeBooked);
+        return {
+          ...slot,
+          capacity: slotCapacity,
+          concurrent_capacity: slotCapacity,
+          booked_count: activeBooked,
+          confirmed_count: activeBooked,
+          is_available: remaining > 0,
+        };
+      });
+
+      mapped.sort((a, b) => parseTimeToMinutes(a.start_time) - parseTimeToMinutes(b.start_time));
+      return mapped;
     } catch (err) {
       console.error('Error fetching appointment slots from Supabase:', err);
+      return [];
     }
   }
 
-  // Fallback / Mock Mode with persistent local storage
+  // Fallback / Mock Mode with persistent local storage (Only when Supabase is NOT configured)
   try {
     const raw = localStorage.getItem(DEMO_SLOTS_KEY);
     let allSlots: Record<string, AppointmentSlot[]> = raw ? JSON.parse(raw) : {};
@@ -1089,7 +1109,7 @@ export const generateAndSyncAppointmentSlots = async (
         const chunk = payload.slice(i, i + 50);
         await supabase
           .from('appointment_slots')
-          .upsert(chunk, { onConflict: 'shop_id,slot_date,start_time', ignoreDuplicates: false });
+          .upsert(chunk, { onConflict: 'shop_id,service_id,slot_date,start_time', ignoreDuplicates: true });
       }
     }
 

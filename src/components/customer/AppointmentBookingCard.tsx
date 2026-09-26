@@ -93,14 +93,20 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
     };
   }, [shop.id]);
 
-  // 2. Fetch slots whenever selectedDateStr changes
+  const [paymentMethod, setPaymentMethod] = useState<'pay_at_shop' | 'online'>('pay_at_shop');
+
+  // 2. Fetch slots whenever selectedDateStr or selectedServiceId changes
   useEffect(() => {
     let isMounted = true;
     async function loadSlots() {
+      if (!selectedServiceId) {
+        setSlots([]);
+        return;
+      }
       setIsLoadingSlots(true);
       setBookingError(null);
       try {
-        const fetchedSlots = await fetchAppointmentSlots(shop.id, selectedDateStr);
+        const fetchedSlots = await fetchAppointmentSlots(shop.id, selectedDateStr, selectedServiceId);
         if (isMounted) {
           setSlots(fetchedSlots);
           setSelectedSlotId('');
@@ -115,14 +121,14 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
     return () => {
       isMounted = false;
     };
-  }, [shop.id, selectedDateStr]);
+  }, [shop.id, selectedDateStr, selectedServiceId]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
       const handleLocalSlotChange = (event: Event) => {
         const detail = (event as CustomEvent<{ shopId?: string; dateStr?: string }>).detail;
         if ((!detail.shopId || detail.shopId === shop.id) && (!detail.dateStr || detail.dateStr === selectedDateStr)) {
-          void fetchAppointmentSlots(shop.id, selectedDateStr).then(setSlots);
+          void fetchAppointmentSlots(shop.id, selectedDateStr, selectedServiceId).then(setSlots);
         }
       };
       window.addEventListener('vaango-slots-changed', handleLocalSlotChange);
@@ -130,18 +136,18 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
     }
 
     const channel = supabase
-      .channel(`appointment-slots-${shop.id}-${selectedDateStr}`)
+      .channel(`appointment-slots-${shop.id}-${selectedDateStr}-${selectedServiceId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'appointment_slots', filter: `shop_id=eq.${shop.id}` },
-        () => void fetchAppointmentSlots(shop.id, selectedDateStr).then(setSlots)
+        () => void fetchAppointmentSlots(shop.id, selectedDateStr, selectedServiceId).then(setSlots)
       )
       .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [shop.id, selectedDateStr]);
+  }, [shop.id, selectedDateStr, selectedServiceId]);
 
   const selectedService = useMemo(() => {
     return services.find((s) => s.id === selectedServiceId) || null;
@@ -186,6 +192,8 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         notes: notes.trim(),
+        paymentMethod: paymentMethod,
+        isOnlineHold: paymentMethod === 'online',
       });
 
       if (res.success && res.request) {
@@ -194,7 +202,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
       } else {
         setBookingError(res.error || t('genericError'));
         // Refresh slots immediately to show latest availability
-        const updatedSlots = await fetchAppointmentSlots(shop.id, selectedDateStr);
+        const updatedSlots = await fetchAppointmentSlots(shop.id, selectedDateStr, selectedServiceId);
         setSlots(updatedSlots);
         setSelectedSlotId('');
       }
@@ -440,6 +448,51 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                 placeholder={t('appointmentNotesPlaceholder')}
                 leftIcon={<FileText size={16} />}
               />
+            </div>
+
+            {/* Payment Method Selector */}
+            <div className="vaango-form-group mb-4">
+              <label className="vaango-form-label">Payment Method</label>
+              <div className="vaango-payment-methods flex gap-3">
+                {selectedService.payment_requirement !== 'online_only' && (
+                  <button
+                    type="button"
+                    className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+                      paymentMethod === 'pay_at_shop'
+                        ? 'border-primary bg-primary/5 text-primary font-semibold ring-2 ring-primary/20'
+                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                    onClick={() => setPaymentMethod('pay_at_shop')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">💵</span>
+                      <span>{t('payAtShop')}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Get queue token immediately. Pay cash/UPI at counter.
+                    </div>
+                  </button>
+                )}
+                {selectedService.payment_requirement !== 'shop_only' && (
+                  <button
+                    type="button"
+                    className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+                      paymentMethod === 'online'
+                        ? 'border-primary bg-primary/5 text-primary font-semibold ring-2 ring-primary/20'
+                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                    onClick={() => setPaymentMethod('online')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">📱</span>
+                      <span>Pay Online (UPI)</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Reserve 10-min hold while uploading payment proof.
+                    </div>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Review Summary Box */}
