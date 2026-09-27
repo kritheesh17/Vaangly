@@ -1,0 +1,58 @@
+/* Vaangly Permission Manager & Install Prompt Styles */
+
+.vaangly-install-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.vaangly-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.vaangly-perm-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.vaangly-perm-card:hover {
+  border-color: var(--color-primary);
+}
+
+.vaangly-permission-center {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.vaangly-install-btn-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: var(--color-primary);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+}
+
+.vaangly-install-btn-header:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.vaangly-install-btn-header:active {
+  transform: translateY(0);
+}

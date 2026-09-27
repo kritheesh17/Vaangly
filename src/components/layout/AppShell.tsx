@@ -8,6 +8,9 @@ import { BottomNav } from './BottomNav';
 import { CartBar } from '../customer/CartBar';
 import './AppShell.css';
 import { InstallPrompt } from './InstallPrompt';
+import { FirstVisitPermissionModal } from '../permissions/FirstVisitPermissionModal';
+import { ManualInstallModal } from '../permissions/ManualInstallModal';
+import { PermissionCenterModal } from '../permissions/PermissionCenterModal';
 
 export const AppShell: React.FC = () => {
   const location = useLocation();
@@ -53,6 +56,9 @@ export const AppShell: React.FC = () => {
       {/* Primary Header */}
       <Header />
       <InstallPrompt />
+      <FirstVisitPermissionModal />
+      <ManualInstallModal />
+      <PermissionCenterModal />
 
       {/* Main Content Area with safe bottom padding when CartBar is present */}
       <main

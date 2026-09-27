@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Shield, MapPin, Phone, Mail, LogOut, CheckCircle2, Languages, Lock, KeyRound, AlertCircle, Edit3, Save, X } from 'lucide-react';
+import { User, Shield, MapPin, Phone, Mail, LogOut, CheckCircle2, Languages, Lock, KeyRound, AlertCircle, Edit3, Save, X, Sliders, Smartphone, Bell, Navigation, Download } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLocationContext } from '../context/LocationContext';
+import { usePermissions } from '../context/PermissionContext';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -21,6 +22,16 @@ export const ProfilePage: React.FC = () => {
   const { user, role, switchDemoRole, signOut, updatePassword, updateCustomerProfile } = useAuth();
   const { toggleTheme, isDark } = useTheme();
   const { selectedLocation, setIsLocationModalOpen } = useLocationContext();
+  const {
+    notificationStatus,
+    locationStatus,
+    isInstallable,
+    isInstalled,
+    promptInstall,
+    requestNotificationPermission,
+    requestLocationPermission,
+    setIsManualInstallOpen,
+  } = usePermissions();
   const navigate = useNavigate();
 
   const { language, setLanguage, t } = useLanguage();
@@ -404,6 +415,112 @@ export const ProfilePage: React.FC = () => {
               Update Password
             </Button>
           </form>
+        </Card>
+
+        {/* App Installation & Permissions Center */}
+        <Card variant="default" padding="lg" className="vaango-profile-card">
+          <div className="vaango-profile-card__section-head" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+              <Sliders className="vaango-section-icon" />
+              <div>
+                <h3 className="vaango-card-heading">App & Device Permissions</h3>
+                <p className="vaango-card-subheading">
+                  Manage push notifications, device GPS location, and PWA installation.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/permissions')}
+            >
+              Open Center
+            </Button>
+          </div>
+
+          <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Install Status */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--color-bg-secondary, #f8fafc)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Smartphone size={20} style={{ color: 'var(--color-primary)' }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Vaangly App</div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                    {isInstalled ? 'App is installed on this device' : isInstallable ? 'Ready to install on home screen' : 'Run via browser'}
+                  </div>
+                </div>
+              </div>
+              <div>
+                {isInstalled ? (
+                  <Badge variant="success">Installed</Badge>
+                ) : isInstallable ? (
+                  <Button variant="primary" size="sm" onClick={() => promptInstall()} leftIcon={<Download size={14} />}>
+                    Install
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={() => setIsManualInstallOpen(true)}>
+                    How to Add
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Notification Status */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--color-bg-secondary, #f8fafc)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Bell size={20} style={{ color: notificationStatus === 'granted' ? 'var(--color-success, #16a34a)' : 'var(--color-text-secondary)' }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Push Notifications</div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                    {notificationStatus === 'granted'
+                      ? 'Enabled for order & token updates'
+                      : notificationStatus === 'denied'
+                      ? 'Blocked in browser settings'
+                      : 'Disabled — turn on for updates'}
+                  </div>
+                </div>
+              </div>
+              <div>
+                {notificationStatus === 'granted' ? (
+                  <Badge variant="success">Active</Badge>
+                ) : notificationStatus === 'denied' ? (
+                  <Badge variant="error">Blocked</Badge>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => requestNotificationPermission()}>
+                    Enable
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Location Status */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--color-bg-secondary, #f8fafc)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Navigation size={20} style={{ color: locationStatus === 'granted' ? 'var(--color-success, #16a34a)' : 'var(--color-text-secondary)' }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Device Location (GPS)</div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                    {locationStatus === 'granted'
+                      ? 'Active — discovering nearby shops'
+                      : locationStatus === 'denied'
+                      ? 'Blocked — using default town mode'
+                      : 'Optional — enable for distance search'}
+                  </div>
+                </div>
+              </div>
+              <div>
+                {locationStatus === 'granted' ? (
+                  <Badge variant="success">Active</Badge>
+                ) : locationStatus === 'denied' ? (
+                  <Badge variant="error">Blocked</Badge>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => requestLocationPermission()}>
+                    Enable
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
         </Card>
 
         {/* Appearance & System Settings */}

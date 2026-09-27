@@ -23,7 +23,9 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { CompleteProfilePage } from './pages/auth/CompleteProfilePage';
 import { AuthCallbackPage } from './pages/auth/AuthCallbackPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
+import { PermissionCenterPage } from './pages/PermissionCenterPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { PermissionProvider } from './context/PermissionContext';
 
 // Code-split Shopkeeper modules (lazy loaded on navigation)
 const ShopkeeperDashboardPage = React.lazy(() =>
@@ -92,10 +94,11 @@ export const App: React.FC = () => {
     <ErrorBoundary>
       <ThemeProvider>
         <AuthProvider>
-          <LocationProvider>
-            <LanguageProvider>
-              <CartProvider>
-                <ToastProvider>
+          <PermissionProvider>
+            <LocationProvider>
+              <LanguageProvider>
+                <CartProvider>
+                  <ToastProvider>
                   <BrowserRouter>
                     <AdInterstitialScreen />
                     <React.Suspense
@@ -138,6 +141,7 @@ export const App: React.FC = () => {
                             }
                           />
                           <Route path="/account" element={<Navigate to="/profile" replace />} />
+                          <Route path="/permissions" element={<PermissionCenterPage />} />
 
                           {/* Shopkeeper MVP Routes */}
                           <Route path="/shopkeeper" element={<Navigate to="/shopkeeper/dashboard" replace />} />
@@ -241,6 +245,7 @@ export const App: React.FC = () => {
               </CartProvider>
             </LanguageProvider>
           </LocationProvider>
+          </PermissionProvider>
         </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>

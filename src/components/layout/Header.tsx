@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MapPin, Sun, Moon, Sparkles, User, LogOut, ChevronDown, ShoppingBag, RotateCcw, Menu, X, ArrowRight } from 'lucide-react';
+import { MapPin, Sun, Moon, Sparkles, User, LogOut, ChevronDown, ShoppingBag, RotateCcw, Menu, X, ArrowRight, Download, Shield } from 'lucide-react';
+import { usePermissions } from '../../context/PermissionContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useLocationContext } from '../../context/LocationContext';
@@ -34,6 +35,7 @@ export const Header: React.FC = () => {
   const { success } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { pendingApplications, pendingCatalogue, shopkeeperNewRequests, customerActiveOrders } = useSectionUnreadCounts();
+  const { isInstalled, promptInstall } = usePermissions();
 
   const handleRoleChange = (newRole: UserRole) => {
     switchDemoRole(newRole);
@@ -211,6 +213,19 @@ export const Header: React.FC = () => {
               </div>
             )}
 
+            {/* Install Vaangly Button (Header Desktop/Tablet) */}
+            {!isInstalled && (
+              <button
+                type="button"
+                className="vaangly-install-btn-header hidden md:inline-flex"
+                onClick={() => void promptInstall()}
+                title="Install Vaangly on your device"
+              >
+                <Download size={14} />
+                <span>Install App</span>
+              </button>
+            )}
+
             {/* Two-Way Segmented Language Toggle (EN | தமிழ்) - ALWAYS PINNED TOP-RIGHT */}
             <div className="vaango-header__lang-toggle-wrap">
               <LanguageToggle size="sm" />
@@ -343,6 +358,23 @@ export const Header: React.FC = () => {
                   <span>{t('activity') || 'Orders'}</span>
                   <NotificationBadge count={customerActiveOrders} size="sm" />
                 </Link>
+              )}
+              <Link to="/permissions" className="vaango-mobile-menu__link flex items-center gap-2" onClick={closeMobileMenu}>
+                <Shield size={18} />
+                <span>Permissions & Privacy</span>
+              </Link>
+              {!isInstalled && (
+                <button
+                  type="button"
+                  className="vaango-mobile-menu__link w-full text-left flex items-center gap-2 font-semibold text-primary"
+                  onClick={() => {
+                    closeMobileMenu();
+                    void promptInstall();
+                  }}
+                >
+                  <Download size={18} />
+                  <span>Install Vaangly App</span>
+                </button>
               )}
             </nav>
 

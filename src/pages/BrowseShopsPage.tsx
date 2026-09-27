@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Store, ArrowLeft, Navigation, Loader2, AlertCircle, LayoutGrid, Map } from 'lucide-react';
 import { useLocationContext } from '../context/LocationContext';
 import { useLanguage } from '../context/LanguageContext';
+import { usePermissions } from '../context/PermissionContext';
 import { MOCK_SHOP_TYPES } from '../data/mockData';
 import { searchLocationCatalog, fetchCustomerLocationCatalog, fetchNearbyShopCatalog, CustomerCatalogData } from '../lib/search';
 import { formatDistance } from '../lib/distance';
@@ -20,6 +21,7 @@ import './BrowseShopsPage.css';
 export const BrowseShopsPage: React.FC = () => {
   const { selectedLocation } = useLocationContext();
   const { t, language } = useLanguage();
+  const { requestLocationPermission, locationStatus, setIsPermissionCenterOpen } = usePermissions();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -48,49 +50,32 @@ export const BrowseShopsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Request customer browser location with fallback to town mode on rejection
-  const handleRequestNearMe = useCallback(() => {
-    if (typeof window === 'undefined' || !navigator.geolocation) {
-      setGeoState('error');
-      setGeoErrorMessage('Geolocation is not supported by your browser.');
-      return;
-    }
-
+  const handleRequestNearMe = useCallback(async () => {
     setGeoState('requesting');
     setGeoErrorMessage(null);
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCustomerCoords({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        });
-        setIsNearMeMode(true);
-        setGeoState('active');
-        const params = new URLSearchParams(searchParams);
-        params.set('nearMe', 'true');
-        setSearchParams(params);
-      },
-      (err) => {
-        console.warn('Customer geolocation error:', err);
-        if (err.code === err.PERMISSION_DENIED) {
-          setGeoState('denied');
-          setGeoErrorMessage(t('locationAccessOff'));
-        } else {
-          setGeoState('error');
-          setGeoErrorMessage('Unable to determine location. Showing town shops.');
-        }
-        setIsNearMeMode(false);
-        const params = new URLSearchParams(searchParams);
-        params.delete('nearMe');
-        setSearchParams(params);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
+    const coords = await requestLocationPermission();
+    if (coords) {
+      setCustomerCoords(coords);
+      setIsNearMeMode(true);
+      setGeoState('active');
+      const params = new URLSearchParams(searchParams);
+      params.set('nearMe', 'true');
+      setSearchParams(params);
+    } else {
+      if (locationStatus === 'denied') {
+        setGeoState('denied');
+        setGeoErrorMessage(t('locationAccessOff'));
+      } else {
+        setGeoState('error');
+        setGeoErrorMessage('Unable to determine location. Showing town shops.');
       }
-    );
-  }, [searchParams, setSearchParams, t]);
+      setIsNearMeMode(false);
+      const params = new URLSearchParams(searchParams);
+      params.delete('nearMe');
+      setSearchParams(params);
+    }
+  }, [searchParams, setSearchParams, t, requestLocationPermission, locationStatus]);
 
   // If URL has ?nearMe=true on initial load, trigger request
   useEffect(() => {
@@ -326,9 +311,27 @@ export const BrowseShopsPage: React.FC = () => {
 
         {/* Informational Notification for Geo Permission Issues */}
         {geoErrorMessage && !isNearMeMode && (
-          <div className="vaango-browse__geo-alert">
-            <AlertCircle size={15} className="vaango-browse__geo-alert-icon" />
-            <span>{geoErrorMessage}</span>
+          <div className="vaango-browse__geo-alert" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={15} className="vaango-browse__geo-alert-icon" />
+              <span>{geoErrorMessage}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPermissionCenterOpen(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-primary)',
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                fontSize: 'var(--font-size-xs)',
+                fontWeight: 600,
+                padding: '2px 6px',
+              }}
+            >
+              Permission Settings
+            </button>
           </div>
         )}
 
