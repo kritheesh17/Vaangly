@@ -420,130 +420,312 @@
   align-items: center;
 }
 
-/* Segmented Theme Toggle Pill [ ☀️ | 🌙 ] */
-.vaango-header__theme-segmented {
-  display: inline-flex;
-  align-items: center;
-  background-color: var(--color-surface-sunken, #F1F5F9);
-  border: 1px solid var(--color-border, #E2E8F0);
-  border-radius: var(--radius-full, 9999px);
-  padding: 2px;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
-  flex-shrink: 0;
-}
-
-[data-theme='dark'] .vaango-header__theme-segmented,
-.dark .vaango-header__theme-segmented {
-  background-color: var(--color-surface-sunken, #0B121E);
-  border-color: var(--color-border, #263852);
-}
-
-.vaango-header__theme-opt {
+/* Compact Theme Toggle Button [ 🌙 / ☀️ ] */
+.vaango-header__theme-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-full, 9999px);
-  border: none;
-  background: transparent;
-  color: var(--color-text-muted, #94A3B8);
-  cursor: pointer;
-  transition: all var(--transition-fast, 150ms ease);
-  outline: none;
-  padding: 0;
-}
-
-.vaango-header__theme-opt:hover:not(.vaango-header__theme-opt--active) {
-  color: var(--color-text-primary);
-}
-
-.vaango-header__theme-opt--active {
-  background-color: #FFFFFF;
-  color: #D97706; /* warm amber sun in light mode */
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-}
-
-[data-theme='dark'] .vaango-header__theme-opt--active,
-.dark .vaango-header__theme-opt--active {
-  background-color: #1F2E47;
-  color: #FBBF24; /* yellow/gold crescent in dark mode */
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-}
-
-/* Logged-In User Profile Info */
-.vaango-header__user-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.vaango-header__profile-link {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  text-decoration: none;
-  color: var(--color-text-primary);
-  flex-shrink: 0;
-}
-
-.vaango-header__user-avatar {
   width: 34px;
   height: 34px;
   border-radius: var(--radius-full, 9999px);
-  background-color: var(--brand-primary-light);
-  color: var(--brand-primary);
+  background-color: var(--color-surface-sunken, #F1F5F9);
+  border: 1px solid var(--color-border, #E2E8F0);
+  color: var(--color-text-secondary, #475569);
+  cursor: pointer;
+  transition: all var(--transition-fast, 150ms ease);
+  flex-shrink: 0;
+  outline: none;
+}
+
+[data-theme='dark'] .vaango-header__theme-btn,
+.dark .vaango-header__theme-btn {
+  background-color: var(--color-surface-sunken, #0B121E);
+  border-color: var(--color-border, #263852);
+  color: #FBBF24;
+}
+
+.vaango-header__theme-btn:hover {
+  background-color: var(--color-surface-hover, #E2E8F0);
+  color: var(--color-text-primary, #0F172A);
+  transform: scale(1.05);
+  border-color: var(--brand-primary, #1B4D3E);
+}
+
+[data-theme='dark'] .vaango-header__theme-btn:hover,
+.dark .vaango-header__theme-btn:hover {
+  background-color: #1F2E47;
+  color: #FDE047;
+  border-color: #38BDF8;
+}
+
+.vaango-header__theme-btn:focus-visible {
+  outline: 2px solid var(--brand-primary, #1B4D3E);
+  outline-offset: 2px;
+}
+
+.vaango-header__theme-icon--moon {
+  color: #475569;
+}
+
+.vaango-header__theme-icon--sun {
+  color: #FBBF24;
+}
+
+/* Account / Admin Menu Control */
+.vaango-header__account-wrap {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
   flex-shrink: 0;
 }
 
-.vaango-header__user-name {
-  display: none;
-  font-size: var(--font-size-sm, 0.875rem);
-  font-weight: var(--font-weight-bold, 700);
-  max-width: 85px;
+.vaango-header__account-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 2px 10px 2px 3px;
+  border-radius: var(--radius-full, 9999px);
+  background-color: var(--color-surface-sunken, #F1F5F9);
+  border: 1px solid var(--color-border, #E2E8F0);
+  color: var(--color-text-primary, #0F172A);
+  cursor: pointer;
+  transition: all var(--transition-fast, 150ms ease);
+  outline: none;
+}
+
+[data-theme='dark'] .vaango-header__account-btn,
+.dark .vaango-header__account-btn {
+  background-color: var(--color-surface-sunken, #0B121E);
+  border-color: var(--color-border, #263852);
+  color: #F8FAFC;
+}
+
+.vaango-header__account-btn:hover,
+.vaango-header__account-btn--active {
+  background-color: var(--color-surface-hover, #E2E8F0);
+  border-color: var(--brand-primary, #1B4D3E);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='dark'] .vaango-header__account-btn:hover,
+[data-theme='dark'] .vaango-header__account-btn--active,
+.dark .vaango-header__account-btn:hover,
+.dark .vaango-header__account-btn--active {
+  background-color: #1A263A;
+  border-color: #38BDF8;
+}
+
+.vaango-header__account-btn:focus-visible {
+  outline: 2px solid var(--brand-primary, #1B4D3E);
+  outline-offset: 2px;
+}
+
+.vaango-header__account-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full, 9999px);
+  background: var(--brand-primary-light, #E6F4EA);
+  color: var(--brand-primary, #1B4D3E);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .vaango-header__account-avatar,
+.dark .vaango-header__account-avatar {
+  background: rgba(27, 77, 62, 0.35);
+  color: #34D399;
+}
+
+.vaango-header__account-name {
+  font-size: 13px;
+  font-weight: 600;
+  max-width: 100px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: none;
 }
 
-@media (min-width: 820px) {
-  .vaango-header__user-name {
+@media (min-width: 640px) {
+  .vaango-header__account-name {
     display: inline-block;
   }
 }
 
-.vaango-header__logout-btn {
-  width: 32px;
-  height: 32px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  border-radius: var(--radius-md);
-  border: none;
-  background: transparent;
-  transition: color var(--transition-fast);
-  flex-shrink: 0;
+.vaango-header__account-chevron {
+  color: var(--color-text-muted, #94A3B8);
+  transition: transform var(--transition-fast, 150ms ease);
 }
 
-@media (min-width: 820px) {
-  .vaango-header__logout-btn {
-    display: inline-flex;
+.vaango-header__account-chevron--open {
+  transform: rotate(180deg);
+}
+
+/* Account Dropdown Popover */
+.vaango-account-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 260px;
+  max-width: calc(100vw - 24px);
+  background: var(--color-card-bg, #FFFFFF);
+  border: 1px solid var(--color-border, #E2E8F0);
+  border-radius: 16px;
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 6px;
+  z-index: 1000;
+  animation: vaango-dropdown-appear 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme='dark'] .vaango-account-dropdown,
+.dark .vaango-account-dropdown {
+  background: #111B2B;
+  border-color: #263852;
+  box-shadow: 0 20px 40px -4px rgba(0, 0, 0, 0.5), 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes vaango-dropdown-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
-.vaango-header__logout-btn:hover {
-  color: var(--color-error, #EF4444);
+.vaango-account-dropdown__header {
+  padding: 10px 12px 8px;
+}
+
+.vaango-account-dropdown__kicker {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-primary, #1B4D3E);
+  margin-bottom: 2px;
+}
+
+[data-theme='dark'] .vaango-account-dropdown__kicker,
+.dark .vaango-account-dropdown__kicker {
+  color: #34D399;
+}
+
+.vaango-account-dropdown__name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-text-primary, #0F172A);
+  line-height: 1.3;
+}
+
+.vaango-account-dropdown__email {
+  font-size: 11.5px;
+  color: var(--color-text-muted, #64748B);
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+.vaango-account-dropdown__divider {
+  height: 1px;
+  background-color: var(--color-border, #E2E8F0);
+  margin: 4px 6px;
+}
+
+[data-theme='dark'] .vaango-account-dropdown__divider,
+.dark .vaango-account-dropdown__divider {
+  background-color: #1F2E47;
+}
+
+.vaango-account-dropdown__item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary, #1E293B);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-fast, 120ms ease);
+}
+
+[data-theme='dark'] .vaango-account-dropdown__item,
+.dark .vaango-account-dropdown__item {
+  color: #E2E8F0;
+}
+
+.vaango-account-dropdown__item-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.vaango-account-dropdown__item:hover {
+  background-color: var(--color-surface-hover, #F1F5F9);
+  color: var(--color-text-primary, #0F172A);
+}
+
+[data-theme='dark'] .vaango-account-dropdown__item:hover,
+.dark .vaango-account-dropdown__item:hover {
+  background-color: #1E2D44;
+  color: #FFFFFF;
+}
+
+.vaango-account-dropdown__item:focus-visible {
+  outline: 2px solid var(--brand-primary, #1B4D3E);
+  outline-offset: -2px;
+}
+
+.vaango-account-dropdown__item--danger {
+  color: #DC2626;
+}
+
+[data-theme='dark'] .vaango-account-dropdown__item--danger,
+.dark .vaango-account-dropdown__item--danger {
+  color: #F87171;
+}
+
+.vaango-account-dropdown__item--danger:hover {
+  background-color: rgba(239, 68, 68, 0.08);
+  color: #B91C1C;
+}
+
+[data-theme='dark'] .vaango-account-dropdown__item--danger:hover,
+.dark .vaango-account-dropdown__item--danger:hover {
+  background-color: rgba(239, 68, 68, 0.16);
+  color: #FCA5A5;
+}
+
+.vaango-account-dropdown__badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background: var(--color-surface-sunken, #E2E8F0);
+  color: var(--color-text-muted, #64748B);
+}
+
+[data-theme='dark'] .vaango-account-dropdown__badge,
+.dark .vaango-account-dropdown__badge {
+  background: #1F2E47;
+  color: #94A3B8;
 }
 
 /* Auth Buttons (Logged-out state) */
 .vaango-header__auth-btns {
-  display: none;
+  display: flex;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;

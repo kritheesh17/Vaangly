@@ -1,6 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MapPin, Sun, Moon, Sparkles, User, LogOut, ChevronDown, ShoppingBag, RotateCcw, Menu, X, ArrowRight, Download, Shield, Smartphone } from 'lucide-react';
+import {
+  MapPin,
+  Sun,
+  Moon,
+  Sparkles,
+  User,
+  LogOut,
+  ChevronDown,
+  ShoppingBag,
+  RotateCcw,
+  Menu,
+  X,
+  ArrowRight,
+  Download,
+  Shield,
+  Smartphone,
+  Settings,
+  KeyRound,
+  Bell,
+  Users,
+  Palette,
+  ShieldCheck,
+} from 'lucide-react';
 import { usePermissions } from '../../context/PermissionContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -14,6 +36,7 @@ import { Modal } from '../ui/Modal';
 import { UserRole } from '../../types/database';
 import { resetDemoData } from '../../lib/demoData';
 import { NotificationBell } from '../shopkeeper/NotificationBell';
+import { ChangePasswordModal } from '../auth/ChangePasswordModal';
 import './Header.css';
 import { useLanguage } from '../../context/LanguageContext';
 import { LanguageToggle } from '../common/LanguageToggle';
@@ -34,8 +57,35 @@ export const Header: React.FC = () => {
   const { t } = useLanguage();
   const { success } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+
   const { pendingApplications, pendingCatalogue, shopkeeperNewRequests, customerActiveOrders } = useSectionUnreadCounts();
-  const { isInstalled, promptInstall } = usePermissions();
+  const { isInstalled, promptInstall, setIsPermissionCenterOpen } = usePermissions();
+
+  // Close account menu on outside click or Escape key
+  useEffect(() => {
+    if (!isAccountMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsAccountMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAccountMenuOpen]);
 
   const handleRoleChange = (newRole: UserRole) => {
     switchDemoRole(newRole);
@@ -49,6 +99,26 @@ export const Header: React.FC = () => {
   };
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
+
+  const handleLogout = async () => {
+    setIsAccountMenuOpen(false);
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
+
+  const handleSwitchAccount = async () => {
+    setIsAccountMenuOpen(false);
+    try {
+      await signOut();
+      navigate('/login', { state: { switchAccount: true } });
+    } catch (err) {
+      console.error('Switch account error:', err);
+    }
+  };
 
   return (
     <>
@@ -231,52 +301,159 @@ export const Header: React.FC = () => {
               <LanguageToggle size="sm" />
             </div>
 
-            {/* Segmented Theme Toggle Pill [ ☀️ | 🌙 ] */}
-            <div
-              className="vaango-header__theme-segmented"
-              role="group"
-              aria-label="Color theme toggle"
+            {/* Compact Theme Toggle Button [ 🌙 in light | ☀️ in dark ] */}
+            <button
+              type="button"
+              className="vaango-header__theme-btn"
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              <button
-                type="button"
-                className={`vaango-header__theme-opt ${theme === 'light' ? 'vaango-header__theme-opt--active' : ''}`}
-                onClick={() => theme !== 'light' && toggleTheme()}
-                aria-pressed={theme === 'light'}
-                aria-label="Light mode"
-                title="Light mode"
-              >
-                <Sun size={14} />
-              </button>
-              <button
-                type="button"
-                className={`vaango-header__theme-opt ${theme === 'dark' ? 'vaango-header__theme-opt--active' : ''}`}
-                onClick={() => theme !== 'dark' && toggleTheme()}
-                aria-pressed={theme === 'dark'}
-                aria-label="Dark mode"
-                title="Dark mode"
-              >
-                <Moon size={14} />
-              </button>
-            </div>
+              {theme === 'dark' ? (
+                <Sun size={17} className="vaango-header__theme-icon--sun" />
+              ) : (
+                <Moon size={17} className="vaango-header__theme-icon--moon" />
+              )}
+            </button>
 
-            {/* Auth Profile / Login & Get Started Buttons */}
+            {/* Account / Admin Menu Control or Login Buttons */}
             {user ? (
-              <div className="vaango-header__user-wrap">
-                <Link to="/profile" className="vaango-header__profile-link" aria-label="View user profile" onClick={closeMobileMenu}>
-                  <div className="vaango-header__user-avatar">
-                    <User size={16} />
-                  </div>
-                  <span className="vaango-header__user-name">{user.full_name?.split(' ')[0] || t('profile')}</span>
-                </Link>
+              <div className="vaango-header__account-wrap" ref={accountMenuRef}>
                 <button
                   type="button"
-                  onClick={() => signOut().then(() => navigate('/login'))}
-                  className="vaango-header__logout-btn"
-                  title={t('signOut')}
-                  aria-label={t('signOut')}
+                  className={`vaango-header__account-btn ${isAccountMenuOpen ? 'vaango-header__account-btn--active' : ''}`}
+                  onClick={() => setIsAccountMenuOpen((prev) => !prev)}
+                  aria-expanded={isAccountMenuOpen}
+                  aria-haspopup="menu"
+                  aria-label="Account menu"
+                  title="Account menu"
                 >
-                  <LogOut size={16} />
+                  <div className="vaango-header__account-avatar">
+                    {role === 'admin' ? (
+                      <ShieldCheck size={16} />
+                    ) : (
+                      user.full_name?.charAt(0).toUpperCase() || <User size={15} />
+                    )}
+                  </div>
+                  <span className="vaango-header__account-name">
+                    {role === 'admin' ? 'Admin' : (user.full_name?.split(' ')[0] || 'Account')}
+                  </span>
+                  <ChevronDown
+                    size={13}
+                    className={`vaango-header__account-chevron ${isAccountMenuOpen ? 'vaango-header__account-chevron--open' : ''}`}
+                  />
                 </button>
+
+                {/* Dropdown Popover */}
+                {isAccountMenuOpen && (
+                  <div className="vaango-account-dropdown" role="menu" aria-label="Account menu">
+                    <div className="vaango-account-dropdown__header">
+                      <div className="vaango-account-dropdown__kicker">
+                        {role === 'admin'
+                          ? 'Admin Account'
+                          : role === 'shopkeeper'
+                            ? 'Shopkeeper Account'
+                            : 'Customer Account'}
+                      </div>
+                      <div className="vaango-account-dropdown__name">
+                        {user.full_name || (role === 'admin' ? 'Administrator' : 'User')}
+                      </div>
+                      <div className="vaango-account-dropdown__email" title={user.email || ''}>
+                        {user.email}
+                      </div>
+                    </div>
+
+                    <div className="vaango-account-dropdown__divider" />
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="vaango-account-dropdown__item"
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        navigate('/profile');
+                      }}
+                    >
+                      <div className="vaango-account-dropdown__item-left">
+                        <Settings size={15} />
+                        <span>Account Settings</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="vaango-account-dropdown__item"
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        setIsChangePasswordOpen(true);
+                      }}
+                    >
+                      <div className="vaango-account-dropdown__item-left">
+                        <KeyRound size={15} />
+                        <span>Change Password</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="vaango-account-dropdown__item"
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        setIsPermissionCenterOpen(true);
+                      }}
+                    >
+                      <div className="vaango-account-dropdown__item-left">
+                        <Bell size={15} />
+                        <span>Notification Settings</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="vaango-account-dropdown__item"
+                      onClick={() => {
+                        toggleTheme();
+                      }}
+                    >
+                      <div className="vaango-account-dropdown__item-left">
+                        <Palette size={15} />
+                        <span>Appearance</span>
+                      </div>
+                      <span className="vaango-account-dropdown__badge">
+                        {theme === 'dark' ? 'Dark' : 'Light'}
+                      </span>
+                    </button>
+
+                    <div className="vaango-account-dropdown__divider" />
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="vaango-account-dropdown__item"
+                      onClick={handleSwitchAccount}
+                    >
+                      <div className="vaango-account-dropdown__item-left">
+                        <Users size={15} />
+                        <span>Switch Account</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="vaango-account-dropdown__item vaango-account-dropdown__item--danger"
+                      onClick={handleLogout}
+                    >
+                      <div className="vaango-account-dropdown__item-left">
+                        <LogOut size={15} />
+                        <span>Logout</span>
+                      </div>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="vaango-header__auth-btns">
@@ -426,20 +603,70 @@ export const Header: React.FC = () => {
                 <div className="vaango-mobile-menu__user-card">
                   <Link to="/profile" className="vaango-mobile-menu__user-info-link" onClick={closeMobileMenu}>
                     <div className="vaango-mobile-menu__user-avatar">
-                      <User size={18} />
+                      {role === 'admin' ? <ShieldCheck size={18} /> : <User size={18} />}
                     </div>
                     <div className="vaango-mobile-menu__user-details">
-                      <span className="vaango-mobile-menu__user-name">{user.full_name}</span>
-                      <span className="vaango-mobile-menu__user-sub">{t('profile') || 'View Profile'}</span>
+                      <span className="vaango-mobile-menu__user-name">
+                        {user.full_name || (role === 'admin' ? 'Administrator' : 'User')}
+                      </span>
+                      <span className="vaango-mobile-menu__user-sub">{user.email}</span>
                     </div>
                   </Link>
+
+                  <div className="flex flex-col gap-1 w-full pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeMobileMenu();
+                        navigate('/profile');
+                      }}
+                      className="vaango-mobile-menu__link flex items-center gap-2 py-1.5 text-xs text-slate-700 dark:text-slate-300"
+                    >
+                      <Settings size={15} />
+                      <span>Account Settings</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeMobileMenu();
+                        setIsChangePasswordOpen(true);
+                      }}
+                      className="vaango-mobile-menu__link flex items-center gap-2 py-1.5 text-xs text-slate-700 dark:text-slate-300"
+                    >
+                      <KeyRound size={15} />
+                      <span>Change Password</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeMobileMenu();
+                        setIsPermissionCenterOpen(true);
+                      }}
+                      className="vaango-mobile-menu__link flex items-center gap-2 py-1.5 text-xs text-slate-700 dark:text-slate-300"
+                    >
+                      <Bell size={15} />
+                      <span>Notification Settings</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeMobileMenu();
+                        handleSwitchAccount();
+                      }}
+                      className="vaango-mobile-menu__link flex items-center gap-2 py-1.5 text-xs text-slate-700 dark:text-slate-300"
+                    >
+                      <Users size={15} />
+                      <span>Switch Account</span>
+                    </button>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => {
                       closeMobileMenu();
-                      signOut().then(() => navigate('/login'));
+                      handleLogout();
                     }}
-                    className="vaango-mobile-menu__logout-btn"
+                    className="vaango-mobile-menu__logout-btn mt-2"
                     title={t('signOut')}
                     aria-label={t('signOut')}
                   >
@@ -489,6 +716,12 @@ export const Header: React.FC = () => {
           })}
         </div>
       </Modal>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </>
   );
 };
