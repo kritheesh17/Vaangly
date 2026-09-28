@@ -1,8 +1,9 @@
-// Vaango PWA Service Worker — Hardened for Phase 6 Security & Privacy
-const CACHE_NAME = 'vaango-static-v2';
+// Vaangly PWA Service Worker — Versioned Cache & Reliable Background Updates
+const VAANGLY_CACHE_VERSION = 'vaangly-cache-v1.0.0';
+const CACHE_NAME = VAANGLY_CACHE_VERSION;
 const OFFLINE_URL = '/';
 
-// Only public, static application shell assets are pre-cached
+// Core static application shell assets
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -11,12 +12,13 @@ const STATIC_ASSETS = [
   '/icons/icon-512.png',
 ];
 
-// URLs that MUST NEVER be cached under any circumstances (privacy & security guard)
+// URLs that MUST NEVER be cached under any circumstances (privacy, security, & live data guard)
 const NEVER_CACHE_PATTERNS = [
   /supabase\.co/,
   /\/rest\/v1\//,
   /\/auth\/v1\//,
   /\/storage\/v1\//,
+  /\/functions\/v1\//,
   /\/admin\//,
   /\/shopkeeper\//,
   /id_proof/,
@@ -31,68 +33,129 @@ function isStaticAsset(url) {
   return /\.(js|css|svg|png|jpg|jpeg|webp|woff2|woff|ttf|ico|json)$/i.test(url);
 }
 
+// 1. Install Event: Cache critical shell assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  self.skipWaiting();
+  // Do NOT skipWaiting() automatically here; wait for explicit client signal
+  // or until old tabs close to prevent mixing old and new Vite chunk versions.
 });
 
-self.addEventListener('push', (event) => {
-  if (!event.data) return;
-  let data = {};
-  try { data = event.data.json(); } catch { data = { title: 'Vaango', body: event.data.text() }; }
-  event.waitUntil(self.registration.showNotification(data.title || 'Vaango', { body: data.body || '', icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', tag: data.tag || 'vaango-notification', data: { url: data.url || '/' } }));
+// 2. Message Event: Support controlled skipWaiting from UI "Update Now" action
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[Vaangly SW] Received SKIP_WAITING, taking over clients...');
+    self.skipWaiting();
+  }
 });
 
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const url = event.notification.data?.url || '/';
-  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-    for (const client of clientList) {
-      if (client.url.includes(self.location.origin) && 'focus' in client) return client.navigate(url).then(() => client.focus());
-    }
-    return clients.openWindow(url);
-  }));
-});
-
+// 3. Activate Event: Clean up all obsolete caches and claim clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
+            console.log('[Vaangly SW] Purging obsolete cache:', key);
             return caches.delete(key);
           }
         })
       );
+    }).then(() => {
+      console.log('[Vaangly SW] Active and controlling clients on:', CACHE_NAME);
+      return self.clients.claim();
     })
   );
-  self.clients.claim();
 });
 
+// 4. Push Event: Handle Web Push notifications for mobile & desktop
+self.addEventListener('push', (event) => {
+  let data = {
+    title: 'Vaangly',
+    body: 'You have a new update.',
+    url: '/',
+  };
+
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch {
+      data = {
+        title: 'Vaangly',
+        body: event.data.text() || 'You have a new update.',
+        url: '/',
+      };
+    }
+  }
+
+  const title = data.title || 'Vaangly';
+  const options = {
+    body: data.body || '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: data.tag || 'vaangly-notification',
+    vibrate: [100, 50, 100],
+    data: {
+      url: data.url || '/',
+      timestamp: Date.now(),
+    },
+    actions: data.actions || [],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// 5. Notification Click Event: Navigate user to targeted page (Order/Appointment/Queue)
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+  const fullTargetUrl = new URL(targetUrl, self.location.origin).href;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If a window is already open on the target URL, focus it
+      for (const client of clientList) {
+        if (client.url === fullTargetUrl && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // If any Vaangly window is open, navigate and focus it
+      for (const client of clientList) {
+        if (client.url.startsWith(self.location.origin) && 'navigate' in client && 'focus' in client) {
+          return client.navigate(fullTargetUrl).then(() => client.focus());
+        }
+      }
+      // Otherwise open a new window
+      if (clients.openWindow) {
+        return clients.openWindow(fullTargetUrl);
+      }
+    })
+  );
+});
+
+// 6. Fetch Event: Network-first for HTML navigation, cache-first for hashed static assets
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return;
 
   const url = event.request.url;
 
-  // 1. PRIVACY & SECURITY GUARD: Never intercept or cache API, Auth, or Storage requests
+  // Never cache API, Supabase, Auth, Storage, or Admin documents
   if (shouldNeverCache(url)) {
-    return; // Pass through directly to network
+    return;
   }
 
-  // 2. NAVIGATION REQUESTS: Network-first strategy with offline fallback
-  // Ensures user always gets latest app version when online, falls back to cached shell if offline
+  // Navigation requests: Network-first with cache fallback
+  // Ensures fresh deployments are loaded immediately while online, and works offline
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          if (response.status === 200) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          if (response && response.status === 200) {
+            const responseCopy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseCopy));
           }
           return response;
         })
@@ -103,7 +166,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. STATIC ASSETS: Cache-first strategy for scripts, styles, icons
+  // Static Assets: Cache-first with network fallback
   if (isStaticAsset(url)) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
@@ -112,9 +175,9 @@ self.addEventListener('fetch', (event) => {
         }
         return fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            const responseToCache = networkResponse.clone();
+            const responseCopy = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
+              cache.put(event.request, responseCopy);
             });
           }
           return networkResponse;

@@ -1,10 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
-import { registerPushSubscription } from '../lib/pushNotifications';
+import { registerPushSubscription, sendTestPushNotification } from '../lib/pushNotifications';
 
 export type PermissionStatus = 'granted' | 'prompt' | 'denied' | 'unsupported';
 export type AppPlatform = 'android' | 'ios' | 'desktop' | 'capacitor';
+
+export interface NotificationPreferences {
+  appointments: boolean;
+  orders: boolean;
+  queue: boolean;
+  account: boolean;
+}
 
 export interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -22,6 +29,10 @@ interface PermissionContextType {
   isInstalled: boolean;
   isNativeApp: boolean;
 
+  // Notification Preferences
+  notificationPrefs: NotificationPreferences;
+  updateNotificationPrefs: (prefs: Partial<NotificationPreferences>) => void;
+
   // Last known coordinates
   userCoords: { lat: number; lng: number } | null;
 
@@ -33,6 +44,7 @@ interface PermissionContextType {
   requestNotificationPermission: () => Promise<boolean>;
   requestLocationPermission: () => Promise<{ lat: number; lng: number } | null>;
   promptInstall: () => Promise<'accepted' | 'dismissed' | 'manual'>;
+  sendTestNotification: (userId?: string) => Promise<{ success: boolean; message: string }>;
 
   // UI state controllers
   isManualInstallOpen: boolean;
@@ -44,6 +56,15 @@ interface PermissionContextType {
 }
 
 const FIRST_VISIT_STORAGE_KEY = 'vaangly_first_visit_onboarding_shown';
+const NOTIF_PREFS_STORAGE_KEY = 'vaangly_notification_prefs';
+
+const DEFAULT_NOTIF_PREFS: NotificationPreferences = {
+  appointments: true,
+  orders: true,
+  queue: true,
+  account: true,
+};
+
 const PermissionContext = createContext<PermissionContextType | undefined>(undefined);
 
 function detectPlatform(): AppPlatform {
@@ -57,12 +78,15 @@ function detectPlatform(): AppPlatform {
 function checkIsInstalled(): boolean {
   if (Capacitor.isNativePlatform()) return true;
   if (typeof window === 'undefined') return false;
-  return (
+
+  const isStandalone =
     window.matchMedia('(display-mode: standalone)').matches ||
     window.matchMedia('(display-mode: fullscreen)').matches ||
     window.matchMedia('(display-mode: minimal-ui)').matches ||
-    Boolean((navigator as unknown as { standalone?: boolean }).standalone)
-  );
+    Boolean((navigator as unknown as { standalone?: boolean }).standalone) ||
+    document.referrer.startsWith('android-app://');
+
+  return isStandalone;
 }
 
 export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -79,6 +103,25 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // In-flight flags
   const [isRequestingNotification, setIsRequestingNotification] = useState<boolean>(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState<boolean>(false);
+
+  // Notification preferences
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>(() => {
+    try {
+      const saved = localStorage.getItem(NOTIF_PREFS_STORAGE_KEY);
+      if (saved) return { ...DEFAULT_NOTIF_PREFS, ...JSON.parse(saved) };
+    } catch {
+      // fallback
+    }
+    return DEFAULT_NOTIF_PREFS;
+  });
+
+  const updateNotificationPrefs = useCallback((partial: Partial<NotificationPreferences>) => {
+    setNotificationPrefs((prev) => {
+      const next = { ...prev, ...partial };
+      localStorage.setItem(NOTIF_PREFS_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   // Modals & Panels
   const [isManualInstallOpen, setIsManualInstallOpen] = useState<boolean>(false);
@@ -156,6 +199,19 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     };
     mediaQuery.addEventListener('change', handleDisplayModeChange);
+
+    // Inspect getInstalledRelatedApps where supported
+    if ('getInstalledRelatedApps' in navigator) {
+      (navigator as unknown as { getInstalledRelatedApps: () => Promise<unknown[]> })
+        .getInstalledRelatedApps()
+        .then((apps) => {
+          if (Array.isArray(apps) && apps.length > 0) {
+            setIsInstalled(true);
+            setIsInstallable(false);
+          }
+        })
+        .catch(() => {});
+    }
 
     // Listen for Chromium PWA install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -302,9 +358,13 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     }
 
-    // Fallback: If no beforeinstallprompt event is available (iOS, Firefox, or unsupported webviews), open manual instructions modal
+    // Fallback: If no beforeinstallprompt event is available (iOS, Firefox, or desktop without prompt), open manual modal
     setIsManualInstallOpen(true);
     return 'manual';
+  }, []);
+
+  const sendTestNotification = useCallback(async (userId?: string) => {
+    return sendTestPushNotification(userId);
   }, []);
 
   const dismissFirstVisitPrompt = useCallback(() => {
@@ -321,12 +381,15 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isInstallable,
         isInstalled,
         isNativeApp: Capacitor.isNativePlatform(),
+        notificationPrefs,
+        updateNotificationPrefs,
         userCoords,
         isRequestingNotification,
         isRequestingLocation,
         requestNotificationPermission,
         requestLocationPermission,
         promptInstall,
+        sendTestNotification,
         isManualInstallOpen,
         setIsManualInstallOpen,
         isPermissionCenterOpen,

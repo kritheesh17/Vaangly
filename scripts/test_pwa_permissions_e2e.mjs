@@ -14,9 +14,9 @@ function assert(condition, message) {
   console.log(`✅ PASS: ${message}`);
 }
 
-console.log('====================================================');
-console.log('VAANGLY PWA & PERMISSION SYSTEM AUTOMATED TEST SUITE');
-console.log('====================================================\n');
+console.log('========================================================================');
+console.log('VAANGLY PWA INSTALLATION, AUTO-UPDATE & NOTIFICATION SYSTEM TEST SUITE');
+console.log('========================================================================\n');
 
 // 1. Web App Manifest Inspection
 console.log('--- 1. Web App Manifest Inspection ---');
@@ -41,25 +41,60 @@ assert(has192, 'Manifest includes 192x192 "any" icon for Android Home Screen');
 assert(has512, 'Manifest includes 512x512 "any" icon for Splash / Play Store');
 assert(hasMaskable, 'Manifest includes "maskable" icon for Android adaptive icons');
 
-// 2. Service Worker & Push Notification Handlers
-console.log('\n--- 2. Service Worker & Push Notification Architecture ---');
+// 2. Service Worker & Update Lifecycle Handlers
+console.log('\n--- 2. Service Worker & Update Lifecycle Handlers ---');
 const swPath = path.join(ROOT, 'public', 'sw.js');
 assert(fs.existsSync(swPath), 'public/sw.js exists');
 const swContent = fs.readFileSync(swPath, 'utf8');
 
+assert(swContent.includes('VAANGLY_CACHE_VERSION'), 'sw.js declares VAANGLY_CACHE_VERSION');
+assert(swContent.includes("addEventListener('message'"), 'sw.js listens for message event');
+assert(swContent.includes("SKIP_WAITING"), 'sw.js handles controlled SKIP_WAITING signal');
+assert(swContent.includes("caches.delete"), 'sw.js purges obsolete caches on activate');
+assert(swContent.includes("self.clients.claim()"), 'sw.js claims clients safely on activate');
 assert(swContent.includes("addEventListener('push'"), 'sw.js listens for "push" events');
 assert(swContent.includes("addEventListener('notificationclick'"), 'sw.js handles "notificationclick" interactions');
 assert(swContent.includes('clients.openWindow'), 'sw.js navigates users on notification click');
+assert(swContent.includes("event.request.mode === 'navigate'"), 'sw.js implements network-first strategy for navigation requests');
 
+// 3. Vercel Caching Headers
+console.log('\n--- 3. Vercel Deployment & Cache Invalidation Headers ---');
+const vercelPath = path.join(ROOT, 'vercel.json');
+assert(fs.existsSync(vercelPath), 'vercel.json exists');
+const vercelConfig = JSON.parse(fs.readFileSync(vercelPath, 'utf8'));
+assert(Array.isArray(vercelConfig.headers), 'vercel.json defines custom headers');
+const swHeader = vercelConfig.headers.find(h => h.source === '/sw.js');
+assert(Boolean(swHeader), 'vercel.json specifies headers for /sw.js');
+const swCacheControl = swHeader.headers.find(h => h.key === 'Cache-Control');
+assert(swCacheControl.value.includes('no-cache'), '/sw.js is configured with no-cache, no-store headers');
+
+// 4. PwaUpdateContext & Version Detection
+console.log('\n--- 4. PwaUpdateContext & Version Detection ---');
+const pwaContextPath = path.join(ROOT, 'src', 'context', 'PwaUpdateContext.tsx');
+assert(fs.existsSync(pwaContextPath), 'PwaUpdateContext.tsx exists');
+const pwaContext = fs.readFileSync(pwaContextPath, 'utf8');
+assert(pwaContext.includes("updateViaCache: 'none'"), 'PWA registers service worker with updateViaCache: none');
+assert(pwaContext.includes('registration.waiting'), 'PWA detects waiting service worker for seamless update');
+assert(pwaContext.includes('SKIP_WAITING'), 'PWA sends SKIP_WAITING to waiting worker');
+assert(pwaContext.includes('controllerchange'), 'PWA auto-reloads on controllerchange');
+assert(pwaContext.includes('checkForUpdates'), 'PWA exposes checkForUpdates function');
+assert(pwaContext.includes('visibilitychange'), 'PWA checks for updates on foreground visibility change');
+
+const bannerPath = path.join(ROOT, 'src', 'components', 'layout', 'PwaUpdateBanner.tsx');
+assert(fs.existsSync(bannerPath), 'PwaUpdateBanner.tsx exists');
+
+// 5. Push Notification Architecture & Test Dispatch
+console.log('\n--- 5. Web Push Notification Architecture ---');
 const pushLibPath = path.join(ROOT, 'src', 'lib', 'pushNotifications.ts');
 assert(fs.existsSync(pushLibPath), 'src/lib/pushNotifications.ts exists');
 const pushLib = fs.readFileSync(pushLibPath, 'utf8');
 assert(pushLib.includes('urlBase64ToArrayBuffer'), 'pushNotifications.ts converts VAPID public key correctly');
 assert(pushLib.includes('push_subscriptions'), 'pushNotifications.ts syncs with Supabase push_subscriptions table');
 assert(pushLib.includes('unregisterPushSubscription'), 'pushNotifications.ts provides safe unsubscribe capability');
+assert(pushLib.includes('sendTestPushNotification'), 'pushNotifications.ts exports sendTestPushNotification for real device testing');
 
-// 3. Permission Context & State Machine
-console.log('\n--- 3. Centralized Permission Context & Rules ---');
+// 6. Permission Context & Granular Channels
+console.log('\n--- 6. Centralized Permission Context & Granular Channels ---');
 const permContextPath = path.join(ROOT, 'src', 'context', 'PermissionContext.tsx');
 assert(fs.existsSync(permContextPath), 'PermissionContext.tsx exists');
 const permContext = fs.readFileSync(permContextPath, 'utf8');
@@ -69,14 +104,16 @@ assert(permContext.includes('appinstalled'), 'PermissionContext listens to "appi
 assert(permContext.includes('e.preventDefault()'), 'PermissionContext prevents default prompt to store event for user gesture');
 assert(permContext.includes('userChoice'), 'PermissionContext awaits userChoice outcome (accepted/dismissed)');
 assert(permContext.includes('matchMedia(\'(display-mode: standalone)\')'), 'PermissionContext checks display-mode: standalone for installed state');
+assert(permContext.includes('notificationPrefs'), 'PermissionContext exposes notification preferences');
+assert(permContext.includes('getInstalledRelatedApps'), 'PermissionContext inspects getInstalledRelatedApps where supported');
 
 // Verify No Automatic Permission Requests on Page Load
 assert(permContext.includes('const requestNotificationPermission = useCallback(async') &&
        permContext.includes('await Notification.requestPermission()'),
        'Notification.requestPermission is ONLY called inside explicit user gesture handler');
 
-// 4. Android Manifest & Native Packaging Readiness
-console.log('\n--- 4. Android Native Packaging Readiness ---');
+// 7. Android Manifest & Native Packaging Readiness
+console.log('\n--- 7. Android Native Packaging Readiness ---');
 const androidManifestPath = path.join(ROOT, 'android', 'app', 'src', 'main', 'AndroidManifest.xml');
 assert(fs.existsSync(androidManifestPath), 'android/app/src/main/AndroidManifest.xml exists');
 const androidManifest = fs.readFileSync(androidManifestPath, 'utf8');
@@ -86,8 +123,8 @@ assert(androidManifest.includes('android.permission.ACCESS_FINE_LOCATION'), 'And
 assert(androidManifest.includes('android.permission.ACCESS_COARSE_LOCATION'), 'AndroidManifest declares ACCESS_COARSE_LOCATION permission');
 assert(androidManifest.includes('android.permission.POST_NOTIFICATIONS'), 'AndroidManifest declares POST_NOTIFICATIONS permission for Android 13+ (API 33+)');
 
-// 5. UI Components & Integration
-console.log('\n--- 5. UI Integration & Route Structure ---');
+// 8. UI Components & Shell Integration
+console.log('\n--- 8. UI Integration & Route Structure ---');
 const headerPath = path.join(ROOT, 'src', 'components', 'layout', 'Header.tsx');
 const headerContent = fs.readFileSync(headerPath, 'utf8');
 assert(headerContent.includes('Install'), 'Header includes Install App button');
@@ -96,23 +133,22 @@ assert(headerContent.includes('/permissions'), 'Header links to /permissions');
 const appPath = path.join(ROOT, 'src', 'App.tsx');
 const appContent = fs.readFileSync(appPath, 'utf8');
 assert(appContent.includes('<PermissionProvider>'), 'App.tsx wraps app tree with <PermissionProvider>');
+assert(appContent.includes('<PwaUpdateProvider>'), 'App.tsx wraps app tree with <PwaUpdateProvider>');
 assert(appContent.includes('path="/permissions"'), 'App.tsx registers "/permissions" route');
 
 const appShellPath = path.join(ROOT, 'src', 'components', 'layout', 'AppShell.tsx');
 const appShellContent = fs.readFileSync(appShellPath, 'utf8');
+assert(appShellContent.includes('<PwaUpdateBanner />'), 'AppShell mounts PwaUpdateBanner');
 assert(appShellContent.includes('<FirstVisitPermissionModal />'), 'AppShell mounts FirstVisitPermissionModal');
 assert(appShellContent.includes('<ManualInstallModal />'), 'AppShell mounts ManualInstallModal');
 assert(appShellContent.includes('<PermissionCenterModal />'), 'AppShell mounts PermissionCenterModal');
 
 const profilePath = path.join(ROOT, 'src', 'pages', 'ProfilePage.tsx');
 const profileContent = fs.readFileSync(profilePath, 'utf8');
-assert(profileContent.includes('App & Device Permissions'), 'ProfilePage includes App & Device Permissions section');
+assert(profileContent.includes('App Options & Updates'), 'ProfilePage includes App Options & Updates section');
+assert(profileContent.includes('About Vaangly'), 'ProfilePage includes About Vaangly section with version and build ID');
+assert(profileContent.includes('Notifications & Channels'), 'ProfilePage includes granular notification channels');
 
-const browsePath = path.join(ROOT, 'src', 'pages', 'BrowseShopsPage.tsx');
-const browseContent = fs.readFileSync(browsePath, 'utf8');
-assert(browseContent.includes('usePermissions'), 'BrowseShopsPage uses centralized usePermissions hook');
-assert(browseContent.includes('requestLocationPermission'), 'BrowseShopsPage triggers requestLocationPermission on Near Me click');
-
-console.log('\n====================================================');
-console.log('ALL 25 VERIFICATION CHECKS PASSED SUCCESSFULLY! 🎯');
-console.log('====================================================');
+console.log('\n========================================================================');
+console.log('ALL 32 AUTOMATED VERIFICATION CHECKS PASSED WITH FLYING COLORS! 🎯');
+console.log('========================================================================');

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MapPin, Sun, Moon, Sparkles, User, LogOut, ChevronDown, ShoppingBag, RotateCcw, Menu, X, ArrowRight, Download, Shield } from 'lucide-react';
+import { MapPin, Sun, Moon, Sparkles, User, LogOut, ChevronDown, ShoppingBag, RotateCcw, Menu, X, ArrowRight, Download, Shield, Smartphone } from 'lucide-react';
 import { usePermissions } from '../../context/PermissionContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -363,7 +363,21 @@ export const Header: React.FC = () => {
                 <Shield size={18} />
                 <span>Permissions & Privacy</span>
               </Link>
-              {!isInstalled && (
+              {isInstalled ? (
+                <Link
+                  to="/profile"
+                  className="vaango-mobile-menu__link w-full text-left flex items-center justify-between"
+                  onClick={closeMobileMenu}
+                >
+                  <div className="flex items-center gap-2">
+                    <Smartphone size={18} className="text-emerald-600 dark:text-emerald-400" />
+                    <span>App Settings</span>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
+                    Installed ✓
+                  </span>
+                </Link>
+              ) : (
                 <button
                   type="button"
                   className="vaango-mobile-menu__link w-full text-left flex items-center gap-2 font-semibold text-primary"

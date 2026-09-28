@@ -26,6 +26,7 @@ import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { PermissionCenterPage } from './pages/PermissionCenterPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { PermissionProvider } from './context/PermissionContext';
+import { PwaUpdateProvider } from './context/PwaUpdateContext';
 
 // Code-split Shopkeeper modules (lazy loaded on navigation)
 const ShopkeeperDashboardPage = React.lazy(() =>
@@ -95,11 +96,12 @@ export const App: React.FC = () => {
       <ThemeProvider>
         <AuthProvider>
           <PermissionProvider>
-            <LocationProvider>
-              <LanguageProvider>
-                <CartProvider>
-                  <ToastProvider>
-                  <BrowserRouter>
+            <PwaUpdateProvider>
+              <LocationProvider>
+                <LanguageProvider>
+                  <CartProvider>
+                    <ToastProvider>
+                    <BrowserRouter>
                     <AdInterstitialScreen />
                     <React.Suspense
                       fallback={
@@ -245,6 +247,7 @@ export const App: React.FC = () => {
               </CartProvider>
             </LanguageProvider>
           </LocationProvider>
+          </PwaUpdateProvider>
           </PermissionProvider>
         </AuthProvider>
       </ThemeProvider>

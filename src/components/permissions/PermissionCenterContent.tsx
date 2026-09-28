@@ -10,10 +10,18 @@ import {
   ShieldCheck,
   RefreshCw,
   Info,
+  Calendar,
+  ShoppingBag,
+  Clock,
+  Sparkles,
+  Layers,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { Switch } from '../ui/Switch';
 import { usePermissions } from '../../context/PermissionContext';
+import { usePwaUpdate } from '../../context/PwaUpdateContext';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import './Permissions.css';
 
@@ -23,25 +31,62 @@ export const PermissionCenterContent: React.FC = () => {
     locationStatus,
     isInstalled,
     userCoords,
+    notificationPrefs,
+    updateNotificationPrefs,
     isRequestingNotification,
     isRequestingLocation,
     requestNotificationPermission,
     requestLocationPermission,
     promptInstall,
+    sendTestNotification,
   } = usePermissions();
 
-  const { success, info } = useToast();
+  const {
+    isUpdateAvailable,
+    isCheckingForUpdates,
+    lastChecked,
+    appVersion,
+    buildId,
+    checkForUpdates,
+    applyUpdate,
+  } = usePwaUpdate();
+
+  const { user } = useAuth();
+  const { success, error: toastError } = useToast();
   const [showNotifHelp, setShowNotifHelp] = useState(false);
   const [showLocationHelp, setShowLocationHelp] = useState(false);
+  const [isSendingTestAlert, setIsSendingTestAlert] = useState(false);
+  const [updateCheckFeedback, setUpdateCheckFeedback] = useState<string | null>(null);
 
-  const handleTestNotification = () => {
-    if (notificationStatus !== 'granted') return;
-    if ('Notification' in window) {
-      new Notification('Vaangly Test Notification', {
-        body: 'Notifications are working properly on your device!',
-        icon: '/icons/icon-192.png',
-      });
-      info('Test notification sent!');
+  const handleTestNotification = async () => {
+    if (notificationStatus !== 'granted') {
+      toastError('Please enable notifications first before running test.');
+      return;
+    }
+
+    setIsSendingTestAlert(true);
+    try {
+      const result = await sendTestNotification(user?.id);
+      if (result.success) {
+        success('Test notification delivered to your device! 🔔');
+      } else {
+        toastError(result.message);
+      }
+    } catch (err) {
+      toastError('Failed to trigger test notification.');
+    } finally {
+      setIsSendingTestAlert(false);
+    }
+  };
+
+  const handleManualUpdateCheck = async () => {
+    setUpdateCheckFeedback(null);
+    const hasUpdate = await checkForUpdates();
+    if (hasUpdate) {
+      setUpdateCheckFeedback('A new version of Vaangly is ready to install!');
+    } else {
+      setUpdateCheckFeedback('Vaangly is already up to date!');
+      setTimeout(() => setUpdateCheckFeedback(null), 4000);
     }
   };
 
@@ -53,14 +98,107 @@ export const PermissionCenterContent: React.FC = () => {
           <ShieldCheck size={24} />
         </div>
         <div>
-          <h3 className="text-base font-bold text-foreground">Permissions & Privacy</h3>
+          <h3 className="text-base font-bold text-foreground">Permissions & Privacy Center</h3>
           <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-            Vaangly only requests permissions needed to alert you about bookings and show nearby shops. Your data is never sold or shared with third parties.
+            Vaangly only requests permissions needed to alert you about bookings and show nearby shops. Your data is protected by strict row-level security.
           </p>
         </div>
       </div>
 
-      {/* 1. Notifications Section */}
+      {/* 1. App Options & Auto-Update Card */}
+      <Card variant="default" padding="lg" className="border border-slate-200 dark:border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
+              <Smartphone size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-base font-bold">App Options & Updates</h4>
+                {isInstalled ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
+                    <CheckCircle2 size={13} /> Installed
+                  </span>
+                ) : (
+                  <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+                    Web Mode
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Automatic updates ensure you always have the latest features without reinstalling.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 sm:self-center">
+            {isInstalled ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs flex items-center gap-1.5"
+                isLoading={isCheckingForUpdates}
+                onClick={handleManualUpdateCheck}
+              >
+                <RefreshCw size={13} /> Check for Updates
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                className="flex items-center gap-1.5"
+                onClick={() => void promptInstall()}
+              >
+                <Download size={14} /> Install Vaangly
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Update Alert / Status Notice */}
+        {isUpdateAvailable && (
+          <div className="mt-4 p-3.5 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+              <Sparkles size={16} />
+              <span>A new version of Vaangly has been downloaded and is ready!</span>
+            </div>
+            <Button variant="primary" size="sm" onClick={applyUpdate}>
+              Update Now
+            </Button>
+          </div>
+        )}
+
+        {updateCheckFeedback && !isUpdateAvailable && (
+          <div className="mt-3 text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+            <CheckCircle2 size={14} />
+            <span>{updateCheckFeedback}</span>
+          </div>
+        )}
+
+        {/* App Version & Build Metadata */}
+        <div className="pt-3.5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+            <div className="text-[11px] text-muted-foreground uppercase font-semibold">App Version</div>
+            <div className="text-sm font-bold text-foreground mt-0.5">{appVersion}</div>
+          </div>
+          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+            <div className="text-[11px] text-muted-foreground uppercase font-semibold">Build Hash</div>
+            <div className="text-sm font-mono font-bold text-foreground mt-0.5">{buildId}</div>
+          </div>
+          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+            <div className="text-[11px] text-muted-foreground uppercase font-semibold">Install State</div>
+            <div className="text-sm font-bold text-foreground mt-0.5">{isInstalled ? 'Installed PWA' : 'Browser Tab'}</div>
+          </div>
+          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+            <div className="text-[11px] text-muted-foreground uppercase font-semibold">Last Checked</div>
+            <div className="text-sm font-medium text-foreground mt-0.5">
+              {lastChecked ? lastChecked.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Never'}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* 2. Notifications & Channels Section */}
       <Card variant="default" padding="lg" className="border border-slate-200 dark:border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-start gap-3">
@@ -85,7 +223,7 @@ export const PermissionCenterContent: React.FC = () => {
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Receive doctor appointment tokens, queue status (#1, #2), and order delivery updates.
+                Stay updated on live queue positions, appointment tokens, and order statuses.
               </p>
             </div>
           </div>
@@ -96,6 +234,7 @@ export const PermissionCenterContent: React.FC = () => {
                 variant="outline"
                 size="sm"
                 className="text-xs flex items-center gap-1.5"
+                isLoading={isSendingTestAlert}
                 onClick={handleTestNotification}
               >
                 Send Test Alert
@@ -125,20 +264,72 @@ export const PermissionCenterContent: React.FC = () => {
           </div>
         </div>
 
-        {/* Benefits bullets */}
-        <div className="pt-3.5 text-xs text-muted-foreground space-y-1">
-          <div className="font-semibold text-foreground mb-1.5">What you receive:</div>
-          <div className="flex items-center gap-2">
-            <span className="text-primary font-bold">•</span>
-            <span>Real-time appointment queue alerts (e.g. &quot;You are next in queue #4&quot;)</span>
+        {/* Granular Notification Channels (Part 13 Requirement) */}
+        <div className="pt-4 space-y-3">
+          <div className="font-semibold text-xs text-foreground mb-1">Notification Channels:</div>
+
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <Calendar size={16} className="text-primary" />
+              <div>
+                <div className="text-xs font-semibold">Appointment Updates</div>
+                <div className="text-[11px] text-muted-foreground">Booking confirmation, token reminders, and schedule changes</div>
+              </div>
+            </div>
+            <Switch
+              label="Appointment Updates"
+              checked={notificationPrefs.appointments}
+              onChange={(checked) => updateNotificationPrefs({ appointments: checked })}
+              disabled={notificationStatus === 'denied'}
+            />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-primary font-bold">•</span>
-            <span>Order accepted, dispatched, or ready-for-pickup notifications</span>
+
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <ShoppingBag size={16} className="text-primary" />
+              <div>
+                <div className="text-xs font-semibold">Order Updates</div>
+                <div className="text-[11px] text-muted-foreground">Order accepted, dispatched, or ready for in-store pickup</div>
+              </div>
+            </div>
+            <Switch
+              label="Order Updates"
+              checked={notificationPrefs.orders}
+              onChange={(checked) => updateNotificationPrefs({ orders: checked })}
+              disabled={notificationStatus === 'denied'}
+            />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-primary font-bold">•</span>
-            <span>Payment verification and booking confirmations</span>
+
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <Clock size={16} className="text-primary" />
+              <div>
+                <div className="text-xs font-semibold">Queue Position Alerts</div>
+                <div className="text-[11px] text-muted-foreground">Live alerts when you are 3rd, 2nd, or next in clinic/salon queue</div>
+              </div>
+            </div>
+            <Switch
+              label="Queue Position Alerts"
+              checked={notificationPrefs.queue}
+              onChange={(checked) => updateNotificationPrefs({ queue: checked })}
+              disabled={notificationStatus === 'denied'}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <Layers size={16} className="text-primary" />
+              <div>
+                <div className="text-xs font-semibold">Account & Security Notifications</div>
+                <div className="text-[11px] text-muted-foreground">Important updates regarding your login and account status</div>
+              </div>
+            </div>
+            <Switch
+              label="Account & Security"
+              checked={notificationPrefs.account}
+              onChange={(checked) => updateNotificationPrefs({ account: checked })}
+              disabled={notificationStatus === 'denied'}
+            />
           </div>
         </div>
 
@@ -149,16 +340,16 @@ export const PermissionCenterContent: React.FC = () => {
               <Info size={15} /> How to re-enable blocked notifications:
             </div>
             <ol className="list-decimal pl-4 space-y-1 text-muted-foreground">
-              <li>Tap the <strong>Padlock or Settings icon</strong> in your browser&apos;s address bar.</li>
+              <li>Tap the <strong>Padlock or Site Settings icon</strong> in your browser&apos;s address bar.</li>
               <li>Tap <strong>Permissions</strong> or <strong>Site Settings</strong>.</li>
               <li>Set <strong>Notifications</strong> from Blocked to <strong>Allow</strong>.</li>
-              <li>Reload this page to activate.</li>
+              <li>Refresh this page to activate push notifications.</li>
             </ol>
           </div>
         )}
       </Card>
 
-      {/* 2. Location Section */}
+      {/* 3. Location Section */}
       <Card variant="default" padding="lg" className="border border-slate-200 dark:border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-start gap-3">
@@ -252,57 +443,12 @@ export const PermissionCenterContent: React.FC = () => {
             </div>
             <ol className="list-decimal pl-4 space-y-1 text-muted-foreground">
               <li>Tap the <strong>Padlock icon</strong> next to the address in your browser.</li>
-              <li>Tap <strong>Permissions</strong> $\rightarrow$ set <strong>Location</strong> to <strong>Allow</strong>.</li>
+              <li>Tap <strong>Permissions</strong> &rarr; set <strong>Location</strong> to <strong>Allow</strong>.</li>
               <li>Ensure your device GPS / Location toggle is turned on in Android / iOS Quick Settings.</li>
               <li>Tap &quot;Refresh GPS&quot; above.</li>
             </ol>
           </div>
         )}
-      </Card>
-
-      {/* 3. App Installation Section */}
-      <Card variant="default" padding="lg" className="border border-slate-200 dark:border-slate-800">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
-              <Smartphone size={22} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h4 className="text-base font-bold">Install Vaangly App</h4>
-                {isInstalled ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
-                    <CheckCircle2 size={13} /> Installed
-                  </span>
-                ) : (
-                  <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
-                    Available for Install
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Fast, lightweight app experience without app store downloads. Works offline and launches instantly.
-              </p>
-            </div>
-          </div>
-
-          <div>
-            {isInstalled ? (
-              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                <CheckCircle2 size={16} /> Ready on Home Screen
-              </span>
-            ) : (
-              <Button
-                variant="primary"
-                size="sm"
-                className="flex items-center gap-1.5"
-                onClick={() => void promptInstall()}
-              >
-                <Download size={15} /> Install Vaangly
-              </Button>
-            )}
-          </div>
-        </div>
       </Card>
     </div>
   );

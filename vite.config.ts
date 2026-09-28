@@ -5,6 +5,11 @@ import path from 'path';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify('1.0.0'),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    __BUILD_ID__: JSON.stringify(Date.now().toString(36).toUpperCase()),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

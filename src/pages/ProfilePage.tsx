@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Shield, MapPin, Phone, Mail, LogOut, CheckCircle2, Languages, Lock, KeyRound, AlertCircle, Edit3, Save, X, Sliders, Smartphone, Bell, Navigation, Download } from 'lucide-react';
+import { User, Shield, MapPin, Phone, Mail, LogOut, CheckCircle2, Languages, Lock, KeyRound, AlertCircle, Edit3, Save, X, Smartphone, Bell, Navigation, Download, RefreshCw, Sparkles, Info, Calendar, ShoppingBag, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLocationContext } from '../context/LocationContext';
 import { usePermissions } from '../context/PermissionContext';
+import { usePwaUpdate } from '../context/PwaUpdateContext';
+import { useToast } from '../context/ToastContext';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -22,16 +24,32 @@ export const ProfilePage: React.FC = () => {
   const { user, role, switchDemoRole, signOut, updatePassword, updateCustomerProfile } = useAuth();
   const { toggleTheme, isDark } = useTheme();
   const { selectedLocation, setIsLocationModalOpen } = useLocationContext();
+  const { success, error: toastError } = useToast();
   const {
     notificationStatus,
     locationStatus,
     isInstallable,
     isInstalled,
+    notificationPrefs,
+    updateNotificationPrefs,
     promptInstall,
     requestNotificationPermission,
     requestLocationPermission,
+    sendTestNotification,
     setIsManualInstallOpen,
   } = usePermissions();
+
+  const {
+    appVersion,
+    buildId,
+    isCheckingForUpdates,
+    isUpdateAvailable,
+    checkForUpdates,
+    applyUpdate,
+  } = usePwaUpdate();
+
+  const [updateFeedback, setUpdateFeedback] = useState<string | null>(null);
+  const [isSendingTestAlert, setIsSendingTestAlert] = useState(false);
   const navigate = useNavigate();
 
   const { language, setLanguage, t } = useLanguage();
@@ -417,15 +435,219 @@ export const ProfilePage: React.FC = () => {
           </form>
         </Card>
 
-        {/* App Installation & Permissions Center */}
+        {/* App Options & Update Hub (Part 2 & Part 4) */}
         <Card variant="default" padding="lg" className="vaango-profile-card">
           <div className="vaango-profile-card__section-head" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-              <Sliders className="vaango-section-icon" />
+              <Smartphone className="vaango-section-icon" />
               <div>
-                <h3 className="vaango-card-heading">App & Device Permissions</h3>
+                <h3 className="vaango-card-heading">App Options & Updates</h3>
                 <p className="vaango-card-subheading">
-                  Manage push notifications, device GPS location, and PWA installation.
+                  Manage application installation, version lifecycle, and offline updates.
+                </p>
+              </div>
+            </div>
+            {isInstalled && (
+              <Button
+                variant="outline"
+                size="sm"
+                isLoading={isCheckingForUpdates}
+                onClick={async () => {
+                  setUpdateFeedback(null);
+                  const hasUpdate = await checkForUpdates();
+                  if (hasUpdate) {
+                    setUpdateFeedback('A new version of Vaangly is ready!');
+                  } else {
+                    setUpdateFeedback('Vaangly is up to date.');
+                    setTimeout(() => setUpdateFeedback(null), 4000);
+                  }
+                }}
+                leftIcon={<RefreshCw size={13} />}
+              >
+                Check for Updates
+              </Button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Install Status Row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--color-bg-secondary, #f8fafc)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Smartphone size={20} style={{ color: 'var(--color-primary)' }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
+                    Vaangly App {isInstalled ? `(v${appVersion})` : ''}
+                  </div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                    {isInstalled
+                      ? `Running as installed PWA • Build ${buildId}`
+                      : isInstallable
+                      ? 'Ready to install on home screen'
+                      : 'Browsing via web browser'}
+                  </div>
+                </div>
+              </div>
+              <div>
+                {isInstalled ? (
+                  <Badge variant="success">Installed ✓</Badge>
+                ) : isInstallable ? (
+                  <Button variant="primary" size="sm" onClick={() => promptInstall()} leftIcon={<Download size={14} />}>
+                    Install Vaangly
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={() => setIsManualInstallOpen(true)}>
+                    How to Install
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* In-app Update Notice if available */}
+            {isUpdateAvailable && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'rgba(27, 77, 62, 0.08)', border: '1px solid rgba(27, 77, 62, 0.2)', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-primary)' }}>
+                  <Sparkles size={16} />
+                  <span>A new version of Vaangly is ready!</span>
+                </div>
+                <Button variant="primary" size="sm" onClick={applyUpdate}>
+                  Update Now
+                </Button>
+              </div>
+            )}
+
+            {updateFeedback && !isUpdateAvailable && (
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-success, #16a34a)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <CheckCircle2 size={14} />
+                <span>{updateFeedback}</span>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Notifications & Channels Management Card (Part 13) */}
+        <Card variant="default" padding="lg" className="vaango-profile-card">
+          <div className="vaango-profile-card__section-head" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+              <Bell className="vaango-section-icon" />
+              <div>
+                <h3 className="vaango-card-heading">Notifications & Channels</h3>
+                <p className="vaango-card-subheading">
+                  Configure real-time alerts for appointments, queue position, and order tracking.
+                </p>
+              </div>
+            </div>
+            {notificationStatus === 'granted' ? (
+              <Button
+                variant="outline"
+                size="sm"
+                isLoading={isSendingTestAlert}
+                onClick={async () => {
+                  setIsSendingTestAlert(true);
+                  const res = await sendTestNotification(user?.id);
+                  if (res.success) {
+                    success('Test notification delivered to your device! 🔔');
+                  } else {
+                    toastError(res.message);
+                  }
+                  setIsSendingTestAlert(false);
+                }}
+              >
+                Send Test Alert
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => requestNotificationPermission()}
+              >
+                Enable
+              </Button>
+            )}
+          </div>
+
+          <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Master Permission State */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--color-bg-secondary, #f8fafc)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Bell size={18} style={{ color: notificationStatus === 'granted' ? 'var(--color-success, #16a34a)' : 'var(--color-text-secondary)' }} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Push Notifications Master</div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                    {notificationStatus === 'granted'
+                      ? 'Browser permission granted and active'
+                      : notificationStatus === 'denied'
+                      ? 'Blocked by browser settings'
+                      : 'Permission pending user authorization'}
+                  </div>
+                </div>
+              </div>
+              <Badge variant={notificationStatus === 'granted' ? 'success' : notificationStatus === 'denied' ? 'error' : 'warning'}>
+                {notificationStatus === 'granted' ? 'Enabled' : notificationStatus === 'denied' ? 'Blocked' : 'Default'}
+              </Badge>
+            </div>
+
+            {/* Channel Toggles */}
+            <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-secondary, #f8fafc)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Calendar size={16} style={{ color: 'var(--color-primary)' }} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>Appointment Updates</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Confirmations, token reminders, and reschedule alerts</div>
+                  </div>
+                </div>
+                <Switch
+                  label="Appointment Updates"
+                  checked={notificationPrefs.appointments}
+                  onChange={(checked) => updateNotificationPrefs({ appointments: checked })}
+                  disabled={notificationStatus === 'denied'}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-secondary, #f8fafc)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <ShoppingBag size={16} style={{ color: 'var(--color-primary)' }} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>Order Tracking</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Accepted, dispatched, or ready-for-pickup notifications</div>
+                  </div>
+                </div>
+                <Switch
+                  label="Order Tracking"
+                  checked={notificationPrefs.orders}
+                  onChange={(checked) => updateNotificationPrefs({ orders: checked })}
+                  disabled={notificationStatus === 'denied'}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-secondary, #f8fafc)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Clock size={16} style={{ color: 'var(--color-primary)' }} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>Queue Position Alerts</div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Live updates when you are next in line</div>
+                  </div>
+                </div>
+                <Switch
+                  label="Queue Alerts"
+                  checked={notificationPrefs.queue}
+                  onChange={(checked) => updateNotificationPrefs({ queue: checked })}
+                  disabled={notificationStatus === 'denied'}
+                />
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Location & Discovery Permissions Card */}
+        <Card variant="default" padding="lg" className="vaango-profile-card">
+          <div className="vaango-profile-card__section-head" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+              <Navigation className="vaango-section-icon" />
+              <div>
+                <h3 className="vaango-card-heading">Device Location (GPS)</h3>
+                <p className="vaango-card-subheading">
+                  Discover verified neighborhood shops within your immediate radius.
                 </p>
               </div>
             </div>
@@ -434,91 +656,34 @@ export const ProfilePage: React.FC = () => {
               size="sm"
               onClick={() => navigate('/permissions')}
             >
-              Open Center
+              Full Center
             </Button>
           </div>
 
-          <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {/* Install Status */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--color-bg-secondary, #f8fafc)', borderRadius: 'var(--radius-md)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Smartphone size={20} style={{ color: 'var(--color-primary)' }} />
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Vaangly App</div>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                    {isInstalled ? 'App is installed on this device' : isInstallable ? 'Ready to install on home screen' : 'Run via browser'}
-                  </div>
-                </div>
-              </div>
+          <div style={{ marginTop: 'var(--space-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--color-bg-secondary, #f8fafc)', borderRadius: 'var(--radius-md)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Navigation size={20} style={{ color: locationStatus === 'granted' ? 'var(--color-success, #16a34a)' : 'var(--color-text-secondary)' }} />
               <div>
-                {isInstalled ? (
-                  <Badge variant="success">Installed</Badge>
-                ) : isInstallable ? (
-                  <Button variant="primary" size="sm" onClick={() => promptInstall()} leftIcon={<Download size={14} />}>
-                    Install
-                  </Button>
-                ) : (
-                  <Button variant="ghost" size="sm" onClick={() => setIsManualInstallOpen(true)}>
-                    How to Add
-                  </Button>
-                )}
+                <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>GPS Coordinate Discovery</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                  {locationStatus === 'granted'
+                    ? 'Active — accurate distance calculation enabled'
+                    : locationStatus === 'denied'
+                    ? 'Blocked — using default town mode'
+                    : 'Optional — enable for distance sorting'}
+                </div>
               </div>
             </div>
-
-            {/* Notification Status */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--color-bg-secondary, #f8fafc)', borderRadius: 'var(--radius-md)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Bell size={20} style={{ color: notificationStatus === 'granted' ? 'var(--color-success, #16a34a)' : 'var(--color-text-secondary)' }} />
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Push Notifications</div>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                    {notificationStatus === 'granted'
-                      ? 'Enabled for order & token updates'
-                      : notificationStatus === 'denied'
-                      ? 'Blocked in browser settings'
-                      : 'Disabled — turn on for updates'}
-                  </div>
-                </div>
-              </div>
-              <div>
-                {notificationStatus === 'granted' ? (
-                  <Badge variant="success">Active</Badge>
-                ) : notificationStatus === 'denied' ? (
-                  <Badge variant="error">Blocked</Badge>
-                ) : (
-                  <Button variant="outline" size="sm" onClick={() => requestNotificationPermission()}>
-                    Enable
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Location Status */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--color-bg-secondary, #f8fafc)', borderRadius: 'var(--radius-md)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Navigation size={20} style={{ color: locationStatus === 'granted' ? 'var(--color-success, #16a34a)' : 'var(--color-text-secondary)' }} />
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Device Location (GPS)</div>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                    {locationStatus === 'granted'
-                      ? 'Active — discovering nearby shops'
-                      : locationStatus === 'denied'
-                      ? 'Blocked — using default town mode'
-                      : 'Optional — enable for distance search'}
-                  </div>
-                </div>
-              </div>
-              <div>
-                {locationStatus === 'granted' ? (
-                  <Badge variant="success">Active</Badge>
-                ) : locationStatus === 'denied' ? (
-                  <Badge variant="error">Blocked</Badge>
-                ) : (
-                  <Button variant="outline" size="sm" onClick={() => requestLocationPermission()}>
-                    Enable
-                  </Button>
-                )}
-              </div>
+            <div>
+              {locationStatus === 'granted' ? (
+                <Badge variant="success">Active</Badge>
+              ) : locationStatus === 'denied' ? (
+                <Badge variant="error">Blocked</Badge>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => requestLocationPermission()}>
+                  Enable
+                </Button>
+              )}
             </div>
           </div>
         </Card>
@@ -543,6 +708,34 @@ export const ProfilePage: React.FC = () => {
             <span className="vaango-theme-chip" style={{ backgroundColor: '#0A7B83' }}>{t('themeChipTeal')}</span>
             <span className="vaango-theme-chip" style={{ backgroundColor: '#F59E0B', color: '#000' }}>{t('themeChipAmber')}</span>
             <span className="vaango-theme-chip" style={{ backgroundColor: '#0F1828', color: '#FFF' }}>{t('themeChipNavy')}</span>
+          </div>
+        </Card>
+
+        {/* About Vaangly (Part 6 Requirement) */}
+        <Card variant="default" padding="lg" className="vaango-profile-card">
+          <div className="vaango-profile-card__section-head">
+            <Info className="vaango-section-icon" />
+            <div>
+              <h3 className="vaango-card-heading">About Vaangly</h3>
+              <p className="vaango-card-subheading">
+                Hyperlocal discovery & commerce platform.
+              </p>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 'var(--space-4)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+            <div style={{ padding: '10px', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-secondary, #f8fafc)' }}>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>VERSION</div>
+              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, marginTop: '2px' }}>v{appVersion}</div>
+            </div>
+            <div style={{ padding: '10px', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-secondary, #f8fafc)' }}>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>BUILD ID</div>
+              <div style={{ fontSize: 'var(--font-size-sm)', fontFamily: 'monospace', fontWeight: 700, marginTop: '2px' }}>{buildId}</div>
+            </div>
+            <div style={{ padding: '10px', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-secondary, #f8fafc)' }}>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>MODE</div>
+              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, marginTop: '2px' }}>{isInstalled ? 'Installed PWA' : 'Web App'}</div>
+            </div>
           </div>
         </Card>
 
