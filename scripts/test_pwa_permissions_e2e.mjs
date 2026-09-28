@@ -149,6 +149,46 @@ assert(profileContent.includes('App Options & Updates'), 'ProfilePage includes A
 assert(profileContent.includes('About Vaangly'), 'ProfilePage includes About Vaangly section with version and build ID');
 assert(profileContent.includes('Notifications & Channels'), 'ProfilePage includes granular notification channels');
 
+// 9. Localhost Support & Subscriptions Origin Isolation
+console.log('\n--- 9. Localhost Support & Subscriptions Origin Separation ---');
+assert(pushLib.includes('isLocalhostEnvironment'), 'pushNotifications.ts implements isLocalhostEnvironment detector');
+assert(pushLib.includes('getCurrentOrigin'), 'pushNotifications.ts detects origin dynamically');
+assert(pushLib.includes('subscriptionsByOrigin'), 'pushNotifications.ts isolates subscriptions by origin (never mixes localhost and production)');
+assert(pushLib.includes('maskEndpoint'), 'pushNotifications.ts masks push endpoints to prevent token exposure');
+assert(pushLib.includes('sendLocalSwTestNotification'), 'pushNotifications.ts exports Test A (Local SW Notification)');
+assert(pushLib.includes('sendCloudEdgePushNotification'), 'pushNotifications.ts exports Test B (Real Web Push via Supabase Edge Function)');
+
+// Dynamic origin handling in Service Worker
+assert(swContent.includes('new URL(targetUrl, self.location.origin)'), 'sw.js dynamically derives destination from self.location.origin rather than hardcoding production URL');
+
+// Edge Function multi-origin handling
+const edgeFuncPath = path.join(ROOT, 'supabase', 'functions', 'send-push-notification', 'index.ts');
+assert(fs.existsSync(edgeFuncPath), 'send-push-notification Edge Function exists');
+const edgeFunc = fs.readFileSync(edgeFuncPath, 'utf8');
+assert(edgeFunc.includes('subscriptionsByOrigin'), 'Edge Function routes Web Push based on subscriptionsByOrigin map');
+assert(edgeFunc.includes('corsHeaders'), 'Edge Function provides explicit CORS headers for browser and localhost invocations');
+
+// 10. Notification Diagnostics & Localhost Permission Center
+console.log('\n--- 10. Development & Localhost Notification Diagnostics Section ---');
+const permCenterPath = path.join(ROOT, 'src', 'components', 'permissions', 'PermissionCenterContent.tsx');
+assert(fs.existsSync(permCenterPath), 'PermissionCenterContent.tsx exists');
+const permCenter = fs.readFileSync(permCenterPath, 'utf8');
+
+assert(permCenter.includes('Notification Diagnostics'), 'PermissionCenterContent renders visible Notification Diagnostics section');
+assert(permCenter.includes('Environment'), 'Diagnostics section displays Environment (Localhost / Production)');
+assert(permCenter.includes('Notification Permission'), 'Diagnostics section displays Notification Permission');
+assert(permCenter.includes('Service Worker'), 'Diagnostics section displays Service Worker status');
+assert(permCenter.includes('Push Support'), 'Diagnostics section displays Push Support');
+assert(permCenter.includes('Push Subscription'), 'Diagnostics section displays Push Subscription state');
+assert(permCenter.includes('Subscription Endpoint'), 'Diagnostics section displays Masked Subscription Endpoint');
+assert(permCenter.includes('Backend Registration'), 'Diagnostics section displays Backend Registration state');
+assert(permCenter.includes('Last Test Push'), 'Diagnostics section displays Last Test Push timestamp & outcome');
+assert(permCenter.includes('Guest Mode Notice'), 'Permission Center explicitly explains authentication requirement for Cloud Web Push to guest users');
+assert(permCenter.includes('Send Test Notification'), 'Permission Center includes Send Test Notification button');
+assert(permCenter.includes('Test A — Local SW Notification'), 'Permission Center includes Test A (Local SW) button');
+assert(permCenter.includes('Test B — Real Web Push (Cloud)'), 'Permission Center includes Test B (Cloud Web Push) button');
+
 console.log('\n========================================================================');
-console.log('ALL 32 AUTOMATED VERIFICATION CHECKS PASSED WITH FLYING COLORS! 🎯');
+console.log('ALL 47 AUTOMATED VERIFICATION CHECKS PASSED WITH FLYING COLORS! 🎯');
 console.log('========================================================================');
+

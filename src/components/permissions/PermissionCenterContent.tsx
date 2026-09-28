@@ -15,6 +15,10 @@ import {
   Clock,
   Sparkles,
   Layers,
+  Terminal,
+  Activity,
+  Send,
+  Lock,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -39,6 +43,10 @@ export const PermissionCenterContent: React.FC = () => {
     requestLocationPermission,
     promptInstall,
     sendTestNotification,
+    sendTestSwNotification,
+    sendTestCloudNotification,
+    diagnostics,
+    refreshDiagnostics,
   } = usePermissions();
 
   const {
@@ -56,8 +64,20 @@ export const PermissionCenterContent: React.FC = () => {
   const [showNotifHelp, setShowNotifHelp] = useState(false);
   const [showLocationHelp, setShowLocationHelp] = useState(false);
   const [isSendingTestAlert, setIsSendingTestAlert] = useState(false);
+  const [isSendingTestA, setIsSendingTestA] = useState(false);
+  const [isSendingTestB, setIsSendingTestB] = useState(false);
+  const [isRefreshingDiag, setIsRefreshingDiag] = useState(false);
   const [updateCheckFeedback, setUpdateCheckFeedback] = useState<string | null>(null);
 
+  const isDevOrLocalhost =
+    import.meta.env.DEV ||
+    (typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname === '[::1]' ||
+        window.location.search.includes('diag=1')));
+
+  // Unified Real Pipeline Test
   const handleTestNotification = async () => {
     if (notificationStatus !== 'granted') {
       toastError('Please enable notifications first before running test.');
@@ -68,14 +88,71 @@ export const PermissionCenterContent: React.FC = () => {
     try {
       const result = await sendTestNotification(user?.id);
       if (result.success) {
-        success('Test notification delivered to your device! 🔔');
+        success(result.message);
       } else {
         toastError(result.message);
       }
-    } catch (err) {
+    } catch {
       toastError('Failed to trigger test notification.');
     } finally {
       setIsSendingTestAlert(false);
+    }
+  };
+
+  // Test A — Local Service Worker Notification
+  const handleTestA = async () => {
+    if (notificationStatus !== 'granted') {
+      toastError('Please enable notifications first.');
+      return;
+    }
+    setIsSendingTestA(true);
+    try {
+      const result = await sendTestSwNotification();
+      if (result.success) {
+        success('Test A: Local Service Worker notification fired! 🔔');
+      } else {
+        toastError(result.message);
+      }
+    } catch {
+      toastError('Test A execution failed.');
+    } finally {
+      setIsSendingTestA(false);
+    }
+  };
+
+  // Test B — Real Web Push via Supabase Edge Function
+  const handleTestB = async () => {
+    if (notificationStatus !== 'granted') {
+      toastError('Please enable notifications first.');
+      return;
+    }
+    if (!user) {
+      toastError('Test B (Cloud Web Push) requires an authenticated user. Please sign in to test Supabase Edge Function delivery.');
+      return;
+    }
+
+    setIsSendingTestB(true);
+    try {
+      const result = await sendTestCloudNotification(user.id);
+      if (result.success) {
+        success(result.message);
+      } else {
+        toastError(result.message);
+      }
+    } catch {
+      toastError('Test B execution failed.');
+    } finally {
+      setIsSendingTestB(false);
+    }
+  };
+
+  const handleRefreshDiagnostics = async () => {
+    setIsRefreshingDiag(true);
+    try {
+      await refreshDiagnostics();
+      success('Notification diagnostics refreshed.');
+    } finally {
+      setIsRefreshingDiag(false);
     }
   };
 
@@ -349,7 +426,217 @@ export const PermissionCenterContent: React.FC = () => {
         )}
       </Card>
 
-      {/* 3. Location Section */}
+      {/* 3. Visible Development & Localhost Diagnostic Section */}
+      {isDevOrLocalhost && (
+        <Card
+          variant="default"
+          padding="lg"
+          className="border-2 border-indigo-500/20 dark:border-indigo-500/30 bg-gradient-to-br from-indigo-500/[0.03] to-purple-500/[0.03]"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                <Terminal size={22} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-base font-bold text-foreground">Notification Diagnostics</h4>
+                  <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                    {diagnostics?.environment || (window.location.hostname.includes('localhost') ? 'Localhost' : 'Production')}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Real-time pipeline diagnostics across browser, service worker, and Supabase Web Push edge function.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs flex items-center gap-1.5 self-start sm:self-center"
+              isLoading={isRefreshingDiag}
+              onClick={handleRefreshDiagnostics}
+            >
+              <RefreshCw size={13} /> Refresh Diagnostics
+            </Button>
+          </div>
+
+          {/* Diagnostic Metrics Matrix */}
+          <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            {/* Environment */}
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800">
+              <div className="text-[11px] text-muted-foreground font-semibold uppercase">Environment</div>
+              <div className="text-sm font-bold text-foreground mt-1 flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${window.location.hostname.includes('localhost') ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                {diagnostics?.environment || (window.location.hostname.includes('localhost') ? 'Localhost' : 'Production')}
+              </div>
+              <div className="text-[10px] font-mono text-muted-foreground mt-1 truncate">
+                {diagnostics?.origin || (typeof window !== 'undefined' ? window.location.origin : '')}
+              </div>
+            </div>
+
+            {/* Notification Permission */}
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800">
+              <div className="text-[11px] text-muted-foreground font-semibold uppercase">Notification Permission</div>
+              <div className="text-sm font-bold mt-1">
+                {notificationStatus === 'granted' ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">granted</span>
+                ) : notificationStatus === 'denied' ? (
+                  <span className="text-rose-600 dark:text-rose-400">denied</span>
+                ) : (
+                  <span className="text-amber-600 dark:text-amber-400">default</span>
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1">
+                Detected via Notification.permission
+              </div>
+            </div>
+
+            {/* Service Worker */}
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800">
+              <div className="text-[11px] text-muted-foreground font-semibold uppercase">Service Worker</div>
+              <div className="text-sm font-bold mt-1">
+                {diagnostics?.swStatus === 'active' ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">active</span>
+                ) : diagnostics?.swStatus === 'waiting' ? (
+                  <span className="text-amber-600 dark:text-amber-400">waiting</span>
+                ) : diagnostics?.swStatus === 'registered' ? (
+                  <span className="text-blue-600 dark:text-blue-400">registered</span>
+                ) : (
+                  <span className="text-rose-600 dark:text-rose-400">failed</span>
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1">
+                Controlled by /sw.js
+              </div>
+            </div>
+
+            {/* Push Support */}
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800">
+              <div className="text-[11px] text-muted-foreground font-semibold uppercase">Push Support</div>
+              <div className="text-sm font-bold text-foreground mt-1">
+                {diagnostics?.pushSupported ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">supported</span>
+                ) : (
+                  <span className="text-muted-foreground">unsupported</span>
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1">
+                PushManager in window
+              </div>
+            </div>
+
+            {/* Push Subscription */}
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800">
+              <div className="text-[11px] text-muted-foreground font-semibold uppercase">Push Subscription</div>
+              <div className="text-sm font-bold mt-1">
+                {diagnostics?.pushSubscription === 'subscribed' ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">subscribed</span>
+                ) : (
+                  <span className="text-muted-foreground">not subscribed</span>
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1">
+                Device pushManager token
+              </div>
+            </div>
+
+            {/* Subscription Endpoint (Masked) */}
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800">
+              <div className="text-[11px] text-muted-foreground font-semibold uppercase">Subscription Endpoint</div>
+              <div className="text-xs font-mono font-medium text-foreground mt-1 truncate" title={diagnostics?.maskedEndpoint}>
+                {diagnostics?.maskedEndpoint || 'None'}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                <Lock size={10} /> Masked (safe for display)
+              </div>
+            </div>
+
+            {/* Backend Registration */}
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800">
+              <div className="text-[11px] text-muted-foreground font-semibold uppercase">Backend Registration</div>
+              <div className="text-sm font-bold mt-1">
+                {diagnostics?.backendRegistration === 'registered' ? (
+                  <span className="text-emerald-600 dark:text-emerald-400">registered</span>
+                ) : diagnostics?.backendRegistration === 'login_required' ? (
+                  <span className="text-amber-600 dark:text-amber-400">login required</span>
+                ) : diagnostics?.backendRegistration === 'failed' ? (
+                  <span className="text-rose-600 dark:text-rose-400">failed</span>
+                ) : (
+                  <span className="text-muted-foreground">not registered</span>
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1">
+                Supabase push_subscriptions
+              </div>
+            </div>
+
+            {/* Last Test Push */}
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800">
+              <div className="text-[11px] text-muted-foreground font-semibold uppercase">Last Test Push</div>
+              <div className="text-xs font-semibold mt-1">
+                {diagnostics?.lastTestPush ? (
+                  <span className={diagnostics.lastTestPush.success ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
+                    {diagnostics.lastTestPush.timestamp} &bull; {diagnostics.lastTestPush.success ? 'Success' : 'Failed'}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Never tested</span>
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1 truncate" title={diagnostics?.lastTestPush?.message}>
+                {diagnostics?.lastTestPush ? diagnostics.lastTestPush.message : 'Run Test A or Test B below'}
+              </div>
+            </div>
+          </div>
+
+          {/* Authentication Requirement Callout (Guest vs Authenticated) */}
+          {!user && (
+            <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300">
+              <Info size={16} className="mt-0.5 shrink-0" />
+              <div>
+                <span className="font-bold">Guest Mode Notice: </span>
+                Cloud Web Push (Test B) requires an authenticated user so the Supabase Edge Function can retrieve your PushSubscription from the database. You can test local browser/device notification display immediately via <strong>Test A (Local SW)</strong>, or log in to test <strong>Test B (Real Web Push)</strong>.
+              </div>
+            </div>
+          )}
+
+          {/* Dual Notification Test Action Buttons */}
+          <div className="mt-4 pt-4 border-t border-slate-200/70 dark:border-slate-800 flex flex-wrap items-center gap-2.5">
+            <Button
+              variant="primary"
+              size="sm"
+              className="text-xs flex items-center gap-1.5"
+              isLoading={isSendingTestAlert}
+              onClick={handleTestNotification}
+            >
+              <Send size={13} /> Send Test Notification
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs flex items-center gap-1.5 border-indigo-300 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+              isLoading={isSendingTestA}
+              onClick={handleTestA}
+            >
+              <Activity size={13} /> Test A — Local SW Notification
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs flex items-center gap-1.5 border-purple-300 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-950/40"
+              isLoading={isSendingTestB}
+              onClick={handleTestB}
+            >
+              <Sparkles size={13} /> Test B — Real Web Push (Cloud)
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* 4. Location Section */}
       <Card variant="default" padding="lg" className="border border-slate-200 dark:border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-start gap-3">

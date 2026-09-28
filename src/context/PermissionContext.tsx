@@ -1,7 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
-import { registerPushSubscription, sendTestPushNotification } from '../lib/pushNotifications';
+import {
+  registerPushSubscription,
+  sendTestPushNotification,
+  sendLocalSwTestNotification,
+  sendCloudEdgePushNotification,
+  getNotificationDiagnostics,
+  NotificationDiagnosticsData,
+} from '../lib/pushNotifications';
 
 export type PermissionStatus = 'granted' | 'prompt' | 'denied' | 'unsupported';
 export type AppPlatform = 'android' | 'ios' | 'desktop' | 'capacitor';
@@ -45,6 +52,12 @@ interface PermissionContextType {
   requestLocationPermission: () => Promise<{ lat: number; lng: number } | null>;
   promptInstall: () => Promise<'accepted' | 'dismissed' | 'manual'>;
   sendTestNotification: (userId?: string) => Promise<{ success: boolean; message: string }>;
+  sendTestSwNotification: () => Promise<{ success: boolean; message: string }>;
+  sendTestCloudNotification: (userId?: string) => Promise<{ success: boolean; message: string }>;
+
+  // Live Notification Diagnostics
+  diagnostics: NotificationDiagnosticsData | null;
+  refreshDiagnostics: () => Promise<NotificationDiagnosticsData>;
 
   // UI state controllers
   isManualInstallOpen: boolean;
@@ -103,6 +116,15 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // In-flight flags
   const [isRequestingNotification, setIsRequestingNotification] = useState<boolean>(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState<boolean>(false);
+
+  // Live diagnostics state
+  const [diagnostics, setDiagnostics] = useState<NotificationDiagnosticsData | null>(null);
+
+  const refreshDiagnostics = useCallback(async (): Promise<NotificationDiagnosticsData> => {
+    const diag = await getNotificationDiagnostics();
+    setDiagnostics(diag);
+    return diag;
+  }, []);
 
   // Notification preferences
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>(() => {
@@ -261,14 +283,17 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const result = await Notification.requestPermission();
       if (result === 'granted') {
         setNotificationStatus('granted');
-        // Register push subscription in background
-        void registerPushSubscription();
+        // Register push subscription in background and update diagnostics
+        await registerPushSubscription();
+        await refreshDiagnostics();
         return true;
       } else if (result === 'denied') {
         setNotificationStatus('denied');
+        await refreshDiagnostics();
         return false;
       } else {
         setNotificationStatus('prompt');
+        await refreshDiagnostics();
         return false;
       }
     } catch (err) {
@@ -277,7 +302,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     } finally {
       setIsRequestingNotification(false);
     }
-  }, []);
+  }, [refreshDiagnostics]);
 
   // Request Location Permission on explicit user interaction
   const requestLocationPermission = useCallback(async (): Promise<{ lat: number; lng: number } | null> => {
@@ -364,8 +389,27 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   const sendTestNotification = useCallback(async (userId?: string) => {
-    return sendTestPushNotification(userId);
-  }, []);
+    const res = await sendTestPushNotification(userId);
+    await refreshDiagnostics();
+    return res;
+  }, [refreshDiagnostics]);
+
+  const sendTestSwNotification = useCallback(async () => {
+    const res = await sendLocalSwTestNotification();
+    await refreshDiagnostics();
+    return res;
+  }, [refreshDiagnostics]);
+
+  const sendTestCloudNotification = useCallback(async (userId?: string) => {
+    const res = await sendCloudEdgePushNotification(userId);
+    await refreshDiagnostics();
+    return res;
+  }, [refreshDiagnostics]);
+
+  // Initial diagnostics collection on mount
+  useEffect(() => {
+    void refreshDiagnostics();
+  }, [refreshDiagnostics]);
 
   const dismissFirstVisitPrompt = useCallback(() => {
     localStorage.setItem(FIRST_VISIT_STORAGE_KEY, 'true');
@@ -390,6 +434,10 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         requestLocationPermission,
         promptInstall,
         sendTestNotification,
+        sendTestSwNotification,
+        sendTestCloudNotification,
+        diagnostics,
+        refreshDiagnostics,
         isManualInstallOpen,
         setIsManualInstallOpen,
         isPermissionCenterOpen,
