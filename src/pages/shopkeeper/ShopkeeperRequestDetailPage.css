@@ -498,3 +498,134 @@
   to { transform: rotate(360deg); }
 }
 
+/* ==========================================================================
+   Dedicated Payment Verification & Collection Section in Action Card
+   ========================================================================== */
+.vaango-req-payment-section {
+  margin-top: var(--spacing-lg, 20px);
+  padding-top: var(--spacing-md, 16px);
+  border-top: 1px dashed var(--color-border, #E2E8F0);
+}
+
+[data-theme='dark'] .vaango-req-payment-section,
+.dark .vaango-req-payment-section {
+  border-top-color: #263852;
+}
+
+.vaango-req-payment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.vaango-req-payment-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-primary, #1B4D3E);
+}
+
+[data-theme='dark'] .vaango-req-payment-kicker,
+.dark .vaango-req-payment-kicker {
+  color: #34D399;
+}
+
+.vaango-req-payment-content {
+  background: var(--color-surface-hover, #F8FAFC);
+  border: 1px solid var(--color-border, #E2E8F0);
+  border-radius: var(--radius-md, 12px);
+  padding: 16px;
+  transition: all 150ms ease;
+}
+
+[data-theme='dark'] .vaango-req-payment-content,
+.dark .vaango-req-payment-content {
+  background: rgba(15, 23, 42, 0.45);
+  border-color: #263852;
+}
+
+.vaango-req-payment-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.vaango-req-payment-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.vaango-req-payment-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary, #0F172A);
+  margin: 0;
+}
+
+.vaango-req-payment-desc {
+  font-size: 13.5px;
+  color: var(--color-text-secondary, #475569);
+  margin: 0 0 8px 0;
+  line-height: 1.45;
+}
+
+[data-theme='dark'] .vaango-req-payment-desc,
+.dark .vaango-req-payment-desc {
+  color: #94A3B8;
+}
+
+.vaango-req-payment-question {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary, #0F172A);
+  margin: 0 0 14px 0;
+}
+
+[data-theme='dark'] .vaango-req-payment-question,
+.dark .vaango-req-payment-question {
+  color: #F8FAFC;
+}
+
+.vaango-req-payment-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.vaango-req-payment-paid-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--color-success, #10B981);
+  font-weight: 600;
+}
+
+.vaango-req-payment-rejected-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md, 8px);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: var(--color-error, #DC2626);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+[data-theme='dark'] .vaango-req-payment-rejected-alert,
+.dark .vaango-req-payment-rejected-alert {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #F87171;
+}
+
+.vaango-req-payment-proof-block {
+  margin-bottom: 14px;
+}
+

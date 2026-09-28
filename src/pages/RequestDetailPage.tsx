@@ -488,6 +488,18 @@ export const RequestDetailPage: React.FC = () => {
             </>}
           </div>
         )}
+        {groupCode === 'ORDER' && !request.customer_paid && (payload.payment_method === 'cash' || request.payment_method === 'cash' || request.payment_method === 'pay_at_shop') && (
+          <div className="vaango-pay-at-shop-card">
+            <div className="vaango-pay-at-shop-card__header">
+              <span className="text-xs font-bold uppercase tracking-wider text-primary">Payment</span>
+              <Badge variant="neutral" size="sm" withDot>Awaiting Payment</Badge>
+            </div>
+            <h3 className="text-sm font-bold text-foreground mb-1">💵 Pay at Shop (Cash on Pickup)</h3>
+            <p className="text-xs text-secondary mb-0">
+              Please pay ₹{request.total_estimate ?? 0} in cash or at the counter when you pick up your order.
+            </p>
+          </div>
+        )}
         {request.customer_paid && <div className="vaango-paid-confirm">{t('paymentConfirmedBanner')}</div>}
       </div>
 

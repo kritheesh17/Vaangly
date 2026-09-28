@@ -58,7 +58,7 @@ interface DecodedPayload {
   customer_phone?: string;
   fulfillment_type?: 'parcel' | 'dine_in' | null;
   delivery_type?: string;
-  payment_method?: 'cash' | 'upi';
+  payment_method?: 'cash' | 'upi' | 'pay_at_shop' | 'online' | string | null;
 }
 
 export const ShopkeeperRequestDetailPage: React.FC = () => {
@@ -83,6 +83,10 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
   const [delayModalOpen, setDelayModalOpen] = useState(false);
   const [delayMinutes, setDelayMinutes] = useState('15');
   const [customDelayNote, setCustomDelayNote] = useState('');
+
+  // Payment Rejection Modal
+  const [isRejectPaymentModalOpen, setIsRejectPaymentModalOpen] = useState(false);
+  const [paymentRejectionReason, setPaymentRejectionReason] = useState('');
 
   // Service Price Confirmation Modal
   const [priceModalOpen, setPriceModalOpen] = useState(false);
@@ -257,16 +261,21 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
     }
   };
 
-  const handleRejectPayment = async () => {
+  const handleConfirmRejectPayment = async () => {
     if (!request || !user) return;
-    const reason = window.prompt('Why is this payment proof being rejected?')?.trim();
-    if (!reason) return;
+    const cleanReason = paymentRejectionReason.trim();
+    if (!cleanReason) {
+      toastError('A payment rejection reason is required.');
+      return;
+    }
     setIsActionLoading(true);
     try {
-      const result = await rejectRequestPayment(request.id, user.id, reason);
+      const result = await rejectRequestPayment(request.id, user.id, cleanReason);
       if (result.success && result.request) {
         setRequest(result.request);
-        toastError('Payment proof rejected. The customer can submit a replacement proof.');
+        toastError('Payment proof rejected. The customer has been notified.');
+        setIsRejectPaymentModalOpen(false);
+        setPaymentRejectionReason('');
         await loadRequestAndHistory();
       } else {
         toastError(result.error || t('genericError'));
@@ -274,17 +283,6 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
     } finally {
       setIsActionLoading(false);
     }
-  };
-
-  const handleCompleteWithPaymentCheck = async (notes: string) => {
-    if (!request) return;
-    if (!request.customer_paid) {
-      const paid = window.confirm('This order is not marked as paid yet. Has the customer paid? Press OK to mark paid and complete, or Cancel to complete with payment unverified.');
-      if (paid) await handleMarkPaid();
-      await handleTransition('COMPLETED', paid ? 'Customer paid and collected item.' : `${notes} Payment status unverified.`);
-      return;
-    }
-    await handleTransition('COMPLETED', notes);
   };
 
   // Handle Confirm Service Price & Transition
@@ -358,6 +356,254 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
 
   const items = decoded.items || [];
 
+  const renderPaymentSection = () => {
+    if (!request) return null;
+    // Don't show payment block if request was cancelled or rejected before acceptance
+    if (['REJECTED', 'CANCELLED'].includes(request.current_state)) {
+      return null;
+    }
+
+    const rawMethod = request.payment_method || decoded.payment_method;
+    const methodLower = (rawMethod || '').toLowerCase();
+
+    const isPayAtShop = ['cash', 'pay_at_shop', 'cash_on_delivery', 'cash_on_pickup', 'counter'].includes(methodLower);
+    const isOnline = ['upi', 'online', 'card', 'netbanking'].includes(methodLower);
+    const isUnavailable = !isPayAtShop && !isOnline;
+
+    const payableAmount = decoded.confirmed_price ?? request.total_estimate ?? request.payment_amount ?? 0;
+    const isPaid = Boolean(
+      request.customer_paid ||
+      request.payment_status === 'PAYMENT_VERIFIED' ||
+      request.payment_status === 'paid'
+    );
+
+    return (
+      <div className="vaango-req-payment-section">
+        <div className="vaango-req-payment-divider" />
+
+        <div className="vaango-req-payment-header">
+          <div className="vaango-req-payment-kicker">Payment Verification</div>
+          <div className="vaango-req-payment-badge-wrap">
+            {isPaid ? (
+              <Badge variant="success" size="sm" withDot>
+                Paid ✓
+              </Badge>
+            ) : request.payment_status === 'PAYMENT_REJECTED' ? (
+              <Badge variant="error" size="sm" withDot>
+                Proof Rejected
+              </Badge>
+            ) : isOnline && request.payment_screenshot_url ? (
+              <Badge variant="warning" size="sm" withDot>
+                Pending Verification
+              </Badge>
+            ) : isOnline ? (
+              <Badge variant="neutral" size="sm" withDot>
+                Pending / Awaiting Proof
+              </Badge>
+            ) : (
+              <Badge variant="neutral" size="sm" withDot>
+                Unpaid
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* PAY AT SHOP METHOD */}
+        {isPayAtShop && (
+          <div className="vaango-req-payment-content">
+            <div className="vaango-req-payment-title-row">
+              <span className="vaango-req-payment-icon" aria-hidden="true">💵</span>
+              <h3 className="vaango-req-payment-title">Pay at Shop</h3>
+            </div>
+
+            {isPaid ? (
+              <div className="vaango-req-payment-paid-msg">
+                <CheckCircle size={16} className="text-success shrink-0" />
+                <span>
+                  Payment of <strong>₹{payableAmount}</strong> has been collected and recorded.
+                </span>
+              </div>
+            ) : (
+              <div className="vaango-req-payment-pending-box">
+                <p className="vaango-req-payment-desc">
+                  Customer chose to pay at the shop/pickup. Please collect the payment from the customer.
+                </p>
+                <p className="vaango-req-payment-question">
+                  Did you collect <strong>₹{payableAmount}</strong> from the customer?
+                </p>
+                <div className="vaango-req-payment-actions">
+                  <Button
+                    variant="accent"
+                    size="md"
+                    isLoading={isActionLoading}
+                    onClick={() => void handleMarkPaid()}
+                    leftIcon={<IndianRupee size={16} />}
+                  >
+                    Mark Payment Collected
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ONLINE PAYMENT METHOD */}
+        {isOnline && (
+          <div className="vaango-req-payment-content">
+            <div className="vaango-req-payment-title-row">
+              <span className="vaango-req-payment-icon" aria-hidden="true">💳</span>
+              <h3 className="vaango-req-payment-title">Online Payment (UPI)</h3>
+            </div>
+
+            {isPaid ? (
+              <div className="vaango-req-payment-paid-box">
+                <div className="vaango-req-payment-paid-msg">
+                  <CheckCircle size={16} className="text-success shrink-0" />
+                  <span>
+                    Online payment of <strong>₹{payableAmount}</strong> has been verified.
+                  </span>
+                </div>
+                {paymentProofUrl && (
+                  <div className="mt-2.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsLightboxOpen(true)}
+                      leftIcon={<Maximize2 size={14} />}
+                    >
+                      View Payment Proof
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="vaango-req-payment-pending-box">
+                <p className="vaango-req-payment-desc">
+                  The customer selected online payment. Please verify the payment before marking it as paid.
+                </p>
+
+                {request.payment_status === 'PAYMENT_REJECTED' && (
+                  <div className="vaango-req-payment-rejected-alert">
+                    <AlertTriangle size={16} className="text-error shrink-0" />
+                    <span>
+                      Payment proof rejected: &ldquo;{request.payment_rejection_reason}&rdquo;. Awaiting customer replacement proof.
+                    </span>
+                  </div>
+                )}
+
+                {/* Proof Thumbnail / State */}
+                {request.payment_screenshot_url ? (
+                  <div className="vaango-req-payment-proof-block">
+                    <span className="text-xs font-semibold text-secondary mb-1.5 block">Payment Proof Submitted:</span>
+                    {isProofLoading ? (
+                      <div className="vaango-proof-state vaango-proof-state--loading">
+                        <Loader2 size={16} className="vaango-spin text-primary" />
+                        <span>Loading payment proof...</span>
+                      </div>
+                    ) : proofError ? (
+                      <div className="vaango-proof-state vaango-proof-state--error">
+                        <AlertTriangle size={16} className="text-warning shrink-0" />
+                        <span>{proofError}</span>
+                      </div>
+                    ) : paymentProofUrl ? (
+                      <div
+                        className="vaango-proof-thumb-wrap"
+                        onClick={() => setIsLightboxOpen(true)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setIsLightboxOpen(true)}
+                        aria-label="Click to enlarge payment proof"
+                      >
+                        <img src={paymentProofUrl} alt="Payment proof thumbnail" className="vaango-payment-proof-preview" />
+                        <div className="vaango-proof-zoom-overlay">
+                          <Maximize2 size={16} />
+                          <span>Inspect Proof</span>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-xs text-secondary italic mb-3">
+                    Payment proof has not been uploaded yet. If you verified payment in your UPI app, you may verify it below.
+                  </p>
+                )}
+
+                <div className="vaango-req-payment-actions">
+                  {paymentProofUrl && (
+                    <Button
+                      variant="outline"
+                      size="md"
+                      onClick={() => setIsLightboxOpen(true)}
+                      leftIcon={<Maximize2 size={16} />}
+                    >
+                      View Payment Proof
+                    </Button>
+                  )}
+                  <Button
+                    variant="primary"
+                    size="md"
+                    isLoading={isActionLoading}
+                    onClick={() => void handleMarkPaid()}
+                    leftIcon={<CheckCircle size={16} />}
+                  >
+                    Verify & Mark Paid
+                  </Button>
+                  {request.payment_screenshot_url && request.payment_status !== 'PAYMENT_REJECTED' && (
+                    <Button
+                      variant="outline"
+                      size="md"
+                      disabled={isActionLoading}
+                      onClick={() => setIsRejectPaymentModalOpen(true)}
+                      leftIcon={<XCircle size={16} />}
+                    >
+                      Reject Proof
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* UNAVAILABLE / FALLBACK METHOD */}
+        {isUnavailable && (
+          <div className="vaango-req-payment-content">
+            <div className="vaango-req-payment-title-row">
+              <span className="vaango-req-payment-icon" aria-hidden="true">💳</span>
+              <h3 className="vaango-req-payment-title">Payment Method Unavailable</h3>
+            </div>
+
+            {isPaid ? (
+              <div className="vaango-req-payment-paid-msg">
+                <CheckCircle size={16} className="text-success shrink-0" />
+                <span>
+                  Payment of <strong>₹{payableAmount}</strong> is recorded as paid.
+                </span>
+              </div>
+            ) : (
+              <div className="vaango-req-payment-pending-box">
+                <p className="vaango-req-payment-desc">
+                  Payment method was not recorded for this request. If payment of <strong>₹{payableAmount}</strong> was collected, you can mark it as paid.
+                </p>
+                <div className="vaango-req-payment-actions">
+                  <Button
+                    variant="accent"
+                    size="md"
+                    isLoading={isActionLoading}
+                    onClick={() => void handleMarkPaid()}
+                    leftIcon={<IndianRupee size={16} />}
+                  >
+                    Mark Payment Collected
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="container vaango-req-detail-page">
       {/* Back link */}
@@ -377,122 +623,6 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
       <Card variant="default" padding="lg" className="vaango-req-header-card">
         <div className="vaango-req-header__top">
           <div>
-
-            {request.payment_method === 'upi' && (
-              <Card variant="outlined" padding="md" className="vaango-payment-review-card">
-                <div className="vaango-payment-review-card__header">
-                  <h2 className="vaango-proof-review__title">Payment Method: UPI</h2>
-                  <div className="vaango-payment-review-card__status">
-                    <span className="text-secondary text-sm">Payment status: </span>
-                    {request.payment_status === 'PAYMENT_VERIFIED' ? (
-                      <Badge variant="success" size="sm" withDot>Payment Verified</Badge>
-                    ) : request.payment_status === 'PAYMENT_REJECTED' ? (
-                      <Badge variant="error" size="sm">Proof Rejected</Badge>
-                    ) : request.payment_screenshot_url ? (
-                      <Badge variant="warning" size="sm" withDot>Proof Submitted · Awaiting Verification</Badge>
-                    ) : (
-                      <Badge variant="neutral" size="sm">Payment Pending</Badge>
-                    )}
-                  </div>
-                </div>
-
-                {/* Separate state rendering for payment proof */}
-                {!request.payment_screenshot_url ? (
-                  <p className="text-secondary text-sm vaango-proof-note">Payment proof has not been submitted.</p>
-                ) : isProofLoading ? (
-                  <div className="vaango-proof-state vaango-proof-state--loading">
-                    <Loader2 size={18} className="vaango-spin text-primary flex-shrink-0" />
-                    <span>Loading payment proof...</span>
-                  </div>
-                ) : proofError ? (
-                  <div className="vaango-proof-state vaango-proof-state--error">
-                    <div className="vaango-proof-error-msg">
-                      <AlertTriangle size={18} className="text-warning flex-shrink-0" />
-                      <span>{proofError}</span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void loadRequestAndHistory()}
-                    >
-                      Retry
-                    </Button>
-                  </div>
-                ) : paymentProofUrl ? (
-                  <div className="vaango-proof-viewer-box">
-                    <div
-                      className="vaango-proof-thumb-wrap"
-                      onClick={() => setIsLightboxOpen(true)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setIsLightboxOpen(true)}
-                      aria-label="Click to enlarge payment proof"
-                      title="Click to enlarge payment proof"
-                    >
-                      <img
-                        src={paymentProofUrl}
-                        alt="Customer UPI payment proof"
-                        className="vaango-payment-proof-preview"
-                      />
-                      <div className="vaango-proof-zoom-overlay">
-                        <Maximize2 size={16} />
-                        <span>Enlarge / Inspect</span>
-                      </div>
-                    </div>
-                    <div className="vaango-proof-meta-row">
-                      <span className="text-xs text-secondary">
-                        Click image to inspect full size
-                      </span>
-                      <a
-                        href={paymentProofUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="vaango-proof-external-link"
-                      >
-                        <ExternalLink size={13} />
-                        <span>Open original</span>
-                      </a>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-secondary text-sm vaango-proof-note">Payment proof was submitted, but the uploaded file is currently unavailable.</p>
-                )}
-
-                {/* Action buttons */}
-                {request.payment_status !== 'PAYMENT_VERIFIED' && request.payment_status !== 'PAYMENT_REJECTED' && (
-                  <div className="vaango-req-action-card__btn-group vaango-proof-btn-group">
-                    <Button
-                      variant="primary"
-                      onClick={() => void handleMarkPaid()}
-                      leftIcon={<CheckCircle size={16} />}
-                      isLoading={isActionLoading}
-                    >
-                      Confirm Payment Received
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => void handleRejectPayment()}
-                      leftIcon={<AlertTriangle size={16} />}
-                      isLoading={isActionLoading}
-                    >
-                      Reject Proof
-                    </Button>
-                  </div>
-                )}
-
-                {request.payment_status === 'PAYMENT_REJECTED' && (
-                  <p className="vaango-proof-verified-note vaango-proof-verified-note--rejected">
-                    Rejected: {request.payment_rejection_reason || 'No reason provided.'}
-                  </p>
-                )}
-
-                {request.payment_status === 'PAYMENT_VERIFIED' && (
-                  <p className="vaango-proof-verified-note">
-                    Payment confirmed. Screenshot kept for your records.
-                  </p>
-                )}
-              </Card>
-            )}
             <span className="vaango-req-header__kicker">
               {groupCode === 'APPOINTMENT'
                 ? 'Appointment Slot Request'
@@ -856,24 +986,12 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
               {/* 5. If READY -> Mark Completed */}
               {request.current_state === 'READY' && (
                 <div className="vaango-req-action-card__btn-group">
-                  {!request.customer_paid && (
-                    <Button
-                      variant="accent"
-                      size="lg"
-                      disabled={isActionLoading}
-                      onClick={handleMarkPaid}
-                      leftIcon={<IndianRupee size={18} />}
-                    >
-                      Mark as Paid
-                    </Button>
-                  )}
-                  {request.customer_paid && <Badge variant="success" size="md">Paid</Badge>}
                   <Button
                     variant="primary"
                     size="lg"
                     className="w-full sm:w-auto"
                     isLoading={isActionLoading}
-                    onClick={() => void handleCompleteWithPaymentCheck('Customer collected item.')}
+                    onClick={() => void handleTransition('COMPLETED', 'Customer collected item.')}
                     leftIcon={<CheckCircle size={18} />}
                   >
                     Mark Completed (Customer Collected)
@@ -987,24 +1105,12 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
               {/* 5. If READY -> Mark Completed */}
               {request.current_state === 'READY' && (
                 <div className="vaango-req-action-card__btn-group">
-                  {!request.customer_paid && (
-                    <Button
-                      variant="accent"
-                      size="lg"
-                      disabled={isActionLoading}
-                      onClick={handleMarkPaid}
-                      leftIcon={<IndianRupee size={18} />}
-                    >
-                      Mark as Paid
-                    </Button>
-                  )}
-                  {request.customer_paid && <Badge variant="success" size="md">Paid</Badge>}
                   <Button
                     variant="primary"
                     size="lg"
                     className="w-full sm:w-auto"
                     isLoading={isActionLoading}
-                    onClick={() => void handleCompleteWithPaymentCheck('Customer collected items at counter.')}
+                    onClick={() => void handleTransition('COMPLETED', 'Customer collected items at counter.')}
                     leftIcon={<CheckCircle size={18} />}
                   >
                     Mark Order Completed (Customer Collected)
@@ -1030,6 +1136,9 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Dedicated Payment Verification & Collection Section */}
+        {renderPaymentSection()}
       </Card>
 
       {/* Details Card by Workflow Group */}
@@ -1353,6 +1462,55 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Payment Proof Rejection Modal */}
+      <Modal
+        isOpen={isRejectPaymentModalOpen}
+        onClose={() => {
+          setIsRejectPaymentModalOpen(false);
+          setPaymentRejectionReason('');
+        }}
+        title="Reject Payment Proof"
+        description="Provide a clear reason why this payment proof cannot be verified. The customer will be prompted to submit a replacement proof."
+        maxWidth="sm"
+      >
+        <div className="space-y-4 pt-2">
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1.5">
+              Rejection Reason *
+            </label>
+            <textarea
+              value={paymentRejectionReason}
+              onChange={(e) => setPaymentRejectionReason(e.target.value)}
+              placeholder="e.g. Screenshot amount does not match, transaction ID blurred, or duplicate proof"
+              rows={3}
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => {
+                setIsRejectPaymentModalOpen(false);
+                setPaymentRejectionReason('');
+              }}
+              disabled={isActionLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              isLoading={isActionLoading}
+              disabled={!paymentRejectionReason.trim()}
+              onClick={() => void handleConfirmRejectPayment()}
+            >
+              Confirm Rejection
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Payment Proof Full-Size Lightbox Modal */}
       {paymentProofUrl && (

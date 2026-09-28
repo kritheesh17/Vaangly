@@ -7,6 +7,7 @@ import { MOCK_SHOPS, MOCK_PRODUCTS, MOCK_SHOP_TYPES, getShopServices } from '../
 import { getStoredDemoRequests } from './demoData';
 import { normalizeIndianPhone } from './phoneUtils';
 import { classifyProductError, classifyApplicationError } from './productErrorHelper';
+import { createNotification } from './notificationApi';
 
 const DEMO_SHOPS_KEY = 'vaango_demo_shops';
 const DEMO_PRODUCTS_KEY = 'vaango_demo_products';
@@ -815,13 +816,27 @@ export const transitionRequestState = async (
         notes: notes?.trim() || null,
       });
 
+      const notifBody = newState === 'COMPLETED' && !updatedReq.customer_paid
+        ? `Your order #${currentReq.reference_code} is completed, but payment of ₹${currentReq.total_estimate ?? 0} is still awaiting verification.`
+        : `Your request #${currentReq.reference_code} is ${newState.toLowerCase()}.`;
+
       void supabase.functions.invoke('send-push-notification', {
         body: {
           user_id: currentReq.customer_id,
           title: 'Request status updated',
-          body: `Your request is ${newState.toLowerCase()}.`,
+          body: notifBody,
           url: `/request/${requestId}`,
         },
+      });
+
+      void createNotification({
+        recipient_id: currentReq.customer_id,
+        shop_id: currentReq.shop_id,
+        type: 'STATUS_CHANGE',
+        title: `Request #${currentReq.reference_code} Updated`,
+        message: notifBody,
+        reference_id: requestId,
+        reference_code: currentReq.reference_code,
       });
 
       return { success: true, request: updatedReq as Request };
@@ -920,12 +935,23 @@ export const transitionRequestState = async (
 
 export const markRequestCustomerPaid = async (
   requestId: string,
-  actorId: string
+  actorId: string,
+  notes?: string
 ): Promise<{ success: boolean; request?: Request; error?: string }> => {
+  const nowIso = new Date().toISOString();
+
   if (isSupabaseConfigured) {
     const { data, error } = await supabase
       .from('requests')
-      .update({ customer_paid: true, payment_status: 'PAYMENT_VERIFIED', updated_at: new Date().toISOString() })
+      .update({
+        customer_paid: true,
+        payment_status: 'PAYMENT_VERIFIED',
+        paid_at: nowIso,
+        paid_by: actorId,
+        payment_verified_at: nowIso,
+        payment_verified_by: actorId,
+        updated_at: nowIso,
+      })
       .eq('id', requestId)
       .select()
       .single();
@@ -938,8 +964,35 @@ export const markRequestCustomerPaid = async (
       to_state: data.current_state,
       actor_id: actorId,
       actor_role: 'shopkeeper',
-      notes: 'Customer paid in person.',
+      notes: notes || 'Customer payment verified and collected.',
     });
+
+    const payableAmount = data.total_estimate ?? data.payment_amount ?? 0;
+    const isOnline = data.payment_method === 'upi' || data.payment_method === 'online';
+    const notifTitle = isOnline ? 'Online Payment Verified' : 'Payment Received';
+    const notifMessage = isOnline
+      ? `Online payment verified — ₹${payableAmount} payment confirmed.`
+      : `Payment received — ₹${payableAmount} has been marked as paid.`;
+
+    void createNotification({
+      recipient_id: data.customer_id,
+      shop_id: data.shop_id,
+      type: 'PAYMENT_RECEIVED',
+      title: notifTitle,
+      message: notifMessage,
+      reference_id: data.id,
+      reference_code: data.reference_code,
+    });
+
+    void supabase.functions.invoke('send-push-notification', {
+      body: {
+        user_id: data.customer_id,
+        title: notifTitle,
+        body: notifMessage,
+        url: `/request/${data.id}`,
+      },
+    });
+
     return { success: true, request: data as Request };
   }
 
@@ -949,9 +1002,36 @@ export const markRequestCustomerPaid = async (
     const index = requests.findIndex((item) => item.id === requestId);
     if (index === -1) return { success: false, error: 'Request not found.' };
 
-    const updated = { ...requests[index], customer_paid: true, updated_at: new Date().toISOString() };
+    const updated: Request = {
+      ...requests[index],
+      customer_paid: true,
+      payment_status: 'PAYMENT_VERIFIED',
+      paid_at: nowIso,
+      paid_by: actorId,
+      payment_verified_at: nowIso,
+      payment_verified_by: actorId,
+      updated_at: nowIso,
+    };
     requests[index] = updated;
     localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(requests));
+
+    const payableAmount = updated.total_estimate ?? updated.payment_amount ?? 0;
+    const isOnline = updated.payment_method === 'upi' || updated.payment_method === 'online';
+    const notifTitle = isOnline ? 'Online Payment Verified' : 'Payment Received';
+    const notifMessage = isOnline
+      ? `Online payment verified — ₹${payableAmount} payment confirmed.`
+      : `Payment received — ₹${payableAmount} has been marked as paid.`;
+
+    void createNotification({
+      recipient_id: updated.customer_id,
+      shop_id: updated.shop_id,
+      type: 'PAYMENT_RECEIVED',
+      title: notifTitle,
+      message: notifMessage,
+      reference_id: updated.id,
+      reference_code: updated.reference_code,
+    });
+
     return { success: true, request: updated };
   } catch {
     return { success: false, error: 'Unable to update payment status.' };
@@ -965,11 +1045,16 @@ export const rejectRequestPayment = async (
 ): Promise<{ success: boolean; request?: Request; error?: string }> => {
   const cleanReason = reason.trim();
   if (!cleanReason) return { success: false, error: 'A payment rejection reason is required.' };
+  const nowIso = new Date().toISOString();
 
   if (isSupabaseConfigured) {
     const { data, error } = await supabase
       .from('requests')
-      .update({ payment_status: 'PAYMENT_REJECTED', payment_rejection_reason: cleanReason, updated_at: new Date().toISOString() })
+      .update({
+        payment_status: 'PAYMENT_REJECTED',
+        payment_rejection_reason: cleanReason,
+        updated_at: nowIso,
+      })
       .eq('id', requestId)
       .select()
       .single();
@@ -982,10 +1067,61 @@ export const rejectRequestPayment = async (
       actor_role: 'shopkeeper',
       notes: `Payment proof rejected: ${cleanReason}`,
     });
+
+    const notifTitle = 'Payment Proof Rejected';
+    const notifMessage = `Payment proof for Order #${data.reference_code} was rejected: ${cleanReason}. Please submit a replacement proof.`;
+
+    void createNotification({
+      recipient_id: data.customer_id,
+      shop_id: data.shop_id,
+      type: 'STATUS_CHANGE',
+      title: notifTitle,
+      message: notifMessage,
+      reference_id: data.id,
+      reference_code: data.reference_code,
+    });
+
+    void supabase.functions.invoke('send-push-notification', {
+      body: {
+        user_id: data.customer_id,
+        title: notifTitle,
+        body: notifMessage,
+        url: `/request/${data.id}`,
+      },
+    });
+
     return { success: true, request: data as Request };
   }
 
-  return { success: false, error: 'Payment rejection is unavailable in offline mode.' };
+  try {
+    const raw = localStorage.getItem(DEMO_REQUESTS_KEY);
+    const requests: Request[] = raw ? JSON.parse(raw) : [];
+    const index = requests.findIndex((item) => item.id === requestId);
+    if (index === -1) return { success: false, error: 'Request not found.' };
+
+    const updated: Request = {
+      ...requests[index],
+      payment_status: 'PAYMENT_REJECTED',
+      payment_rejection_reason: cleanReason,
+      updated_at: nowIso,
+    };
+    requests[index] = updated;
+    localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(requests));
+
+    void createNotification({
+      recipient_id: updated.customer_id,
+      shop_id: updated.shop_id,
+      type: 'STATUS_CHANGE',
+      title: 'Payment Proof Rejected',
+      message: `Payment proof for Order #${updated.reference_code} was rejected: ${cleanReason}. Please submit a replacement proof.`,
+      reference_id: updated.id,
+      reference_code: updated.reference_code,
+    });
+
+    return { success: true, request: updated };
+  } catch {
+    return { success: false, error: 'Payment rejection is unavailable in offline mode.' };
+  }
 };
 
 /**
