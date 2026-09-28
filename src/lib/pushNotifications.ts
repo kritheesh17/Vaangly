@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 
-const DEFAULT_VAPID_PUBLIC_KEY = 'BKgutL02_CUai_3-p0JBGTzAcmc0HuSU2TTNhzs5QYyxJdmqDrPZikUXA6SjMkwNca6JsPwe-q48atYn69COLiY';
+const DEFAULT_VAPID_PUBLIC_KEY = 'BKuzP4a6YMPxqykLZz4F9OzckD3D9cY5THfBV-3EgKt8ZLFi3Cg3fE4pHdhab5Po9MzRcw32-DDm5JQJFKy0LbI';
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || DEFAULT_VAPID_PUBLIC_KEY;
 
 export interface TestPushResult {
@@ -161,7 +161,31 @@ export async function registerPushSubscription(): Promise<boolean> {
 
   try {
     const registration = await navigator.serviceWorker.ready;
-    const existing = await registration.pushManager.getSubscription();
+    let existing = await registration.pushManager.getSubscription();
+
+    // Check if existing subscription was created with the active VAPID key
+    if (existing && existing.options && existing.options.applicationServerKey) {
+      const existingKeyBuf = new Uint8Array(existing.options.applicationServerKey);
+      const expectedKeyBuf = new Uint8Array(urlBase64ToArrayBuffer(VAPID_PUBLIC_KEY));
+      let isMatch = existingKeyBuf.length === expectedKeyBuf.length;
+      if (isMatch) {
+        for (let i = 0; i < existingKeyBuf.length; i++) {
+          if (existingKeyBuf[i] !== expectedKeyBuf[i]) {
+            isMatch = false;
+            break;
+          }
+        }
+      }
+      if (!isMatch) {
+        try {
+          await existing.unsubscribe();
+        } catch {
+          // ignore
+        }
+        existing = null;
+      }
+    }
+
     const subscription =
       existing ||
       (await registration.pushManager.subscribe({
@@ -462,3 +486,45 @@ function recordTestPush(testType: 'Test A (Local SW)' | 'Test B (Cloud Web Push)
     message,
   };
 }
+
+/**
+ * Dispatches an authenticated business event push notification to a target user.
+ * Automatically bundles the current browser origin for strict endpoint routing.
+ */
+export async function sendBusinessPushNotification({
+  userId,
+  title,
+  body,
+  url,
+}: {
+  userId: string;
+  title: string;
+  body: string;
+  url: string;
+}): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured || !userId) {
+    return { success: false, error: 'Supabase unconfigured or missing userId' };
+  }
+  try {
+    const origin = getCurrentOrigin();
+    const { error } = await supabase.functions.invoke('send-push-notification', {
+      body: {
+        user_id: userId,
+        title,
+        body,
+        url,
+        origin,
+      },
+    });
+    if (error) {
+      console.warn('[Business Push] Failed to deliver push:', error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown push delivery error';
+    console.warn('[Business Push] Delivery exception:', msg);
+    return { success: false, error: msg };
+  }
+}
+

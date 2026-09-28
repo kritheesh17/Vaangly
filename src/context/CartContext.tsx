@@ -4,6 +4,8 @@ import { MOCK_SHOP_TYPES, isValidUuid } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { isValidIndianMobile, normalizeIndianPhone } from '../lib/phoneUtils';
+import { createNotification } from '../lib/notificationApi';
+import { sendBusinessPushNotification } from '../lib/pushNotifications';
 
 export interface CartItem {
   product: ShopProduct;
@@ -363,7 +365,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Verify that target shop exists in database before inserting request
         const { data: dbShop, error: shopCheckErr } = await supabase
           .from('shops')
-          .select('id, status, is_live')
+          .select('id, owner_id, status, is_live')
           .eq('id', targetShop.id)
           .maybeSingle();
 
@@ -416,6 +418,31 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           actor_role: user.role,
           notes: 'Customer submitted initial order request.',
         });
+
+        // Notify shopkeeper of new incoming order in realtime
+        const shopOwnerId = dbShop.owner_id || targetShop.owner_id;
+        const customerName = user.full_name || 'Customer';
+        const notifTitle = 'New order received';
+        const notifBody = `New order #${referenceCode} from ${customerName}. Open Vaangly to view the order.`;
+
+        if (shopOwnerId) {
+          void createNotification({
+            recipient_id: shopOwnerId,
+            shop_id: targetShop.id,
+            type: 'NEW_ORDER',
+            title: notifTitle,
+            message: notifBody,
+            reference_id: createdRequest.id,
+            reference_code: referenceCode,
+          });
+
+          void sendBusinessPushNotification({
+            userId: shopOwnerId,
+            title: notifTitle,
+            body: notifBody,
+            url: '/shopkeeper/requests',
+          });
+        }
       } else {
         // Mock fallback mode: persist in localStorage request ledger
         createdRequest = {
@@ -443,6 +470,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           JSON.stringify([createdRequest, ...existingRequests])
         );
         window.dispatchEvent(new CustomEvent('vaango-requests-changed', { detail: { newRequest: createdRequest } }));
+
+        const shopOwnerId = targetShop.owner_id;
+        const customerName = user.full_name || 'Customer';
+        const notifTitle = 'New order received';
+        const notifBody = `New order #${referenceCode} from ${customerName}. Open Vaangly to view the order.`;
+
+        if (shopOwnerId) {
+          void createNotification({
+            recipient_id: shopOwnerId,
+            shop_id: targetShop.id,
+            type: 'NEW_ORDER',
+            title: notifTitle,
+            message: notifBody,
+            reference_id: createdRequest.id,
+            reference_code: referenceCode,
+          });
+        }
       }
 
       // Remove only this shop's items from the cart

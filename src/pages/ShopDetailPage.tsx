@@ -32,6 +32,8 @@ import { isValidIndianMobile, normalizeIndianPhone } from '../lib/phoneUtils';
 import { useToast } from '../context/ToastContext';
 import { Modal } from '../components/ui/Modal';
 import { Textarea } from '../components/ui/Textarea';
+import { createNotification } from '../lib/notificationApi';
+import { sendBusinessPushNotification } from '../lib/pushNotifications';
 
 const hasValidCoordinates = (lat: unknown, lng: unknown): boolean => {
   if (lat == null || lng == null) return false;
@@ -240,6 +242,28 @@ export const ShopDetailPage: React.FC = () => {
         toastError(error?.message || t('cakeRequestError'));
         return;
       }
+
+      if (shop.owner_id) {
+        const notifTitle = 'New custom cake request';
+        const notifBody = `New custom cake request #${referenceCode} from ${user.full_name || 'Customer'}. Open Vaangly to view the details.`;
+        void createNotification({
+          recipient_id: shop.owner_id,
+          shop_id: shop.id,
+          type: 'NEW_ORDER',
+          title: notifTitle,
+          message: notifBody,
+          reference_id: data.id,
+          reference_code: referenceCode,
+        });
+
+        void sendBusinessPushNotification({
+          userId: shop.owner_id,
+          title: notifTitle,
+          body: notifBody,
+          url: '/shopkeeper/requests',
+        });
+      }
+
       setCakeModalOpen(false);
       setCakeDescription('');
       success(t('cakeRequestSuccess'));

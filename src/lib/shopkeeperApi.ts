@@ -8,6 +8,7 @@ import { getStoredDemoRequests } from './demoData';
 import { normalizeIndianPhone } from './phoneUtils';
 import { classifyProductError, classifyApplicationError } from './productErrorHelper';
 import { createNotification } from './notificationApi';
+import { sendBusinessPushNotification } from './pushNotifications';
 
 const DEMO_SHOPS_KEY = 'vaango_demo_shops';
 const DEMO_PRODUCTS_KEY = 'vaango_demo_products';
@@ -816,24 +817,28 @@ export const transitionRequestState = async (
         notes: notes?.trim() || null,
       });
 
+      const notifTitle = newState === 'READY'
+        ? 'Order Ready for Pickup'
+        : `Request #${currentReq.reference_code} Updated`;
+
       const notifBody = newState === 'COMPLETED' && !updatedReq.customer_paid
         ? `Your order #${currentReq.reference_code} is completed, but payment of ₹${currentReq.total_estimate ?? 0} is still awaiting verification.`
+        : newState === 'READY'
+        ? `Your order #${currentReq.reference_code} is ready for customer pickup!`
         : `Your request #${currentReq.reference_code} is ${newState.toLowerCase()}.`;
 
-      void supabase.functions.invoke('send-push-notification', {
-        body: {
-          user_id: currentReq.customer_id,
-          title: 'Request status updated',
-          body: notifBody,
-          url: `/request/${requestId}`,
-        },
+      void sendBusinessPushNotification({
+        userId: currentReq.customer_id,
+        title: notifTitle,
+        body: notifBody,
+        url: `/request/${requestId}`,
       });
 
       void createNotification({
         recipient_id: currentReq.customer_id,
         shop_id: currentReq.shop_id,
         type: 'STATUS_CHANGE',
-        title: `Request #${currentReq.reference_code} Updated`,
+        title: notifTitle,
         message: notifBody,
         reference_id: requestId,
         reference_code: currentReq.reference_code,
@@ -984,13 +989,11 @@ export const markRequestCustomerPaid = async (
       reference_code: data.reference_code,
     });
 
-    void supabase.functions.invoke('send-push-notification', {
-      body: {
-        user_id: data.customer_id,
-        title: notifTitle,
-        body: notifMessage,
-        url: `/request/${data.id}`,
-      },
+    void sendBusinessPushNotification({
+      userId: data.customer_id,
+      title: notifTitle,
+      body: notifMessage,
+      url: `/request/${data.id}`,
     });
 
     return { success: true, request: data as Request };
@@ -1081,13 +1084,11 @@ export const rejectRequestPayment = async (
       reference_code: data.reference_code,
     });
 
-    void supabase.functions.invoke('send-push-notification', {
-      body: {
-        user_id: data.customer_id,
-        title: notifTitle,
-        body: notifMessage,
-        url: `/request/${data.id}`,
-      },
+    void sendBusinessPushNotification({
+      userId: data.customer_id,
+      title: notifTitle,
+      body: notifMessage,
+      url: `/request/${data.id}`,
     });
 
     return { success: true, request: data as Request };
