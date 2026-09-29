@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   XCircle,
   Star,
+  Clock,
 } from 'lucide-react';
 import { Request } from '../types/database';
 import { WorkflowStateCode, WorkflowGroupCode } from '../types/workflow';
@@ -30,6 +31,7 @@ import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
 import { validatePaymentProofFile } from '../lib/paymentProof';
 import { isValidUpiQrUrl } from '../lib/upi';
+import { formatPickupTime } from '../lib/orderPickupUtils';
 import './RequestDetailPage.css';
 
 interface DecodedPayload {
@@ -63,6 +65,7 @@ interface DecodedPayload {
   shop_phone?: string;
   shop_upi_id?: string | null;
   shop_upi_qr_url?: string | null;
+  pickup_at?: string | null;
   payment_method?: 'cash' | 'upi' | 'pay_at_shop' | 'online';
 }
 
@@ -523,6 +526,44 @@ export const RequestDetailPage: React.FC = () => {
             <span>{['DINE_IN', 'dine_in'].includes(request.fulfillment_type || payload.fulfillment_type || '') ? '🍽️ Dine-in' : '📦 Parcel / Takeaway'}</span>
           </div>
         )}
+
+        {groupCode === 'ORDER' && (
+          <div
+            className="vaango-customer-pickup-card"
+            style={{
+              padding: '12px 14px',
+              borderRadius: 8,
+              backgroundColor: 'var(--color-surface-sunken, #f9fafb)',
+              border: '1px solid var(--color-border, #e5e7eb)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                Pickup
+              </span>
+              <Badge variant={(request.pickup_at || payload.pickup_at) ? 'primary' : 'neutral'} size="sm">
+                {(request.pickup_at || payload.pickup_at) ? 'Scheduled Pickup' : 'ASAP'}
+              </Badge>
+            </div>
+            <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <Clock size={16} className="text-primary" />
+              <span>
+                {(request.pickup_at || payload.pickup_at)
+                  ? formatPickupTime(request.pickup_at || payload.pickup_at)
+                  : 'ASAP'}
+              </span>
+            </div>
+            {(request.pickup_at || payload.pickup_at) && (
+              <small style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                Target collection time selected when placing your order.
+              </small>
+            )}
+          </div>
+        )}
+
         <div className={`vaango-customer-payment-card ${isPayAtShopPayment ? 'vaango-pay-at-shop-card' : ''}`}>
           <div className="vaango-customer-payment-card__header">
             <span>Payment</span>

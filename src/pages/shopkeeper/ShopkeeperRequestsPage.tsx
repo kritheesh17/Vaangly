@@ -23,6 +23,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { NotificationBadge } from '../../components/ui/NotificationBadge';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { sortOrdersByPickupPriority } from '../../lib/orderPickupUtils';
 import './ShopkeeperRequestsPage.css';
 
 type RequestFilterTab = 'all' | 'new' | 'active' | 'ready' | 'completed' | 'cancelled';
@@ -201,6 +202,11 @@ export const ShopkeeperRequestsPage: React.FC = () => {
     return true;
   });
 
+  // Sort orders by pickup urgency (earlier requested pickup time, ASAP first, creation time tie-breaker)
+  const sortedRequests = ['completed', 'cancelled'].includes(activeTab)
+    ? [...filteredRequests].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    : sortOrdersByPickupPriority(filteredRequests);
+
   const counts = {
     all: requests.length,
     new: requests.filter((r) => r.current_state === 'REQUESTED').length,
@@ -340,7 +346,7 @@ export const ShopkeeperRequestsPage: React.FC = () => {
           />
         ) : (
           <div className="vaango-shop-reqs__list">
-            {filteredRequests.map((req) => (
+            {sortedRequests.map((req) => (
               <RequestCard
                 key={req.id}
                 request={req}

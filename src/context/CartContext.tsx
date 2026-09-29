@@ -6,6 +6,7 @@ import { useAuth } from './AuthContext';
 import { isValidIndianMobile, normalizeIndianPhone } from '../lib/phoneUtils';
 import { createNotification } from '../lib/notificationApi';
 import { sendBusinessPushNotification } from '../lib/pushNotifications';
+import { validateOrderPickupAt, formatPickupTime } from '../lib/orderPickupUtils';
 
 export interface CartItem {
   product: ShopProduct;
@@ -47,7 +48,8 @@ interface CartContextType {
     paymentMethod?: 'cash' | 'upi',
     overrideFulfillment?: 'DINE_IN' | 'TAKEAWAY' | null,
     shopNotes?: string,
-    paymentProofPath?: string | null
+    paymentProofPath?: string | null,
+    pickupAt?: string | null
   ) => Promise<{ success: boolean; request?: Request; error?: string }>;
   isSubmitting: boolean;
   getItemQuantity: (productId: string, variantId?: string | null) => number;
@@ -258,7 +260,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     paymentMethod: 'cash' | 'upi' = 'cash',
     overrideFulfillment?: 'DINE_IN' | 'TAKEAWAY' | null,
     shopNotes?: string,
-    paymentProofPath?: string | null
+    paymentProofPath?: string | null,
+    pickupAt?: string | null
   ): Promise<{ success: boolean; request?: Request; error?: string }> => {
     if (isSubmitting) {
       return { success: false, error: 'An order request is already processing. Please wait.' };
@@ -287,6 +290,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         success: false,
         error: 'This shopfront is currently suspended or not accepting new orders.',
+      };
+    }
+
+    // Pre-validate requested scheduled pickup time
+    const pickupValidation = validateOrderPickupAt(targetShop, pickupAt);
+    if (!pickupValidation.valid) {
+      return {
+        success: false,
+        error: pickupValidation.error || 'Invalid pickup time selected.',
       };
     }
 
@@ -342,6 +354,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         shop_upi_qr_url: targetShop.upi_qr_url || null,
         fulfillment_type: chosenFulfillment,
         payment_method: paymentMethod,
+        pickup_at: pickupAt || null,
       };
 
       let createdRequest: Request;
@@ -399,6 +412,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             payment_method: paymentMethod,
             payment_amount: paymentMethod === 'upi' ? serverCalculatedTotal : null,
             payment_screenshot_url: paymentMethod === 'upi' ? paymentProofPath : null,
+            pickup_at: pickupAt || null,
           })
           .select()
           .single();
@@ -422,8 +436,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Notify shopkeeper of new incoming order in realtime
         const shopOwnerId = dbShop.owner_id || targetShop.owner_id;
         const customerName = user.full_name || 'Customer';
-        const notifTitle = 'New order received';
-        const notifBody = `New order #${referenceCode} from ${customerName}. Open Vaangly to view the order.`;
+        const pickupLabel = pickupAt ? formatPickupTime(pickupAt) : 'ASAP';
+        const notifTitle = pickupAt ? `New order received (Pickup: ${pickupLabel})` : 'New order received';
+        const notifBody = pickupAt
+          ? `New order #${referenceCode} (Pickup: ${pickupLabel}) from ${customerName}. Open Vaangly to view the order.`
+          : `New order #${referenceCode} from ${customerName}. Open Vaangly to view the order.`;
 
         if (shopOwnerId) {
           void createNotification({
@@ -460,6 +477,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           fulfillment_type: chosenFulfillment,
           notes: JSON.stringify(requestPayload),
           scheduled_for: null,
+          pickup_at: pickupAt || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -473,8 +491,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const shopOwnerId = targetShop.owner_id;
         const customerName = user.full_name || 'Customer';
-        const notifTitle = 'New order received';
-        const notifBody = `New order #${referenceCode} from ${customerName}. Open Vaangly to view the order.`;
+        const pickupLabel = pickupAt ? formatPickupTime(pickupAt) : 'ASAP';
+        const notifTitle = pickupAt ? `New order received (Pickup: ${pickupLabel})` : 'New order received';
+        const notifBody = pickupAt
+          ? `New order #${referenceCode} (Pickup: ${pickupLabel}) from ${customerName}. Open Vaangly to view the order.`
+          : `New order #${referenceCode} from ${customerName}. Open Vaangly to view the order.`;
 
         if (shopOwnerId) {
           void createNotification({

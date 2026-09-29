@@ -100,6 +100,7 @@ export interface SlotConfig {
   allowCancellation?: boolean;
   paymentRequirement?: 'flexible' | 'online_only' | 'shop_only';
   tokenScope?: 'interval' | 'daily';
+  timeZone?: string;
 }
 
 export interface TimeRange {
@@ -278,6 +279,7 @@ export interface Request {
   customer_phone?: string | null;
   notes: string | null;
   scheduled_for: string | null;
+  pickup_at?: string | null;
   created_at: string;
   updated_at: string;
 }

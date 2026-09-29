@@ -33,6 +33,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { Modal } from '../../components/ui/Modal';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { formatPickupTime } from '../../lib/orderPickupUtils';
 import './ShopkeeperRequestDetailPage.css';
 
 interface DecodedPayload {
@@ -59,6 +60,7 @@ interface DecodedPayload {
   fulfillment_type?: 'parcel' | 'dine_in' | null;
   delivery_type?: string;
   payment_method?: 'cash' | 'upi' | 'pay_at_shop' | 'online' | string | null;
+  pickup_at?: string | null;
 }
 
 export const ShopkeeperRequestDetailPage: React.FC = () => {
@@ -757,6 +759,19 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
               <div className="vaango-req-val"><span>{['DINE_IN', 'dine_in'].includes(request.fulfillment_type || decoded.fulfillment_type || '') ? '🍽️ Dine-in' : '📦 Parcel / Takeaway'}</span></div>
             </div>
           )}
+          {groupCode === 'ORDER' && (
+            <div className="vaango-req-cust-col">
+              <span className="vaango-req-label">Pickup Timing</span>
+              <div className="vaango-req-val">
+                <Clock size={15} className="text-primary" />
+                <strong className={(request.pickup_at || decoded.pickup_at) ? 'text-primary' : ''}>
+                  {(request.pickup_at || decoded.pickup_at)
+                    ? formatPickupTime(request.pickup_at || decoded.pickup_at)
+                    : 'ASAP'}
+                </strong>
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -1074,6 +1089,40 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
           {/* GROUP A: ORDER ACTIONS */}
           {groupCode === 'ORDER' && (
             <>
+              {/* Customer Pickup Target Banner (Clarifies collection time vs completion time) */}
+              <div
+                className="vaango-req-pickup-target-banner"
+                style={{
+                  marginBottom: 16,
+                  padding: '12px 16px',
+                  borderRadius: 8,
+                  backgroundColor: (request.pickup_at || decoded.pickup_at) ? 'var(--brand-primary-light, #eff6ff)' : 'var(--color-surface-hover, #f3f4f6)',
+                  border: (request.pickup_at || decoded.pickup_at) ? '1px solid var(--brand-primary-light, #bfdbfe)' : '1px solid var(--color-border, #e5e7eb)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Clock size={20} className="text-primary" />
+                  <div>
+                    <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-secondary)', fontWeight: 700 }}>
+                      Customer Collection Target
+                    </div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>
+                      {(request.pickup_at || decoded.pickup_at)
+                        ? formatPickupTime(request.pickup_at || decoded.pickup_at)
+                        : 'ASAP (Immediate Collection)'}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', maxWidth: 300 }}>
+                  When customer intends to collect the order. (This is not the order completion deadline).
+                </div>
+              </div>
+
               {/* 1. If REQUESTED -> Accept or Reject */}
               {request.current_state === 'REQUESTED' && (
                 <div className="vaango-req-action-card__btn-group">

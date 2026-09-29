@@ -18,6 +18,7 @@ import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { useLanguage } from '../../context/LanguageContext';
+import { formatPickupTime } from '../../lib/orderPickupUtils';
 import './RequestCard.css';
 
 interface DecodedNotes {
@@ -36,6 +37,7 @@ interface DecodedNotes {
   notes?: string | null;
   customer_name?: string;
   customer_phone?: string;
+  pickup_at?: string | null;
 }
 
 interface RequestCardProps {
@@ -192,6 +194,32 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             <strong className="text-sm text-primary mt-2">
               Order Type: {['DINE_IN', 'dine_in'].includes(request.fulfillment_type) ? '🍽️ Dine-in' : '📦 Parcel / Takeaway'}
             </strong>
+          )}
+          {groupCode === 'ORDER' && (
+            <div
+              className="vaango-shop-req-card__pickup-badge"
+              style={{
+                marginTop: 6,
+                padding: '4px 10px',
+                borderRadius: 6,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                backgroundColor: (request.pickup_at || decoded.pickup_at) ? 'var(--brand-primary-light, #eff6ff)' : 'var(--color-surface-hover, #f3f4f6)',
+                color: (request.pickup_at || decoded.pickup_at) ? 'var(--brand-primary, #2563eb)' : 'var(--color-text-secondary, #4b5563)',
+                border: (request.pickup_at || decoded.pickup_at) ? '1px solid var(--brand-primary-light, #bfdbfe)' : '1px solid var(--color-border, #e5e7eb)',
+              }}
+            >
+              <Clock size={13} />
+              <span>
+                <strong>Pickup:</strong>{' '}
+                {(request.pickup_at || decoded.pickup_at)
+                  ? formatPickupTime(request.pickup_at || decoded.pickup_at)
+                  : 'ASAP'}
+              </span>
+            </div>
           )}
         </div>
       )}

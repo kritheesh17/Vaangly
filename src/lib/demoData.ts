@@ -117,6 +117,7 @@ export const buildDefaultDemoRequests = (): Request[] => {
       customer_paid: false,
       fulfillment_type: 'parcel',
       scheduled_for: null,
+      pickup_at: new Date(now.getTime() + 7200000).toISOString(),
       notes: JSON.stringify({
         items: [
           {

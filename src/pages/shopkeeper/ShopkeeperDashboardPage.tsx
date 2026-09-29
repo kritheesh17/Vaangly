@@ -40,6 +40,7 @@ import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { resetDemoData } from '../../lib/demoData';
 import { useLanguage } from '../../context/LanguageContext';
+import { sortOrdersByPickupPriority } from '../../lib/orderPickupUtils';
 import './ShopkeeperDashboardPage.css';
 
 export const ShopkeeperDashboardPage: React.FC = () => {
@@ -578,8 +579,8 @@ export const ShopkeeperDashboardPage: React.FC = () => {
           </Card>
         ) : (
           <div className="vaango-shop-dash__requests-list">
-            {/* Show urgent/active first */}
-            {[...newRequests, ...midStageRequests, ...actionReadyRequests].slice(0, 3).map((req) => (
+            {/* Show urgent/active first (prioritizing earlier pickup requirement) */}
+            {sortOrdersByPickupPriority([...newRequests, ...midStageRequests, ...actionReadyRequests]).slice(0, 3).map((req) => (
               <RequestCard
                 key={req.id}
                 request={req}

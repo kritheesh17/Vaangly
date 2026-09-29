@@ -22,6 +22,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { RatingModal } from '../components/customer/RatingModal';
 import { getStoredDemoRequests, resetDemoData } from '../lib/demoData';
+import { formatPickupTime } from '../lib/orderPickupUtils';
 import './OrdersPage.css';
 
 interface DecodedNotes {
@@ -37,6 +38,7 @@ interface DecodedNotes {
   max_price?: number;
   confirmed_price?: number;
   shop_name?: string;
+  pickup_at?: string | null;
 }
 
 type GroupFilter = 'ALL' | 'ORDER' | 'APPOINTMENT' | 'SERVICE';
@@ -399,6 +401,10 @@ export const OrdersPage: React.FC = () => {
                       ) : (
                         <span>Items order</span>
                       )}
+                      <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.8rem', color: (req.pickup_at || decoded.pickup_at) ? 'var(--brand-primary, #2563eb)' : 'var(--color-text-secondary, #6b7280)', fontWeight: 600 }}>
+                        <Clock size={13} />
+                        <span>Pickup: {(req.pickup_at || decoded.pickup_at) ? formatPickupTime(req.pickup_at || decoded.pickup_at) : 'ASAP'}</span>
+                      </div>
                     </div>
                   )}
                 </div>
