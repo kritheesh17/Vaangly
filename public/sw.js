@@ -33,15 +33,15 @@ function isStaticAsset(url) {
   return /\.(js|css|svg|png|jpg|jpeg|webp|woff2|woff|ttf|ico|json)$/i.test(url);
 }
 
-// 1. Install Event: Cache critical shell assets
+// 1. Install Event: Cache critical shell assets and activate immediately
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  // Do NOT skipWaiting() automatically here; wait for explicit client signal
-  // or until old tabs close to prevent mixing old and new Vite chunk versions.
+  // Auto-skip waiting so standalone mobile PWAs seamlessly update without requiring manual user intervention
+  self.skipWaiting();
 });
 
 // 2. Message Event: Support controlled skipWaiting from UI "Update Now" action
