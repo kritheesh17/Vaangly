@@ -331,7 +331,8 @@ console.log('\n--- TEST 13: Existing Payment Flow Remains Unchanged ---');
   const cartPageCode = fs.readFileSync(cartPagePath, 'utf8');
 
   assert(cartPageCode.includes('UpiPaymentPanel'), 'UpiPaymentPanel is preserved in CartPage');
-  assert(cartPageCode.includes('Cash on Delivery'), 'Cash on Delivery is preserved in CartPage');
+  assert(cartPageCode.includes('Pay at Shop'), 'Pay at Shop label is used in CartPage');
+  assert(cartPageCode.includes("'pay_at_shop'"), 'Canonical pay_at_shop method is used in CartPage');
 
   const shopDetailPagePath = path.join(ROOT, 'src', 'pages', 'shopkeeper', 'ShopkeeperRequestDetailPage.tsx');
   const shopDetailCode = fs.readFileSync(shopDetailPagePath, 'utf8');

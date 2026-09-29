@@ -417,13 +417,182 @@
   width: fit-content;
 }
 
-.vaango-cart-shop-options-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--space-3);
-  padding: var(--space-3);
+/* Preferences & visual section separation */
+.vaango-cart-preferences {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.vaango-cart-pref-section {
+  padding: var(--space-4);
   background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.vaango-cart-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--space-2);
+}
+
+.vaango-cart-section-sub {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.vaango-cart-options-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+@media (max-width: 520px) {
+  .vaango-cart-options-toggle {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vaango-cart-option-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 12px 14px;
+  min-height: 58px;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
   border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast, 0.15s ease);
+}
+
+.vaango-cart-option-btn:hover:not(:disabled) {
+  border-color: var(--color-border-strong, #9ca3af);
+  background: var(--color-surface-hover);
+}
+
+.vaango-cart-option-btn.active {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-light);
+  box-shadow: 0 0 0 1px var(--brand-primary);
+}
+
+.vaango-cart-option-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vaango-cart-option-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.vaango-cart-option-btn.active .vaango-cart-option-title {
+  color: var(--brand-primary);
+}
+
+.vaango-cart-option-desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.vaango-scheduled-pickup-panel {
+  margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.vaango-pickup-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+@media (max-width: 600px) {
+  .vaango-pickup-fields-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vaango-pickup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vaango-pickup-field .vaango-select {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  outline: none;
+  transition: border-color var(--transition-fast, 0.15s ease);
+}
+
+.vaango-pickup-field .vaango-select:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px var(--brand-primary-light);
+}
+
+.vaango-pickup-no-slots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-warning-light, #fef3c7);
+  border: 1px solid var(--color-warning-border, #fcd34d);
+  border-radius: var(--radius-md);
+  color: var(--color-warning-dark, #92400e);
+  font-size: var(--font-size-xs);
+}
+
+.vaango-pickup-no-slots-msg {
+  font-weight: var(--font-weight-medium);
+}
+
+.vaango-pickup-switch-date-btn {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--brand-primary);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.vaango-pickup-switch-date-btn:hover {
+  opacity: 0.85;
+}
+
+.vaango-pickup-single-slot-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--brand-primary-light);
+  border: 1px solid var(--color-primary-border, rgba(16, 185, 129, 0.25));
+  border-radius: var(--radius-md);
+  color: var(--brand-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
 }
 
 .vaango-cart-opt-label {

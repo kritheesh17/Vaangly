@@ -9,6 +9,7 @@ import {
   AlertCircle,
   ShoppingBag,
   Building2,
+  Clock,
 } from 'lucide-react';
 import { getEffectiveQuantity, useCart, ShopCartGroup } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -128,7 +129,7 @@ export const CartPage: React.FC = () => {
   const [shopErrors, setShopErrors] = useState<Record<string, string>>({});
   const [shopNotes, setShopNotes] = useState<Record<string, string>>({});
   const [shopFulfillments, setShopFulfillments] = useState<Record<string, 'DINE_IN' | 'TAKEAWAY' | null>>({});
-  const [shopPaymentMethods, setShopPaymentMethods] = useState<Record<string, 'cash' | 'upi'>>({});
+  const [shopPaymentMethods, setShopPaymentMethods] = useState<Record<string, 'pay_at_shop' | 'upi'>>({});
   const [paymentProofPaths, setPaymentProofPaths] = useState<Record<string, string | null>>({});
   const [shopPickupModes, setShopPickupModes] = useState<Record<string, 'ASAP' | 'SCHEDULED'>>({});
   const [shopPickupDates, setShopPickupDates] = useState<Record<string, string>>({});
@@ -183,7 +184,7 @@ export const CartPage: React.FC = () => {
       return;
     }
 
-    const chosenPayment = shopPaymentMethods[shopId] || 'cash';
+    const chosenPayment = shopPaymentMethods[shopId] || 'pay_at_shop';
     const paymentProofPath = paymentProofPaths[shopId] || null;
     if (chosenPayment === 'upi' && !isValidUpiQrUrl(group.shop.upi_qr_url)) {
       setShopErrors((prev) => ({ ...prev, [shopId]: 'UPI payment is currently unavailable because this shop has not configured its UPI QR code.' }));
@@ -327,7 +328,7 @@ export const CartPage: React.FC = () => {
             shop.business_type === 'bakery' ||
             shop.business_type === 'restaurant';
           const currentFulfillment = shopFulfillments[shopId] || null;
-          const currentPayment = shopPaymentMethods[shopId] || 'cash';
+          const currentPayment = shopPaymentMethods[shopId] || 'pay_at_shop';
           const currentNote = shopNotes[shopId] || '';
           const currentError = shopErrors[shopId];
           const isThisSubmitting = submittingShopId === shopId;
@@ -339,6 +340,8 @@ export const CartPage: React.FC = () => {
             ? getAvailablePickupSlots(shop, currentPickupDate, shop.slot_config?.timeZone)
             : [];
           const currentPickupTime = shopPickupTimes[shopId] || (availableSlots.length > 0 ? availableSlots[0].isoTimestamp : '');
+          const isSelectedDateToday = availableDates.length > 0 && currentPickupDate === availableDates[0].dateStr;
+          const shopTimezoneLabel = shop.slot_config?.timeZone || 'Shop Time';
 
           return (
             <Card key={shopId} variant="default" padding="lg" className="vaango-cart-shop-group-card">
@@ -448,10 +451,10 @@ export const CartPage: React.FC = () => {
                 })}
               </div>
 
-              {/* Shop Specific Options (Dine in / Parcel & Notes) */}
-              <div className="vaango-cart-shop-options-grid">
+              {/* Preferences & Checkout Options */}
+              <div className="vaango-cart-preferences">
                 {offersDineIn && (
-                  <div className="vaango-cart-fulfillment-box">
+                  <div className="vaango-cart-pref-section vaango-cart-fulfillment-box">
                     <span className="vaango-cart-opt-label">{t('chooseFulfillment')}</span>
                     <div className="vaango-fulfillment-toggle" role="radiogroup">
                       {(['DINE_IN', 'TAKEAWAY'] as const).map((opt) => (
@@ -465,7 +468,7 @@ export const CartPage: React.FC = () => {
                             setShopFulfillments((prev) => ({ ...prev, [shopId]: opt }))
                           }
                         >
-                          <span>{opt === 'TAKEAWAY' ? 'Parcel / Takeaway' : 'Dine-in'}</span>
+                          <span>{opt === 'TAKEAWAY' ? '📦 Parcel / Takeaway' : '🍽️ Dine-in'}</span>
                           <small>{opt === 'TAKEAWAY' ? 'I want to take it with me' : "I'm going to eat here"}</small>
                         </button>
                       ))}
@@ -473,25 +476,28 @@ export const CartPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Pickup Timing (ASAP vs Schedule Pickup) */}
-                <div className="vaango-cart-pickup-box">
-                  <span className="vaango-cart-opt-label">Pickup Timing</span>
-                  <div className="vaango-fulfillment-toggle" role="radiogroup">
+                {/* VISUAL SECTION 1: PICKUP TIMING */}
+                <div className="vaango-cart-pref-section vaango-cart-pickup-section">
+                  <div className="vaango-cart-section-header">
+                    <span className="vaango-cart-opt-label">Pickup Timing</span>
+                    <span className="vaango-cart-section-sub">Choose when you plan to collect your order</span>
+                  </div>
+                  <div className="vaango-cart-options-toggle" role="radiogroup" aria-label="Pickup Timing">
                     <button
                       type="button"
                       role="radio"
                       aria-checked={currentPickupMode === 'ASAP'}
-                      className={currentPickupMode === 'ASAP' ? 'active' : ''}
+                      className={`vaango-cart-option-btn ${currentPickupMode === 'ASAP' ? 'active' : ''}`}
                       onClick={() => setShopPickupModes((prev) => ({ ...prev, [shopId]: 'ASAP' }))}
                     >
-                      <span>⚡ ASAP</span>
-                      <small>Collect as soon as ready</small>
+                      <span className="vaango-cart-option-title">⚡ ASAP</span>
+                      <small className="vaango-cart-option-desc">Collect as soon as ready</small>
                     </button>
                     <button
                       type="button"
                       role="radio"
                       aria-checked={currentPickupMode === 'SCHEDULED'}
-                      className={currentPickupMode === 'SCHEDULED' ? 'active' : ''}
+                      className={`vaango-cart-option-btn ${currentPickupMode === 'SCHEDULED' ? 'active' : ''}`}
                       onClick={() => {
                         setShopPickupModes((prev) => ({ ...prev, [shopId]: 'SCHEDULED' }));
                         if (!shopPickupDates[shopId] && availableDates.length > 0) {
@@ -504,105 +510,137 @@ export const CartPage: React.FC = () => {
                         }
                       }}
                     >
-                      <span>📅 Schedule Pickup</span>
-                      <small>Choose date & time</small>
+                      <span className="vaango-cart-option-title">📅 Schedule Pickup</span>
+                      <small className="vaango-cart-option-desc">Choose a future collection time</small>
                     </button>
                   </div>
 
                   {currentPickupMode === 'SCHEDULED' && (
-                    <div className="vaango-scheduled-pickup-picker" style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <div>
-                        <label className="vaango-cart-opt-label" htmlFor={`pickup-date-${shopId}`}>
-                          Pickup Date
-                        </label>
-                        <select
-                          id={`pickup-date-${shopId}`}
-                          className="vaango-select"
-                          style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', fontSize: '0.875rem' }}
-                          value={currentPickupDate}
-                          onChange={(e) => {
-                            const newDate = e.target.value;
-                            setShopPickupDates((prev) => ({ ...prev, [shopId]: newDate }));
-                            const newSlots = getAvailablePickupSlots(shop, newDate, shop.slot_config?.timeZone);
-                            if (newSlots.length > 0) {
-                              setShopPickupTimes((prev) => ({ ...prev, [shopId]: newSlots[0].isoTimestamp }));
-                            } else {
-                              setShopPickupTimes((prev) => ({ ...prev, [shopId]: '' }));
-                            }
-                          }}
-                        >
-                          {availableDates.map((d) => (
-                            <option key={d.dateStr} value={d.dateStr}>
-                              {d.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="vaango-cart-opt-label" htmlFor={`pickup-time-${shopId}`}>
-                          Pickup Time Slot ({shop.slot_config?.timeZone || 'Shop Time'})
-                        </label>
-                        {availableSlots.length > 0 ? (
+                    <div className="vaango-scheduled-pickup-panel">
+                      <div className="vaango-pickup-fields-grid">
+                        <div className="vaango-pickup-field">
+                          <label className="vaango-cart-opt-label" htmlFor={`pickup-date-${shopId}`}>
+                            Pickup Date
+                          </label>
                           <select
-                            id={`pickup-time-${shopId}`}
+                            id={`pickup-date-${shopId}`}
                             className="vaango-select"
-                            style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--color-border)', fontSize: '0.875rem' }}
-                            value={currentPickupTime || availableSlots[0].isoTimestamp}
+                            value={currentPickupDate}
                             onChange={(e) => {
-                              setShopPickupTimes((prev) => ({ ...prev, [shopId]: e.target.value }));
+                              const newDate = e.target.value;
+                              setShopPickupDates((prev) => ({ ...prev, [shopId]: newDate }));
+                              const newSlots = getAvailablePickupSlots(shop, newDate, shop.slot_config?.timeZone);
+                              if (newSlots.length > 0) {
+                                setShopPickupTimes((prev) => ({ ...prev, [shopId]: newSlots[0].isoTimestamp }));
+                              } else {
+                                setShopPickupTimes((prev) => ({ ...prev, [shopId]: '' }));
+                              }
                             }}
                           >
-                            {availableSlots.map((slot) => (
-                              <option key={slot.isoTimestamp} value={slot.isoTimestamp}>
-                                {slot.formattedTime}
+                            {availableDates.map((d) => (
+                              <option key={d.dateStr} value={d.dateStr}>
+                                {d.label}
                               </option>
                             ))}
                           </select>
-                        ) : (
-                          <div
-                            style={{
-                              fontSize: '0.75rem',
-                              color: 'var(--color-warning-dark, #b45309)',
-                              backgroundColor: 'var(--color-warning-light, #fef3c7)',
-                              padding: '8px 10px',
-                              borderRadius: 6,
-                              border: '1px solid var(--color-warning-border, #fcd34d)',
-                            }}
-                          >
-                            ⚠️ No more pickup slots available for today. Please select a future date above.
-                          </div>
-                        )}
+                        </div>
+
+                        <div className="vaango-pickup-field">
+                          <label className="vaango-cart-opt-label" htmlFor={`pickup-time-${shopId}`}>
+                            Pickup Time ({shopTimezoneLabel})
+                          </label>
+                          {availableSlots.length > 0 ? (
+                            <select
+                              id={`pickup-time-${shopId}`}
+                              className="vaango-select"
+                              value={currentPickupTime || availableSlots[0].isoTimestamp}
+                              onChange={(e) => {
+                                setShopPickupTimes((prev) => ({ ...prev, [shopId]: e.target.value }));
+                              }}
+                            >
+                              {availableSlots.map((slot) => (
+                                <option key={slot.isoTimestamp} value={slot.isoTimestamp}>
+                                  {slot.formattedTime}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div className="vaango-pickup-no-slots">
+                              <span className="vaango-pickup-no-slots-msg">
+                                ⚠️ No more pickup slots available for {isSelectedDateToday ? 'today' : 'this date'}.
+                              </span>
+                              {availableDates.length > 1 && (
+                                <button
+                                  type="button"
+                                  className="vaango-pickup-switch-date-btn"
+                                  onClick={() => {
+                                    const nextDate = availableDates.find((d) => d.dateStr !== currentPickupDate);
+                                    if (nextDate) {
+                                      setShopPickupDates((prev) => ({ ...prev, [shopId]: nextDate.dateStr }));
+                                      const nextSlots = getAvailablePickupSlots(shop, nextDate.dateStr, shop.slot_config?.timeZone);
+                                      if (nextSlots.length > 0) {
+                                        setShopPickupTimes((prev) => ({ ...prev, [shopId]: nextSlots[0].isoTimestamp }));
+                                      }
+                                    }
+                                  }}
+                                >
+                                  Choose {availableDates.find((d) => d.dateStr !== currentPickupDate)?.label || 'Next Available Date'} →
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Clear informative note when 1 slot remains */}
+                      {availableSlots.length === 1 && isSelectedDateToday && (
+                        <div className="vaango-pickup-single-slot-notice">
+                          <Clock size={15} className="text-primary shrink-0" />
+                          <span>
+                            This is today&apos;s remaining available pickup option ({availableSlots[0].formattedTime} {shopTimezoneLabel}). Earlier slots have already passed.
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
-                <div className="vaango-cart-payment-box">
-                  <span className="vaango-cart-opt-label">Payment Method</span>
-                  <div className="vaango-fulfillment-toggle" role="radiogroup">
+                {/* VISUAL SECTION 2: PAYMENT METHOD */}
+                <div className="vaango-cart-pref-section vaango-cart-payment-section">
+                  <div className="vaango-cart-section-header">
+                    <span className="vaango-cart-opt-label">Payment Method</span>
+                    <span className="vaango-cart-section-sub">Choose how you wish to pay</span>
+                  </div>
+                  <div className="vaango-cart-options-toggle" role="radiogroup" aria-label="Payment Method">
                     <button
                       type="button"
-                      className={currentPayment === 'cash' ? 'active' : ''}
+                      role="radio"
+                      aria-checked={currentPayment === 'pay_at_shop'}
+                      className={`vaango-cart-option-btn ${currentPayment === 'pay_at_shop' ? 'active' : ''}`}
                       onClick={() => {
                         void removePendingPaymentProof(paymentProofPaths[shopId] || null);
                         setPaymentProofPaths((prev) => ({ ...prev, [shopId]: null }));
-                        setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'cash' }));
+                        setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'pay_at_shop' }));
                       }}
                     >
-                      Cash on Delivery
+                      <span className="vaango-cart-option-title">🏪 Pay at Shop</span>
+                      <small className="vaango-cart-option-desc">Pay cash or UPI at the counter when collecting</small>
                     </button>
                     <button
                       type="button"
+                      role="radio"
+                      aria-checked={currentPayment === 'upi'}
                       disabled={!isValidUpiQrUrl(shop.upi_qr_url)}
-                      className={currentPayment === 'upi' ? 'active' : ''}
+                      className={`vaango-cart-option-btn ${currentPayment === 'upi' ? 'active' : ''}`}
                       onClick={() =>
                         setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'upi' }))
                       }
                     >
-                      UPI / Online
+                      <span className="vaango-cart-option-title">📱 UPI / Online</span>
+                      <small className="vaango-cart-option-desc">Pay via UPI QR and upload payment screenshot</small>
                     </button>
                   </div>
+
                   {currentPayment === 'upi' && user && (
                     <UpiPaymentPanel
                       shopName={shop.name}

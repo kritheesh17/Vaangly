@@ -42,10 +42,10 @@ interface CartContextType {
   clearCart: () => void;
   clearShopItems: (shopId: string) => void;
   shopGroups: ShopCartGroup[];
-  submitRequest: (paymentMethod?: 'cash' | 'upi', paymentProofPath?: string | null) => Promise<{ success: boolean; request?: Request; error?: string }>;
+  submitRequest: (paymentMethod?: 'pay_at_shop' | 'cash' | 'upi', paymentProofPath?: string | null) => Promise<{ success: boolean; request?: Request; error?: string }>;
   submitShopRequest: (
     shopId: string,
-    paymentMethod?: 'cash' | 'upi',
+    paymentMethod?: 'pay_at_shop' | 'cash' | 'upi',
     overrideFulfillment?: 'DINE_IN' | 'TAKEAWAY' | null,
     shopNotes?: string,
     paymentProofPath?: string | null,
@@ -257,7 +257,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Submit request for a specific shop
   const submitShopRequest = async (
     shopId: string,
-    paymentMethod: 'cash' | 'upi' = 'cash',
+    paymentMethod: 'pay_at_shop' | 'cash' | 'upi' = 'pay_at_shop',
     overrideFulfillment?: 'DINE_IN' | 'TAKEAWAY' | null,
     shopNotes?: string,
     paymentProofPath?: string | null,
@@ -523,7 +523,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Backward compatible single submit
-  const submitRequest = async (paymentMethod: 'cash' | 'upi' = 'cash', paymentProofPath?: string | null): Promise<{ success: boolean; request?: Request; error?: string }> => {
+  const submitRequest = async (paymentMethod: 'pay_at_shop' | 'cash' | 'upi' = 'pay_at_shop', paymentProofPath?: string | null): Promise<{ success: boolean; request?: Request; error?: string }> => {
     if (shopGroups.length === 0) {
       return { success: false, error: 'Cart is empty.' };
     }
