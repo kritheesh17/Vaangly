@@ -11,7 +11,8 @@ const getEnvVar = (key: string): string => {
 };
 
 const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
-const supabasePublishableKey = getEnvVar('VITE_SUPABASE_PUBLISHABLE_KEY');
+const supabasePublishableKey =
+  getEnvVar('VITE_SUPABASE_PUBLISHABLE_KEY') || getEnvVar('VITE_SUPABASE_ANON_KEY');
 const configuredAppUrl = getEnvVar('VITE_APP_URL')?.trim().replace(/\/$/, '');
 
 if (!supabaseUrl && typeof window !== 'undefined') {
@@ -19,7 +20,7 @@ if (!supabaseUrl && typeof window !== 'undefined') {
 }
 
 if (!supabasePublishableKey && typeof window !== 'undefined') {
-  throw new Error('Missing VITE_SUPABASE_PUBLISHABLE_KEY environment variable');
+  throw new Error('Missing VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY environment variable');
 }
 
 export const supabase = createClient(

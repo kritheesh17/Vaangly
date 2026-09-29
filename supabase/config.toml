@@ -165,6 +165,10 @@ site_url = "https://vaangly.vercel.app"
 additional_redirect_urls = [
   "https://vaangly.vercel.app/**",
   "https://vaangly.vercel.app/auth/callback",
+  "http://localhost:*/**",
+  "http://localhost:*/auth/callback",
+  "http://127.0.0.1:*/**",
+  "http://127.0.0.1:*/auth/callback",
   "http://localhost:3000/**",
   "http://localhost:3000/auth/callback",
   "http://localhost:3001/**",
@@ -351,6 +355,10 @@ email_optional = false
 [auth.external.google]
 client_id = "97669078658-aumourv6e1hetk0cl7chkm9ac7ncba9t.apps.googleusercontent.com"
 enabled = true
+# DO NOT commit your OAuth provider secret to git. Use environment variable substitution instead:
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+redirect_uri = "http://localhost:54321/auth/v1/callback"
+skip_nonce_check = false
 
 # Allow Solana wallet holders to sign in to your project via the Sign in with Solana (SIWS, EIP-4361) standard.
 # You can configure "web3" rate limit in the [auth.rate_limit] section and set up [auth.captcha] if self-hosting.
