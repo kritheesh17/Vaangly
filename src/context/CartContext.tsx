@@ -443,22 +443,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           : `New order #${referenceCode} from ${customerName}. Open Vaangly to view the order.`;
 
         if (shopOwnerId) {
-          void createNotification({
-            recipient_id: shopOwnerId,
-            shop_id: targetShop.id,
-            type: 'NEW_ORDER',
-            title: notifTitle,
-            message: notifBody,
-            reference_id: createdRequest.id,
-            reference_code: referenceCode,
-          });
+          try {
+            await createNotification({
+              recipient_id: shopOwnerId,
+              shop_id: targetShop.id,
+              type: 'NEW_ORDER',
+              title: notifTitle,
+              message: notifBody,
+              reference_id: createdRequest.id,
+              reference_code: referenceCode,
+            });
+          } catch (notifErr) {
+            console.warn('[Cart] Failed to create in-app notification:', notifErr);
+          }
 
-          void sendBusinessPushNotification({
-            userId: shopOwnerId,
-            title: notifTitle,
-            body: notifBody,
-            url: '/shopkeeper/requests',
-          });
+          try {
+            await sendBusinessPushNotification({
+              userId: shopOwnerId,
+              title: notifTitle,
+              body: notifBody,
+              url: '/shopkeeper/requests',
+            });
+          } catch (pushErr) {
+            console.warn('[Cart] Failed to dispatch business push notification:', pushErr);
+          }
         }
       } else {
         // Mock fallback mode: persist in localStorage request ledger

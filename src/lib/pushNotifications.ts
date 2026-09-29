@@ -496,24 +496,25 @@ export async function sendBusinessPushNotification({
   title,
   body,
   url,
+  origin,
 }: {
   userId: string;
   title: string;
   body: string;
   url: string;
+  origin?: string;
 }): Promise<{ success: boolean; error?: string }> {
   if (!isSupabaseConfigured || !userId) {
     return { success: false, error: 'Supabase unconfigured or missing userId' };
   }
   try {
-    const origin = getCurrentOrigin();
     const { error } = await supabase.functions.invoke('send-push-notification', {
       body: {
         user_id: userId,
         title,
         body,
         url,
-        origin,
+        ...(origin ? { origin } : {}),
       },
     });
     if (error) {

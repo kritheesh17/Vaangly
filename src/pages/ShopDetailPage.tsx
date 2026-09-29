@@ -246,22 +246,30 @@ export const ShopDetailPage: React.FC = () => {
       if (shop.owner_id) {
         const notifTitle = 'New custom cake request';
         const notifBody = `New custom cake request #${referenceCode} from ${user.full_name || 'Customer'}. Open Vaangly to view the details.`;
-        void createNotification({
-          recipient_id: shop.owner_id,
-          shop_id: shop.id,
-          type: 'NEW_ORDER',
-          title: notifTitle,
-          message: notifBody,
-          reference_id: data.id,
-          reference_code: referenceCode,
-        });
+        try {
+          await createNotification({
+            recipient_id: shop.owner_id,
+            shop_id: shop.id,
+            type: 'NEW_ORDER',
+            title: notifTitle,
+            message: notifBody,
+            reference_id: data.id,
+            reference_code: referenceCode,
+          });
+        } catch (notifErr) {
+          console.warn('[ShopDetail] Failed to create notification:', notifErr);
+        }
 
-        void sendBusinessPushNotification({
-          userId: shop.owner_id,
-          title: notifTitle,
-          body: notifBody,
-          url: '/shopkeeper/requests',
-        });
+        try {
+          await sendBusinessPushNotification({
+            userId: shop.owner_id,
+            title: notifTitle,
+            body: notifBody,
+            url: '/shopkeeper/requests',
+          });
+        } catch (pushErr) {
+          console.warn('[ShopDetail] Failed to send business push:', pushErr);
+        }
       }
 
       setCakeModalOpen(false);
