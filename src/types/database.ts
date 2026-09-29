@@ -262,6 +262,14 @@ export interface Request {
   payment_verified_at?: string | null;
   payment_verified_by?: string | null;
   payment_rejection_reason?: string | null;
+  refund_status?: 'not_required' | 'required' | 'initiated' | 'refunded' | 'failed' | null;
+  refund_amount?: number | null;
+  refund_method?: 'cash' | 'upi' | 'other' | null;
+  refund_reference?: string | null;
+  refund_initiated_at?: string | null;
+  refund_completed_at?: string | null;
+  refund_reason?: string | null;
+  refund_recorded_by?: string | null;
   token_number?: number | null;
   hold_expires_at?: string | null;
   paid_at?: string | null;

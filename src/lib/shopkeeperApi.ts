@@ -878,9 +878,22 @@ export const transitionRequestState = async (
       };
     }
 
+    const requiresRefund = ['CANCELLED', 'REJECTED'].includes(newState)
+      && (currentReq.customer_paid || ['PAYMENT_VERIFIED', 'paid'].includes(currentReq.payment_status || ''))
+      && currentReq.refund_status !== 'refunded';
     const updated: Request = {
       ...currentReq,
       current_state: newState,
+      ...(requiresRefund ? {
+        refund_status: 'required' as const,
+        refund_amount: currentReq.refund_amount ?? currentReq.payment_amount ?? currentReq.total_estimate ?? 0,
+        refund_method: null,
+        refund_reference: null,
+        refund_initiated_at: null,
+        refund_completed_at: null,
+        refund_reason: currentReq.refund_reason || 'Cancelled after verified payment.',
+        refund_recorded_by: null,
+      } : {}),
       updated_at: new Date().toISOString(),
     };
     allReqs[index] = updated;
@@ -1038,6 +1051,94 @@ export const markRequestCustomerPaid = async (
     return { success: true, request: updated };
   } catch {
     return { success: false, error: 'Unable to update payment status.' };
+  }
+};
+
+/**
+ * Record a refund that a shopkeeper has actually handed back for a Pay-at-Shop
+ * payment. Online refunds intentionally have no client-side shortcut: there is
+ * no gateway integration in Vaangly that can verify an external UPI refund.
+ */
+export const recordPayAtShopRefund = async (
+  requestId: string,
+  refundMethod: 'cash' | 'upi' | 'other' = 'cash',
+  refundReference?: string,
+  refundReason?: string,
+): Promise<{ success: boolean; request?: Request; error?: string }> => {
+  if (isSupabaseConfigured) {
+    try {
+      const { data: result, error } = await supabase.rpc('record_pay_at_shop_refund', {
+        p_request_id: requestId,
+        p_refund_method: refundMethod,
+        p_refund_reference: refundReference?.trim() || null,
+        p_refund_reason: refundReason?.trim() || null,
+      });
+
+      if (error || !result?.success) {
+        return { success: false, error: result?.error || error?.message || 'Unable to record refund.' };
+      }
+
+      const { data: request, error: requestError } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('id', requestId)
+        .single();
+
+      if (requestError || !request) {
+        return { success: false, error: requestError?.message || 'Refund was recorded but the request could not be reloaded.' };
+      }
+
+      return { success: true, request: request as Request };
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Unable to record refund.' };
+    }
+  }
+
+  try {
+    const raw = localStorage.getItem(DEMO_REQUESTS_KEY);
+    const requests: Request[] = raw ? JSON.parse(raw) : [];
+    const index = requests.findIndex((item) => item.id === requestId);
+    if (index === -1) return { success: false, error: 'Request not found.' };
+
+    const current = requests[index];
+    if (!['CANCELLED', 'REJECTED'].includes(current.current_state) || current.refund_status !== 'required') {
+      return { success: false, error: 'This request does not have a refund ready to record.' };
+    }
+    if (!['cash', 'pay_at_shop'].includes((current.payment_method || 'cash').toLowerCase())) {
+      return { success: false, error: 'Online refunds must be processed by the external payment provider.' };
+    }
+
+    const nowIso = new Date().toISOString();
+    const updated: Request = {
+      ...current,
+      payment_status: 'refunded',
+      refund_status: 'refunded',
+      refund_amount: current.refund_amount ?? current.payment_amount ?? current.total_estimate ?? 0,
+      refund_method: refundMethod,
+      refund_reference: refundReference?.trim() || null,
+      refund_reason: refundReason?.trim() || current.refund_reason || 'Cancelled after verified payment.',
+      refund_completed_at: nowIso,
+      refund_recorded_by: 'shopkeeper',
+      updated_at: nowIso,
+    };
+    requests[index] = updated;
+    localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(requests));
+
+    const events: RequestEvent[] = JSON.parse(localStorage.getItem(DEMO_REQUEST_EVENTS_KEY) || '[]');
+    events.push({
+      id: `evt-refund-${Date.now()}`,
+      request_id: requestId,
+      from_state: updated.current_state,
+      to_state: updated.current_state,
+      actor_id: 'shopkeeper',
+      actor_role: 'shopkeeper',
+      notes: `Refund returned by shopkeeper: ₹${updated.refund_amount} via ${refundMethod}.`,
+      created_at: nowIso,
+    });
+    localStorage.setItem(DEMO_REQUEST_EVENTS_KEY, JSON.stringify(events));
+    return { success: true, request: updated };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unable to record refund.' };
   }
 };
 
@@ -1516,4 +1617,3 @@ export const updateShopSubscriptionTier = async (
   }
   return res;
 };
-

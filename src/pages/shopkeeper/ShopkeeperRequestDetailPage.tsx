@@ -21,7 +21,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { Request, RequestEvent } from '../../types/database';
 import { WorkflowStateCode, WorkflowGroupCode } from '../../types/workflow';
-import { markRequestCustomerPaid, rejectRequestPayment, transitionRequestState } from '../../lib/shopkeeperApi';
+import { markRequestCustomerPaid, recordPayAtShopRefund, rejectRequestPayment, transitionRequestState } from '../../lib/shopkeeperApi';
 import { confirmServicePrice } from '../../lib/appointmentServiceApi';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { resolvePaymentProofUrl } from '../../lib/paymentProof';
@@ -87,6 +87,10 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
   // Payment Rejection Modal
   const [isRejectPaymentModalOpen, setIsRejectPaymentModalOpen] = useState(false);
   const [paymentRejectionReason, setPaymentRejectionReason] = useState('');
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+  const [refundMethod, setRefundMethod] = useState<'cash' | 'upi' | 'other'>('cash');
+  const [refundReference, setRefundReference] = useState('');
+  const [refundReason, setRefundReason] = useState('');
 
   // Service Price Confirmation Modal
   const [priceModalOpen, setPriceModalOpen] = useState(false);
@@ -285,6 +289,31 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
     }
   };
 
+  const handleRecordRefund = async () => {
+    if (!request) return;
+    setIsActionLoading(true);
+    try {
+      const result = await recordPayAtShopRefund(
+        request.id,
+        refundMethod,
+        refundReference,
+        refundReason,
+      );
+      if (result.success && result.request) {
+        setRequest(result.request);
+        setIsRefundModalOpen(false);
+        setRefundReference('');
+        setRefundReason('');
+        success('Refund recorded as returned to the customer.');
+        await loadRequestAndHistory();
+      } else {
+        toastError(result.error || t('genericError'));
+      }
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
   // Handle Confirm Service Price & Transition
   const handleConfirmPriceAndTransition = async () => {
     if (!request || !user) return;
@@ -358,10 +387,6 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
 
   const renderPaymentSection = () => {
     if (!request) return null;
-    // Don't show payment block if request was cancelled or rejected before acceptance
-    if (['REJECTED', 'CANCELLED'].includes(request.current_state)) {
-      return null;
-    }
 
     const rawMethod = request.payment_method || decoded.payment_method;
     const methodLower = (rawMethod || '').toLowerCase();
@@ -376,6 +401,43 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
       request.payment_status === 'PAYMENT_VERIFIED' ||
       request.payment_status === 'paid'
     );
+    const isTerminal = ['REJECTED', 'CANCELLED'].includes(request.current_state);
+    const refundAmount = request.refund_amount ?? request.payment_amount ?? payableAmount;
+
+    if (isTerminal) {
+      if (!request.refund_status || request.refund_status === 'not_required') return null;
+      const isRefunded = request.refund_status === 'refunded' || request.payment_status === 'refunded';
+      return (
+        <div className="vaango-req-payment-section">
+          <div className="vaango-req-payment-divider" />
+          <div className="vaango-req-payment-header">
+            <div className="vaango-req-payment-kicker">Refund</div>
+            <Badge variant={isRefunded ? 'success' : request.refund_status === 'failed' ? 'error' : 'warning'} size="sm" withDot>
+              {isRefunded ? 'Refunded' : request.refund_status === 'initiated' ? 'Refund Initiated' : request.refund_status === 'failed' ? 'Refund Failed' : 'Refund Required'}
+            </Badge>
+          </div>
+          {isRefunded ? (
+            <div className="vaango-req-payment-paid-msg">
+              <CheckCircle size={16} className="text-success shrink-0" />
+              <span>₹{refundAmount} was recorded as returned by the shopkeeper{request.refund_method ? ` via ${request.refund_method.toUpperCase()}` : ''}.</span>
+            </div>
+          ) : isPayAtShop ? (
+            <div className="vaango-req-payment-pending-box">
+              <p className="vaango-req-payment-desc"><strong>Refund required.</strong> Payment collected: <strong>₹{refundAmount}</strong>. This request was cancelled after payment was collected.</p>
+              <p className="vaango-req-payment-question">Return the money to the customer, then record the completed return here.</p>
+              <div className="vaango-req-payment-actions">
+                <Button variant="accent" size="md" isLoading={isActionLoading} onClick={() => setIsRefundModalOpen(true)} leftIcon={<IndianRupee size={16} />}>Mark Refund Given</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="vaango-req-payment-pending-box">
+              <p className="vaango-req-payment-desc"><strong>Refund required.</strong> Online payment of <strong>₹{refundAmount}</strong> was verified before this request was cancelled.</p>
+              <p className="vaango-req-payment-question">Vaangly has no connected payment gateway to initiate or confirm a UPI/bank refund. Return the money through the merchant's payment provider and do not mark this request refunded until that transfer is actually complete.</p>
+            </div>
+          )}
+        </div>
+      );
+    }
 
     return (
       <div className="vaango-req-payment-section">
@@ -1462,6 +1524,41 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <Modal
+        isOpen={isRefundModalOpen}
+        onClose={() => {
+          setIsRefundModalOpen(false);
+          setRefundReference('');
+          setRefundReason('');
+        }}
+        title="Record Pay-at-Shop Refund"
+        description="Confirm this only after the money has actually been returned to the customer."
+        maxWidth="sm"
+      >
+        <div className="space-y-4 pt-2">
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1.5" htmlFor="refund-method">Refund method</label>
+            <select id="refund-method" value={refundMethod} onChange={(e) => setRefundMethod(e.target.value as 'cash' | 'upi' | 'other')} className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-foreground">
+              <option value="cash">Cash</option>
+              <option value="upi">UPI</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1.5" htmlFor="refund-reference">Refund reference (optional)</label>
+            <Input id="refund-reference" value={refundReference} onChange={(e) => setRefundReference(e.target.value)} placeholder="Receipt or UPI reference" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1.5" htmlFor="refund-note">Refund note (optional)</label>
+            <Input id="refund-note" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} placeholder="How the money was returned" />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="md" onClick={() => setIsRefundModalOpen(false)} disabled={isActionLoading}>Cancel</Button>
+            <Button variant="primary" size="md" isLoading={isActionLoading} onClick={() => void handleRecordRefund()}>Confirm Refund Given</Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Payment Proof Rejection Modal */}
       <Modal

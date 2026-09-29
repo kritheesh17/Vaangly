@@ -11,10 +11,18 @@ import {
   FileText,
 } from 'lucide-react';
 import { Shop, ShopService, AppointmentSlot } from '../../types/database';
-import { fetchShopServices, fetchAppointmentSlots, bookAppointmentRequest } from '../../lib/appointmentServiceApi';
+import {
+  fetchShopServices,
+  fetchAppointmentSlots,
+  bookAppointmentRequest,
+  filterFutureSlots,
+  getShopCurrentDateTime,
+  DEFAULT_SHOP_TIMEZONE,
+} from '../../lib/appointmentServiceApi';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { isValidUpiQrUrl } from '../../lib/upi';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -34,14 +42,19 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
   const [services, setServices] = useState<ShopService[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
 
-  // Date selection: Next 7 days
+  // Date selection: Next 7 days based on shop's local time
   const dateOptions = useMemo(() => {
     const dates: { dateStr: string; label: string; dayName: string }[] = [];
-    const today = new Date();
+    const shopNow = getShopCurrentDateTime(DEFAULT_SHOP_TIMEZONE);
+    const shopBaseDate = new Date(shopNow.year, shopNow.month - 1, shopNow.day);
+
     for (let i = 0; i < 7; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      const dateStr = d.toISOString().split('T')[0];
+      const d = new Date(shopBaseDate);
+      d.setDate(shopBaseDate.getDate() + i);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${day}`;
       const dayName = i === 0
         ? t('today')
         : i === 1
@@ -149,13 +162,42 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
     };
   }, [shop.id, selectedDateStr, selectedServiceId]);
 
+  const bookableSlots = useMemo(() => {
+    return filterFutureSlots(slots, selectedDateStr, DEFAULT_SHOP_TIMEZONE);
+  }, [slots, selectedDateStr]);
+
   const selectedService = useMemo(() => {
     return services.find((s) => s.id === selectedServiceId) || null;
   }, [services, selectedServiceId]);
 
   const selectedSlot = useMemo(() => {
-    return slots.find((s) => s.id === selectedSlotId) || null;
-  }, [slots, selectedSlotId]);
+    return bookableSlots.find((s) => s.id === selectedSlotId) || null;
+  }, [bookableSlots, selectedSlotId]);
+
+  const hasAuthoritativeUpi = isValidUpiQrUrl(shop.upi_qr_url) && Boolean(shop.upi_id?.trim());
+  const appointmentAmount = selectedService?.base_price ?? selectedService?.min_price ?? 0;
+
+  useEffect(() => {
+    if (selectedService?.payment_requirement === 'online_only') {
+      if (hasAuthoritativeUpi) {
+        setPaymentMethod('online');
+      } else {
+        setPaymentMethod('pay_at_shop');
+      }
+    } else if (selectedService?.payment_requirement === 'shop_only') {
+      setPaymentMethod('pay_at_shop');
+    }
+  }, [selectedService?.payment_requirement, hasAuthoritativeUpi]);
+
+  const copyMerchantUpiId = async () => {
+    if (!shop.upi_id) return;
+    try {
+      await navigator.clipboard.writeText(shop.upi_id);
+      success('UPI ID copied.');
+    } catch {
+      toastError('Unable to copy the UPI ID. Please copy it manually.');
+    }
+  };
 
   const handleBookAppointment = async () => {
     if (!selectedService) {
@@ -177,6 +219,11 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
       return;
     }
 
+    if (paymentMethod === 'online' && !hasAuthoritativeUpi) {
+      setBookingError('Online payment is currently unavailable for this shop. Please choose Pay at Shop.');
+      return;
+    }
+
     setIsSubmitting(true);
     setBookingError(null);
 
@@ -186,6 +233,8 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
         shopName: shop.name,
         shopAddress: shop.address_line,
         shopPhone: shop.phone,
+        shopUpiId: shop.upi_id,
+        shopUpiQrUrl: shop.upi_qr_url,
         service: selectedService,
         slot: selectedSlot,
         customerId: user.id,
@@ -346,13 +395,13 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
 
         {isLoadingSlots ? (
           <div className="vaango-booking-loading">{t('loadingText')}</div>
-        ) : slots.length === 0 ? (
+        ) : bookableSlots.length === 0 ? (
           <div className="vaango-booking-empty">
             {t('noSlotsForDate')}
           </div>
         ) : (
           <div className="vaango-slots-grid" role="radiogroup" aria-label="Appointment Time Slots">
-            {slots.map((slot) => {
+            {bookableSlots.map((slot) => {
               const isSelected = slot.id === selectedSlotId;
               const capacity = slot.concurrent_capacity || 1;
               const bookedCount = slot.booked_count || 0;
@@ -454,7 +503,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
             <div className="vaango-form-group mb-4">
               <label className="vaango-form-label">Payment Method</label>
               <div className="vaango-payment-methods flex gap-3">
-                {selectedService.payment_requirement !== 'online_only' && (
+                {(selectedService.payment_requirement !== 'online_only' || !hasAuthoritativeUpi) && (
                   <button
                     type="button"
                     className={`flex-1 p-3 rounded-lg border text-left transition-all ${
@@ -481,6 +530,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                         ? 'border-primary bg-primary/5 text-primary font-semibold ring-2 ring-primary/20'
                         : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
+                    disabled={!hasAuthoritativeUpi}
                     onClick={() => setPaymentMethod('online')}
                   >
                     <div className="flex items-center gap-2">
@@ -488,12 +538,42 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                       <span>Pay Online (UPI)</span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      Reserve 10-min hold while uploading payment proof.
+                      {hasAuthoritativeUpi
+                        ? 'Reserve a 10-min hold while uploading payment proof.'
+                        : 'Online payment is unavailable until this shop adds its UPI QR.'}
                     </div>
                   </button>
                 )}
               </div>
             </div>
+
+            {paymentMethod === 'online' && (
+              <div className="vaango-appointment-upi-card" aria-live="polite">
+                {hasAuthoritativeUpi ? (
+                  <>
+                    <div>
+                      <strong>Pay Online (UPI)</strong>
+                      <p>Scan the merchant QR using any UPI app. Payment is verified only after you upload proof and the shopkeeper reviews it.</p>
+                    </div>
+                    <img src={shop.upi_qr_url || undefined} alt={`${shop.name} UPI QR code`} className="vaango-appointment-upi-card__qr" />
+                    <div className="vaango-appointment-upi-card__details">
+                      <span>UPI ID</span>
+                      <strong>{shop.upi_id}</strong>
+                      <span>Amount</span>
+                      <strong>₹{appointmentAmount}</strong>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => void copyMerchantUpiId()}>
+                      Copy UPI ID
+                    </Button>
+                    <p className="vaango-appointment-upi-card__hint">After you pay, use the booking button below to reserve the slot and upload your payment proof.</p>
+                  </>
+                ) : (
+                  <div className="vaango-booking-alert vaango-booking-alert--error">
+                    Online payment is currently unavailable for this shop. Please choose Pay at Shop.
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Review Summary Box */}
             <div className="vaango-review-box">
@@ -516,7 +596,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
               <div className="vaango-review-row">
                 <span className="vaango-review-label">{t('estimatedFeeLabel')}</span>
                 <strong className="vaango-review-value text-primary">
-                  {selectedService.base_price ? `₹${selectedService.base_price}` : t('payAtShop')}
+                  {appointmentAmount ? `₹${appointmentAmount}` : t('payAtShop')}
                 </strong>
               </div>
               <div className="vaango-review-notice">
@@ -531,7 +611,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
               isLoading={isSubmitting}
               onClick={handleBookAppointment}
             >
-              {isSubmitting ? t('bookingAppointment') : t('bookAppointmentBtn')}
+              {isSubmitting ? t('bookingAppointment') : paymentMethod === 'online' ? "I've Paid — Reserve & Upload Proof" : t('bookAppointmentBtn')}
             </Button>
           </Card>
         </section>

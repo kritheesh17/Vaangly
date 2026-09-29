@@ -15,7 +15,7 @@ import {
 import { Request } from '../types/database';
 import { WorkflowStateCode, WorkflowGroupCode } from '../types/workflow';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { cancelCustomerRequest } from '../lib/appointmentServiceApi';
+import { cancelCustomerRequest, confirmAppointmentOnlinePayment } from '../lib/appointmentServiceApi';
 import { RequestTimeline } from '../components/customer/RequestTimeline';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -63,7 +63,7 @@ interface DecodedPayload {
   shop_phone?: string;
   shop_upi_id?: string | null;
   shop_upi_qr_url?: string | null;
-  payment_method?: 'cash' | 'upi';
+  payment_method?: 'cash' | 'upi' | 'pay_at_shop' | 'online';
 }
 
 export const RequestDetailPage: React.FC = () => {
@@ -81,6 +81,7 @@ export const RequestDetailPage: React.FC = () => {
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null);
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
+  const [paymentEvents, setPaymentEvents] = useState<{ id: string; notes: string | null; created_at: string; actor_role?: string | null }[]>([]);
   const [userRating, setUserRating] = useState(0);
   const [hasRated, setHasRated] = useState(false);
   const [ratingModalOpen, setRatingModalOpen] = useState(false);
@@ -97,8 +98,17 @@ export const RequestDetailPage: React.FC = () => {
     setIsSubmittingProof(true);
     try {
       if (!isSupabaseConfigured) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        setRequest((prev) => prev ? { ...prev, payment_screenshot_url: URL.createObjectURL(paymentProofFile) } : prev);
+        const demoProofUrl = URL.createObjectURL(paymentProofFile);
+        if (groupCode === 'APPOINTMENT') {
+          const result = await confirmAppointmentOnlinePayment(request.id, demoProofUrl);
+          if (!result.success) throw new Error(result.error || 'Unable to submit payment proof.');
+        }
+        setRequest((prev) => prev ? {
+          ...prev,
+          payment_screenshot_url: demoProofUrl,
+          payment_status: 'PAYMENT_PROOF_SUBMITTED',
+          hold_expires_at: null,
+        } : prev);
         success(t('paymentProofDemo'));
         setPaymentProofFile(null);
         setPaymentProofPreview(null);
@@ -108,9 +118,17 @@ export const RequestDetailPage: React.FC = () => {
       const path = `requests/${request.id}/${crypto.randomUUID()}.${extension}`;
       const { error: uploadError } = await supabase.storage.from('payment-proofs').upload(path, paymentProofFile);
       if (uploadError) throw uploadError;
-      const { data, error } = await supabase.from('requests').update({ payment_screenshot_url: path }).eq('id', request.id).eq('customer_id', user.id).select().single();
-      if (error || !data) throw error || new Error('Unable to save payment proof.');
-      setRequest(data as Request);
+      if (groupCode === 'APPOINTMENT') {
+        const result = await confirmAppointmentOnlinePayment(request.id, path);
+        if (!result.success) throw new Error(result.error || 'Unable to submit payment proof.');
+        const { data, error } = await supabase.from('requests').select('*').eq('id', request.id).single();
+        if (error || !data) throw error || new Error('Unable to reload appointment payment.');
+        setRequest(data as Request);
+      } else {
+        const { data, error } = await supabase.from('requests').update({ payment_screenshot_url: path }).eq('id', request.id).eq('customer_id', user.id).select().single();
+        if (error || !data) throw error || new Error('Unable to save payment proof.');
+        setRequest(data as Request);
+      }
       success(t('paymentProofSuccess'));
     } catch (err) {
       toastError(err instanceof Error ? err.message : t('unableToSubmitProof'));
@@ -225,6 +243,12 @@ export const RequestDetailPage: React.FC = () => {
 
           if (!error && data && isMounted) {
             setRequest(data as Request);
+            const { data: events } = await supabase
+              .from('request_events')
+              .select('id, notes, created_at, actor_role')
+              .eq('request_id', data.id)
+              .order('created_at', { ascending: false });
+            if (isMounted) setPaymentEvents(events || []);
           }
         } catch (e) {
           console.error('Error fetching request detail:', e);
@@ -236,6 +260,10 @@ export const RequestDetailPage: React.FC = () => {
         const match = demoRequests.find((r) => r.id === requestId);
         if (match && isMounted) {
           setRequest(match);
+          const events = JSON.parse(localStorage.getItem('vaango_demo_request_events') || '[]')
+            .filter((event: { request_id?: string }) => event.request_id === match.id)
+            .sort((a: { created_at: string }, b: { created_at: string }) => b.created_at.localeCompare(a.created_at));
+          setPaymentEvents(events);
         }
       }
       if (isMounted) setIsLoading(false);
@@ -270,6 +298,24 @@ export const RequestDetailPage: React.FC = () => {
             }
             return updated;
           });
+          void supabase
+            .from('request_events')
+            .select('id, notes, created_at, actor_role')
+            .eq('request_id', payload.new.id)
+            .order('created_at', { ascending: false })
+            .then(({ data }) => setPaymentEvents(data || []));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'request_events',
+          filter: `request_id=eq.${requestId}`,
+        },
+        (payload: { new: { id: string; notes: string | null; created_at: string; actor_role?: string | null } }) => {
+          setPaymentEvents((current) => [payload.new, ...current]);
         }
       )
       .subscribe();
@@ -362,6 +408,15 @@ export const RequestDetailPage: React.FC = () => {
   const shopName = payload.shop_name || 'Local Merchant';
   const shopAddress = payload.shop_address || 'Town Center';
   const shopPhone = payload.shop_phone || '+91 98765 12345';
+  const rawPaymentMethod = request.payment_method || payload.payment_method || 'cash';
+  const isOnlinePayment = ['upi', 'online'].includes(rawPaymentMethod.toLowerCase());
+  const isPayAtShopPayment = ['cash', 'pay_at_shop'].includes(rawPaymentMethod.toLowerCase());
+  const paymentAmount = request.payment_amount ?? request.total_estimate ?? payload.price ?? payload.confirmed_price ?? 0;
+  const isPaymentVerified = request.payment_status === 'PAYMENT_VERIFIED' || request.payment_status === 'paid' || request.customer_paid;
+  const isPaymentRefunded = request.payment_status === 'refunded' || request.refund_status === 'refunded';
+  const refundAmount = request.refund_amount ?? paymentAmount;
+  const paymentActivity = paymentEvents.filter((event) => /payment|refund/i.test(event.notes || ''));
+  const paymentMethodLabel = isOnlinePayment ? 'Online / UPI' : isPayAtShopPayment ? 'Pay at Shop' : 'Payment method unavailable';
 
   return (
     <div className="container vaango-request-detail">
@@ -468,39 +523,55 @@ export const RequestDetailPage: React.FC = () => {
             <span>{['DINE_IN', 'dine_in'].includes(request.fulfillment_type || payload.fulfillment_type || '') ? '🍽️ Dine-in' : '📦 Parcel / Takeaway'}</span>
           </div>
         )}
-        {groupCode === 'ORDER' && payload.payment_method === 'upi' && !request.customer_paid && (
-          <div className="vaango-upi-payment-card">
-            {!isValidUpiQrUrl(payload.shop_upi_qr_url) ? <p className="vaango-cart-payment-error">UPI payment is currently unavailable because this shop has not configured its UPI QR code.</p> : <>
-              <h3>{t('payViaUpiTitle')}</h3>
-              <p className="text-secondary text-sm">{t('payViaUpiSubtitle')}</p>
-              <img src={payload.shop_upi_qr_url} alt="Shop UPI QR code" className="vaango-upi-qr" />
-              {payload.shop_upi_id && <>
-                <a className="vaango-upi-open-btn" href={`upi://pay?pa=${payload.shop_upi_id}&pn=${encodeURIComponent(payload.shop_name || 'Shop')}&cu=INR`}>{t('openUpiAppBtn')}</a>
-                <p className="text-xs text-secondary mt-2">{t('upiIdLabel', { upiId: payload.shop_upi_id })}</p>
-              </>}
-              {!request.payment_screenshot_url || request.payment_status === 'PAYMENT_REJECTED' ? <>
-                <label className="vaango-form-label mt-3" htmlFor="payment-proof">{t('uploadPaymentScreenshotLabel')}</label>
-                <input id="payment-proof" type="file" accept="image/*" className="vaango-file-input" onChange={(e) => { const file = e.target.files?.[0] || null; setPaymentProofFile(file); setPaymentProofPreview(file ? URL.createObjectURL(file) : null); }} />
-                {paymentProofPreview && <img src={paymentProofPreview} alt="Payment screenshot preview" className="vaango-payment-proof-preview" />}
-                <Button type="button" variant="primary" size="sm" isLoading={isSubmittingProof} disabled={!paymentProofFile} onClick={() => void handleSubmitPaymentProof()}>{t('submitPaymentProofBtn')}</Button>
-              </> : <Badge variant="warning" size="md">{t('paymentScreenshotSubmittedBadge')}</Badge>}
-              {request.payment_status === 'PAYMENT_VERIFIED' ? <Badge variant="success" size="md">Payment verified by shop</Badge> : <Badge variant="warning" size="md">Payment proof submitted · awaiting verification</Badge>}
-            </>}
+        <div className={`vaango-customer-payment-card ${isPayAtShopPayment ? 'vaango-pay-at-shop-card' : ''}`}>
+          <div className="vaango-customer-payment-card__header">
+            <span>Payment</span>
+            {isPaymentRefunded ? (
+              <Badge variant="success" size="sm" withDot>Refunded</Badge>
+            ) : isPaymentVerified ? (
+              <Badge variant="success" size="sm" withDot>{isOnlinePayment ? 'Payment Verified' : 'Paid'}</Badge>
+            ) : (
+              <Badge variant="neutral" size="sm" withDot>{isOnlinePayment ? 'Pending verification' : 'Awaiting Payment'}</Badge>
+            )}
           </div>
-        )}
-        {groupCode === 'ORDER' && !request.customer_paid && (payload.payment_method === 'cash' || request.payment_method === 'cash' || request.payment_method === 'pay_at_shop') && (
-          <div className="vaango-pay-at-shop-card">
-            <div className="vaango-pay-at-shop-card__header">
-              <span className="text-xs font-bold uppercase tracking-wider text-primary">Payment</span>
-              <Badge variant="neutral" size="sm" withDot>Awaiting Payment</Badge>
+          <strong className="vaango-customer-payment-card__amount">₹{paymentAmount}</strong>
+          <div className="vaango-customer-payment-card__row"><span>Payment method</span><strong>{paymentMethodLabel}</strong></div>
+          <div className="vaango-customer-payment-card__row"><span>Status</span><strong>{isPaymentRefunded ? 'Refunded' : isPaymentVerified ? (isOnlinePayment ? 'Payment verified' : 'Paid') : isOnlinePayment ? 'Awaiting payment verification' : 'Awaiting Payment'}</strong></div>
+
+          {isOnlinePayment && !isPaymentVerified && !isPaymentRefunded && (
+            <div className="vaango-customer-payment-card__upi">
+              {isValidUpiQrUrl(payload.shop_upi_qr_url) && payload.shop_upi_id ? <>
+                <h3>{t('payViaUpiTitle')}</h3>
+                <p className="text-secondary text-sm">Scan the shop's QR using any UPI app, then upload a payment screenshot. Uploading proof does not verify payment.</p>
+                <img src={payload.shop_upi_qr_url} alt={`${shopName} UPI QR code`} className="vaango-upi-qr" />
+                <p className="text-xs text-secondary mt-2">UPI ID: <strong>{payload.shop_upi_id}</strong> · Amount: <strong>₹{paymentAmount}</strong></p>
+                <div className="vaango-customer-payment-card__actions">
+                  <Button type="button" variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(payload.shop_upi_id || '').then(() => success('UPI ID copied.')).catch(() => toastError('Unable to copy UPI ID.'))}>Copy UPI ID</Button>
+                  <a className="vaango-upi-open-btn" href={`upi://pay?pa=${encodeURIComponent(payload.shop_upi_id)}&pn=${encodeURIComponent(shopName)}&am=${encodeURIComponent(String(paymentAmount))}&cu=INR`}>{t('openUpiAppBtn')}</a>
+                </div>
+                {!request.payment_screenshot_url || request.payment_status === 'PAYMENT_REJECTED' ? <>
+                  <label className="vaango-form-label mt-3" htmlFor="payment-proof">I've Paid — Upload Payment Proof</label>
+                  <input id="payment-proof" type="file" accept="image/*" className="vaango-file-input" onChange={(e) => { const file = e.target.files?.[0] || null; setPaymentProofFile(file); setPaymentProofPreview(file ? URL.createObjectURL(file) : null); }} />
+                  {paymentProofPreview && <img src={paymentProofPreview} alt="Payment screenshot preview" className="vaango-payment-proof-preview" />}
+                  <Button type="button" variant="primary" size="sm" isLoading={isSubmittingProof} disabled={!paymentProofFile} onClick={() => void handleSubmitPaymentProof()}>{t('submitPaymentProofBtn')}</Button>
+                </> : <Badge variant="warning" size="md">{t('paymentScreenshotSubmittedBadge')}</Badge>}
+              </> : <p className="vaango-cart-payment-error">Online payment is currently unavailable for this shop. No merchant QR is displayed.</p>}
             </div>
-            <h3 className="text-sm font-bold text-foreground mb-1">💵 Pay at Shop (Cash on Pickup)</h3>
-            <p className="text-xs text-secondary mb-0">
-              Please pay ₹{request.total_estimate ?? 0} in cash or at the counter when you pick up your order.
-            </p>
+          )}
+
+          {isPayAtShopPayment && !isPaymentVerified && !isPaymentRefunded && <p className="text-xs text-secondary mb-0">Please pay ₹{paymentAmount} at the shop or counter.</p>}
+          {isPaymentVerified && !isPaymentRefunded && <div className="vaango-paid-confirm">{t('paymentConfirmedBanner')}</div>}
+        </div>
+
+        {request.refund_status && request.refund_status !== 'not_required' && (
+          <div className={`vaango-customer-refund-card vaango-customer-refund-card--${request.refund_status}`}>
+            <div className="vaango-customer-payment-card__header"><span>Refund</span><Badge variant={request.refund_status === 'refunded' ? 'success' : request.refund_status === 'failed' ? 'error' : 'warning'} size="sm" withDot>{request.refund_status.replace('_', ' ')}</Badge></div>
+            <strong className="vaango-customer-payment-card__amount">₹{refundAmount}</strong>
+            {request.refund_status === 'refunded' ? <p>{isPayAtShopPayment ? `₹${refundAmount} was collected and has been marked as returned by the shopkeeper.` : `₹${refundAmount} has been refunded.`}</p> : request.refund_status === 'initiated' ? <p>Refund initiated. The merchant is completing the return through their payment provider.</p> : request.refund_status === 'failed' ? <p>Refund could not be completed yet. Please contact the shop for an update.</p> : <p>Refund required: this request was cancelled after a verified payment. The shop must return ₹{refundAmount}.</p>}
           </div>
         )}
-        {request.customer_paid && <div className="vaango-paid-confirm">{t('paymentConfirmedBanner')}</div>}
+
+        {paymentActivity.length > 0 && <div className="vaango-payment-activity"><strong>Payment Activity</strong>{paymentActivity.slice(0, 4).map((event) => <div className="vaango-payment-activity__event" key={event.id}><span>{new Date(event.created_at).toLocaleString()}</span><p>{event.notes}</p>{event.actor_role === 'shopkeeper' && <small>Recorded by: Shopkeeper</small>}</div>)}</div>}
       </div>
 
       {/* Timeline Section */}

@@ -184,3 +184,132 @@ export const validateWorkingHoursAndBreaks = (
 
   return { valid: true };
 };
+
+/**
+ * Canonical default shop operating timezone (Asia/Kolkata for Indian shops).
+ */
+export const DEFAULT_SHOP_TIMEZONE = 'Asia/Kolkata';
+
+export interface ShopCurrentDateTime {
+  dateStr: string; // YYYY-MM-DD in shop local timezone
+  currentMinutes: number; // minutes from midnight (0..1439) in shop local timezone
+  formattedTime: string; // HH:mm (24-hour)
+  year: number;
+  month: number; // 1-indexed (1..12)
+  day: number; // 1..31
+  hour: number; // 0..23
+  minute: number; // 0..59
+}
+
+/**
+ * Returns the current date and time in the shop's local timezone.
+ * Uses Intl.DateTimeFormat for strict timezone-safe date/time resolution.
+ */
+export const getShopCurrentDateTime = (
+  timeZone: string = DEFAULT_SHOP_TIMEZONE,
+  targetDate: Date = new Date()
+): ShopCurrentDateTime => {
+  const safeTz = timeZone || DEFAULT_SHOP_TIMEZONE;
+  let formatter: Intl.DateTimeFormat;
+  try {
+    formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: safeTz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: DEFAULT_SHOP_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  }
+
+  const parts = formatter.formatToParts(targetDate);
+  const getPart = (type: string) => parts.find((p) => p.type === type)?.value || '';
+
+  const year = parseInt(getPart('year'), 10) || targetDate.getFullYear();
+  const month = parseInt(getPart('month'), 10) || targetDate.getMonth() + 1;
+  const day = parseInt(getPart('day'), 10) || targetDate.getDate();
+  const hour = parseInt(getPart('hour'), 10) || 0;
+  const minute = parseInt(getPart('minute'), 10) || 0;
+
+  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const currentMinutes = hour * 60 + minute;
+  const formattedTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+
+  return {
+    dateStr,
+    currentMinutes,
+    formattedTime,
+    year,
+    month,
+    day,
+    hour,
+    minute,
+  };
+};
+
+/**
+ * Checks if an appointment slot has already started or passed based on the shop's local time.
+ * - If slot_date is in the past (< current shop date): returns true
+ * - If slot_date is in the future (> current shop date): returns false
+ * - If slot_date is today: returns true if slot start_time <= current shop time (slot already started)
+ */
+export const isSlotInPast = (
+  slotDateStr: string,
+  slotStartTime: string,
+  timeZone: string = DEFAULT_SHOP_TIMEZONE,
+  nowDate: Date = new Date()
+): boolean => {
+  if (!slotDateStr || !slotStartTime) return false;
+  const shopNow = getShopCurrentDateTime(timeZone, nowDate);
+
+  if (slotDateStr < shopNow.dateStr) {
+    return true;
+  }
+  if (slotDateStr > shopNow.dateStr) {
+    return false;
+  }
+
+  const slotStartMinutes = parseTimeToMinutes(slotStartTime);
+  return slotStartMinutes <= shopNow.currentMinutes;
+};
+
+/**
+ * Filters appointment slots for customer booking:
+ * - If selectedDateStr is a past date: returns []
+ * - If selectedDateStr is today: returns ONLY slots where slot.start_time > current shop time
+ * - If selectedDateStr is a future date: returns all slots unchanged
+ */
+export const filterFutureSlots = <T extends { slot_date: string; start_time: string }>(
+  slots: T[],
+  selectedDateStr: string,
+  timeZone: string = DEFAULT_SHOP_TIMEZONE,
+  nowDate: Date = new Date()
+): T[] => {
+  if (!slots || slots.length === 0) return [];
+  const shopNow = getShopCurrentDateTime(timeZone, nowDate);
+
+  // 1. Past dates: no slots can be booked
+  if (selectedDateStr < shopNow.dateStr) {
+    return [];
+  }
+
+  // 2. Future dates: all configured slots are valid (subject to capacity/breaks)
+  if (selectedDateStr > shopNow.dateStr) {
+    return slots;
+  }
+
+  // 3. Today: ONLY slots whose start time is strictly in the future (has not started yet)
+  return slots.filter((slot) => parseTimeToMinutes(slot.start_time) > shopNow.currentMinutes);
+};
+

@@ -6,6 +6,10 @@ import {
   parseTimeToMinutes,
   minutesToFormattedTime,
   validateWorkingHoursAndBreaks,
+  isSlotInPast,
+  filterFutureSlots,
+  getShopCurrentDateTime,
+  DEFAULT_SHOP_TIMEZONE,
   type WorkingPeriodInput,
   type BreakInput,
   type ValidationResult,
@@ -15,6 +19,10 @@ export {
   parseTimeToMinutes,
   minutesToFormattedTime,
   validateWorkingHoursAndBreaks,
+  isSlotInPast,
+  filterFutureSlots,
+  getShopCurrentDateTime,
+  DEFAULT_SHOP_TIMEZONE,
   type WorkingPeriodInput,
   type BreakInput,
   type ValidationResult,
@@ -161,6 +169,8 @@ export interface BookAppointmentParams {
   shopName: string;
   shopAddress: string;
   shopPhone: string;
+  shopUpiId?: string | null;
+  shopUpiQrUrl?: string | null;
   service: ShopService;
   slot: AppointmentSlot;
   customerId: string;
@@ -195,6 +205,8 @@ export const bookAppointmentRequest = async (
     shopName,
     shopAddress,
     shopPhone,
+    shopUpiId,
+    shopUpiQrUrl,
     service,
     slot,
     customerId,
@@ -205,6 +217,14 @@ export const bookAppointmentRequest = async (
     isOnlineHold = false,
     holdMinutes = 10,
   } = params;
+
+  // Guard: do not allow booking slots that have already started or passed
+  if (isSlotInPast(slot.slot_date, slot.start_time)) {
+    return {
+      success: false,
+      error: 'This appointment slot has already started or passed. Please choose a future slot.',
+    };
+  }
 
   const referenceCode = `APT-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -225,6 +245,8 @@ export const bookAppointmentRequest = async (
     shop_name: shopName,
     shop_address: shopAddress,
     shop_phone: shopPhone,
+    shop_upi_id: shopUpiId || null,
+    shop_upi_qr_url: shopUpiQrUrl || null,
   };
 
   if (isSupabaseConfigured) {
@@ -969,8 +991,23 @@ export const cancelCustomerRequest = async (
     }
 
     const fromState = req.current_state;
-    allReqs[idx].current_state = 'CANCELLED';
-    allReqs[idx].updated_at = new Date().toISOString();
+    const nowIso = new Date().toISOString();
+    const requiresRefund = req.customer_paid || ['PAYMENT_VERIFIED', 'paid'].includes(req.payment_status || '');
+    allReqs[idx] = {
+      ...req,
+      current_state: 'CANCELLED',
+      ...(requiresRefund && req.refund_status !== 'refunded' ? {
+        refund_status: 'required' as const,
+        refund_amount: req.refund_amount ?? req.payment_amount ?? req.total_estimate ?? 0,
+        refund_method: null,
+        refund_reference: null,
+        refund_initiated_at: null,
+        refund_completed_at: null,
+        refund_reason: req.refund_reason || 'Cancelled after verified payment.',
+        refund_recorded_by: null,
+      } : {}),
+      updated_at: nowIso,
+    };
     localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(allReqs));
 
     // Free slot in demo slots if appointment
@@ -1343,5 +1380,3 @@ export const fetchShopAppointmentQueue = async (
 
   return { success: true, date: dateStr, intervals: [] };
 };
-
-
