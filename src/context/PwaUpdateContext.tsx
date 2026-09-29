@@ -85,8 +85,14 @@ export const PwaUpdateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     // 2. Auto-reload when the new service worker takes control (controllerchange)
+    let hadController = Boolean(navigator.serviceWorker.controller);
     let refreshing = false;
     const handleControllerChange = () => {
+      if (!hadController) {
+        // First-time service worker claim; do not reload the page
+        hadController = true;
+        return;
+      }
       if (refreshing) return;
       refreshing = true;
       console.log('[Vaangly PWA] Controller changed, reloading to run latest application version...');
