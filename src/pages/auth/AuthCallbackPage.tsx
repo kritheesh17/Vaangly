@@ -15,35 +15,49 @@ export const AuthCallbackPage: React.FC = () => {
   const [state, setState] = useState<CallbackState>('loading');
   const [message, setMessage] = useState('Completing your authentication...');
   const [email, setEmail] = useState('');
-  const hasExchangedRef = useRef(false);
+  const exchangePromiseRef = useRef<Promise<any> | null>(null);
 
   useEffect(() => {
     let mounted = true;
     const completeConfirmation = async () => {
       const query = new URLSearchParams(window.location.search);
       const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const errorParam = query.get('error') || hash.get('error');
       const errorDescription = query.get('error_description') || hash.get('error_description');
       const pendingEmail = localStorage.getItem('vaangly_pending_confirmation_email') || '';
       if (pendingEmail) setEmail(pendingEmail);
-      if (errorDescription) {
+
+      // 1. Google Cancelled / Access Denied
+      if (errorParam === 'access_denied' || (errorDescription && /access_denied|cancelled/i.test(errorDescription))) {
+        if (mounted) {
+          setState('error');
+          setMessage('Google sign-in was cancelled.');
+        }
+        return;
+      }
+
+      // 2. Generic OAuth / confirmation errors
+      if (errorDescription || errorParam) {
         if (mounted) {
           if (query.get('type') === 'recovery' || hash.get('type') === 'recovery' || query.get('redirect') === '/reset-password') {
             navigate(`/reset-password${window.location.search}${window.location.hash}`, { replace: true });
             return;
           }
           setState('error');
-          const normalized = errorDescription.replace(/\+/g, ' ');
-          setMessage(/expired/i.test(normalized)
+          const rawError = (errorDescription || errorParam || '').replace(/\+/g, ' ');
+          setMessage(/expired/i.test(rawError)
             ? 'This confirmation link has expired. Request a new confirmation email.'
-            : /invalid|missing/i.test(normalized)
+            : /invalid|missing/i.test(rawError)
               ? 'This confirmation link is invalid. Request a new confirmation email.'
-              : normalized);
+              : rawError);
         }
         return;
       }
 
       const code = query.get('code');
       const tokenHash = query.get('token_hash');
+      const accessToken = hash.get('access_token');
+      const refreshToken = hash.get('refresh_token');
       const otpType = (query.get('type') || hash.get('type') || 'signup') as any;
 
       const isRecovery =
@@ -52,20 +66,66 @@ export const AuthCallbackPage: React.FC = () => {
         hash.get('type') === 'recovery' ||
         query.get('redirect') === '/reset-password';
 
-      if (code && !hasExchangedRef.current) {
-        hasExchangedRef.current = true;
-        try {
-          const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeErr) console.warn('exchangeCodeForSession warning:', exchangeErr.message);
-        } catch (exchangeErr) {
-          console.error('Error exchanging code for session:', exchangeErr);
+      let flowError: string | null = null;
+
+      // FLOW A: PKCE (?code=...)
+      if (code) {
+        if (!exchangePromiseRef.current) {
+          exchangePromiseRef.current = supabase.auth.exchangeCodeForSession(code);
         }
-      } else if (tokenHash) {
         try {
-          const { error: verifyErr } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: otpType });
-          if (verifyErr) console.warn('verifyOtp warning:', verifyErr.message);
-        } catch (verifyErr) {
+          const { error: exchangeErr } = await exchangePromiseRef.current;
+          if (exchangeErr) {
+            console.warn('exchangeCodeForSession warning:', exchangeErr.message);
+            flowError = exchangeErr.message;
+          }
+        } catch (exchangeErr: any) {
+          console.error('Error exchanging code for session:', exchangeErr);
+          flowError = exchangeErr?.message || 'Code exchange failed';
+        }
+      }
+      // FLOW B: HASH SESSION (#access_token=...&refresh_token=...)
+      else if (accessToken && refreshToken) {
+        if (!exchangePromiseRef.current) {
+          exchangePromiseRef.current = supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+        }
+        try {
+          const { error: sessionErr } = await exchangePromiseRef.current;
+          if (sessionErr) {
+            console.warn('setSession warning:', sessionErr.message);
+            flowError = sessionErr.message;
+          } else {
+            // Safely clear hash from URL bar for security without page reload
+            if (typeof window !== 'undefined' && window.history?.replaceState) {
+              window.history.replaceState(
+                window.history.state,
+                '',
+                window.location.pathname + window.location.search
+              );
+            }
+          }
+        } catch (sessionErr: any) {
+          console.error('Error setting session from hash:', sessionErr);
+          flowError = sessionErr?.message || 'Session setup failed';
+        }
+      }
+      // FLOW C: Token Hash OTP Verify (?token_hash=...)
+      else if (tokenHash) {
+        if (!exchangePromiseRef.current) {
+          exchangePromiseRef.current = supabase.auth.verifyOtp({ token_hash: tokenHash, type: otpType });
+        }
+        try {
+          const { error: verifyErr } = await exchangePromiseRef.current;
+          if (verifyErr) {
+            console.warn('verifyOtp warning:', verifyErr.message);
+            flowError = verifyErr.message;
+          }
+        } catch (verifyErr: any) {
           console.error('Error verifying OTP token hash:', verifyErr);
+          flowError = verifyErr?.message || 'OTP verification failed';
         }
       }
 
@@ -74,11 +134,28 @@ export const AuthCallbackPage: React.FC = () => {
         return;
       }
 
-      const { data, error } = await supabase.auth.getSession();
+      // Check authenticated session
+      let { data, error } = await supabase.auth.getSession();
+
+      // Grace period if session is pending storage sync
+      if (!data?.session?.user && (accessToken || code)) {
+        await new Promise((r) => setTimeout(r, 200));
+        const retry = await supabase.auth.getSession();
+        data = retry.data;
+        error = retry.error || error;
+      }
+
       if (!mounted) return;
+
       if (error || !data.session?.user) {
         setState('error');
-        setMessage(error ? 'A network or Auth error prevented authentication. Please try again.' : 'This authentication session is missing, invalid, or expired.');
+        if (code && flowError) {
+          setMessage('Authentication code exchange failed. Please try signing in again.');
+        } else if (accessToken) {
+          setMessage('Your Google sign-in session could not be completed. Please try again.');
+        } else {
+          setMessage(error ? 'A network or Auth error prevented authentication. Please try again.' : 'This authentication session is missing, invalid, or expired.');
+        }
         return;
       }
 
@@ -234,7 +311,11 @@ export const AuthCallbackPage: React.FC = () => {
         {state === 'loading' && <RefreshCw size={22} className="vaango-spin text-primary" aria-label="Loading" />}
         {state === 'success' && <CheckCircle2 size={22} className="text-success" aria-label="Success" />}
         {state === 'error' && <AlertCircle size={22} className="text-error" aria-label="Error" />}
-        {state === 'error' && email && <Button type="button" variant="primary" fullWidth onClick={handleResend}>Resend confirmation email</Button>}
+        {state === 'error' && email ? (
+          <Button type="button" variant="primary" fullWidth onClick={handleResend}>Resend confirmation email</Button>
+        ) : state === 'error' ? (
+          <Button type="button" variant="primary" fullWidth onClick={() => navigate('/login')}>Back to Login</Button>
+        ) : null}
         <div className="vaango-auth-footer">
           <Link to="/login" className="vaango-auth-link">Return to sign in</Link>{' · '}
           <Link to="/register" className="vaango-auth-link">Create an account</Link>
