@@ -64,6 +64,14 @@ describe('PWA Installation State Machine and Feedback', () => {
     assert.ok(standaloneInfo.detail.includes('Already running as an installed application'));
   });
 
+  // Test 7b: Safety race timeout does NOT falsely claim success
+  it('7b. Safety race timeout: does not falsely claim "Installed successfully" when appinstalled is delayed', () => {
+    const completingInfo = getInstallStatusInfo('INSTALLING', 'completing');
+    assert.strictEqual(completingInfo.title, 'Installation request accepted');
+    assert.ok(!completingInfo.title.includes('installed successfully'));
+    assert.ok(completingInfo.detail.includes('completing setup in the background'));
+  });
+
   // Test 8 & 9: User cancels -> DISMISSED / cancelled state
   it('8 & 9. User cancels prompt: handles DISMISSED state gracefully', () => {
     const cancelledInfo = getInstallStatusInfo('DISMISSED', 'cancelled');
@@ -105,6 +113,7 @@ describe('PWA Installation State Machine and Feedback', () => {
       'preparing',
       'prompt_opened',
       'installing',
+      'completing',
       'installed',
       'cancelled',
       'unavailable',
@@ -139,6 +148,7 @@ describe('PWA Installation State Machine and Feedback', () => {
       'preparing',
       'prompt_opened',
       'installing',
+      'completing',
       'installed',
       'cancelled',
       'unavailable',

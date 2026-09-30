@@ -29,6 +29,7 @@ export const PwaInstallStatusModal: React.FC = () => {
   if (!isInstallFeedbackOpen) return null;
 
   const isPending = installPhase === 'preparing' || installPhase === 'prompt_opened' || installPhase === 'installing';
+  const isCompleting = installPhase === 'completing';
   const isInstalled = installPhase === 'installed' || installState === 'INSTALLED';
   const isCancelled = installPhase === 'cancelled' || installState === 'DISMISSED';
   const isError = installPhase === 'error' || installState === 'ERROR';
@@ -95,7 +96,7 @@ export const PwaInstallStatusModal: React.FC = () => {
           className={`vaangly-install-status-box ${
             isPending
               ? 'vaangly-install-status-box--installing'
-              : isInstalled
+              : isInstalled || isCompleting
               ? 'vaangly-install-status-box--installed'
               : isCancelled
               ? 'vaangly-install-status-box--cancelled'
@@ -108,7 +109,7 @@ export const PwaInstallStatusModal: React.FC = () => {
             className={`vaangly-install-status-box__icon-wrap ${
               isPending
                 ? 'vaangly-install-status-box__icon-wrap--spinner'
-                : isInstalled
+                : isInstalled || isCompleting
                 ? 'vaangly-install-status-box__icon-wrap--success'
                 : isCancelled
                 ? 'vaangly-install-status-box__icon-wrap--warning'
@@ -118,7 +119,7 @@ export const PwaInstallStatusModal: React.FC = () => {
             }`}
           >
             {isPending && <Loader2 size={20} />}
-            {isInstalled && <CheckCircle2 size={20} />}
+            {(isInstalled || isCompleting) && <CheckCircle2 size={20} />}
             {isCancelled && <AlertCircle size={20} />}
             {isError && <XCircle size={20} />}
             {isUnavailable && <Smartphone size={20} />}
@@ -164,6 +165,16 @@ export const PwaInstallStatusModal: React.FC = () => {
               className="w-full"
             >
               Open Vaangly
+            </Button>
+          ) : isCompleting ? (
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              onClick={resetInstallFeedback}
+              className="w-full"
+            >
+              Got It
             </Button>
           ) : isPending ? (
             <Button

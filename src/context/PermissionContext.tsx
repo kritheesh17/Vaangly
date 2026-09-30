@@ -27,6 +27,7 @@ export type InstallFeedbackPhase =
   | 'preparing'
   | 'prompt_opened'
   | 'installing'
+  | 'completing'
   | 'installed'
   | 'cancelled'
   | 'unavailable'
@@ -60,6 +61,11 @@ export function getInstallStatusInfo(state: InstallState, phase: InstallFeedback
       return {
         title: 'Installing Vaangly...',
         detail: 'Adding Vaangly to your device and configuring offline access...',
+      };
+    case 'completing':
+      return {
+        title: 'Installation request accepted',
+        detail: 'The browser is completing setup in the background. Check your home screen or app launcher for Vaangly.',
       };
     case 'installed':
       return {
@@ -499,8 +505,10 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           setInstallPhase('installing');
 
           // Wait for appinstalled event or safe timeout
+          let receivedAppInstalled = false;
           await new Promise<void>((resolve) => {
             const onInstalled = () => {
+              receivedAppInstalled = true;
               window.removeEventListener('appinstalled', onInstalled);
               resolve();
             };
@@ -511,10 +519,17 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             }, 3500);
           });
 
-          setIsInstalled(true);
-          setIsInstallable(false);
-          setInstallState('INSTALLED');
-          setInstallPhase('installed');
+          if (receivedAppInstalled || checkIsInstalled()) {
+            setIsInstalled(true);
+            setIsInstallable(false);
+            setInstallState('INSTALLED');
+            setInstallPhase('installed');
+          } else {
+            // Truthful state: User accepted, browser is completing setup in background
+            setIsInstallable(false);
+            setInstallState('INSTALLING');
+            setInstallPhase('completing');
+          }
           isInstallingRef.current = false;
           return 'accepted';
         } else {
