@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -15,6 +15,7 @@ export const AuthCallbackPage: React.FC = () => {
   const [state, setState] = useState<CallbackState>('loading');
   const [message, setMessage] = useState('Completing your authentication...');
   const [email, setEmail] = useState('');
+  const hasExchangedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -51,7 +52,8 @@ export const AuthCallbackPage: React.FC = () => {
         hash.get('type') === 'recovery' ||
         query.get('redirect') === '/reset-password';
 
-      if (code) {
+      if (code && !hasExchangedRef.current) {
+        hasExchangedRef.current = true;
         try {
           const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeErr) console.warn('exchangeCodeForSession warning:', exchangeErr.message);
