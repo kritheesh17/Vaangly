@@ -25,7 +25,15 @@ if (!supabasePublishableKey && typeof window !== 'undefined') {
 
 export const supabase = createClient(
   supabaseUrl || 'http://127.0.0.1:54321',
-  supabasePublishableKey || 'dummy-key'
+  supabasePublishableKey || 'dummy-key',
+  {
+    auth: {
+      flowType: 'pkce',
+      detectSessionInUrl: true,
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  }
 );
 
 export const getAuthRedirectUrl = (redirectPath?: string): string => {

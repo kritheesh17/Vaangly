@@ -176,4 +176,24 @@ describe('Localhost Google OAuth Environment & Flow Guards', () => {
       '.gitignore includes .env'
     );
   });
+
+  // Test 9: Verify Supabase client configures flowType: 'pkce'
+  it('9. src/lib/supabase.ts configures standard flowType: pkce and session persistence', () => {
+    const supabaseConfigContent = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/lib/supabase.ts'),
+      'utf-8'
+    );
+    assert.ok(
+      supabaseConfigContent.includes("flowType: 'pkce'"),
+      'Supabase client specifies flowType: pkce'
+    );
+    assert.ok(
+      supabaseConfigContent.includes('detectSessionInUrl: true'),
+      'Supabase client specifies detectSessionInUrl: true'
+    );
+    assert.ok(
+      supabaseConfigContent.includes('persistSession: true'),
+      'Supabase client specifies persistSession: true'
+    );
+  });
 });
