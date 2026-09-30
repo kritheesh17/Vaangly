@@ -96,41 +96,24 @@ describe('Localhost Google OAuth Environment & Flow Guards', () => {
     assert.strictEqual(exchangeCount, 1, 'PKCE code was only exchanged once despite double mount');
   });
 
-  // Test 5: AuthCallbackPage supports hash session flow (#access_token=...&refresh_token=...)
-  it('5. AuthCallbackPage supports hash session flow (#access_token=...&refresh_token=...)', async () => {
+  // Test 5: AuthCallbackPage handles legacy hash tokens gracefully without manual authentication
+  it('5. AuthCallbackPage handles legacy hash tokens safely by prompting user to sign in via PKCE', () => {
     const callbackContent = fs.readFileSync(
       path.resolve(process.cwd(), 'src/pages/auth/AuthCallbackPage.tsx'),
       'utf-8'
     );
     assert.ok(
-      callbackContent.includes('accessToken && refreshToken'),
-      'Detects access_token and refresh_token from hash'
+      callbackContent.includes('hasLegacyHashToken'),
+      'Detects legacy hash token in fragment'
     );
     assert.ok(
-      callbackContent.includes('supabase.auth.setSession'),
-      'Calls supabase.auth.setSession with hash tokens'
+      callbackContent.includes('Your sign-in session used an outdated authentication flow.'),
+      'Shows safe outdated authentication flow message'
     );
-
-    // Simulate hash flow execution with shared promise ref
-    let setSessionCount = 0;
-    const ref = { current: null as Promise<any> | null };
-
-    const simulateHashMount = async () => {
-      const accessToken = 'mock_jwt_access_token';
-      const refreshToken = 'mock_refresh_token';
-      if (accessToken && refreshToken) {
-        if (!ref.current) {
-          setSessionCount++;
-          ref.current = Promise.resolve({ data: { session: {} }, error: null });
-        }
-        return await ref.current;
-      }
-    };
-
-    // Simulate concurrent mounts in StrictMode
-    await Promise.all([simulateHashMount(), simulateHashMount()]);
-
-    assert.strictEqual(setSessionCount, 1, 'setSession was only invoked once despite double mount');
+    assert.ok(
+      callbackContent.includes("window.history.replaceState(null, '', window.location.pathname)"),
+      'Safely cleans hash fragment from URL bar'
+    );
   });
 
   // Test 6: AuthCallbackPage handles Google OAuth cancellation gracefully

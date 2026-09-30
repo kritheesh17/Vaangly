@@ -54,10 +54,21 @@ export const AuthCallbackPage: React.FC = () => {
         return;
       }
 
+      // 3. Legacy Implicit Hash Fallback Handling (Section 5)
+      const hasLegacyHashToken = hash.has('access_token') || Boolean(hash.get('access_token'));
+      if (hasLegacyHashToken) {
+        if (typeof window !== 'undefined' && window.history?.replaceState) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+        if (mounted) {
+          setState('error');
+          setMessage('Your sign-in session used an outdated authentication flow. Please return to login and try again.');
+        }
+        return;
+      }
+
       const code = query.get('code');
       const tokenHash = query.get('token_hash');
-      const accessToken = hash.get('access_token');
-      const refreshToken = hash.get('refresh_token');
       const otpType = (query.get('type') || hash.get('type') || 'signup') as any;
 
       const isRecovery =
@@ -68,51 +79,34 @@ export const AuthCallbackPage: React.FC = () => {
 
       let flowError: string | null = null;
 
-      // FLOW A: PKCE (?code=...)
+      // 4. Primary Google OAuth PKCE Flow (?code=...)
       if (code) {
         if (!exchangePromiseRef.current) {
-          exchangePromiseRef.current = supabase.auth.exchangeCodeForSession(code);
+          exchangePromiseRef.current = (async () => {
+            // Check if client auto-detection already established the session
+            const { data: existingSession } = await supabase.auth.getSession();
+            if (existingSession?.session) {
+              return { data: existingSession, error: null };
+            }
+            return await supabase.auth.exchangeCodeForSession(code);
+          })();
         }
         try {
           const { error: exchangeErr } = await exchangePromiseRef.current;
           if (exchangeErr) {
             console.warn('exchangeCodeForSession warning:', exchangeErr.message);
-            flowError = exchangeErr.message;
+            // If the code was already exchanged during this load, check getSession
+            const { data: fallbackSession } = await supabase.auth.getSession();
+            if (!fallbackSession?.session) {
+              flowError = exchangeErr.message;
+            }
           }
         } catch (exchangeErr: any) {
           console.error('Error exchanging code for session:', exchangeErr);
           flowError = exchangeErr?.message || 'Code exchange failed';
         }
       }
-      // FLOW B: HASH SESSION (#access_token=...&refresh_token=...)
-      else if (accessToken && refreshToken) {
-        if (!exchangePromiseRef.current) {
-          exchangePromiseRef.current = supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-        }
-        try {
-          const { error: sessionErr } = await exchangePromiseRef.current;
-          if (sessionErr) {
-            console.warn('setSession warning:', sessionErr.message);
-            flowError = sessionErr.message;
-          } else {
-            // Safely clear hash from URL bar for security without page reload
-            if (typeof window !== 'undefined' && window.history?.replaceState) {
-              window.history.replaceState(
-                window.history.state,
-                '',
-                window.location.pathname + window.location.search
-              );
-            }
-          }
-        } catch (sessionErr: any) {
-          console.error('Error setting session from hash:', sessionErr);
-          flowError = sessionErr?.message || 'Session setup failed';
-        }
-      }
-      // FLOW C: Token Hash OTP Verify (?token_hash=...)
+      // 5. OTP / Magic Link Token Hash Verify (?token_hash=...)
       else if (tokenHash) {
         if (!exchangePromiseRef.current) {
           exchangePromiseRef.current = supabase.auth.verifyOtp({ token_hash: tokenHash, type: otpType });
@@ -137,22 +131,12 @@ export const AuthCallbackPage: React.FC = () => {
       // Check authenticated session
       let { data, error } = await supabase.auth.getSession();
 
-      // Grace period if session is pending storage sync
-      if (!data?.session?.user && (accessToken || code)) {
-        await new Promise((r) => setTimeout(r, 200));
-        const retry = await supabase.auth.getSession();
-        data = retry.data;
-        error = retry.error || error;
-      }
-
       if (!mounted) return;
 
       if (error || !data.session?.user) {
         setState('error');
         if (code && flowError) {
           setMessage('Authentication code exchange failed. Please try signing in again.');
-        } else if (accessToken) {
-          setMessage('Your Google sign-in session could not be completed. Please try again.');
         } else {
           setMessage(error ? 'A network or Auth error prevented authentication. Please try again.' : 'This authentication session is missing, invalid, or expired.');
         }
