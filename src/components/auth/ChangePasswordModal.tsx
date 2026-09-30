@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import './ChangePasswordModal.css';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -25,6 +27,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
     setPassword('');
     setConfirmPassword('');
     setShowPassword(false);
+    setShowConfirmPassword(false);
     setErrorMsg(null);
     setSuccessMsg(null);
   };
@@ -87,72 +90,83 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
       description="Enter a new secure password for your account."
       maxWidth="sm"
     >
-      <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+      <form onSubmit={handleSubmit} className="vaango-pwd-form" noValidate>
         {errorMsg && (
-          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-start gap-2.5 text-xs text-rose-700 dark:text-rose-400">
-            <AlertCircle size={15} className="mt-0.5 shrink-0" />
+          <div className="vaango-pwd-alert vaango-pwd-alert--error" role="alert">
+            <AlertCircle size={16} className="shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-start gap-2.5 text-xs text-emerald-700 dark:text-emerald-400">
-            <CheckCircle2 size={15} className="mt-0.5 shrink-0" />
+          <div className="vaango-pwd-alert vaango-pwd-alert--success" role="status">
+            <CheckCircle2 size={16} className="shrink-0" />
             <span>{successMsg}</span>
           </div>
         )}
 
-        <div>
-          <label className="block text-xs font-semibold text-foreground mb-1.5">
+        <div className="vaango-pwd-field">
+          <label htmlFor="new-password-input" className="vaango-pwd-label">
             New Password
           </label>
-          <div className="relative">
+          <div className="vaango-pwd-input-wrap">
             <input
+              id="new-password-input"
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Minimum 6 characters"
               disabled={isLoading || Boolean(successMsg)}
               autoComplete="new-password"
-              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary pr-10"
+              className="vaango-pwd-input"
+              required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-              tabIndex={-1}
+              className="vaango-pwd-toggle-btn"
+              aria-label={showPassword ? 'Hide new password' : 'Show new password'}
+              tabIndex={0}
             >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-foreground mb-1.5">
+        <div className="vaango-pwd-field">
+          <label htmlFor="confirm-password-input" className="vaango-pwd-label">
             Confirm New Password
           </label>
-          <div className="relative">
+          <div className="vaango-pwd-input-wrap">
             <input
-              type={showPassword ? 'text' : 'password'}
+              id="confirm-password-input"
+              type={showConfirmPassword ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Re-enter your new password"
               disabled={isLoading || Boolean(successMsg)}
               autoComplete="new-password"
-              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary pr-10"
+              className="vaango-pwd-input"
+              required
             />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
-              <Lock size={15} />
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="vaango-pwd-toggle-btn"
+              aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+              tabIndex={0}
+            >
+              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
         </div>
 
-        <div className="pt-2 flex items-center justify-end gap-2.5">
+        <div className="vaango-pwd-actions">
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="md"
+            className="vaango-pwd-btn"
             onClick={handleClose}
             disabled={isLoading}
           >
@@ -161,7 +175,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
           <Button
             type="submit"
             variant="primary"
-            size="sm"
+            size="md"
+            className="vaango-pwd-btn"
             isLoading={isLoading}
             disabled={Boolean(successMsg)}
           >

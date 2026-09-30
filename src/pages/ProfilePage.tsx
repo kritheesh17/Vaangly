@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Shield, MapPin, Phone, Mail, LogOut, CheckCircle2, Languages, Lock, KeyRound, AlertCircle, Edit3, Save, X, Smartphone, Bell, Navigation, Download, RefreshCw, Sparkles, Info, Calendar, ShoppingBag, Clock } from 'lucide-react';
+import { User, Shield, MapPin, Phone, Mail, LogOut, CheckCircle2, Languages, Lock, KeyRound, AlertCircle, Edit3, Save, X, Smartphone, Bell, Navigation, Download, RefreshCw, Sparkles, Info, Calendar, ShoppingBag, Clock, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLocationContext } from '../context/LocationContext';
@@ -30,6 +30,7 @@ export const ProfilePage: React.FC = () => {
     locationStatus,
     isInstallable,
     isInstalled,
+    isInstalling,
     notificationPrefs,
     updateNotificationPrefs,
     promptInstall,
@@ -490,6 +491,10 @@ export const ProfilePage: React.FC = () => {
               <div>
                 {isInstalled ? (
                   <Badge variant="success">Installed ✓</Badge>
+                ) : isInstalling ? (
+                  <Button variant="primary" size="sm" disabled leftIcon={<Loader2 size={14} className="animate-spin" />}>
+                    Installing...
+                  </Button>
                 ) : isInstallable ? (
                   <Button variant="primary" size="sm" onClick={() => promptInstall()} leftIcon={<Download size={14} />}>
                     Install Vaangly

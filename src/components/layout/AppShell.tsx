@@ -9,6 +9,7 @@ import { CartBar } from '../customer/CartBar';
 import './AppShell.css';
 import { InstallPrompt } from './InstallPrompt';
 import { PwaUpdateBanner } from './PwaUpdateBanner';
+import { PwaInstallStatusModal } from './PwaInstallStatusModal';
 import { FirstVisitPermissionModal } from '../permissions/FirstVisitPermissionModal';
 import { ManualInstallModal } from '../permissions/ManualInstallModal';
 import { PermissionCenterModal } from '../permissions/PermissionCenterModal';
@@ -57,6 +58,7 @@ export const AppShell: React.FC = () => {
       {/* Primary Header */}
       <Header />
       <InstallPrompt />
+      <PwaInstallStatusModal />
       <PwaUpdateBanner />
       <FirstVisitPermissionModal />
       <ManualInstallModal />

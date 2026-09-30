@@ -22,6 +22,7 @@ import {
   Users,
   Palette,
   ShieldCheck,
+  Loader2,
 } from 'lucide-react';
 import { usePermissions } from '../../context/PermissionContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -62,7 +63,15 @@ export const Header: React.FC = () => {
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
   const { pendingApplications, pendingCatalogue, shopkeeperNewRequests, customerActiveOrders } = useSectionUnreadCounts();
-  const { isInstalled, promptInstall, setIsPermissionCenterOpen } = usePermissions();
+  const { isInstalled, promptInstall, isInstalling, setIsPermissionCenterOpen } = usePermissions();
+
+  const [isMobileView, setIsMobileView] = useState(() => (typeof window !== 'undefined' ? window.innerWidth <= 640 : false));
+
+  useEffect(() => {
+    const handleResize = () => setIsMobileView(window.innerWidth <= 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Close account menu on outside click or Escape key
   useEffect(() => {
@@ -289,10 +298,20 @@ export const Header: React.FC = () => {
                 type="button"
                 className="vaangly-install-btn-header hidden md:inline-flex"
                 onClick={() => void promptInstall()}
-                title="Install Vaangly on your device"
+                disabled={isInstalling}
+                title={isInstalling ? 'Installing Vaangly...' : 'Install Vaangly on your device'}
               >
-                <Download size={14} />
-                <span>Install App</span>
+                {isInstalling ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Installing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={14} />
+                    <span>Install App</span>
+                  </>
+                )}
               </button>
             )}
 
@@ -344,8 +363,8 @@ export const Header: React.FC = () => {
                   />
                 </button>
 
-                {/* Dropdown Popover */}
-                {isAccountMenuOpen && (
+                {/* Desktop Dropdown Popover (Only on screens > 640px) */}
+                {isAccountMenuOpen && !isMobileView && (
                   <div className="vaango-account-dropdown" role="menu" aria-label="Account menu">
                     <div className="vaango-account-dropdown__header">
                       <div className="vaango-account-dropdown__kicker">
@@ -433,7 +452,10 @@ export const Header: React.FC = () => {
                       type="button"
                       role="menuitem"
                       className="vaango-account-dropdown__item"
-                      onClick={handleSwitchAccount}
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        handleSwitchAccount();
+                      }}
                     >
                       <div className="vaango-account-dropdown__item-left">
                         <Users size={15} />
@@ -445,7 +467,10 @@ export const Header: React.FC = () => {
                       type="button"
                       role="menuitem"
                       className="vaango-account-dropdown__item vaango-account-dropdown__item--danger"
-                      onClick={handleLogout}
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        handleLogout();
+                      }}
                     >
                       <div className="vaango-account-dropdown__item-left">
                         <LogOut size={15} />
@@ -558,13 +583,23 @@ export const Header: React.FC = () => {
                 <button
                   type="button"
                   className="vaango-mobile-menu__link w-full text-left flex items-center gap-2 font-semibold text-primary"
+                  disabled={isInstalling}
                   onClick={() => {
                     closeMobileMenu();
                     void promptInstall();
                   }}
                 >
-                  <Download size={18} />
-                  <span>Install Vaangly App</span>
+                  {isInstalling ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>Installing Vaangly...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download size={18} />
+                      <span>Install Vaangly App</span>
+                    </>
+                  )}
                 </button>
               )}
             </nav>
@@ -722,6 +757,152 @@ export const Header: React.FC = () => {
         isOpen={isChangePasswordOpen}
         onClose={() => setIsChangePasswordOpen(false)}
       />
+
+      {/* Mobile Account Bottom Sheet (When on mobile <= 640px) */}
+      {isAccountMenuOpen && isMobileView && user && (
+        <div
+          className="vaango-account-sheet-overlay"
+          onClick={() => setIsAccountMenuOpen(false)}
+          role="presentation"
+        >
+          <div
+            className="vaango-account-sheet"
+            onClick={(e) => e.stopPropagation()}
+            role="menu"
+            aria-label="Account menu"
+          >
+            <div className="vaango-account-sheet__drag-pill" />
+            <div className="vaango-account-sheet__header">
+              <div className="vaango-account-sheet__user-row">
+                <div className="vaango-account-sheet__avatar">
+                  {role === 'admin' ? (
+                    <ShieldCheck size={20} />
+                  ) : (
+                    user.full_name?.charAt(0).toUpperCase() || <User size={18} />
+                  )}
+                </div>
+                <div className="vaango-account-sheet__user-info">
+                  <span className="vaango-account-sheet__kicker">
+                    {role === 'admin'
+                      ? 'Admin Account'
+                      : role === 'shopkeeper'
+                      ? 'Shopkeeper Account'
+                      : 'Customer Account'}
+                  </span>
+                  <div className="vaango-account-sheet__name">
+                    {user.full_name || (role === 'admin' ? 'Administrator' : 'User')}
+                  </div>
+                  <div className="vaango-account-sheet__email" title={user.email || ''}>
+                    {user.email}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="vaango-account-sheet__close-btn"
+                onClick={() => setIsAccountMenuOpen(false)}
+                aria-label="Close account menu"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="vaango-account-sheet__menu">
+              <button
+                type="button"
+                role="menuitem"
+                className="vaango-account-sheet__item"
+                onClick={() => {
+                  setIsAccountMenuOpen(false);
+                  navigate('/profile');
+                }}
+              >
+                <div className="vaango-account-sheet__item-left">
+                  <Settings size={18} />
+                  <span>Account Settings</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                className="vaango-account-sheet__item"
+                onClick={() => {
+                  setIsAccountMenuOpen(false);
+                  setIsChangePasswordOpen(true);
+                }}
+              >
+                <div className="vaango-account-sheet__item-left">
+                  <KeyRound size={18} />
+                  <span>Change Password</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                className="vaango-account-sheet__item"
+                onClick={() => {
+                  setIsAccountMenuOpen(false);
+                  setIsPermissionCenterOpen(true);
+                }}
+              >
+                <div className="vaango-account-sheet__item-left">
+                  <Bell size={18} />
+                  <span>Notification Settings</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                className="vaango-account-sheet__item"
+                onClick={() => {
+                  toggleTheme();
+                }}
+              >
+                <div className="vaango-account-sheet__item-left">
+                  <Palette size={18} />
+                  <span>Appearance</span>
+                </div>
+                <span className="vaango-account-dropdown__badge">
+                  {theme === 'dark' ? 'Dark' : 'Light'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                className="vaango-account-sheet__item"
+                onClick={() => {
+                  setIsAccountMenuOpen(false);
+                  handleSwitchAccount();
+                }}
+              >
+                <div className="vaango-account-sheet__item-left">
+                  <Users size={18} />
+                  <span>Switch Account</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                className="vaango-account-sheet__item vaango-account-sheet__item--danger"
+                onClick={() => {
+                  setIsAccountMenuOpen(false);
+                  handleLogout();
+                }}
+              >
+                <div className="vaango-account-sheet__item-left">
+                  <LogOut size={18} />
+                  <span>Logout</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

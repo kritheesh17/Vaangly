@@ -1,0 +1,336 @@
+/* ==========================================================================
+   PWA Installation Status Modal & Bottom Sheet (Truthful Semantic Feedback)
+   ========================================================================== */
+
+.vaangly-install-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background-color: rgba(15, 24, 40, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  animation: vaanglyFadeIn 200ms ease-out;
+}
+
+@media (min-width: 640px) {
+  .vaangly-install-overlay {
+    align-items: center;
+    padding: var(--space-4, 16px);
+  }
+}
+
+.vaangly-install-card {
+  width: 100%;
+  max-width: 100%;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.15);
+  padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  animation: vaanglySlideUp 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .vaangly-install-card {
+    max-width: 440px;
+    border-radius: 20px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+    padding: 24px;
+    animation: vaanglyScaleUp 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+[data-theme='dark'] .vaangly-install-card,
+.dark .vaangly-install-card {
+  background: #111b2b;
+  border-color: #263852;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes vaanglySlideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0.7;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes vaanglyScaleUp {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes vaanglyFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Header & Icon */
+.vaangly-install-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vaangly-install-card__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vaangly-install-card__logo-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--brand-primary, #1b4d3e);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  box-shadow: 0 2px 8px rgba(27, 77, 62, 0.25);
+  flex-shrink: 0;
+}
+
+.vaangly-install-card__title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.vaangly-install-card__kicker {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--brand-primary, #1b4d3e);
+}
+
+[data-theme='dark'] .vaangly-install-card__kicker,
+.dark .vaangly-install-card__kicker {
+  color: #34d399;
+}
+
+.vaangly-install-card__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #0f172a);
+  margin: 0;
+  line-height: 1.25;
+}
+
+[data-theme='dark'] .vaangly-install-card__title,
+.dark .vaangly-install-card__title {
+  color: #f8fafc;
+}
+
+.vaangly-install-card__close-btn {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--color-surface-hover, #f1f5f9);
+  color: var(--color-text-muted, #64748b);
+  cursor: pointer;
+  transition: all 150ms ease;
+  touch-action: manipulation;
+}
+
+[data-theme='dark'] .vaangly-install-card__close-btn,
+.dark .vaangly-install-card__close-btn {
+  background: #1e2d44;
+  color: #94a3b8;
+}
+
+.vaangly-install-card__close-btn:hover {
+  background: var(--color-surface-sunken, #e2e8f0);
+  color: var(--color-text-primary, #0f172a);
+}
+
+/* Status Body */
+.vaangly-install-status-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--color-surface-sunken, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+[data-theme='dark'] .vaangly-install-status-box,
+.dark .vaangly-install-status-box {
+  background: #0b121e;
+  border-color: #1f2e47;
+}
+
+.vaangly-install-status-box--installing {
+  border-color: var(--brand-primary, #1b4d3e);
+  background: rgba(27, 77, 62, 0.05);
+}
+
+[data-theme='dark'] .vaangly-install-status-box--installing,
+.dark .vaangly-install-status-box--installing {
+  border-color: #34d399;
+  background: rgba(52, 211, 153, 0.08);
+}
+
+.vaangly-install-status-box--installed {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.vaangly-install-status-box--cancelled {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.vaangly-install-status-box--error {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.vaangly-install-status-box__icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vaangly-install-status-box__icon-wrap--spinner {
+  color: var(--brand-primary, #1b4d3e);
+  animation: vaanglySpin 1s linear infinite;
+}
+
+[data-theme='dark'] .vaangly-install-status-box__icon-wrap--spinner,
+.dark .vaangly-install-status-box__icon-wrap--spinner {
+  color: #34d399;
+}
+
+@keyframes vaanglySpin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.vaangly-install-status-box__icon-wrap--success {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.vaangly-install-status-box__icon-wrap--warning {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.vaangly-install-status-box__icon-wrap--error {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.vaangly-install-status-box__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.vaangly-install-status-box__state-label {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #0f172a);
+  margin-bottom: 3px;
+}
+
+[data-theme='dark'] .vaangly-install-status-box__state-label,
+.dark .vaangly-install-status-box__state-label {
+  color: #f8fafc;
+}
+
+.vaangly-install-status-box__detail {
+  font-size: 0.82rem;
+  color: var(--color-text-secondary, #475569);
+  line-height: 1.4;
+  margin: 0;
+}
+
+[data-theme='dark'] .vaangly-install-status-box__detail,
+.dark .vaangly-install-status-box__detail {
+  color: #94a3b8;
+}
+
+/* Feature bullets */
+.vaangly-install-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vaangly-install-benefit-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--color-text-primary, #1e293b);
+}
+
+[data-theme='dark'] .vaangly-install-benefit-item,
+.dark .vaangly-install-benefit-item {
+  color: #e2e8f0;
+}
+
+.vaangly-install-benefit-item svg {
+  color: var(--brand-primary, #1b4d3e);
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .vaangly-install-benefit-item svg,
+.dark .vaangly-install-benefit-item svg {
+  color: #34d399;
+}
+
+/* Actions footer */
+.vaangly-install-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.vaangly-install-card__actions .vaango-btn {
+  flex: 1;
+  min-height: 44px;
+}

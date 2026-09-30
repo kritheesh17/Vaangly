@@ -625,35 +625,63 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
                   No product sales completed in this date range.
                 </div>
               ) : (
-                <div className="vaango-analytics-table-wrap">
-                  <table className="vaango-analytics-table">
-                    <thead>
-                      <tr>
-                        <th>Product / Service</th>
-                        <th>Qty Sold</th>
-                        <th>Revenue</th>
-                        <th>Share</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {analytics.top_products.slice(0, 8).map((p) => (
-                        <tr key={p.product_id}>
-                          <td><strong>{p.product_name}</strong></td>
-                          <td>{p.quantity_sold}</td>
-                          <td>₹{p.sales_generated.toLocaleString('en-IN')}</td>
-                          <td>
-                            <div className="vaango-progress-bar-wrap">
-                              <div className="vaango-progress-bar">
-                                <div className="vaango-progress-bar__fill" style={{ width: `${Math.min(p.percentage_of_total, 100)}%` }} />
-                              </div>
-                              <span>{p.percentage_of_total}%</span>
-                            </div>
-                          </td>
+                <>
+                  {/* Mobile stacked card view (< 768px) */}
+                  <div className="vaango-analytics-mobile-cards">
+                    {analytics.top_products.slice(0, 8).map((p) => (
+                      <div key={p.product_id} className="vaango-analytics-mobile-card">
+                        <div className="vaango-analytics-mobile-card__header">
+                          <div className="vaango-analytics-mobile-card__title">{p.product_name}</div>
+                          <Badge variant="primary" size="sm">{p.percentage_of_total}% share</Badge>
+                        </div>
+                        <div className="vaango-analytics-mobile-card__grid">
+                          <div className="vaango-analytics-mobile-card__cell">
+                            <span className="vaango-analytics-mobile-card__label">Qty Sold</span>
+                            <span className="vaango-analytics-mobile-card__value">{p.quantity_sold} units</span>
+                          </div>
+                          <div className="vaango-analytics-mobile-card__cell">
+                            <span className="vaango-analytics-mobile-card__label">Revenue</span>
+                            <span className="vaango-analytics-mobile-card__value">₹{p.sales_generated.toLocaleString('en-IN')}</span>
+                          </div>
+                        </div>
+                        <div className="vaango-progress-bar">
+                          <div className="vaango-progress-bar__fill" style={{ width: `${Math.min(p.percentage_of_total, 100)}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop tabular view (>= 768px) */}
+                  <div className="vaango-analytics-table-wrap">
+                    <table className="vaango-analytics-table">
+                      <thead>
+                        <tr>
+                          <th>Product / Service</th>
+                          <th>Qty Sold</th>
+                          <th>Revenue</th>
+                          <th>Share</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {analytics.top_products.slice(0, 8).map((p) => (
+                          <tr key={p.product_id}>
+                            <td><strong>{p.product_name}</strong></td>
+                            <td>{p.quantity_sold}</td>
+                            <td>₹{p.sales_generated.toLocaleString('en-IN')}</td>
+                            <td>
+                              <div className="vaango-progress-bar-wrap">
+                                <div className="vaango-progress-bar">
+                                  <div className="vaango-progress-bar__fill" style={{ width: `${Math.min(p.percentage_of_total, 100)}%` }} />
+                                </div>
+                                <span>{p.percentage_of_total}%</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
 
@@ -673,28 +701,53 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
                   No variant-specific products were sold in this range.
                 </div>
               ) : (
-                <div className="vaango-analytics-table-wrap">
-                  <table className="vaango-analytics-table">
-                    <thead>
-                      <tr>
-                        <th>Product</th>
-                        <th>Variant</th>
-                        <th>Qty</th>
-                        <th>Revenue</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {analytics.variant_performance.slice(0, 8).map((v) => (
-                        <tr key={`${v.product_id}-${v.variant_id}`}>
-                          <td>{v.product_name}</td>
-                          <td><Badge variant="primary" size="sm">{v.variant_label}</Badge></td>
-                          <td>{v.quantity_sold}</td>
-                          <td><strong>₹{v.sales_generated.toLocaleString('en-IN')}</strong></td>
+                <>
+                  {/* Mobile stacked card view (< 768px) */}
+                  <div className="vaango-analytics-mobile-cards">
+                    {analytics.variant_performance.slice(0, 8).map((v) => (
+                      <div key={`${v.product_id}-${v.variant_id}`} className="vaango-analytics-mobile-card">
+                        <div className="vaango-analytics-mobile-card__header">
+                          <div className="vaango-analytics-mobile-card__title">{v.product_name}</div>
+                          <Badge variant="primary" size="sm">{v.variant_label}</Badge>
+                        </div>
+                        <div className="vaango-analytics-mobile-card__grid">
+                          <div className="vaango-analytics-mobile-card__cell">
+                            <span className="vaango-analytics-mobile-card__label">Units Sold</span>
+                            <span className="vaango-analytics-mobile-card__value">{v.quantity_sold}</span>
+                          </div>
+                          <div className="vaango-analytics-mobile-card__cell">
+                            <span className="vaango-analytics-mobile-card__label">Revenue</span>
+                            <span className="vaango-analytics-mobile-card__value">₹{v.sales_generated.toLocaleString('en-IN')}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop tabular view (>= 768px) */}
+                  <div className="vaango-analytics-table-wrap">
+                    <table className="vaango-analytics-table">
+                      <thead>
+                        <tr>
+                          <th>Product</th>
+                          <th>Variant</th>
+                          <th>Qty</th>
+                          <th>Revenue</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {analytics.variant_performance.slice(0, 8).map((v) => (
+                          <tr key={`${v.product_id}-${v.variant_id}`}>
+                            <td>{v.product_name}</td>
+                            <td><Badge variant="primary" size="sm">{v.variant_label}</Badge></td>
+                            <td>{v.quantity_sold}</td>
+                            <td><strong>₹{v.sales_generated.toLocaleString('en-IN')}</strong></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -761,33 +814,65 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
                   🎉 Great inventory velocity! No active products currently classified as slow-moving.
                 </div>
               ) : (
-                <div className="vaango-analytics-table-wrap">
-                  <table className="vaango-analytics-table">
-                    <thead>
-                      <tr>
-                        <th>Product</th>
-                        <th>Price</th>
-                        <th>Days Listed</th>
-                        <th>Units Sold</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {analytics.slow_moving_products
-                        .filter((p) => p.status === 'slow')
-                        .slice(0, 6)
-                        .map((p) => (
-                          <tr key={p.product_id}>
-                            <td><strong>{p.product_name}</strong></td>
-                            <td>₹{p.price}</td>
-                            <td>{p.days_listed} days</td>
-                            <td>{p.units_sold} sold</td>
-                            <td><Badge variant="warning" size="sm">Low Velocity</Badge></td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {/* Mobile stacked card view (< 768px) */}
+                  <div className="vaango-analytics-mobile-cards">
+                    {analytics.slow_moving_products
+                      .filter((p) => p.status === 'slow')
+                      .slice(0, 6)
+                      .map((p) => (
+                        <div key={p.product_id} className="vaango-analytics-mobile-card">
+                          <div className="vaango-analytics-mobile-card__header">
+                            <div className="vaango-analytics-mobile-card__title">{p.product_name}</div>
+                            <Badge variant="warning" size="sm">Low Velocity</Badge>
+                          </div>
+                          <div className="vaango-analytics-mobile-card__grid">
+                            <div className="vaango-analytics-mobile-card__cell">
+                              <span className="vaango-analytics-mobile-card__label">Price</span>
+                              <span className="vaango-analytics-mobile-card__value">₹{p.price}</span>
+                            </div>
+                            <div className="vaango-analytics-mobile-card__cell">
+                              <span className="vaango-analytics-mobile-card__label">Days Listed</span>
+                              <span className="vaango-analytics-mobile-card__value">{p.days_listed} days</span>
+                            </div>
+                            <div className="vaango-analytics-mobile-card__cell">
+                              <span className="vaango-analytics-mobile-card__label">Units Sold</span>
+                              <span className="vaango-analytics-mobile-card__value">{p.units_sold} sold</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+
+                  {/* Desktop tabular view (>= 768px) */}
+                  <div className="vaango-analytics-table-wrap">
+                    <table className="vaango-analytics-table">
+                      <thead>
+                        <tr>
+                          <th>Product</th>
+                          <th>Price</th>
+                          <th>Days Listed</th>
+                          <th>Units Sold</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {analytics.slow_moving_products
+                          .filter((p) => p.status === 'slow')
+                          .slice(0, 6)
+                          .map((p) => (
+                            <tr key={p.product_id}>
+                              <td><strong>{p.product_name}</strong></td>
+                              <td>₹{p.price}</td>
+                              <td>{p.days_listed} days</td>
+                              <td>{p.units_sold} sold</td>
+                              <td><Badge variant="warning" size="sm">Low Velocity</Badge></td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -831,26 +916,47 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
                   </div>
 
                   {analytics.appointments.most_booked_services.length > 0 && (
-                    <div className="vaango-analytics-table-wrap">
-                      <table className="vaango-analytics-table">
-                        <thead>
-                          <tr>
-                            <th>Top Booked Service</th>
-                            <th>Appointments</th>
-                            <th>Revenue</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {analytics.appointments.most_booked_services.slice(0, 4).map((s) => (
-                            <tr key={s.name}>
-                              <td><strong>{s.name}</strong></td>
-                              <td>{s.count} booked</td>
-                              <td>₹{s.revenue.toLocaleString('en-IN')}</td>
+                    <>
+                      {/* Mobile stacked card view (< 768px) */}
+                      <div className="vaango-analytics-mobile-cards">
+                        {analytics.appointments.most_booked_services.slice(0, 4).map((s) => (
+                          <div key={s.name} className="vaango-analytics-mobile-card">
+                            <div className="vaango-analytics-mobile-card__header">
+                              <div className="vaango-analytics-mobile-card__title">{s.name}</div>
+                              <span className="vaango-analytics-mobile-card__value">₹{s.revenue.toLocaleString('en-IN')}</span>
+                            </div>
+                            <div className="vaango-analytics-mobile-card__grid">
+                              <div className="vaango-analytics-mobile-card__cell">
+                                <span className="vaango-analytics-mobile-card__label">Total Appointments</span>
+                                <span className="vaango-analytics-mobile-card__value">{s.count} booked</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Desktop tabular view (>= 768px) */}
+                      <div className="vaango-analytics-table-wrap">
+                        <table className="vaango-analytics-table">
+                          <thead>
+                            <tr>
+                              <th>Top Booked Service</th>
+                              <th>Appointments</th>
+                              <th>Revenue</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {analytics.appointments.most_booked_services.slice(0, 4).map((s) => (
+                              <tr key={s.name}>
+                                <td><strong>{s.name}</strong></td>
+                                <td>{s.count} booked</td>
+                                <td>₹{s.revenue.toLocaleString('en-IN')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   )}
                 </div>
               )}
@@ -880,7 +986,31 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Payment Methods Table */}
+                {/* Mobile stacked card view (< 768px) */}
+                <div className="vaango-analytics-mobile-cards">
+                  {analytics.payment_methods.map((pm) => (
+                    <div key={pm.method} className="vaango-analytics-mobile-card">
+                      <div className="vaango-analytics-mobile-card__header">
+                        <div className="vaango-analytics-mobile-card__title">{pm.method}</div>
+                        <Badge variant={pm.verified_count > 0 ? 'success' : 'neutral'} size="sm">
+                          {pm.verified_count} verified ({pm.unverified_count} pending)
+                        </Badge>
+                      </div>
+                      <div className="vaango-analytics-mobile-card__grid">
+                        <div className="vaango-analytics-mobile-card__cell">
+                          <span className="vaango-analytics-mobile-card__label">Transactions</span>
+                          <span className="vaango-analytics-mobile-card__value">{pm.count} orders</span>
+                        </div>
+                        <div className="vaango-analytics-mobile-card__cell">
+                          <span className="vaango-analytics-mobile-card__label">Total Value</span>
+                          <span className="vaango-analytics-mobile-card__value">₹{pm.total_amount.toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop tabular view (>= 768px) */}
                 <div className="vaango-analytics-table-wrap">
                   <table className="vaango-analytics-table">
                     <thead>

@@ -19,6 +19,7 @@ import {
   Activity,
   Send,
   Lock,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -34,6 +35,7 @@ export const PermissionCenterContent: React.FC = () => {
     notificationStatus,
     locationStatus,
     isInstalled,
+    isInstalling,
     userCoords,
     notificationPrefs,
     updateNotificationPrefs,
@@ -218,6 +220,15 @@ export const PermissionCenterContent: React.FC = () => {
                 onClick={handleManualUpdateCheck}
               >
                 <RefreshCw size={13} /> Check for Updates
+              </Button>
+            ) : isInstalling ? (
+              <Button
+                variant="primary"
+                size="sm"
+                disabled
+                className="flex items-center gap-1.5"
+              >
+                <Loader2 size={14} className="animate-spin" /> Installing...
               </Button>
             ) : (
               <Button

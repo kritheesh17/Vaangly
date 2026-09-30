@@ -1,7 +1,8 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 
 const DEFAULT_VAPID_PUBLIC_KEY = 'BKuzP4a6YMPxqykLZz4F9OzckD3D9cY5THfBV-3EgKt8ZLFi3Cg3fE4pHdhab5Po9MzRcw32-DDm5JQJFKy0LbI';
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || DEFAULT_VAPID_PUBLIC_KEY;
+const VAPID_PUBLIC_KEY =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_VAPID_PUBLIC_KEY) || DEFAULT_VAPID_PUBLIC_KEY;
 
 export interface TestPushResult {
   timestamp: string;

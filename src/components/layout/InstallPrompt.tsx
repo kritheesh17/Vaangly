@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, X } from 'lucide-react';
+import { Download, X, Loader2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useLanguage } from '../../context/LanguageContext';
 import { usePermissions } from '../../context/PermissionContext';
@@ -10,7 +10,7 @@ const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 
 export const InstallPrompt: React.FC = () => {
   const { t } = useLanguage();
-  const { isInstalled, platform, promptInstall } = usePermissions();
+  const { isInstalled, isInstalling, platform, promptInstall } = usePermissions();
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
@@ -40,9 +40,15 @@ export const InstallPrompt: React.FC = () => {
 
   return (
     <div className="vaango-install-prompt" role="status">
-      <Download size={18} aria-hidden="true" className="text-primary flex-shrink-0" />
+      {isInstalling ? (
+        <Loader2 size={18} aria-hidden="true" className="text-primary flex-shrink-0 animate-spin" />
+      ) : (
+        <Download size={18} aria-hidden="true" className="text-primary flex-shrink-0" />
+      )}
       <span>
-        {platform === 'ios'
+        {isInstalling
+          ? 'Preparing Vaangly for installation...'
+          : platform === 'ios'
           ? 'Install Vaangly on iPhone / iPad for instant access'
           : 'Install Vaangly app for instant booking & offline access'}
       </span>
@@ -50,9 +56,10 @@ export const InstallPrompt: React.FC = () => {
         type="button"
         size="sm"
         variant="primary"
+        disabled={isInstalling}
         onClick={() => void handleInstall()}
       >
-        {t('installBtn') || 'Install'}
+        {isInstalling ? 'Installing...' : t('installBtn') || 'Install'}
       </Button>
       <button
         type="button"

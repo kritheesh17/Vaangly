@@ -13,6 +13,25 @@ import {
 export type PermissionStatus = 'granted' | 'prompt' | 'denied' | 'unsupported';
 export type AppPlatform = 'android' | 'ios' | 'desktop' | 'capacitor';
 
+export type InstallState =
+  | 'NOT_AVAILABLE'
+  | 'READY'
+  | 'INSTALLING'
+  | 'INSTALLED'
+  | 'DISMISSED'
+  | 'UNSUPPORTED'
+  | 'ERROR';
+
+export type InstallFeedbackPhase =
+  | 'idle'
+  | 'preparing'
+  | 'prompt_opened'
+  | 'installing'
+  | 'installed'
+  | 'cancelled'
+  | 'unavailable'
+  | 'error';
+
 export interface NotificationPreferences {
   appointments: boolean;
   orders: boolean;
@@ -25,6 +44,57 @@ export interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+export function getInstallStatusInfo(state: InstallState, phase: InstallFeedbackPhase): { title: string; detail: string } {
+  switch (phase) {
+    case 'preparing':
+      return {
+        title: 'Preparing Vaangly for installation',
+        detail: 'Connecting with your browser installation manager. Please wait...',
+      };
+    case 'prompt_opened':
+      return {
+        title: 'Installation prompt opened',
+        detail: 'Please confirm the installation in your browser window.',
+      };
+    case 'installing':
+      return {
+        title: 'Installing Vaangly...',
+        detail: 'Adding Vaangly to your device and configuring offline access...',
+      };
+    case 'installed':
+      return {
+        title: 'Vaangly installed successfully! ✓',
+        detail: 'Vaangly is now ready on your device. Launch it anytime from your home screen or app launcher.',
+      };
+    case 'cancelled':
+      return {
+        title: 'Installation was cancelled.',
+        detail: 'You can install Vaangly anytime from the Install button whenever you are ready.',
+      };
+    case 'unavailable':
+      return {
+        title: "Vaangly can't be installed from this browser.",
+        detail: 'Use the browser menu or Add to Home Screen in Safari to access Vaangly like an app.',
+      };
+    case 'error':
+      return {
+        title: "Vaangly couldn't be installed right now.",
+        detail: 'An unexpected browser error occurred. Please try again or check your browser settings.',
+      };
+    default:
+      if (state === 'INSTALLED') {
+        return {
+          title: 'Vaangly is installed ✓',
+          detail: 'Already running as an installed application.',
+        };
+      }
+      return {
+        title: 'Install Vaangly',
+        detail: 'Install Vaangly on your device for fast access, fullscreen experience, and offline support.',
+      };
+  }
+}
+
 interface PermissionContextType {
   // Permission statuses
   notificationStatus: PermissionStatus;
@@ -35,6 +105,15 @@ interface PermissionContextType {
   isInstallable: boolean;
   isInstalled: boolean;
   isNativeApp: boolean;
+
+  // Centralized PWA Installation State Machine
+  installState: InstallState;
+  installPhase: InstallFeedbackPhase;
+  installStatusMessage: { title: string; detail: string };
+  isInstalling: boolean;
+  isInstallFeedbackOpen: boolean;
+  setIsInstallFeedbackOpen: (open: boolean) => void;
+  resetInstallFeedback: () => void;
 
   // Notification Preferences
   notificationPrefs: NotificationPreferences;
@@ -107,6 +186,24 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isInstalled, setIsInstalled] = useState<boolean>(checkIsInstalled);
   const [isInstallable, setIsInstallable] = useState<boolean>(false);
   const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
+  const isInstallingRef = useRef<boolean>(false);
+
+  // Centralized PWA Installation State Machine
+  const [installState, setInstallState] = useState<InstallState>(() => {
+    if (checkIsInstalled()) return 'INSTALLED';
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      const ua = navigator.userAgent || '';
+      if (/iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: boolean }).MSStream) {
+        return 'UNSUPPORTED';
+      }
+      return 'NOT_AVAILABLE';
+    }
+    return 'UNSUPPORTED';
+  });
+  const [installPhase, setInstallPhase] = useState<InstallFeedbackPhase>(() => {
+    return checkIsInstalled() ? 'installed' : 'idle';
+  });
+  const [isInstallFeedbackOpen, setIsInstallFeedbackOpen] = useState<boolean>(false);
 
   // Permission states
   const [notificationStatus, setNotificationStatus] = useState<PermissionStatus>('prompt');
@@ -218,6 +315,8 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (e.matches) {
         setIsInstalled(true);
         setIsInstallable(false);
+        setInstallState('INSTALLED');
+        setInstallPhase('installed');
       }
     };
     mediaQuery.addEventListener('change', handleDisplayModeChange);
@@ -230,6 +329,8 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           if (Array.isArray(apps) && apps.length > 0) {
             setIsInstalled(true);
             setIsInstallable(false);
+            setInstallState('INSTALLED');
+            setInstallPhase('installed');
           }
         })
         .catch(() => {});
@@ -240,13 +341,17 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       e.preventDefault();
       deferredPromptRef.current = e as BeforeInstallPromptEvent;
       setIsInstallable(true);
+      setInstallState((prev) => (prev === 'INSTALLED' ? 'INSTALLED' : 'READY'));
     };
 
-    // Listen for app installed event
+    // Listen for real browser app installed event
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setIsInstallable(false);
       deferredPromptRef.current = null;
+      isInstallingRef.current = false;
+      setInstallState('INSTALLED');
+      setInstallPhase('installed');
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -364,29 +469,84 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Trigger Install Dialog on explicit user interaction
   const promptInstall = useCallback(async (): Promise<'accepted' | 'dismissed' | 'manual'> => {
     if (checkIsInstalled()) {
+      setInstallState('INSTALLED');
+      setInstallPhase('installed');
+      setIsInstallFeedbackOpen(true);
       return 'accepted';
     }
 
+    // Block duplicate clicks if currently in-flight
+    if (isInstallingRef.current || installState === 'INSTALLING') {
+      return 'dismissed';
+    }
+
+    isInstallingRef.current = true;
+    setIsInstallFeedbackOpen(true);
+    setInstallState('INSTALLING');
+    setInstallPhase('preparing');
+
+    // Brief tick to ensure UI paints preparing state
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
     if (deferredPromptRef.current) {
       try {
+        setInstallPhase('prompt_opened');
         await deferredPromptRef.current.prompt();
         const choice = await deferredPromptRef.current.userChoice;
         deferredPromptRef.current = null;
+
         if (choice.outcome === 'accepted') {
+          setInstallPhase('installing');
+
+          // Wait for appinstalled event or safe timeout
+          await new Promise<void>((resolve) => {
+            const onInstalled = () => {
+              window.removeEventListener('appinstalled', onInstalled);
+              resolve();
+            };
+            window.addEventListener('appinstalled', onInstalled);
+            setTimeout(() => {
+              window.removeEventListener('appinstalled', onInstalled);
+              resolve();
+            }, 3500);
+          });
+
           setIsInstalled(true);
           setIsInstallable(false);
+          setInstallState('INSTALLED');
+          setInstallPhase('installed');
+          isInstallingRef.current = false;
           return 'accepted';
+        } else {
+          setInstallState('DISMISSED');
+          setInstallPhase('cancelled');
+          isInstallingRef.current = false;
+          return 'dismissed';
         }
-        return 'dismissed';
       } catch (err) {
         console.warn('Failed to call deferred install prompt:', err);
+        setInstallState('ERROR');
+        setInstallPhase('error');
+        isInstallingRef.current = false;
+        return 'dismissed';
       }
     }
 
     // Fallback: If no beforeinstallprompt event is available (iOS, Firefox, or desktop without prompt), open manual modal
+    isInstallingRef.current = false;
+    setInstallState('UNSUPPORTED');
+    setInstallPhase('unavailable');
     setIsManualInstallOpen(true);
     return 'manual';
-  }, []);
+  }, [installState]);
+
+  const resetInstallFeedback = useCallback(() => {
+    setIsInstallFeedbackOpen(false);
+    if (installState === 'DISMISSED' || installState === 'ERROR') {
+      setInstallState(deferredPromptRef.current ? 'READY' : 'NOT_AVAILABLE');
+      setInstallPhase('idle');
+    }
+  }, [installState]);
 
   const sendTestNotification = useCallback(async (userId?: string) => {
     const res = await sendTestPushNotification(userId);
@@ -425,6 +585,13 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isInstallable,
         isInstalled,
         isNativeApp: Capacitor.isNativePlatform(),
+        installState,
+        installPhase,
+        installStatusMessage: getInstallStatusInfo(installState, installPhase),
+        isInstalling: installState === 'INSTALLING',
+        isInstallFeedbackOpen,
+        setIsInstallFeedbackOpen,
+        resetInstallFeedback,
         notificationPrefs,
         updateNotificationPrefs,
         userCoords,
