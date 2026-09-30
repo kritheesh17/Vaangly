@@ -60,44 +60,58 @@ describe('Localhost Google OAuth Environment & Flow Guards', () => {
     );
   });
 
-  // Test 4: AuthCallbackPage guards against duplicate PKCE code exchange in StrictMode
-  it('4. AuthCallbackPage implements exchangePromiseRef guard preventing duplicate PKCE exchange', async () => {
+  // Test 4: AuthCallbackPage does NOT manually call exchangeCodeForSession and delegates exchange to Supabase
+  it('4. AuthCallbackPage delegates PKCE exchange to Supabase client and does NOT manually call exchangeCodeForSession', () => {
+    const callbackContent = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/pages/auth/AuthCallbackPage.tsx'),
+      'utf-8'
+    );
+    assert.strictEqual(
+      callbackContent.includes('exchangeCodeForSession'),
+      false,
+      'AuthCallbackPage must NOT call exchangeCodeForSession manually to prevent double-exchange collision'
+    );
+    assert.ok(
+      callbackContent.includes('supabase.auth.getSession()'),
+      'AuthCallbackPage awaits Supabase getSession'
+    );
+    assert.ok(
+      callbackContent.includes('supabase.auth.onAuthStateChange'),
+      'AuthCallbackPage subscribes to onAuthStateChange to await asynchronous PKCE exchange'
+    );
+  });
+
+  // Test 5: StrictMode single-resolution guard
+  it('5. AuthCallbackPage guards against duplicate session/profile resolution in React StrictMode', async () => {
     const callbackContent = fs.readFileSync(
       path.resolve(process.cwd(), 'src/pages/auth/AuthCallbackPage.tsx'),
       'utf-8'
     );
     assert.ok(
-      callbackContent.includes('exchangePromiseRef'),
-      'Includes exchangePromiseRef guard'
-    );
-    assert.ok(
-      callbackContent.includes('supabase.auth.exchangeCodeForSession(code)'),
-      'Calls exchangeCodeForSession on code'
+      callbackContent.includes('resolutionPromiseRef'),
+      'Includes resolutionPromiseRef guard'
     );
 
-    // Simulate StrictMode double execution with shared promise ref
-    let exchangeCount = 0;
+    // Simulate StrictMode double execution with shared resolution promise ref
+    let resolutionCount = 0;
     const ref = { current: null as Promise<any> | null };
 
     const simulateMount = async () => {
-      const code = 'mock-oauth-code-123';
-      if (code) {
-        if (!ref.current) {
-          exchangeCount++;
-          ref.current = Promise.resolve({ data: { session: {} }, error: null });
-        }
-        return await ref.current;
+      if (!ref.current) {
+        resolutionCount++;
+        ref.current = Promise.resolve({ resolved: true });
       }
+      return await ref.current;
     };
 
     // Simulate concurrent mounts in StrictMode
     await Promise.all([simulateMount(), simulateMount()]);
 
-    assert.strictEqual(exchangeCount, 1, 'PKCE code was only exchanged once despite double mount');
+    assert.strictEqual(resolutionCount, 1, 'Resolution logic executes only once across double mounts');
   });
 
-  // Test 5: AuthCallbackPage handles legacy hash tokens gracefully without manual authentication
-  it('5. AuthCallbackPage handles legacy hash tokens safely by prompting user to sign in via PKCE', () => {
+  // Test 6: AuthCallbackPage handles legacy hash tokens gracefully without manual authentication
+  it('6. AuthCallbackPage handles legacy hash tokens safely by prompting user to sign in via PKCE', () => {
     const callbackContent = fs.readFileSync(
       path.resolve(process.cwd(), 'src/pages/auth/AuthCallbackPage.tsx'),
       'utf-8'
@@ -116,8 +130,8 @@ describe('Localhost Google OAuth Environment & Flow Guards', () => {
     );
   });
 
-  // Test 6: AuthCallbackPage handles Google OAuth cancellation gracefully
-  it('6. AuthCallbackPage handles Google cancellation (error=access_denied) with user-friendly message', () => {
+  // Test 7: AuthCallbackPage handles Google OAuth cancellation gracefully
+  it('7. AuthCallbackPage handles Google cancellation (error=access_denied) with user-friendly message', () => {
     const callbackContent = fs.readFileSync(
       path.resolve(process.cwd(), 'src/pages/auth/AuthCallbackPage.tsx'),
       'utf-8'
@@ -136,8 +150,8 @@ describe('Localhost Google OAuth Environment & Flow Guards', () => {
     );
   });
 
-  // Test 7: AuthCallbackPage handles empty callback parameters gracefully
-  it('7. AuthCallbackPage handles empty callback parameters without unhandled crash', () => {
+  // Test 8: AuthCallbackPage handles empty callback parameters gracefully
+  it('8. AuthCallbackPage handles empty callback parameters without unhandled crash', () => {
     const callbackContent = fs.readFileSync(
       path.resolve(process.cwd(), 'src/pages/auth/AuthCallbackPage.tsx'),
       'utf-8'
@@ -148,8 +162,8 @@ describe('Localhost Google OAuth Environment & Flow Guards', () => {
     );
   });
 
-  // Test 8: Verify .gitignore keeps .env protected from git tracking
-  it('8. .gitignore protects local .env and environment files from git tracking', () => {
+  // Test 9: Verify .gitignore keeps .env protected from git tracking
+  it('9. .gitignore protects local .env and environment files from git tracking', () => {
     const gitignoreContent = fs.readFileSync(
       path.resolve(process.cwd(), '.gitignore'),
       'utf-8'
@@ -160,8 +174,8 @@ describe('Localhost Google OAuth Environment & Flow Guards', () => {
     );
   });
 
-  // Test 9: Verify Supabase client configures flowType: 'pkce'
-  it('9. src/lib/supabase.ts configures standard flowType: pkce and session persistence', () => {
+  // Test 10: Verify Supabase client configures flowType: 'pkce' and detectSessionInUrl: true
+  it('10. src/lib/supabase.ts configures flowType: pkce and detectSessionInUrl: true for authoritative PKCE', () => {
     const supabaseConfigContent = fs.readFileSync(
       path.resolve(process.cwd(), 'src/lib/supabase.ts'),
       'utf-8'
@@ -177,6 +191,29 @@ describe('Localhost Google OAuth Environment & Flow Guards', () => {
     assert.ok(
       supabaseConfigContent.includes('persistSession: true'),
       'Supabase client specifies persistSession: true'
+    );
+  });
+
+  // Test 11: Security check - No OAuth tokens or code logging in AuthCallbackPage
+  it('11. AuthCallbackPage does not log sensitive OAuth tokens or authorization codes', () => {
+    const callbackContent = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/pages/auth/AuthCallbackPage.tsx'),
+      'utf-8'
+    );
+    assert.strictEqual(
+      callbackContent.includes('console.log(code)'),
+      false,
+      'Must never log authorization codes'
+    );
+    assert.strictEqual(
+      callbackContent.includes('console.log(access_token)'),
+      false,
+      'Must never log access tokens'
+    );
+    assert.strictEqual(
+      callbackContent.includes('console.log(refresh_token)'),
+      false,
+      'Must never log refresh tokens'
     );
   });
 });

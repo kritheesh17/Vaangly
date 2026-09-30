@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { isValidIndianMobile, normalizeIndianPhone } from '../../lib/phoneUtils';
+import type { Profile } from '../../types/database';
 import './Auth.css';
 
 type CallbackState = 'loading' | 'success' | 'error';
@@ -15,10 +16,14 @@ export const AuthCallbackPage: React.FC = () => {
   const [state, setState] = useState<CallbackState>('loading');
   const [message, setMessage] = useState('Completing your authentication...');
   const [email, setEmail] = useState('');
-  const exchangePromiseRef = useRef<Promise<any> | null>(null);
+  
+  // StrictMode single-resolution guard preventing duplicate profile lookups/navigation
+  const resolutionPromiseRef = useRef<Promise<void> | null>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
-    let mounted = true;
+    isMountedRef.current = true;
+
     const completeConfirmation = async () => {
       const query = new URLSearchParams(window.location.search);
       const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
@@ -29,7 +34,7 @@ export const AuthCallbackPage: React.FC = () => {
 
       // 1. Google Cancelled / Access Denied
       if (errorParam === 'access_denied' || (errorDescription && /access_denied|cancelled/i.test(errorDescription))) {
-        if (mounted) {
+        if (isMountedRef.current) {
           setState('error');
           setMessage('Google sign-in was cancelled.');
         }
@@ -38,7 +43,7 @@ export const AuthCallbackPage: React.FC = () => {
 
       // 2. Generic OAuth / confirmation errors
       if (errorDescription || errorParam) {
-        if (mounted) {
+        if (isMountedRef.current) {
           if (query.get('type') === 'recovery' || hash.get('type') === 'recovery' || query.get('redirect') === '/reset-password') {
             navigate(`/reset-password${window.location.search}${window.location.hash}`, { replace: true });
             return;
@@ -54,20 +59,19 @@ export const AuthCallbackPage: React.FC = () => {
         return;
       }
 
-      // 3. Legacy Implicit Hash Fallback Handling (Section 5)
+      // 3. Legacy Implicit Hash Fallback Handling
       const hasLegacyHashToken = hash.has('access_token') || Boolean(hash.get('access_token'));
       if (hasLegacyHashToken) {
         if (typeof window !== 'undefined' && window.history?.replaceState) {
           window.history.replaceState(null, '', window.location.pathname);
         }
-        if (mounted) {
+        if (isMountedRef.current) {
           setState('error');
           setMessage('Your sign-in session used an outdated authentication flow. Please return to login and try again.');
         }
         return;
       }
 
-      const code = query.get('code');
       const tokenHash = query.get('token_hash');
       const otpType = (query.get('type') || hash.get('type') || 'signup') as any;
 
@@ -77,49 +81,15 @@ export const AuthCallbackPage: React.FC = () => {
         hash.get('type') === 'recovery' ||
         query.get('redirect') === '/reset-password';
 
-      let flowError: string | null = null;
-
-      // 4. Primary Google OAuth PKCE Flow (?code=...)
-      if (code) {
-        if (!exchangePromiseRef.current) {
-          exchangePromiseRef.current = (async () => {
-            // Check if client auto-detection already established the session
-            const { data: existingSession } = await supabase.auth.getSession();
-            if (existingSession?.session) {
-              return { data: existingSession, error: null };
-            }
-            return await supabase.auth.exchangeCodeForSession(code);
-          })();
-        }
+      // 4. Token Hash OTP Verification (?token_hash=...)
+      if (tokenHash) {
         try {
-          const { error: exchangeErr } = await exchangePromiseRef.current;
-          if (exchangeErr) {
-            console.warn('exchangeCodeForSession warning:', exchangeErr.message);
-            // If the code was already exchanged during this load, check getSession
-            const { data: fallbackSession } = await supabase.auth.getSession();
-            if (!fallbackSession?.session) {
-              flowError = exchangeErr.message;
-            }
-          }
-        } catch (exchangeErr: any) {
-          console.error('Error exchanging code for session:', exchangeErr);
-          flowError = exchangeErr?.message || 'Code exchange failed';
-        }
-      }
-      // 5. OTP / Magic Link Token Hash Verify (?token_hash=...)
-      else if (tokenHash) {
-        if (!exchangePromiseRef.current) {
-          exchangePromiseRef.current = supabase.auth.verifyOtp({ token_hash: tokenHash, type: otpType });
-        }
-        try {
-          const { error: verifyErr } = await exchangePromiseRef.current;
+          const { error: verifyErr } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: otpType });
           if (verifyErr) {
             console.warn('verifyOtp warning:', verifyErr.message);
-            flowError = verifyErr.message;
           }
         } catch (verifyErr: any) {
           console.error('Error verifying OTP token hash:', verifyErr);
-          flowError = verifyErr?.message || 'OTP verification failed';
         }
       }
 
@@ -128,22 +98,46 @@ export const AuthCallbackPage: React.FC = () => {
         return;
       }
 
-      // Check authenticated session
-      let { data, error } = await supabase.auth.getSession();
+      // 5. Authoritative Session Resolution (PKCE Google OAuth & Authenticated Sessions)
+      // Supabase Client with detectSessionInUrl: true automatically exchanges ?code=...
+      // during client initialization. AuthCallbackPage resolves the resulting session.
+      let { data: initialSessionData, error: sessionErr } = await supabase.auth.getSession();
+      let activeSession = initialSessionData?.session;
 
-      if (!mounted) return;
+      // If client initialization / automatic code exchange is currently in flight, await onAuthStateChange
+      if (!activeSession?.user && !sessionErr) {
+        activeSession = await new Promise<any>((resolve) => {
+          let resolved = false;
+          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+            if (currentSession?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
+              if (!resolved) {
+                resolved = true;
+                subscription.unsubscribe();
+                resolve(currentSession);
+              }
+            }
+          });
 
-      if (error || !data.session?.user) {
+          // Definitive failsafe: if no session is established within 3.5 seconds, complete cleanly
+          setTimeout(() => {
+            if (!resolved) {
+              resolved = true;
+              subscription.unsubscribe();
+              resolve(null);
+            }
+          }, 3500);
+        });
+      }
+
+      if (!isMountedRef.current) return;
+
+      if (!activeSession?.user) {
         setState('error');
-        if (code && flowError) {
-          setMessage('Authentication code exchange failed. Please try signing in again.');
-        } else {
-          setMessage(error ? 'A network or Auth error prevented authentication. Please try again.' : 'This authentication session is missing, invalid, or expired.');
-        }
+        setMessage(sessionErr ? 'A network or Auth error prevented authentication. Please try again.' : 'This authentication session is missing, invalid, or expired.');
         return;
       }
 
-      const confirmedUser = data.session.user;
+      const confirmedUser = activeSession.user;
       const isGoogleOAuth = confirmedUser.app_metadata?.provider === 'google' ||
         Boolean(confirmedUser.identities?.some((id: { provider?: string }) => id.provider === 'google'));
       const isEmailConfirmed = Boolean(confirmedUser.email_confirmed_at || confirmedUser.confirmed_at || isGoogleOAuth);
@@ -162,7 +156,7 @@ export const AuthCallbackPage: React.FC = () => {
 
       const metadata = confirmedUser.user_metadata || {};
       const metadataPhone = normalizeIndianPhone(metadata.phone) || normalizeIndianPhone(confirmedUser.phone) || null;
-      let activeProfile = profile;
+      let activeProfile: Profile | null = profile as Profile | null;
 
       if (!activeProfile) {
         const { data: createdProfile, error: profileError } = await supabase
@@ -188,28 +182,28 @@ export const AuthCallbackPage: React.FC = () => {
               .eq('id', confirmedUser.id)
               .maybeSingle();
             if (fetchExistingError || !existingProfile) {
-              if (mounted) {
+              if (isMountedRef.current) {
                 setState('error');
                 setMessage('Profile exists but could not be loaded. Please sign in again.');
               }
               return;
             }
-            activeProfile = existingProfile;
+            activeProfile = existingProfile as Profile;
           } else {
             console.error('Could not insert profile on callback:', profileError);
-            if (mounted) {
+            if (isMountedRef.current) {
               setState('error');
               setMessage(profileError.message || 'Failed to initialize your profile. Please try signing in again.');
             }
             return;
           }
         } else {
-          activeProfile = createdProfile;
+          activeProfile = createdProfile as Profile;
         }
       }
 
       if (!activeProfile) {
-        if (mounted) {
+        if (isMountedRef.current) {
           setState('error');
           setMessage('Unable to load or create your profile. Please try signing in again.');
         }
@@ -240,8 +234,12 @@ export const AuthCallbackPage: React.FC = () => {
 
       localStorage.removeItem('vaangly_pending_confirmation_email');
       await refreshUser();
-      setState('success');
-      setMessage('Authentication confirmed. Redirecting you now...');
+
+      if (isMountedRef.current) {
+        setState('success');
+        setMessage('Authentication confirmed. Redirecting you now...');
+      }
+
       window.setTimeout(() => {
         const queryRedirect = query.get('redirect');
         const sessionRedirect = sessionStorage.getItem('vaangly_auth_redirect');
@@ -266,14 +264,22 @@ export const AuthCallbackPage: React.FC = () => {
         }
       }, 700);
     };
-    completeConfirmation().catch(() => {
-      if (mounted) {
+
+    if (!resolutionPromiseRef.current) {
+      resolutionPromiseRef.current = completeConfirmation();
+    }
+
+    resolutionPromiseRef.current.catch(() => {
+      if (isMountedRef.current) {
         setState('error');
         setMessage('A network error prevented confirmation. Please try again.');
       }
     });
-    return () => { mounted = false; };
-  }, [navigate]);
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [navigate, refreshUser]);
 
   const handleResend = async () => {
     if (!email) return;
