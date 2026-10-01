@@ -33,9 +33,80 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const userId = user?.id;
+
+  const updatePosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const buttonRect = buttonRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Viewport padding: 12px margin on mobile and desktop viewport edges
+    const viewportPadding = 12;
+    // Standard dropdown width: 380px, clamped to viewport width minus margins
+    const panelWidth = Math.min(380, Math.max(280, viewportWidth - viewportPadding * 2));
+
+    // Vertical positioning: directly below the bell icon with an 8px gap
+    const top = Math.round(buttonRect.bottom + 8);
+    // Height constrained to prevent bottom screen overflow
+    const maxHeight = Math.max(220, Math.min(480, viewportHeight - top - 16));
+
+    // Horizontal positioning strategy:
+    // If the bell is in the right half of the screen, align dropdown right edge with button right edge.
+    // If the bell is in the left half of the screen, align dropdown left edge with button left edge.
+    // Otherwise center under the bell.
+    let idealLeft: number;
+    if (buttonRect.left > viewportWidth / 2) {
+      idealLeft = buttonRect.right - panelWidth;
+    } else if (buttonRect.right < viewportWidth / 2) {
+      idealLeft = buttonRect.left;
+    } else {
+      idealLeft = buttonRect.left + buttonRect.width / 2 - panelWidth / 2;
+    }
+
+    // Viewport containment: strictly clamp within [viewportPadding, viewportWidth - panelWidth - viewportPadding]
+    const minLeft = viewportPadding;
+    const maxLeft = Math.max(minLeft, viewportWidth - panelWidth - viewportPadding);
+    const clampedLeft = Math.max(minLeft, Math.min(idealLeft, maxLeft));
+
+    setDropdownStyle({
+      position: 'fixed',
+      top: `${top}px`,
+      left: `${clampedLeft}px`,
+      width: `${panelWidth}px`,
+      maxWidth: `calc(100vw - ${viewportPadding * 2}px)`,
+      maxHeight: `${maxHeight}px`,
+    });
+  }, []);
+
+  // Update position synchronously before paint whenever dropdown opens
+  React.useEffect(() => {
+    if (isOpen) {
+      updatePosition();
+    }
+  }, [isOpen, updatePosition]);
+
+  // Keep dropdown anchored directly below the bell during resize and scroll
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleResizeOrScroll = () => {
+      updatePosition();
+    };
+
+    window.addEventListener('resize', handleResizeOrScroll, { passive: true });
+    window.addEventListener('scroll', handleResizeOrScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('resize', handleResizeOrScroll);
+      window.removeEventListener('scroll', handleResizeOrScroll);
+    };
+  }, [isOpen, updatePosition]);
 
   const loadNotifs = useCallback(async () => {
     if (!userId) return;
@@ -99,18 +170,35 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
       }
     }
 
-    // Close on outside click
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+    // Close on outside click or Escape key
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(target) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(target)
+      ) {
         setIsOpen(false);
       }
     };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
       window.removeEventListener('vaango-notifications-changed', handleUpdate);
       window.removeEventListener('vaango-requests-changed', handleUpdate);
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
       if (channelRef.current) {
         const channel = channelRef.current;
         channelRef.current = null;
@@ -257,11 +345,13 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
   return (
     <div className="vaango-notif-bell-wrap" ref={containerRef}>
       <button
+        ref={buttonRef}
         type="button"
         className="vaango-notif-bell-btn"
         onClick={() => setIsOpen(!isOpen)}
         aria-label={`Notifications (${unreadCount} unread)`}
         title="Storefront Operational Notifications"
+        aria-expanded={isOpen}
       >
         <Bell size={18} />
         <NotificationBadge count={unreadCount} position="overlap" size="sm" />
@@ -274,7 +364,13 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
             onClick={() => setIsOpen(false)}
             aria-hidden="true"
           />
-          <div className="vaango-notif-dropdown">
+          <div
+            ref={dropdownRef}
+            className="vaango-notif-dropdown"
+            style={dropdownStyle}
+            role="region"
+            aria-label="Operational Notifications"
+          >
             <div className="vaango-notif-dropdown__header">
               <h3 className="vaango-notif-dropdown__title">Operational Alerts</h3>
               <div className="vaango-notif-dropdown__actions">
