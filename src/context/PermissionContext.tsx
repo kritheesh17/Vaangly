@@ -152,6 +152,9 @@ interface PermissionContextType {
   setIsPermissionCenterOpen: (open: boolean) => void;
   isFirstVisitPromptOpen: boolean;
   dismissFirstVisitPrompt: () => void;
+
+  // Real-time permission refresh
+  refreshNotificationStatus: () => PermissionStatus;
 }
 
 const FIRST_VISIT_STORAGE_KEY = 'vaangly_first_visit_onboarding_shown';
@@ -188,6 +191,16 @@ function checkIsInstalled(): boolean {
   return isStandalone;
 }
 
+function getInitialNotificationStatus(): PermissionStatus {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    return 'unsupported';
+  }
+  const perm = Notification.permission;
+  if (perm === 'granted') return 'granted';
+  if (perm === 'denied') return 'denied';
+  return 'prompt';
+}
+
 export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [platform] = useState<AppPlatform>(detectPlatform);
@@ -214,7 +227,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isInstallFeedbackOpen, setIsInstallFeedbackOpen] = useState<boolean>(false);
 
   // Permission states
-  const [notificationStatus, setNotificationStatus] = useState<PermissionStatus>('prompt');
+  const [notificationStatus, setNotificationStatus] = useState<PermissionStatus>(getInitialNotificationStatus);
   const [locationStatus, setLocationStatus] = useState<PermissionStatus>('prompt');
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -256,15 +269,17 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isFirstVisitPromptOpen, setIsFirstVisitPromptOpen] = useState<boolean>(false);
 
   // 1. Initial Notification State Inspection
-  const refreshNotificationStatus = useCallback(() => {
+  const refreshNotificationStatus = useCallback((): PermissionStatus => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
       setNotificationStatus('unsupported');
-      return;
+      return 'unsupported';
     }
     const perm = Notification.permission;
-    if (perm === 'granted') setNotificationStatus('granted');
-    else if (perm === 'denied') setNotificationStatus('denied');
-    else setNotificationStatus('prompt');
+    let next: PermissionStatus = 'prompt';
+    if (perm === 'granted') next = 'granted';
+    else if (perm === 'denied') next = 'denied';
+    setNotificationStatus(next);
+    return next;
   }, []);
 
   // 2. Initial Location State Inspection via Permissions API
@@ -362,22 +377,16 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setInstallPhase('installed');
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    // First visit prompt check (delayed slightly for smooth initial page load)
-    const timer = setTimeout(() => {
-      const alreadyShown = localStorage.getItem(FIRST_VISIT_STORAGE_KEY);
-      if (!alreadyShown && !checkIsInstalled()) {
-        const isNotifGranted = typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted';
-        if (!isNotifGranted) {
-          setIsFirstVisitPromptOpen(true);
-        }
-      }
-    }, 1800);
+    // Auto-refresh notification status when user returns to window/tab from browser settings
+    const handleVisibilityOrFocus = () => {
+      refreshNotificationStatus();
+    };
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
 
     return () => {
-      clearTimeout(timer);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       mediaQuery.removeEventListener('change', handleDisplayModeChange);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
@@ -641,6 +650,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setIsPermissionCenterOpen,
         isFirstVisitPromptOpen,
         dismissFirstVisitPrompt,
+        refreshNotificationStatus,
       }}
     >
       {children}

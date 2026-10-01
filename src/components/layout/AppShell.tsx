@@ -13,11 +13,15 @@ import { PwaInstallStatusModal } from './PwaInstallStatusModal';
 import { FirstVisitPermissionModal } from '../permissions/FirstVisitPermissionModal';
 import { ManualInstallModal } from '../permissions/ManualInstallModal';
 import { PermissionCenterModal } from '../permissions/PermissionCenterModal';
+import { NotificationPermissionGate } from '../permissions/NotificationPermissionGate';
+import { usePermissions } from '../../context/PermissionContext';
 
 export const AppShell: React.FC = () => {
   const location = useLocation();
   const { role, isAuthenticated, isProfileComplete, isLoading } = useAuth();
   const { itemCount, activeShop } = useCart();
+  const { notificationStatus } = usePermissions();
+  const [unsupportedAcknowledged, setUnsupportedAcknowledged] = useState(false);
   const [isSmallAdminViewport, setIsSmallAdminViewport] = useState(false);
 
   const isCartBarVisible =
@@ -46,6 +50,19 @@ export const AppShell: React.FC = () => {
     location.pathname !== '/complete-profile'
   ) {
     return <Navigate to="/complete-profile" state={{ from: location }} replace />;
+  }
+
+  // Mandatory Notification Permission Gate:
+  // User must grant notification permission before accessing the main app.
+  if (
+    notificationStatus !== 'granted' &&
+    !(notificationStatus === 'unsupported' && unsupportedAcknowledged)
+  ) {
+    return (
+      <NotificationPermissionGate
+        onAcknowledgeUnsupported={() => setUnsupportedAcknowledged(true)}
+      />
+    );
   }
 
   return (

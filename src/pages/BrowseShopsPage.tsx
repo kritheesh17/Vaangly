@@ -9,6 +9,7 @@ import { searchLocationCatalog, fetchCustomerLocationCatalog, fetchNearbyShopCat
 import { formatDistance } from '../lib/distance';
 import { ShopCard } from '../components/customer/ShopCard';
 import { CustomerMapView } from '../components/gis/CustomerMapView';
+import { OnDemandLocationModal } from '../components/permissions/OnDemandLocationModal';
 import { Input } from '../components/ui/Input';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -39,6 +40,7 @@ export const BrowseShopsPage: React.FC = () => {
   const [geoState, setGeoState] = useState<'idle' | 'requesting' | 'active' | 'denied' | 'error'>('idle');
   const [geoErrorMessage, setGeoErrorMessage] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [isOnDemandLocationModalOpen, setIsOnDemandLocationModalOpen] = useState(false);
 
   // Live database customer catalog state
   const [catalogData, setCatalogData] = useState<CustomerCatalogData>({
@@ -77,12 +79,24 @@ export const BrowseShopsPage: React.FC = () => {
     }
   }, [searchParams, setSearchParams, t, requestLocationPermission, locationStatus]);
 
-  // If URL has ?nearMe=true on initial load, trigger request
+  // If URL has ?nearMe=true on initial load, only auto-request if already granted, otherwise open on-demand modal
   useEffect(() => {
     if (searchParams.get('nearMe') === 'true' && geoState === 'idle') {
-      handleRequestNearMe();
+      if (locationStatus === 'granted') {
+        handleRequestNearMe();
+      } else {
+        setIsOnDemandLocationModalOpen(true);
+      }
     }
-  }, [searchParams, geoState, handleRequestNearMe]);
+  }, [searchParams, geoState, handleRequestNearMe, locationStatus]);
+
+  const handleClickNearMe = () => {
+    if (locationStatus === 'granted') {
+      void handleRequestNearMe();
+    } else {
+      setIsOnDemandLocationModalOpen(true);
+    }
+  };
 
   const handleSwitchToTown = () => {
     setIsNearMeMode(false);
@@ -241,7 +255,7 @@ export const BrowseShopsPage: React.FC = () => {
                 <button
                   type="button"
                   className="vaango-near-me-trigger-btn"
-                  onClick={handleRequestNearMe}
+                  onClick={handleClickNearMe}
                   disabled={geoState === 'requesting'}
                 >
                   {geoState === 'requesting' ? (
@@ -542,6 +556,23 @@ export const BrowseShopsPage: React.FC = () => {
           />
         </div>
       )}
+
+      {/* On-Demand Location Permission & Privacy Modal */}
+      <OnDemandLocationModal
+        isOpen={isOnDemandLocationModalOpen}
+        onClose={() => setIsOnDemandLocationModalOpen(false)}
+        onConfirmLocation={async () => {
+          setIsOnDemandLocationModalOpen(false);
+          await handleRequestNearMe();
+        }}
+        isRequesting={geoState === 'requesting'}
+        isDenied={locationStatus === 'denied'}
+        onChooseTownInstead={() => {
+          setIsOnDemandLocationModalOpen(false);
+          handleSwitchToTown();
+        }}
+        onOpenSettings={() => setIsPermissionCenterOpen(true)}
+      />
     </div>
   );
 };
