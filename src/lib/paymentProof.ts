@@ -39,11 +39,38 @@ export type PaymentProofResolutionResult = {
   error: 'NONE' | 'MISSING' | 'LOAD_FAILED' | 'UNAVAILABLE';
 };
 
+export const isPaymentProofPath = (path: string): boolean => {
+  if (!path) return false;
+  const lower = path.toLowerCase();
+  // Strictly disallow product images, shop photos, catalogue images, or other non-proof buckets
+  if (
+    lower.startsWith('shop-photos/') ||
+    lower.includes('/shop-photos/') ||
+    lower.startsWith('products/') ||
+    lower.includes('/products/') ||
+    lower.startsWith('catalogue/') ||
+    lower.includes('/catalogue/') ||
+    lower.startsWith('shops/') ||
+    lower.includes('/shops/') ||
+    lower.startsWith('avatars/') ||
+    lower.includes('/avatars/')
+  ) {
+    return false;
+  }
+
+  // Must begin with an authorized payment proof path segment
+  return (
+    lower.startsWith('pending/') ||
+    lower.startsWith('requests/') ||
+    lower.startsWith('demo-')
+  );
+};
+
 export const cleanPaymentProofPath = (rawPathOrUrl: string | null | undefined): string => {
   if (!rawPathOrUrl) return '';
   let path = rawPathOrUrl.trim();
 
-  // If it's a full URL containing '/payment-proofs/':
+  // If it's a full URL:
   if (path.startsWith('http://') || path.startsWith('https://')) {
     try {
       const parsed = new URL(path);
@@ -51,9 +78,12 @@ export const cleanPaymentProofPath = (rawPathOrUrl: string | null | undefined): 
       const idx = parsed.pathname.indexOf(marker);
       if (idx !== -1) {
         path = decodeURIComponent(parsed.pathname.substring(idx + marker.length));
+      } else {
+        // Any HTTP URL not in /payment-proofs/ bucket (e.g. shop-photos, product images) is invalid
+        return '';
       }
     } catch {
-      // ignore
+      return '';
     }
   }
 
@@ -63,7 +93,13 @@ export const cleanPaymentProofPath = (rawPathOrUrl: string | null | undefined): 
   }
 
   // Strip leading slashes
-  return path.replace(/^\/+/, '');
+  path = path.replace(/^\/+/, '');
+
+  if (!isPaymentProofPath(path)) {
+    return '';
+  }
+
+  return path;
 };
 
 export const resolvePaymentProofUrl = async (
@@ -74,34 +110,55 @@ export const resolvePaymentProofUrl = async (
   }
 
   const raw = rawPathOrUrl.trim();
+  const lower = raw.toLowerCase();
 
-  // If already a local blob URL, data URI, or pre-signed URL with signature token:
-  if (raw.startsWith('blob:') || raw.startsWith('data:') || (raw.startsWith('http') && raw.includes('token='))) {
+  // Explicit guard: reject product images, shop photos, and catalogue assets immediately
+  if (
+    lower.includes('/shop-photos/') ||
+    lower.includes('/products/') ||
+    lower.startsWith('shop-photos/') ||
+    lower.startsWith('products/') ||
+    lower.startsWith('catalogue/') ||
+    lower.includes('/catalogue/')
+  ) {
+    console.warn('[PaymentProof] Isolation guard: rejected non-payment-proof asset from proof resolution:', raw);
+    return { url: null, error: 'UNAVAILABLE' };
+  }
+
+  // If already a local blob URL or data URI created by client file input during upload:
+  if (raw.startsWith('blob:') || raw.startsWith('data:')) {
     return { url: raw, error: 'NONE' };
+  }
+
+  // If pre-signed URL with signature token, ensure it strictly belongs to payment-proofs bucket
+  if (raw.startsWith('http') && raw.includes('token=')) {
+    if (raw.includes('/payment-proofs/')) {
+      return { url: raw, error: 'NONE' };
+    }
+    return { url: null, error: 'UNAVAILABLE' };
   }
 
   const cleanPath = cleanPaymentProofPath(raw);
   if (!cleanPath) {
-    return { url: null, error: 'MISSING' };
+    return { url: null, error: 'UNAVAILABLE' };
   }
 
   if (!isSupabaseConfigured) {
-    return { url: raw, error: 'NONE' };
+    // In mock mode without live Supabase, only allow valid payment proof paths
+    if (cleanPath.startsWith('pending/') || cleanPath.startsWith('requests/') || cleanPath.startsWith('demo-')) {
+      return { url: raw, error: 'NONE' };
+    }
+    return { url: null, error: 'UNAVAILABLE' };
   }
 
   try {
-    // 1. Generate short-lived signed URL (3600 seconds = 1 hour)
+    // 1. Generate short-lived signed URL (3600 seconds = 1 hour) strictly from payment-proofs bucket
     const { data, error } = await supabase.storage
       .from('payment-proofs')
       .createSignedUrl(cleanPath, 3600);
 
     if (!error && data?.signedUrl) {
       return { url: data.signedUrl, error: 'NONE' };
-    }
-
-    // 2. Check if cleanPath is already an active external HTTP URL
-    if (raw.startsWith('http://') || raw.startsWith('https://')) {
-      return { url: raw, error: 'NONE' };
     }
 
     if (error?.message?.toLowerCase().includes('not found')) {
@@ -111,10 +168,8 @@ export const resolvePaymentProofUrl = async (
     return { url: null, error: 'LOAD_FAILED' };
   } catch (err) {
     console.error('Error resolving payment proof signed URL:', err);
-    if (raw.startsWith('http://') || raw.startsWith('https://')) {
-      return { url: raw, error: 'NONE' };
-    }
     return { url: null, error: 'LOAD_FAILED' };
   }
 };
+
 

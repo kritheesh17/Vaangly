@@ -137,14 +137,14 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
                 setProofError(null);
               } else if (res.error === 'UNAVAILABLE') {
                 setPaymentProofUrl(null);
-                setProofError('Payment proof was submitted, but the uploaded file is currently unavailable.');
+                setProofError('Payment proof unavailable');
               } else {
                 setPaymentProofUrl(null);
-                setProofError('Unable to load payment proof. Try again.');
+                setProofError('Payment proof unavailable');
               }
             } catch {
               setPaymentProofUrl(null);
-              setProofError('Unable to load payment proof. Try again.');
+              setProofError('Payment proof unavailable');
             } finally {
               setIsProofLoading(false);
             }
@@ -568,6 +568,14 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
                       <div className="vaango-proof-state vaango-proof-state--error">
                         <AlertTriangle size={16} className="text-warning shrink-0" />
                         <span>{proofError}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void loadRequestAndHistory()}
+                          className="ml-2"
+                        >
+                          Retry
+                        </Button>
                       </div>
                     ) : paymentProofUrl ? (
                       <div
@@ -584,7 +592,20 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
                           <span>Inspect Proof</span>
                         </div>
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="vaango-proof-state vaango-proof-state--error">
+                        <AlertTriangle size={16} className="text-warning shrink-0" />
+                        <span>Payment proof unavailable</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void loadRequestAndHistory()}
+                          className="ml-2"
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <p className="text-xs text-secondary italic mb-3">

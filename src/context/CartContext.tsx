@@ -6,6 +6,7 @@ import { useAuth } from './AuthContext';
 import { isValidIndianMobile, normalizeIndianPhone } from '../lib/phoneUtils';
 import { notifyOrderLifecycle } from '../lib/notificationApi';
 import { validateOrderPickupAt } from '../lib/orderPickupUtils';
+import { cleanPaymentProofPath } from '../lib/paymentProof';
 
 export interface CartItem {
   product: ShopProduct;
@@ -395,6 +396,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
 
+        const sanitizedPaymentProofPath =
+          paymentMethod === 'upi' && paymentProofPath
+            ? cleanPaymentProofPath(paymentProofPath) || null
+            : null;
+
         // Insert into Supabase requests table
         const { data, error } = await supabase
           .from('requests')
@@ -410,7 +416,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             fulfillment_type: chosenFulfillment,
             payment_method: paymentMethod,
             payment_amount: paymentMethod === 'upi' ? serverCalculatedTotal : null,
-            payment_screenshot_url: paymentMethod === 'upi' ? paymentProofPath : null,
+            payment_screenshot_url: sanitizedPaymentProofPath,
             pickup_at: pickupAt || null,
           })
           .select()
@@ -475,6 +481,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('[Cart] Failed to dispatch customer order notification:', custNotifErr);
         }
       } else {
+        const sanitizedDemoProofPath =
+          paymentMethod === 'upi' && paymentProofPath
+            ? cleanPaymentProofPath(paymentProofPath) || null
+            : null;
+
         // Mock fallback mode: persist in localStorage request ledger
         createdRequest = {
           id: `req-${Date.now()}`,
@@ -487,7 +498,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           customer_paid: false,
           payment_method: paymentMethod,
           payment_status: paymentMethod === 'upi' ? 'PAYMENT_PROOF_SUBMITTED' : 'NOT_REQUIRED',
-          payment_screenshot_url: paymentMethod === 'upi' ? paymentProofPath : null,
+          payment_screenshot_url: sanitizedDemoProofPath,
           fulfillment_type: chosenFulfillment,
           notes: JSON.stringify(requestPayload),
           scheduled_for: null,
