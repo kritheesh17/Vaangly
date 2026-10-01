@@ -4,9 +4,8 @@ import { MOCK_SHOP_TYPES, isValidUuid } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { isValidIndianMobile, normalizeIndianPhone } from '../lib/phoneUtils';
-import { createNotification } from '../lib/notificationApi';
-import { sendBusinessPushNotification } from '../lib/pushNotifications';
-import { validateOrderPickupAt, formatPickupTime } from '../lib/orderPickupUtils';
+import { notifyOrderLifecycle } from '../lib/notificationApi';
+import { validateOrderPickupAt } from '../lib/orderPickupUtils';
 
 export interface CartItem {
   product: ShopProduct;
@@ -436,37 +435,44 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Notify shopkeeper of new incoming order in realtime
         const shopOwnerId = dbShop.owner_id || targetShop.owner_id;
         const customerName = user.full_name || 'Customer';
-        const pickupLabel = pickupAt ? formatPickupTime(pickupAt) : 'ASAP';
-        const notifTitle = pickupAt ? `New order received (Pickup: ${pickupLabel})` : 'New order received';
-        const notifBody = pickupAt
-          ? `New order #${referenceCode} (Pickup: ${pickupLabel}) from ${customerName}. Open Vaangly to view the order.`
-          : `New order #${referenceCode} from ${customerName}. Open Vaangly to view the order.`;
 
         if (shopOwnerId) {
           try {
-            await createNotification({
-              recipient_id: shopOwnerId,
-              shop_id: targetShop.id,
-              type: 'NEW_ORDER',
-              title: notifTitle,
-              message: notifBody,
-              reference_id: createdRequest.id,
-              reference_code: referenceCode,
+            await notifyOrderLifecycle({
+              event: 'ORDER_PLACED',
+              requestId: createdRequest.id,
+              referenceCode,
+              recipientId: shopOwnerId,
+              recipientRole: 'shopkeeper',
+              shopId: targetShop.id,
+              shopName: targetShop.name,
+              customerName,
+              pickupAt: pickupAt || null,
+              fulfillmentType: chosenFulfillment,
+              totalEstimate: serverCalculatedTotal,
             });
           } catch (notifErr) {
-            console.warn('[Cart] Failed to create in-app notification:', notifErr);
+            console.warn('[Cart] Failed to dispatch shopkeeper order notification:', notifErr);
           }
+        }
 
-          try {
-            await sendBusinessPushNotification({
-              userId: shopOwnerId,
-              title: notifTitle,
-              body: notifBody,
-              url: '/shopkeeper/requests',
-            });
-          } catch (pushErr) {
-            console.warn('[Cart] Failed to dispatch business push notification:', pushErr);
-          }
+        // Canonical customer order placed notification
+        try {
+          await notifyOrderLifecycle({
+            event: 'ORDER_PLACED',
+            requestId: createdRequest.id,
+            referenceCode,
+            recipientId: user.id,
+            recipientRole: 'customer',
+            shopId: targetShop.id,
+            shopName: targetShop.name,
+            customerName,
+            pickupAt: pickupAt || null,
+            fulfillmentType: chosenFulfillment,
+            totalEstimate: serverCalculatedTotal,
+          });
+        } catch (custNotifErr) {
+          console.warn('[Cart] Failed to dispatch customer order notification:', custNotifErr);
         }
       } else {
         // Mock fallback mode: persist in localStorage request ledger
@@ -499,23 +505,36 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const shopOwnerId = targetShop.owner_id;
         const customerName = user.full_name || 'Customer';
-        const pickupLabel = pickupAt ? formatPickupTime(pickupAt) : 'ASAP';
-        const notifTitle = pickupAt ? `New order received (Pickup: ${pickupLabel})` : 'New order received';
-        const notifBody = pickupAt
-          ? `New order #${referenceCode} (Pickup: ${pickupLabel}) from ${customerName}. Open Vaangly to view the order.`
-          : `New order #${referenceCode} from ${customerName}. Open Vaangly to view the order.`;
 
         if (shopOwnerId) {
-          void createNotification({
-            recipient_id: shopOwnerId,
-            shop_id: targetShop.id,
-            type: 'NEW_ORDER',
-            title: notifTitle,
-            message: notifBody,
-            reference_id: createdRequest.id,
-            reference_code: referenceCode,
+          void notifyOrderLifecycle({
+            event: 'ORDER_PLACED',
+            requestId: createdRequest.id,
+            referenceCode,
+            recipientId: shopOwnerId,
+            recipientRole: 'shopkeeper',
+            shopId: targetShop.id,
+            shopName: targetShop.name,
+            customerName,
+            pickupAt: pickupAt || null,
+            fulfillmentType: chosenFulfillment,
+            totalEstimate: serverCalculatedTotal,
           });
         }
+
+        void notifyOrderLifecycle({
+          event: 'ORDER_PLACED',
+          requestId: createdRequest.id,
+          referenceCode,
+          recipientId: user.id,
+          recipientRole: 'customer',
+          shopId: targetShop.id,
+          shopName: targetShop.name,
+          customerName,
+          pickupAt: pickupAt || null,
+          fulfillmentType: chosenFulfillment,
+          totalEstimate: serverCalculatedTotal,
+        });
       }
 
       // Remove only this shop's items from the cart

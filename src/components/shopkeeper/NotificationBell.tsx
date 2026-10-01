@@ -8,6 +8,9 @@ import {
   CreditCard,
   AlertCircle,
   CheckCircle2,
+  Truck,
+  Clock,
+  X,
 } from 'lucide-react';
 import { Notification, NotificationType } from '../../types/notification';
 import {
@@ -197,9 +200,22 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
           </div>
         );
       case 'NEW_ORDER':
+      case 'ORDER_PLACED':
         return (
           <div className="vaango-notif-item__icon vaango-notif-item__icon--order">
             <ShoppingBag size={16} />
+          </div>
+        );
+      case 'ORDER_DELIVERY':
+        return (
+          <div className="vaango-notif-item__icon vaango-notif-item__icon--delivery">
+            <Truck size={16} />
+          </div>
+        );
+      case 'ORDER_DELAYED':
+        return (
+          <div className="vaango-notif-item__icon vaango-notif-item__icon--delayed">
+            <Clock size={16} />
           </div>
         );
       case 'APPOINTMENT_REQUESTED':
@@ -208,6 +224,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
             <Calendar size={16} />
           </div>
         );
+      case 'ORDER_REJECTED':
+      case 'PAYMENT_REJECTED':
       case 'CUSTOMER_CANCELLED':
       case 'APPOINTMENT_CANCELLED':
         return (
@@ -216,14 +234,20 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
           </div>
         );
       case 'PAYMENT_RECEIVED':
+      case 'PAYMENT_PROOF_UPLOADED':
+      case 'REFUND_EVENT':
         return (
           <div className="vaango-notif-item__icon vaango-notif-item__icon--payment">
             <CreditCard size={16} />
           </div>
         );
+      case 'ORDER_ACCEPTED':
+      case 'ORDER_PREPARING':
+      case 'ORDER_READY':
+      case 'ORDER_COMPLETED':
       default:
         return (
-          <div className="vaango-notif-item__icon vaango-notif-item__icon--order">
+          <div className="vaango-notif-item__icon vaango-notif-item__icon--ready">
             <CheckCircle2 size={16} />
           </div>
         );
@@ -244,19 +268,35 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
       </button>
 
       {isOpen && (
-        <div className="vaango-notif-dropdown">
-          <div className="vaango-notif-dropdown__header">
-            <h3 className="vaango-notif-dropdown__title">Operational Alerts</h3>
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                className="vaango-notif-dropdown__mark-all"
-                onClick={handleMarkAll}
-              >
-                Mark all as read
-              </button>
-            )}
-          </div>
+        <>
+          <div
+            className="vaango-notif-backdrop"
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="vaango-notif-dropdown">
+            <div className="vaango-notif-dropdown__header">
+              <h3 className="vaango-notif-dropdown__title">Operational Alerts</h3>
+              <div className="vaango-notif-dropdown__actions">
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    className="vaango-notif-dropdown__mark-all"
+                    onClick={handleMarkAll}
+                  >
+                    Mark all as read
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="vaango-notif-dropdown__close"
+                  onClick={() => setIsOpen(false)}
+                  aria-label="Close notifications"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
 
           {notifications.length === 0 ? (
             <div className="vaango-notif-empty">
@@ -288,6 +328,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ shopId }) =>
             </ul>
           )}
         </div>
+        </>
       )}
     </div>
   );

@@ -1,5 +1,6 @@
-import { Notification } from '../types/notification';
+import { Notification, NotificationType } from '../types/notification';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { sendBusinessPushNotification } from './pushNotifications';
 
 export const DEMO_NOTIFICATIONS_KEY = 'vaango_demo_notifications';
 
@@ -180,10 +181,50 @@ export const markAllNotificationsAsRead = async (recipientId: string): Promise<b
 
 /**
  * Create a new operational notification (e.g. order placed, cancelled, appointment booked)
+ * Includes deduplication protection to prevent duplicate events for the same transition.
  */
 export const createNotification = async (
   payload: Omit<Notification, 'id' | 'is_read' | 'created_at'>
 ): Promise<Notification> => {
+  // 1. Supabase deduplication check: avoid creating identical notifications for the same reference
+  if (isSupabaseConfigured && payload.reference_id && payload.recipient_id) {
+    try {
+      const { data: existing } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('recipient_id', payload.recipient_id)
+        .eq('reference_id', payload.reference_id)
+        .eq('type', payload.type)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        return existing[0] as Notification;
+      }
+    } catch (dedupErr) {
+      console.warn('[NotificationApi] Supabase dedup check warning:', dedupErr);
+    }
+  }
+
+  // 2. Demo / mock storage deduplication check:
+  try {
+    const raw = localStorage.getItem(DEMO_NOTIFICATIONS_KEY);
+    if (raw && payload.reference_id) {
+      const existing: Notification[] = JSON.parse(raw);
+      const dup = existing.find(
+        (n) =>
+          n.recipient_id === payload.recipient_id &&
+          n.reference_id === payload.reference_id &&
+          n.type === payload.type
+      );
+      if (dup) {
+        return dup;
+      }
+    }
+  } catch (dedupErr) {
+    console.warn('[NotificationApi] Mock dedup check warning:', dedupErr);
+  }
+
   const newNotif: Notification = {
     ...payload,
     id: `notif-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -223,4 +264,218 @@ export const createNotification = async (
   }
 
   return newNotif;
+};
+
+export interface OrderLifecycleNotificationParams {
+  event:
+    | 'ORDER_PLACED'
+    | 'ORDER_ACCEPTED'
+    | 'ORDER_REJECTED'
+    | 'ORDER_PREPARING'
+    | 'ORDER_DELAYED'
+    | 'PAYMENT_PROOF_UPLOADED'
+    | 'PAYMENT_VERIFIED'
+    | 'PAYMENT_REJECTED'
+    | 'ORDER_READY'
+    | 'OUT_FOR_DELIVERY'
+    | 'ORDER_COMPLETED'
+    | 'ORDER_CANCELLED'
+    | 'REFUND_COMPLETED';
+  requestId: string;
+  referenceCode: string;
+  recipientId: string;
+  recipientRole?: 'customer' | 'shopkeeper';
+  shopId?: string | null;
+  shopName?: string;
+  customerName?: string;
+  reason?: string;
+  notes?: string;
+  refundAmount?: number;
+  refundMethod?: string;
+  pickupAt?: string | null;
+  fulfillmentType?: string | null;
+  totalEstimate?: number | null;
+  customerPaid?: boolean;
+}
+
+/**
+ * Canonical helper for dispatching order lifecycle notifications.
+ * Guarantees consistent copy, deduplication, in-app notification rows, and push notification attempts.
+ */
+export const notifyOrderLifecycle = async (
+  params: OrderLifecycleNotificationParams
+): Promise<Notification | null> => {
+  const {
+    event,
+    requestId,
+    referenceCode,
+    recipientId,
+    recipientRole = 'customer',
+    shopId,
+    shopName = 'the shop',
+    customerName = 'Customer',
+    reason,
+    notes,
+    refundAmount,
+    refundMethod,
+    pickupAt,
+    fulfillmentType,
+    totalEstimate,
+    customerPaid,
+  } = params;
+
+  if (!recipientId) return null;
+
+  let title = '';
+  let message = '';
+  let type: NotificationType = 'STATUS_CHANGE';
+
+  const isPickup =
+    fulfillmentType === 'pickup' ||
+    fulfillmentType === 'TAKEAWAY' ||
+    fulfillmentType === 'parcel' ||
+    Boolean(pickupAt);
+
+  switch (event) {
+    case 'ORDER_PLACED':
+      if (recipientRole === 'shopkeeper') {
+        type = 'NEW_ORDER';
+        title = pickupAt ? 'New order received (Scheduled Pickup)' : 'New order received';
+        message = `New order #${referenceCode} received from ${customerName}. Open Vaangly to view the order.`;
+      } else {
+        type = 'ORDER_PLACED';
+        title = pickupAt ? 'Order Placed (Scheduled Pickup)' : 'Order Placed';
+        message = pickupAt
+          ? `Your order #${referenceCode} has been placed for scheduled pickup.`
+          : `Your order #${referenceCode} has been placed.`;
+      }
+      break;
+
+    case 'ORDER_ACCEPTED':
+      type = 'ORDER_ACCEPTED';
+      title = 'Order Accepted';
+      message = `Your order #${referenceCode} has been accepted by ${shopName}.`;
+      break;
+
+    case 'ORDER_REJECTED': {
+      type = 'ORDER_REJECTED';
+      title = 'Order Rejected';
+      const reasonPart = reason ? ` Reason: ${reason}.` : '';
+      const refundPart =
+        refundAmount && refundAmount > 0
+          ? ` Refund of ₹${refundAmount} has been marked as required.`
+          : '';
+      message = `Your order #${referenceCode} was rejected by ${shopName}.${reasonPart}${refundPart}`;
+      break;
+    }
+
+    case 'ORDER_PREPARING':
+      type = 'ORDER_PREPARING';
+      title = 'Order Preparing';
+      message = `Your order #${referenceCode} is being prepared.`;
+      break;
+
+    case 'ORDER_DELAYED':
+      type = 'ORDER_DELAYED';
+      title = 'Order Delayed';
+      message = `Your order #${referenceCode} is delayed.${reason || notes ? ` ${(reason || notes)?.trim()}` : ''}`;
+      break;
+
+    case 'PAYMENT_PROOF_UPLOADED':
+      type = 'PAYMENT_PROOF_UPLOADED';
+      title = 'Payment Proof Uploaded';
+      message = `Payment proof uploaded for order #${referenceCode}. Please verify the payment.`;
+      break;
+
+    case 'PAYMENT_VERIFIED':
+      type = 'PAYMENT_RECEIVED';
+      title = 'Payment Verified';
+      message = `Payment for order #${referenceCode} has been verified.`;
+      break;
+
+    case 'PAYMENT_REJECTED':
+      type = 'PAYMENT_REJECTED';
+      title = 'Payment Rejected';
+      message = `Payment verification for order #${referenceCode} was rejected: ${reason || 'Invalid screenshot'}. Please submit a replacement proof.`;
+      break;
+
+    case 'ORDER_READY':
+      type = 'ORDER_READY';
+      if (isPickup) {
+        title = 'Order Ready for Pickup';
+        message = `Your order #${referenceCode} is ready for pickup at ${shopName}.`;
+      } else {
+        title = 'Order Ready';
+        message = `Your order #${referenceCode} is ready.`;
+      }
+      break;
+
+    case 'OUT_FOR_DELIVERY':
+      type = 'ORDER_DELIVERY';
+      title = 'Out for Delivery';
+      message = `Your order #${referenceCode} is out for delivery.`;
+      break;
+
+    case 'ORDER_COMPLETED':
+      type = 'ORDER_COMPLETED';
+      title = 'Order Completed';
+      message =
+        !customerPaid && totalEstimate && totalEstimate > 0
+          ? `Your order #${referenceCode} has been completed, but payment of ₹${totalEstimate} is awaiting verification.`
+          : `Your order #${referenceCode} has been completed.`;
+      break;
+
+    case 'ORDER_CANCELLED':
+      type = 'CUSTOMER_CANCELLED';
+      title = 'Order Cancelled';
+      if (recipientRole === 'shopkeeper') {
+        message = `Order #${referenceCode} was cancelled by the customer.${reason ? ` Reason: ${reason}` : ''}`;
+      } else {
+        message = reason
+          ? `Your order #${referenceCode} was cancelled by ${shopName}. Reason: ${reason}`
+          : `Your order #${referenceCode} has been cancelled.`;
+      }
+      break;
+
+    case 'REFUND_COMPLETED':
+      type = 'REFUND_EVENT';
+      title = 'Refund Completed';
+      message = `Refund of ₹${refundAmount ?? 0} for order #${referenceCode} has been completed via ${refundMethod || 'original method'}.`;
+      break;
+
+    default:
+      title = `Order #${referenceCode} Updated`;
+      message = `Your order #${referenceCode} has a status update.`;
+      break;
+  }
+
+  // 1. Create in-app notification row (with deduplication)
+  const notif = await createNotification({
+    recipient_id: recipientId,
+    shop_id: shopId || null,
+    type,
+    title,
+    message,
+    reference_id: requestId,
+    reference_code: referenceCode,
+  });
+
+  // 2. Dispatch push notification if recipient has push active
+  const targetUrl =
+    recipientRole === 'shopkeeper'
+      ? `/shopkeeper/requests/${requestId}`
+      : `/request/${requestId}`;
+
+  try {
+    await sendBusinessPushNotification({
+      userId: recipientId,
+      title,
+      body: message,
+      url: targetUrl,
+    });
+  } catch (pushErr) {
+    console.warn('[NotificationApi] Push notification delivery skipped/failed:', pushErr);
+  }
+
+  return notif;
 };

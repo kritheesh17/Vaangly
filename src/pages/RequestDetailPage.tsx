@@ -17,6 +17,7 @@ import { Request } from '../types/database';
 import { WorkflowStateCode, WorkflowGroupCode } from '../types/workflow';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { cancelCustomerRequest, confirmAppointmentOnlinePayment } from '../lib/appointmentServiceApi';
+import { notifyOrderLifecycle } from '../lib/notificationApi';
 import { RequestTimeline } from '../components/customer/RequestTimeline';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -112,6 +113,22 @@ export const RequestDetailPage: React.FC = () => {
           payment_status: 'PAYMENT_PROOF_SUBMITTED',
           hold_expires_at: null,
         } : prev);
+
+        try {
+          const demoShops = JSON.parse(localStorage.getItem('vaango_demo_shops') || '[]');
+          const demoShop = demoShops.find((s: any) => s.id === request.shop_id);
+          if (demoShop?.owner_id) {
+            void notifyOrderLifecycle({
+              event: 'PAYMENT_PROOF_UPLOADED',
+              requestId: request.id,
+              referenceCode: request.reference_code,
+              recipientId: demoShop.owner_id,
+              recipientRole: 'shopkeeper',
+              shopId: request.shop_id,
+            });
+          }
+        } catch { /* demo fallback */ }
+
         success(t('paymentProofDemo'));
         setPaymentProofFile(null);
         setPaymentProofPreview(null);
@@ -124,13 +141,47 @@ export const RequestDetailPage: React.FC = () => {
       if (groupCode === 'APPOINTMENT') {
         const result = await confirmAppointmentOnlinePayment(request.id, path);
         if (!result.success) throw new Error(result.error || 'Unable to submit payment proof.');
-        const { data, error } = await supabase.from('requests').select('*').eq('id', request.id).single();
+        const { data, error } = await supabase.from('requests').select('*, shops(owner_id)').eq('id', request.id).single();
         if (error || !data) throw error || new Error('Unable to reload appointment payment.');
         setRequest(data as Request);
+
+        const shopOwnerId = (data as any)?.shops?.owner_id;
+        if (shopOwnerId) {
+          void notifyOrderLifecycle({
+            event: 'PAYMENT_PROOF_UPLOADED',
+            requestId: data.id,
+            referenceCode: data.reference_code,
+            recipientId: shopOwnerId,
+            recipientRole: 'shopkeeper',
+            shopId: data.shop_id,
+          });
+        }
       } else {
-        const { data, error } = await supabase.from('requests').update({ payment_screenshot_url: path }).eq('id', request.id).eq('customer_id', user.id).select().single();
+        const { data, error } = await supabase
+          .from('requests')
+          .update({
+            payment_screenshot_url: path,
+            payment_status: 'PAYMENT_PROOF_SUBMITTED',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', request.id)
+          .eq('customer_id', user.id)
+          .select('*, shops(owner_id)')
+          .single();
         if (error || !data) throw error || new Error('Unable to save payment proof.');
         setRequest(data as Request);
+
+        const shopOwnerId = (data as any)?.shops?.owner_id;
+        if (shopOwnerId) {
+          void notifyOrderLifecycle({
+            event: 'PAYMENT_PROOF_UPLOADED',
+            requestId: data.id,
+            referenceCode: data.reference_code,
+            recipientId: shopOwnerId,
+            recipientRole: 'shopkeeper',
+            shopId: data.shop_id,
+          });
+        }
       }
       success(t('paymentProofSuccess'));
     } catch (err) {

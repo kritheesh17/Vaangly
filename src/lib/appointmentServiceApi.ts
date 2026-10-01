@@ -1,6 +1,7 @@
 import { AppointmentSlot, ShopService, Request, RequestEvent, PriceType, SlotConfig } from '../types/database';
 import { supabase, isSupabaseConfigured } from './supabase';
-import { getShopServices as getMockServices, generateDailySlots } from '../data/mockData';
+import { getShopServices as getMockServices, generateDailySlots, MOCK_SHOPS } from '../data/mockData';
+import { notifyOrderLifecycle } from './notificationApi';
 import { normalizeIndianPhone } from './phoneUtils';
 import {
   parseTimeToMinutes,
@@ -934,7 +935,7 @@ export const cancelCustomerRequest = async (
         })
         .eq('id', requestId)
         .eq('current_state', req.current_state)
-        .select()
+        .select('*, shops(name, owner_id)')
         .single();
 
       if (updateErr || !updatedReq) {
@@ -961,6 +962,33 @@ export const cancelCustomerRequest = async (
         actor_role: 'customer',
         notes: cancelReason,
       });
+
+      const shopOwnerId = (updatedReq as any)?.shops?.owner_id;
+      const shopName = (updatedReq as any)?.shops?.name || 'the store';
+
+      // 1. Notify Customer
+      void notifyOrderLifecycle({
+        event: 'ORDER_CANCELLED',
+        requestId,
+        referenceCode: req.reference_code,
+        recipientId: customerId,
+        recipientRole: 'customer',
+        shopId: req.shop_id,
+        shopName,
+      });
+
+      // 2. Notify Shopkeeper
+      if (shopOwnerId) {
+        void notifyOrderLifecycle({
+          event: 'ORDER_CANCELLED',
+          requestId,
+          referenceCode: req.reference_code,
+          recipientId: shopOwnerId,
+          recipientRole: 'shopkeeper',
+          shopId: req.shop_id,
+          reason: cancelReason,
+        });
+      }
 
       return { success: true, request: updatedReq as Request };
     } catch (err: unknown) {
@@ -1048,6 +1076,34 @@ export const cancelCustomerRequest = async (
       created_at: new Date().toISOString(),
     });
     localStorage.setItem(DEMO_REQUEST_EVENTS_KEY, JSON.stringify(existingEvents));
+
+    const mockShop = MOCK_SHOPS.find((s) => s.id === req.shop_id);
+    const shopOwnerId = mockShop?.owner_id;
+    const shopName = mockShop?.name || 'the store';
+
+    // 1. Notify Customer
+    void notifyOrderLifecycle({
+      event: 'ORDER_CANCELLED',
+      requestId,
+      referenceCode: req.reference_code,
+      recipientId: customerId,
+      recipientRole: 'customer',
+      shopId: req.shop_id,
+      shopName,
+    });
+
+    // 2. Notify Shopkeeper
+    if (shopOwnerId) {
+      void notifyOrderLifecycle({
+        event: 'ORDER_CANCELLED',
+        requestId,
+        referenceCode: req.reference_code,
+        recipientId: shopOwnerId,
+        recipientRole: 'shopkeeper',
+        shopId: req.shop_id,
+        reason: cancelReason,
+      });
+    }
 
     return { success: true, request: allReqs[idx] };
   } catch (err: unknown) {

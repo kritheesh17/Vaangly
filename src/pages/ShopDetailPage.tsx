@@ -32,7 +32,7 @@ import { isValidIndianMobile, normalizeIndianPhone } from '../lib/phoneUtils';
 import { useToast } from '../context/ToastContext';
 import { Modal } from '../components/ui/Modal';
 import { Textarea } from '../components/ui/Textarea';
-import { createNotification } from '../lib/notificationApi';
+import { createNotification, notifyOrderLifecycle } from '../lib/notificationApi';
 import { sendBusinessPushNotification } from '../lib/pushNotifications';
 
 const hasValidCoordinates = (lat: unknown, lng: unknown): boolean => {
@@ -270,6 +270,22 @@ export const ShopDetailPage: React.FC = () => {
         } catch (pushErr) {
           console.warn('[ShopDetail] Failed to send business push:', pushErr);
         }
+      }
+
+      // Notify customer that custom cake request was placed
+      try {
+        await notifyOrderLifecycle({
+          event: 'ORDER_PLACED',
+          requestId: data.id,
+          referenceCode,
+          recipientId: user.id,
+          recipientRole: 'customer',
+          shopId: shop.id,
+          shopName: shop.name,
+          customerName: user.full_name || 'Customer',
+        });
+      } catch (custNotifErr) {
+        console.warn('[ShopDetail] Failed to notify customer:', custNotifErr);
       }
 
       setCakeModalOpen(false);

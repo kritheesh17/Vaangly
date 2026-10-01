@@ -7,8 +7,7 @@ import { MOCK_SHOPS, MOCK_PRODUCTS, MOCK_SHOP_TYPES, getShopServices } from '../
 import { getStoredDemoRequests } from './demoData';
 import { normalizeIndianPhone } from './phoneUtils';
 import { classifyProductError, classifyApplicationError } from './productErrorHelper';
-import { createNotification } from './notificationApi';
-import { sendBusinessPushNotification } from './pushNotifications';
+import { notifyOrderLifecycle, type OrderLifecycleNotificationParams } from './notificationApi';
 
 const DEMO_SHOPS_KEY = 'vaango_demo_shops';
 const DEMO_PRODUCTS_KEY = 'vaango_demo_products';
@@ -742,7 +741,7 @@ export const transitionRequestState = async (
       // Concurrency check: Ensure request is still in expectedCurrentState
       const { data: currentReq, error: fetchErr } = await supabase
         .from('requests')
-        .select('*')
+        .select('*, shops(name)')
         .eq('id', requestId)
         .single();
 
@@ -817,31 +816,53 @@ export const transitionRequestState = async (
         notes: notes?.trim() || null,
       });
 
-      const notifTitle = newState === 'READY'
-        ? 'Order Ready for Pickup'
-        : `Request #${currentReq.reference_code} Updated`;
+      const shopName = (currentReq as any)?.shops?.name || 'the shop';
+      let eventName: OrderLifecycleNotificationParams['event'] = 'ORDER_ACCEPTED';
+      switch (newState as string) {
+        case 'ACCEPTED':
+        case 'CONFIRMED':
+          eventName = 'ORDER_ACCEPTED';
+          break;
+        case 'PREPARING':
+        case 'IN_PROGRESS':
+          eventName = 'ORDER_PREPARING';
+          break;
+        case 'DELAYED':
+          eventName = 'ORDER_DELAYED';
+          break;
+        case 'READY':
+          eventName = 'ORDER_READY';
+          break;
+        case 'OUT_FOR_DELIVERY':
+        case 'DISPATCHED':
+          eventName = 'OUT_FOR_DELIVERY';
+          break;
+        case 'COMPLETED':
+          eventName = 'ORDER_COMPLETED';
+          break;
+        case 'REJECTED':
+          eventName = 'ORDER_REJECTED';
+          break;
+        case 'CANCELLED':
+          eventName = 'ORDER_CANCELLED';
+          break;
+      }
 
-      const notifBody = newState === 'COMPLETED' && !updatedReq.customer_paid
-        ? `Your order #${currentReq.reference_code} is completed, but payment of ₹${currentReq.total_estimate ?? 0} is still awaiting verification.`
-        : newState === 'READY'
-        ? `Your order #${currentReq.reference_code} is ready for customer pickup!`
-        : `Your request #${currentReq.reference_code} is ${newState.toLowerCase()}.`;
-
-      void sendBusinessPushNotification({
-        userId: currentReq.customer_id,
-        title: notifTitle,
-        body: notifBody,
-        url: `/request/${requestId}`,
-      });
-
-      void createNotification({
-        recipient_id: currentReq.customer_id,
-        shop_id: currentReq.shop_id,
-        type: 'STATUS_CHANGE',
-        title: notifTitle,
-        message: notifBody,
-        reference_id: requestId,
-        reference_code: currentReq.reference_code,
+      void notifyOrderLifecycle({
+        event: eventName,
+        requestId,
+        referenceCode: currentReq.reference_code,
+        recipientId: currentReq.customer_id,
+        recipientRole: 'customer',
+        shopId: currentReq.shop_id,
+        shopName,
+        reason: notes?.trim() || undefined,
+        notes: notes?.trim() || undefined,
+        refundAmount: (updatedReq as any).refund_amount ?? undefined,
+        pickupAt: currentReq.pickup_at,
+        fulfillmentType: currentReq.fulfillment_type,
+        totalEstimate: currentReq.total_estimate,
+        customerPaid: (updatedReq as any).customer_paid,
       });
 
       return { success: true, request: updatedReq as Request };
@@ -944,6 +965,55 @@ export const transitionRequestState = async (
     });
     localStorage.setItem(DEMO_REQUEST_EVENTS_KEY, JSON.stringify(allEvents));
 
+    const shopName = getStoredMockShops().find((s) => s.id === currentReq.shop_id)?.name || 'the shop';
+    let mockEventName: OrderLifecycleNotificationParams['event'] = 'ORDER_ACCEPTED';
+    switch (newState as string) {
+      case 'ACCEPTED':
+      case 'CONFIRMED':
+        mockEventName = 'ORDER_ACCEPTED';
+        break;
+      case 'PREPARING':
+      case 'IN_PROGRESS':
+        mockEventName = 'ORDER_PREPARING';
+        break;
+      case 'DELAYED':
+        mockEventName = 'ORDER_DELAYED';
+        break;
+      case 'READY':
+        mockEventName = 'ORDER_READY';
+        break;
+      case 'OUT_FOR_DELIVERY':
+      case 'DISPATCHED':
+        mockEventName = 'OUT_FOR_DELIVERY';
+        break;
+      case 'COMPLETED':
+        mockEventName = 'ORDER_COMPLETED';
+        break;
+      case 'REJECTED':
+        mockEventName = 'ORDER_REJECTED';
+        break;
+      case 'CANCELLED':
+        mockEventName = 'ORDER_CANCELLED';
+        break;
+    }
+
+    void notifyOrderLifecycle({
+      event: mockEventName,
+      requestId,
+      referenceCode: updated.reference_code,
+      recipientId: updated.customer_id,
+      recipientRole: 'customer',
+      shopId: updated.shop_id,
+      shopName,
+      reason: notes?.trim() || undefined,
+      notes: notes?.trim() || undefined,
+      refundAmount: updated.refund_amount ?? undefined,
+      pickupAt: updated.pickup_at,
+      fulfillmentType: updated.fulfillment_type,
+      totalEstimate: updated.total_estimate,
+      customerPaid: updated.customer_paid,
+    });
+
     return { success: true, request: updated };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error updating request.';
@@ -986,27 +1056,15 @@ export const markRequestCustomerPaid = async (
     });
 
     const payableAmount = data.total_estimate ?? data.payment_amount ?? 0;
-    const isOnline = data.payment_method === 'upi' || data.payment_method === 'online';
-    const notifTitle = isOnline ? 'Online Payment Verified' : 'Payment Received';
-    const notifMessage = isOnline
-      ? `Online payment verified — ₹${payableAmount} payment confirmed.`
-      : `Payment received — ₹${payableAmount} has been marked as paid.`;
-
-    void createNotification({
-      recipient_id: data.customer_id,
-      shop_id: data.shop_id,
-      type: 'PAYMENT_RECEIVED',
-      title: notifTitle,
-      message: notifMessage,
-      reference_id: data.id,
-      reference_code: data.reference_code,
-    });
-
-    void sendBusinessPushNotification({
-      userId: data.customer_id,
-      title: notifTitle,
-      body: notifMessage,
-      url: `/request/${data.id}`,
+    void notifyOrderLifecycle({
+      event: 'PAYMENT_VERIFIED',
+      requestId: data.id,
+      referenceCode: data.reference_code,
+      recipientId: data.customer_id,
+      recipientRole: 'customer',
+      shopId: data.shop_id,
+      totalEstimate: payableAmount,
+      customerPaid: true,
     });
 
     return { success: true, request: data as Request };
@@ -1032,20 +1090,15 @@ export const markRequestCustomerPaid = async (
     localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(requests));
 
     const payableAmount = updated.total_estimate ?? updated.payment_amount ?? 0;
-    const isOnline = updated.payment_method === 'upi' || updated.payment_method === 'online';
-    const notifTitle = isOnline ? 'Online Payment Verified' : 'Payment Received';
-    const notifMessage = isOnline
-      ? `Online payment verified — ₹${payableAmount} payment confirmed.`
-      : `Payment received — ₹${payableAmount} has been marked as paid.`;
-
-    void createNotification({
-      recipient_id: updated.customer_id,
-      shop_id: updated.shop_id,
-      type: 'PAYMENT_RECEIVED',
-      title: notifTitle,
-      message: notifMessage,
-      reference_id: updated.id,
-      reference_code: updated.reference_code,
+    void notifyOrderLifecycle({
+      event: 'PAYMENT_VERIFIED',
+      requestId: updated.id,
+      referenceCode: updated.reference_code,
+      recipientId: updated.customer_id,
+      recipientRole: 'customer',
+      shopId: updated.shop_id,
+      totalEstimate: payableAmount,
+      customerPaid: true,
     });
 
     return { success: true, request: updated };
@@ -1087,6 +1140,17 @@ export const recordPayAtShopRefund = async (
       if (requestError || !request) {
         return { success: false, error: requestError?.message || 'Refund was recorded but the request could not be reloaded.' };
       }
+
+      void notifyOrderLifecycle({
+        event: 'REFUND_COMPLETED',
+        requestId: request.id,
+        referenceCode: request.reference_code,
+        recipientId: request.customer_id,
+        recipientRole: 'customer',
+        shopId: request.shop_id,
+        refundAmount: request.refund_amount ?? undefined,
+        refundMethod: refundMethod,
+      });
 
       return { success: true, request: request as Request };
     } catch (err: unknown) {
@@ -1136,6 +1200,18 @@ export const recordPayAtShopRefund = async (
       created_at: nowIso,
     });
     localStorage.setItem(DEMO_REQUEST_EVENTS_KEY, JSON.stringify(events));
+
+    void notifyOrderLifecycle({
+      event: 'REFUND_COMPLETED',
+      requestId: updated.id,
+      referenceCode: updated.reference_code,
+      recipientId: updated.customer_id,
+      recipientRole: 'customer',
+      shopId: updated.shop_id,
+      refundAmount: updated.refund_amount ?? undefined,
+      refundMethod: refundMethod,
+    });
+
     return { success: true, request: updated };
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : 'Unable to record refund.' };
@@ -1172,24 +1248,14 @@ export const rejectRequestPayment = async (
       notes: `Payment proof rejected: ${cleanReason}`,
     });
 
-    const notifTitle = 'Payment Proof Rejected';
-    const notifMessage = `Payment proof for Order #${data.reference_code} was rejected: ${cleanReason}. Please submit a replacement proof.`;
-
-    void createNotification({
-      recipient_id: data.customer_id,
-      shop_id: data.shop_id,
-      type: 'STATUS_CHANGE',
-      title: notifTitle,
-      message: notifMessage,
-      reference_id: data.id,
-      reference_code: data.reference_code,
-    });
-
-    void sendBusinessPushNotification({
-      userId: data.customer_id,
-      title: notifTitle,
-      body: notifMessage,
-      url: `/request/${data.id}`,
+    void notifyOrderLifecycle({
+      event: 'PAYMENT_REJECTED',
+      requestId: data.id,
+      referenceCode: data.reference_code,
+      recipientId: data.customer_id,
+      recipientRole: 'customer',
+      shopId: data.shop_id,
+      reason: cleanReason,
     });
 
     return { success: true, request: data as Request };
@@ -1210,14 +1276,14 @@ export const rejectRequestPayment = async (
     requests[index] = updated;
     localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(requests));
 
-    void createNotification({
-      recipient_id: updated.customer_id,
-      shop_id: updated.shop_id,
-      type: 'STATUS_CHANGE',
-      title: 'Payment Proof Rejected',
-      message: `Payment proof for Order #${updated.reference_code} was rejected: ${cleanReason}. Please submit a replacement proof.`,
-      reference_id: updated.id,
-      reference_code: updated.reference_code,
+    void notifyOrderLifecycle({
+      event: 'PAYMENT_REJECTED',
+      requestId: updated.id,
+      referenceCode: updated.reference_code,
+      recipientId: updated.customer_id,
+      recipientRole: 'customer',
+      shopId: updated.shop_id,
+      reason: cleanReason,
     });
 
     return { success: true, request: updated };
