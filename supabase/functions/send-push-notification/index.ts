@@ -24,7 +24,7 @@ Deno.serve(async (request) => {
   }
 
   try {
-    const { user_id, title, body, url, origin } = await request.json();
+    const { user_id, title, body, url, origin, tag } = await request.json();
     if (!user_id) {
       return new Response(JSON.stringify({ error: 'user_id is required' }), {
         status: 400,
@@ -79,6 +79,9 @@ Deno.serve(async (request) => {
 
     let sentCount = 0;
     const sendErrors: string[] = [];
+    const deadEndpoints: string[] = [];
+
+    const notificationTag = tag || `vaangly-${Date.now()}`;
 
     for (const target of targets) {
       if (!target || !target.endpoint) continue;
@@ -92,13 +95,49 @@ Deno.serve(async (request) => {
             title: title || 'Vaangly',
             body: body || 'You have a new update.',
             url: url || '/',
-            tag: 'vaangly-cloud-push',
-          })
+            tag: notificationTag,
+          }),
+          {
+            TTL: 86400, // 24 hours retention
+            urgency: 'high', // Critical for waking Android background & locked screen
+          }
         );
         sentCount++;
       } catch (err: any) {
-        console.error('[Edge Push] Delivery error for endpoint:', target.endpoint, err);
-        sendErrors.push(err.message || 'Push delivery failed');
+        console.error('[Edge Push] Delivery error for endpoint:', target.endpoint, err?.message || err, 'status:', err?.statusCode || err?.status);
+        const statusCode = err?.statusCode || err?.status;
+        const isMalformedKey = err?.message?.includes('p256dh') || err?.message?.includes('auth');
+        if (statusCode === 400 || statusCode === 403 || statusCode === 404 || statusCode === 410 || isMalformedKey) {
+          console.log(`[Edge Push] Pruning invalid/expired/gone (${statusCode || 'malformed'}) endpoint:`, target.endpoint);
+          deadEndpoints.push(target.endpoint);
+        }
+        sendErrors.push(`${err.message || 'Push delivery failed'} (status: ${statusCode || 'unknown'})`);
+      }
+    }
+
+    // Safely prune dead/expired endpoints from push_subscriptions
+    if (deadEndpoints.length > 0) {
+      try {
+        if (subData?.subscriptionsByOrigin) {
+          for (const [orig, sub] of Object.entries(subData.subscriptionsByOrigin as Record<string, any>)) {
+            if (sub?.endpoint && deadEndpoints.includes(sub.endpoint)) {
+              delete subData.subscriptionsByOrigin[orig];
+            }
+          }
+          const remainingOrigins = Object.keys(subData.subscriptionsByOrigin);
+          if (remainingOrigins.length > 0) {
+            await supabase
+              .from('push_subscriptions')
+              .update({ subscription: subData, updated_at: new Date().toISOString() })
+              .eq('user_id', user_id);
+          } else {
+            await supabase.from('push_subscriptions').delete().eq('user_id', user_id);
+          }
+        } else if (deadEndpoints.includes(record.endpoint)) {
+          await supabase.from('push_subscriptions').delete().eq('user_id', user_id);
+        }
+      } catch (cleanErr) {
+        console.warn('[Edge Push] Prune error:', cleanErr);
       }
     }
 

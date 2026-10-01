@@ -92,12 +92,14 @@ self.addEventListener('push', (event) => {
   }
 
   const title = data.title || 'Vaangly';
+  const tag = data.tag || `vaangly-${Date.now()}`;
   const options = {
     body: data.body || '',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
-    tag: data.tag || 'vaangly-notification',
-    vibrate: [100, 50, 100],
+    tag: tag,
+    renotify: true,
+    vibrate: [200, 100, 200],
     data: {
       url: data.url || '/',
       timestamp: Date.now(),
@@ -105,7 +107,16 @@ self.addEventListener('push', (event) => {
     actions: data.actions || [],
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    self.registration.showNotification(title, options).catch((err) => {
+      console.warn('[Vaangly SW] Error showing rich notification:', err);
+      // Fallback with minimal options if custom attributes fail
+      return self.registration.showNotification(title, {
+        body: data.body || '',
+        data: { url: data.url || '/' },
+      });
+    })
+  );
 });
 
 // 5. Notification Click Event: Navigate user to targeted page (Order/Appointment/Queue)

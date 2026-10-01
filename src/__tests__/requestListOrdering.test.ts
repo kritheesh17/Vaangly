@@ -16,6 +16,8 @@ describe('Shopkeeper Request List Order & Realtime Deduplication Tests', () => {
     reference_code: `ORD-${id}`,
     total_estimate: 500,
     customer_paid: false,
+    notes: null,
+    scheduled_for: null,
     created_at: createdAt,
     updated_at: createdAt,
     ...extra,

@@ -9,6 +9,7 @@ import {
   getNotificationDiagnostics,
   NotificationDiagnosticsData,
 } from '../lib/pushNotifications';
+import { useAuth } from './AuthContext';
 
 export type PermissionStatus = 'granted' | 'prompt' | 'denied' | 'unsupported';
 export type AppPlatform = 'android' | 'ios' | 'desktop' | 'capacitor';
@@ -188,6 +189,7 @@ function checkIsInstalled(): boolean {
 }
 
 export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [platform] = useState<AppPlatform>(detectPlatform);
   const [isInstalled, setIsInstalled] = useState<boolean>(checkIsInstalled);
   const [isInstallable, setIsInstallable] = useState<boolean>(false);
@@ -381,6 +383,19 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, [refreshNotificationStatus, refreshLocationStatus]);
+
+  // Automatically sync and refresh Web Push subscription in background whenever
+  // notifications are granted and user is authenticated
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission === 'granted' && user?.id) {
+      void registerPushSubscription().then((synced) => {
+        if (synced) {
+          void refreshDiagnostics();
+        }
+      });
+    }
+  }, [user?.id, refreshDiagnostics]);
 
   // Request Notification Permission on explicit user interaction
   const requestNotificationPermission = useCallback(async (): Promise<boolean> => {

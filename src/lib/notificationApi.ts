@@ -472,6 +472,7 @@ export const notifyOrderLifecycle = async (
       title,
       body: message,
       url: targetUrl,
+      tag: `vaangly-${referenceCode || requestId || Date.now()}`,
     });
   } catch (pushErr) {
     console.warn('[NotificationApi] Push notification delivery skipped/failed:', pushErr);
