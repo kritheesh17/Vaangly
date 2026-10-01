@@ -8,6 +8,7 @@ import { getStoredDemoRequests } from './demoData';
 import { normalizeIndianPhone } from './phoneUtils';
 import { classifyProductError, classifyApplicationError } from './productErrorHelper';
 import { notifyOrderLifecycle, type OrderLifecycleNotificationParams } from './notificationApi';
+import { sortRequestsChronologicalDesc } from './orderPickupUtils';
 
 const DEMO_SHOPS_KEY = 'vaango_demo_shops';
 const DEMO_PRODUCTS_KEY = 'vaango_demo_products';
@@ -647,9 +648,9 @@ export const getShopRequests = async (shopId: string): Promise<Request[]> => {
   try {
     const allReqs = getStoredDemoRequests();
     const filtered = allReqs.filter((r) => r.shop_id === shopId);
-    if (filtered.length > 0) return filtered;
+    if (filtered.length > 0) return sortRequestsChronologicalDesc(filtered);
     // Fallback: return a subset of demo requests so test actions are always available
-    return allReqs.slice(0, 3);
+    return sortRequestsChronologicalDesc(allReqs.slice(0, 3));
   } catch (err) {
     console.error('Error reading mock requests:', err);
   }

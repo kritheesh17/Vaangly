@@ -355,23 +355,58 @@ export const formatPickupTime = (
 };
 
 /**
+ * Canonical chronological descending sort: NEWEST REQUEST FIRST.
+ * Primary sort: created_at DESC (newest created_at first).
+ * Secondary tie-breaker: id DESC (deterministic stable sort for identical timestamps).
+ */
+export const sortRequestsChronologicalDesc = <T extends { created_at: string; id?: string }>(
+  requests: T[]
+): T[] => {
+  return [...requests].sort((a, b) => {
+    const timeA = new Date(a.created_at).getTime();
+    const timeB = new Date(b.created_at).getTime();
+    const timeDiff = timeB - timeA;
+    if (timeDiff !== 0) {
+      return timeDiff;
+    }
+    // Stable deterministic tie-breaker for identical timestamps
+    return (b.id || '').localeCompare(a.id || '');
+  });
+};
+
+/**
+ * Merges an incoming request (e.g. from realtime insert/update) into an existing requests list:
+ * - Updates the existing request if it already exists (by id), without duplicating.
+ * - Adds the new request if it does not exist.
+ * - Always maintains strict descending chronological order (created_at DESC).
+ */
+export const mergeAndSortRequests = <T extends { created_at: string; id: string }>(
+  currentRequests: T[],
+  incomingRequest: T
+): T[] => {
+  const exists = currentRequests.some((r) => r.id === incomingRequest.id);
+  const updatedList = exists
+    ? currentRequests.map((r) => (r.id === incomingRequest.id ? incomingRequest : r))
+    : [incomingRequest, ...currentRequests];
+
+  return sortRequestsChronologicalDesc(updatedList);
+};
+
+/**
  * Sorts orders by pickup urgency:
- * 1. ASAP orders (immediate pickup needed) or earliest requested pickup time
+ * 1. ASAP orders or earliest requested pickup time
  * 2. Creation time as a tie-breaker
  */
 export const sortOrdersByPickupPriority = <T extends { pickup_at?: string | null; created_at: string }>(
   orders: T[]
 ): T[] => {
   return [...orders].sort((a, b) => {
-    // If both have pickup_at, compare pickup_at
     if (a.pickup_at && b.pickup_at) {
       const timeDiff = new Date(a.pickup_at).getTime() - new Date(b.pickup_at).getTime();
       if (timeDiff !== 0) return timeDiff;
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
 
-    // If one is ASAP and one is scheduled:
-    // An ASAP order requires immediate action, so compare its created_at with the scheduled pickup_at
     const targetTimeA = a.pickup_at ? new Date(a.pickup_at).getTime() : new Date(a.created_at).getTime();
     const targetTimeB = b.pickup_at ? new Date(b.pickup_at).getTime() : new Date(b.created_at).getTime();
 
@@ -379,6 +414,8 @@ export const sortOrdersByPickupPriority = <T extends { pickup_at?: string | null
       return targetTimeA - targetTimeB;
     }
 
-    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 };
+
+

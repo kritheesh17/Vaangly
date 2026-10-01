@@ -23,7 +23,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { NotificationBadge } from '../../components/ui/NotificationBadge';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { sortOrdersByPickupPriority } from '../../lib/orderPickupUtils';
+import { sortRequestsChronologicalDesc, mergeAndSortRequests } from '../../lib/orderPickupUtils';
 import './ShopkeeperRequestsPage.css';
 
 type RequestFilterTab = 'all' | 'new' | 'active' | 'ready' | 'completed' | 'cancelled';
@@ -58,7 +58,7 @@ export const ShopkeeperRequestsPage: React.FC = () => {
 
       if (userShop) {
         const reqList = await getShopRequests(userShop.id);
-        setRequests(reqList);
+        setRequests(sortRequestsChronologicalDesc(reqList));
       }
     } catch (err) {
       console.error('Error fetching shop requests:', err);
@@ -86,14 +86,38 @@ export const ShopkeeperRequestsPage: React.FC = () => {
           table: 'requests',
           filter: `shop_id=eq.${shop.id}`,
         },
-        () => {
-          loadRequests();
+        (payload: any) => {
+          if ((payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') && payload.new) {
+            setRequests((prev) => mergeAndSortRequests(prev, payload.new as Request));
+          } else if (payload.eventType === 'DELETE' && payload.old) {
+            setRequests((prev) => prev.filter((r) => r.id !== payload.old.id));
+          } else {
+            loadRequests();
+          }
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, [shop, loadRequests]);
+
+  // Listen for local mock / demo events for immediate updates without polling
+  useEffect(() => {
+    const handleLocalUpdate = (e: Event) => {
+      const customEvt = e as CustomEvent<{ newRequest?: Request }>;
+      const newReq = customEvt.detail?.newRequest;
+      if (newReq && shop && newReq.shop_id === shop.id) {
+        setRequests((prev) => mergeAndSortRequests(prev, newReq));
+      } else {
+        loadRequests();
+      }
+    };
+
+    window.addEventListener('vaango-requests-changed', handleLocalUpdate);
+    return () => {
+      window.removeEventListener('vaango-requests-changed', handleLocalUpdate);
     };
   }, [shop, loadRequests]);
 
@@ -131,7 +155,7 @@ export const ShopkeeperRequestsPage: React.FC = () => {
       );
 
       if (res.success && res.request) {
-        setRequests((prev) => prev.map((r) => (r.id === req.id ? res.request! : r)));
+        setRequests((prev) => mergeAndSortRequests(prev, res.request!));
         success(`Request #${req.reference_code} updated to ${nextState}`);
       } else {
         toastError(res.error || t('genericError'));
@@ -168,7 +192,7 @@ export const ShopkeeperRequestsPage: React.FC = () => {
       );
 
       if (res.success && res.request) {
-        setRequests((prev) => prev.map((r) => (r.id === rejectingReq.id ? res.request! : r)));
+        setRequests((prev) => mergeAndSortRequests(prev, res.request!));
         success(`Order #${rejectingReq.reference_code} has been rejected.`);
         setRejectModalOpen(false);
         setRejectingReq(null);
@@ -202,10 +226,9 @@ export const ShopkeeperRequestsPage: React.FC = () => {
     return true;
   });
 
-  // Sort orders by pickup urgency (earlier requested pickup time, ASAP first, creation time tie-breaker)
-  const sortedRequests = ['completed', 'cancelled'].includes(activeTab)
-    ? [...filteredRequests].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    : sortOrdersByPickupPriority(filteredRequests);
+  // Sort orders chronologically: NEWEST FIRST (created_at DESC) across all tabs and status filters.
+  // Stable deterministic tie-breaker on identical timestamps via id DESC.
+  const sortedRequests = sortRequestsChronologicalDesc(filteredRequests);
 
   const counts = {
     all: requests.length,
