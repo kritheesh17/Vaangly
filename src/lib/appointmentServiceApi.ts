@@ -1,6 +1,7 @@
 import { AppointmentSlot, ShopService, Request, RequestEvent, PriceType, SlotConfig } from '../types/database';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { getShopServices as getMockServices, generateDailySlots, MOCK_SHOPS } from '../data/mockData';
+import { getStoredMockShops } from './shopkeeperApi';
 import { notifyOrderLifecycle } from './notificationApi';
 import { normalizeIndianPhone } from './phoneUtils';
 import {
@@ -152,7 +153,20 @@ export const fetchAppointmentSlots = async (
     const key = `${shopId}_${dateStr}`;
 
     if (!allSlots[key]) {
-      allSlots[key] = generateDailySlots(shopId, dateStr);
+      const storedShops = getStoredMockShops();
+      const currentShop = storedShops.find((s) => s.id === shopId);
+      if (currentShop?.slot_config) {
+        const dateObj = new Date(`${dateStr}T00:00:00`);
+        const dayOfWeek = dateObj.getDay();
+        const availableDays = currentShop.slot_config.availableDays || [1, 2, 3, 4, 5, 6];
+        if (availableDays.includes(dayOfWeek)) {
+          allSlots[key] = generateDailySlotsFromConfig(shopId, dateStr, currentShop.slot_config, serviceId);
+        } else {
+          allSlots[key] = [];
+        }
+      } else {
+        allSlots[key] = generateDailySlots(shopId, dateStr);
+      }
       localStorage.setItem(DEMO_SLOTS_KEY, JSON.stringify(allSlots));
     }
     return allSlots[key];
@@ -1114,7 +1128,91 @@ export const cancelCustomerRequest = async (
 
 
 /**
- * Generate and synchronize appointment slots based on slot configuration
+ * Generates slots for a specific date given a SlotConfig (custom slots or legacy intervals).
+ */
+export const generateDailySlotsFromConfig = (
+  shopId: string,
+  dateStr: string,
+  config: SlotConfig,
+  serviceId?: string | null
+): AppointmentSlot[] => {
+  const result: AppointmentSlot[] = [];
+
+  if (config.customSlots && config.customSlots.length > 0) {
+    config.customSlots.forEach((cs) => {
+      const sMin = parseTimeToMinutes(cs.start_time);
+      const eMin = parseTimeToMinutes(cs.end_time);
+      if (sMin >= eMin) return;
+      const cap = Math.max(1, Number(cs.capacity) || 1);
+
+      result.push({
+        id: `slot-${shopId}-${dateStr}-${sMin}`,
+        shop_id: shopId,
+        service_id: serviceId || null,
+        slot_date: dateStr,
+        start_time: minutesToFormattedTime(sMin),
+        end_time: minutesToFormattedTime(eMin),
+        is_available: true,
+        booked_by_request_id: null,
+        concurrent_capacity: cap,
+        capacity: cap,
+        booked_count: 0,
+        confirmed_count: 0,
+        created_at: new Date().toISOString(),
+      });
+    });
+    result.sort((a, b) => parseTimeToMinutes(a.start_time) - parseTimeToMinutes(b.start_time));
+    return result;
+  }
+
+  // Fallback to legacy ranges if no customSlots
+  const ranges = config.ranges || [];
+  const slotDuration = config.slotDurationMinutes || 30;
+  const buffer = config.bufferMinutes || 0;
+  const breaks = (config.breaks || []).map((b) => ({
+    start: parseTimeToMinutes(b.start),
+    end: parseTimeToMinutes(b.end),
+  }));
+
+  ranges.forEach((range) => {
+    const startMin = parseTimeToMinutes(range.start);
+    const endMin = parseTimeToMinutes(range.end);
+    if (startMin >= endMin) return;
+    const rangeCapacity = config.capacityPerInterval || range.concurrent || 1;
+
+    let cur = startMin;
+    while (cur + slotDuration <= endMin) {
+      const slotStart = cur;
+      const slotEnd = cur + slotDuration;
+      const inBreak = breaks.some((b) => slotStart < b.end && slotEnd > b.start);
+      if (!inBreak) {
+        result.push({
+          id: `slot-${shopId}-${dateStr}-${slotStart}`,
+          shop_id: shopId,
+          service_id: serviceId || null,
+          slot_date: dateStr,
+          start_time: minutesToFormattedTime(slotStart),
+          end_time: minutesToFormattedTime(slotEnd),
+          is_available: true,
+          booked_by_request_id: null,
+          concurrent_capacity: rangeCapacity,
+          capacity: rangeCapacity,
+          booked_count: 0,
+          confirmed_count: 0,
+          created_at: new Date().toISOString(),
+        });
+      }
+      cur += slotDuration + buffer;
+    }
+  });
+
+  result.sort((a, b) => parseTimeToMinutes(a.start_time) - parseTimeToMinutes(b.start_time));
+  return result;
+};
+
+/**
+ * Generate and synchronize appointment slots based on slot configuration.
+ * Preserves all confirmed customer bookings and updates capacities.
  */
 export const generateAndSyncAppointmentSlots = async (
   shopId: string,
@@ -1123,67 +1221,34 @@ export const generateAndSyncAppointmentSlots = async (
   daysToGenerate = 14
 ): Promise<{ success: boolean; count: number; error?: string }> => {
   try {
-    const ranges = config.ranges || [];
-    const slotDuration = config.slotDurationMinutes || 30;
-    const buffer = config.bufferMinutes || 0;
     const availableDays = config.availableDays || [1, 2, 3, 4, 5, 6];
-    const breaks = (config.breaks || []).map((b) => ({
-      start: parseTimeToMinutes(b.start),
-      end: parseTimeToMinutes(b.end),
-    }));
+    const hasCustomSlots = Boolean(config.customSlots && config.customSlots.length > 0);
+    const hasRanges = Boolean(config.ranges && config.ranges.length > 0 && (config.slotDurationMinutes || 0) > 0);
 
-    if (ranges.length === 0 || availableDays.length === 0 || slotDuration <= 0) {
+    if (!hasCustomSlots && !hasRanges) {
+      return { success: true, count: 0 };
+    }
+    if (availableDays.length === 0) {
       return { success: true, count: 0 };
     }
 
     const today = new Date();
     const newSlots: Omit<AppointmentSlot, 'created_at'>[] = [];
+    let minDateStr = '';
+    let maxDateStr = '';
 
     for (let dayOffset = 0; dayOffset < daysToGenerate; dayOffset++) {
       const targetDate = new Date(today);
       targetDate.setDate(today.getDate() + dayOffset);
       const dayOfWeek = targetDate.getDay(); // 0 = Sun, 1 = Mon ...
+      const dateStr = targetDate.toISOString().slice(0, 10);
+      if (dayOffset === 0) minDateStr = dateStr;
+      if (dayOffset === daysToGenerate - 1) maxDateStr = dateStr;
+
       if (!availableDays.includes(dayOfWeek)) continue;
 
-      const dateStr = targetDate.toISOString().slice(0, 10);
-
-      ranges.forEach((range) => {
-        const startMin = parseTimeToMinutes(range.start);
-        const endMin = parseTimeToMinutes(range.end);
-        if (startMin >= endMin) return;
-
-        const rangeCapacity = config.capacityPerInterval || range.concurrent || 1;
-
-        let current = startMin;
-        while (current + slotDuration <= endMin) {
-          const slotStart = current;
-          const slotEnd = current + slotDuration;
-
-          // Check if slot overlaps any configured break
-          const inBreak = breaks.some(
-            (b) => slotStart < b.end && slotEnd > b.start
-          );
-
-          if (!inBreak) {
-            newSlots.push({
-              id: `slot-${shopId}-${dateStr}-${slotStart}`,
-              shop_id: shopId,
-              service_id: serviceId || null,
-              slot_date: dateStr,
-              start_time: minutesToFormattedTime(slotStart),
-              end_time: minutesToFormattedTime(slotEnd),
-              is_available: true,
-              booked_by_request_id: null,
-              concurrent_capacity: rangeCapacity,
-              capacity: rangeCapacity,
-              booked_count: 0,
-              confirmed_count: 0,
-            });
-          }
-
-          current += slotDuration + buffer;
-        }
-      });
+      const daily = generateDailySlotsFromConfig(shopId, dateStr, config, serviceId);
+      newSlots.push(...daily);
     }
 
     if (isSupabaseConfigured) {
@@ -1193,42 +1258,102 @@ export const generateAndSyncAppointmentSlots = async (
         slot_date: s.slot_date,
         start_time: s.start_time,
         end_time: s.end_time,
-        is_available: true,
-        concurrent_capacity: s.concurrent_capacity || 1,
         capacity: s.capacity || s.concurrent_capacity || 1,
       }));
 
-      for (let i = 0; i < payload.length; i += 50) {
-        const chunk = payload.slice(i, i + 50);
-        await supabase
-          .from('appointment_slots')
-          .upsert(chunk, { onConflict: 'shop_id,service_id,slot_date,start_time', ignoreDuplicates: true });
+      // Try secure RPC first
+      let syncedViaRpc = false;
+      try {
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc('sync_shop_appointment_slots', {
+          p_shop_id: shopId,
+          p_slots: payload,
+          p_start_date: minDateStr,
+          p_end_date: maxDateStr,
+        });
+        if (!rpcErr && rpcRes?.success) {
+          syncedViaRpc = true;
+        }
+      } catch (e) {
+        console.warn('Could not call sync_shop_appointment_slots RPC, using direct upsert fallback:', e);
+      }
+
+      if (!syncedViaRpc) {
+        const upsertPayload = newSlots.map((s) => ({
+          shop_id: s.shop_id,
+          service_id: s.service_id,
+          slot_date: s.slot_date,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          is_available: true,
+          concurrent_capacity: s.concurrent_capacity || 1,
+          capacity: s.capacity || s.concurrent_capacity || 1,
+        }));
+
+        for (let i = 0; i < upsertPayload.length; i += 50) {
+          const chunk = upsertPayload.slice(i, i + 50);
+          await supabase
+            .from('appointment_slots')
+            .upsert(chunk, { onConflict: 'shop_id,service_id,slot_date,start_time' });
+        }
       }
     }
 
-    // Always sync mock/localStorage representation
+    // Always sync mock/localStorage representation with booking preservation
     try {
       const raw = localStorage.getItem(DEMO_SLOTS_KEY);
       const allSlots: Record<string, AppointmentSlot[]> = raw ? JSON.parse(raw) : {};
 
-      newSlots.forEach((slot) => {
-        const key = `${shopId}_${slot.slot_date}`;
-        if (!allSlots[key]) allSlots[key] = [];
-        const exists = allSlots[key].some((s) => s.start_time === slot.start_time);
-        if (!exists) {
-          allSlots[key].push({
-            ...slot,
-            created_at: new Date().toISOString(),
-          });
-        }
+      const slotsByDate: Record<string, typeof newSlots> = {};
+      newSlots.forEach((s) => {
+        if (!slotsByDate[s.slot_date]) slotsByDate[s.slot_date] = [];
+        slotsByDate[s.slot_date].push(s);
       });
 
-      // Sort slots by start_time
-      Object.keys(allSlots).forEach((k) => {
-        if (k.startsWith(`${shopId}_`)) {
-          allSlots[k].sort((a, b) => parseTimeToMinutes(a.start_time) - parseTimeToMinutes(b.start_time));
-        }
-      });
+      for (let dayOffset = 0; dayOffset < daysToGenerate; dayOffset++) {
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + dayOffset);
+        const dateStr = targetDate.toISOString().slice(0, 10);
+        const key = `${shopId}_${dateStr}`;
+        const dayNewSlots = slotsByDate[dateStr] || [];
+
+        const existingDaySlots = allSlots[key] || [];
+        const mergedDaySlots: AppointmentSlot[] = [];
+
+        // 1. Process all new configured slots
+        dayNewSlots.forEach((newS) => {
+          const existing = existingDaySlots.find((e) => e.start_time === newS.start_time);
+          if (existing) {
+            const activeBooked = existing.booked_count || existing.confirmed_count || 0;
+            const newCap = Math.max(newS.capacity || 1, activeBooked);
+            mergedDaySlots.push({
+              ...existing,
+              end_time: newS.end_time,
+              capacity: newCap,
+              concurrent_capacity: newCap,
+              is_available: activeBooked < newCap,
+            });
+          } else {
+            mergedDaySlots.push({
+              ...newS,
+              created_at: new Date().toISOString(),
+            });
+          }
+        });
+
+        // 2. CRITICAL PRESERVATION: Keep existing slots that had confirmed bookings even if removed from template
+        existingDaySlots.forEach((oldS) => {
+          const inNew = dayNewSlots.some((n) => n.start_time === oldS.start_time);
+          if (!inNew) {
+            const activeBooked = oldS.booked_count || oldS.confirmed_count || 0;
+            if (activeBooked > 0 || oldS.booked_by_request_id) {
+              mergedDaySlots.push(oldS);
+            }
+          }
+        });
+
+        mergedDaySlots.sort((a, b) => parseTimeToMinutes(a.start_time) - parseTimeToMinutes(b.start_time));
+        allSlots[key] = mergedDaySlots;
+      }
 
       localStorage.setItem(DEMO_SLOTS_KEY, JSON.stringify(allSlots));
       localStorage.setItem('vaango_demo_appointment_slots', JSON.stringify(allSlots));

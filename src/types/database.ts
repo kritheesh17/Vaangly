@@ -87,12 +87,26 @@ export interface SlotBreak {
   end: string;
 }
 
+export interface CustomSlotDefinition {
+  id: string;
+  start_time: string; // e.g. "09:00 AM" or "09:00"
+  end_time: string;   // e.g. "09:15 AM" or "09:15"
+  capacity: number;   // Maximum bookings for this slot
+}
+
+export interface WorkingHourRange {
+  start: string;
+  end: string;
+}
+
 export interface SlotConfig {
   ranges: TimeRange[];
   slotDurationMinutes: number;
   serviceDurationMinutes?: number;
   capacityPerInterval?: number;
   availableDays: number[];
+  workingHours?: WorkingHourRange[];
+  customSlots?: CustomSlotDefinition[];
   breaks?: SlotBreak[];
   bufferMinutes?: number;
   advanceBookingDays?: number;

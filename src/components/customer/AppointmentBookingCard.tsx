@@ -403,10 +403,10 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
           <div className="vaango-slots-grid" role="radiogroup" aria-label="Appointment Time Slots">
             {bookableSlots.map((slot) => {
               const isSelected = slot.id === selectedSlotId;
-              const capacity = slot.concurrent_capacity || 1;
-              const bookedCount = slot.booked_count || 0;
+              const capacity = slot.capacity || slot.concurrent_capacity || 1;
+              const bookedCount = slot.booked_count || slot.confirmed_count || 0;
               const remaining = Math.max(0, capacity - bookedCount);
-              const isAvailable = remaining > 0;
+              const isAvailable = remaining > 0 && slot.is_available !== false;
 
               return (
                 <button
@@ -434,13 +434,11 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                       </span>
                     ) : isAvailable ? (
                       <span className="vaango-slot-status--text-avail">
-                        {capacity > 1 && remaining <= 3
-                          ? t('slotsRemainingCount', { count: remaining })
-                          : t('legendAvailable')}
+                        {remaining === 1 ? '1 spot left' : `${remaining} spots left`}
                       </span>
                     ) : (
                       <span className="vaango-slot-status--text-booked">
-                        {t('legendBooked')}
+                        {t('legendBooked')} (Full)
                       </span>
                     )}
                   </div>

@@ -313,3 +313,198 @@ export const filterFutureSlots = <T extends { slot_date: string; start_time: str
   return slots.filter((slot) => parseTimeToMinutes(slot.start_time) > shopNow.currentMinutes);
 };
 
+export interface FlexibleSlotInput {
+  id: string;
+  start_time: string;
+  end_time: string;
+  capacity: number;
+}
+
+export interface FlexibleSlotsValidationResult {
+  valid: boolean;
+  error?: string;
+  slotErrors?: Record<string, string>;
+}
+
+/**
+ * Calculates duration in minutes between start time and end time.
+ */
+export const getSlotDurationMinutes = (startTime: string, endTime: string): number => {
+  const start = parseTimeToMinutes(startTime);
+  const end = parseTimeToMinutes(endTime);
+  return Math.max(0, end - start);
+};
+
+/**
+ * Given a start time and duration in minutes, returns formatted end time.
+ */
+export const calculateEndTimeFromDuration = (startTime: string, durationMinutes: number): string => {
+  const startMin = parseTimeToMinutes(startTime);
+  return minutesToFormattedTime(startMin + durationMinutes);
+};
+
+/**
+ * Validates flexible appointment slot configuration against defined working hours.
+ *
+ * Requirements:
+ * - At least one working period defined with start < end.
+ * - Working periods do not overlap.
+ * - At least one slot configured.
+ * - Each slot has start < end.
+ * - Each slot capacity is between 1 and 500.
+ * - Each slot must fall completely inside one of the working periods.
+ * - Slots must NOT overlap each other.
+ */
+export const validateFlexibleSlotsConfig = (
+  workingPeriods: WorkingPeriodInput[],
+  slots: FlexibleSlotInput[]
+): FlexibleSlotsValidationResult => {
+  const slotErrors: Record<string, string> = {};
+
+  // 1. Validate working hours
+  if (!workingPeriods || workingPeriods.length === 0) {
+    return { valid: false, error: 'Please define your working hours first.' };
+  }
+
+  const parsedPeriods: { startMin: number; endMin: number; start: string; end: string }[] = [];
+  for (const wp of workingPeriods) {
+    if (!wp.start || !wp.end) {
+      return { valid: false, error: 'Working hours must have valid start and end times.' };
+    }
+    const s = parseTimeToMinutes(wp.start);
+    const e = parseTimeToMinutes(wp.end);
+    if (s >= e) {
+      return {
+        valid: false,
+        error: `Working hours start time (${wp.start}) must be earlier than closing time (${wp.end}).`,
+      };
+    }
+    parsedPeriods.push({ startMin: s, endMin: e, start: wp.start, end: wp.end });
+  }
+
+  // Check working periods overlap
+  parsedPeriods.sort((a, b) => a.startMin - b.startMin);
+  for (let i = 0; i < parsedPeriods.length - 1; i++) {
+    if (parsedPeriods[i].endMin > parsedPeriods[i + 1].startMin) {
+      return {
+        valid: false,
+        error: `Working hours shifts cannot overlap each other (${parsedPeriods[i].start}–${parsedPeriods[i].end} and ${parsedPeriods[i + 1].start}–${parsedPeriods[i + 1].end}).`,
+      };
+    }
+  }
+
+  // 2. Validate slots presence
+  if (!slots || slots.length === 0) {
+    return { valid: false, error: 'Please add at least one appointment slot.' };
+  }
+
+  // 3. Validate individual slots
+  const parsedSlots: {
+    id: string;
+    startMin: number;
+    endMin: number;
+    capacity: number;
+    start_time: string;
+    end_time: string;
+  }[] = [];
+
+  for (const slot of slots) {
+    if (!slot.start_time || !slot.end_time) {
+      slotErrors[slot.id] = 'Start time and end time are required.';
+      continue;
+    }
+
+    const s = parseTimeToMinutes(slot.start_time);
+    const e = parseTimeToMinutes(slot.end_time);
+
+    if (s >= e) {
+      slotErrors[slot.id] = `Start time (${slot.start_time}) must be earlier than end time (${slot.end_time}).`;
+      continue;
+    }
+
+    const cap = Number(slot.capacity);
+    if (!Number.isInteger(cap) || cap < 1 || cap > 500) {
+      slotErrors[slot.id] = 'Capacity must be a whole number between 1 and 500.';
+      continue;
+    }
+
+    // Must be inside at least one working period
+    const insideWorkingHours = parsedPeriods.some(
+      (wp) => s >= wp.startMin && e <= wp.endMin
+    );
+
+    if (!insideWorkingHours) {
+      slotErrors[slot.id] = `Slot (${slot.start_time}–${slot.end_time}) falls outside configured working hours.`;
+      continue;
+    }
+
+    parsedSlots.push({
+      id: slot.id,
+      startMin: s,
+      endMin: e,
+      capacity: cap,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+    });
+  }
+
+  // 4. Check for overlapping slots
+  parsedSlots.sort((a, b) => a.startMin - b.startMin);
+
+  for (let i = 0; i < parsedSlots.length - 1; i++) {
+    const current = parsedSlots[i];
+    const next = parsedSlots[i + 1];
+
+    if (current.endMin > next.startMin) {
+      const errMsg = `Slot (${current.start_time}–${current.end_time}) overlaps with (${next.start_time}–${next.end_time}).`;
+      slotErrors[current.id] = errMsg;
+      slotErrors[next.id] = errMsg;
+    }
+  }
+
+  const hasErrors = Object.keys(slotErrors).length > 0;
+  if (hasErrors) {
+    const firstError = Object.values(slotErrors)[0];
+    return {
+      valid: false,
+      error: firstError,
+      slotErrors,
+    };
+  }
+
+  return { valid: true };
+};
+
+/**
+ * Auto-generates sequential slots spanning working periods with default duration & capacity.
+ */
+export const generateDefaultFlexibleSlots = (
+  workingPeriods: WorkingPeriodInput[],
+  durationMinutes = 15,
+  defaultCapacity = 1
+): FlexibleSlotInput[] => {
+  const result: FlexibleSlotInput[] = [];
+  let counter = 1;
+
+  for (const wp of workingPeriods) {
+    const sMin = parseTimeToMinutes(wp.start);
+    const eMin = parseTimeToMinutes(wp.end);
+    if (sMin >= eMin) continue;
+
+    let cur = sMin;
+    while (cur + durationMinutes <= eMin) {
+      const slotStart = cur;
+      const slotEnd = cur + durationMinutes;
+      result.push({
+        id: `slot-gen-${counter++}`,
+        start_time: minutesToFormattedTime(slotStart),
+        end_time: minutesToFormattedTime(slotEnd),
+        capacity: defaultCapacity,
+      });
+      cur += durationMinutes;
+    }
+  }
+
+  return result;
+};
+

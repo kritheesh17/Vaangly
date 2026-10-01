@@ -34,6 +34,7 @@ import { GPSLocationPicker } from '../../components/shopkeeper/GPSLocationPicker
 import { Switch } from '../../components/ui/Switch';
 import { CreditCard, Info } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { AppointmentScheduleConfig } from '../../components/shopkeeper/AppointmentScheduleConfig';
 import './ShopkeeperProfilePage.css';
 
 const readFileAsDataUrl = (file: File): Promise<string> => new Promise((resolve, reject) => {
@@ -436,21 +437,16 @@ export const ShopkeeperProfilePage: React.FC = () => {
           </div>
         </Card>
 
-        {/* Delivery Configuration */}
+        {/* Appointment Schedule Configuration */}
         {shop && getShopType(shop.shop_type_id)?.workflow_group_code === 'APPOINTMENT' && (
           <Card variant="default" padding="lg" className="vaango-settings-card" id="slots">
-            <div className="vaango-settings-card__header"><Clock size={20} className="text-primary" /><h2 className="vaango-settings-card__title">Appointment Slots</h2></div>
-            <p className="vaango-settings-card__desc">Choose the duration and days customers can book.</p>
-            <label className="vaango-form-label" htmlFor="slot-duration">Slot duration</label>
-            <select id="slot-duration" className="vaango-select-input" value={slotDuration} onChange={(e) => setSlotDuration(Number(e.target.value))}>{[15, 20, 30, 45, 60].map((value) => <option key={value} value={value}>{value} minutes</option>)}</select>
-            {timeRanges.map((range) => <div key={range.id} className="vaango-time-range-row">
-              <TimePicker12h id={`range-start-${range.id}`} value={range.start} onChange={(value) => setTimeRanges((ranges) => ranges.map((item) => item.id === range.id ? { ...item, start: value } : item))} />
-              <TimePicker12h id={`range-end-${range.id}`} value={range.end} onChange={(value) => setTimeRanges((ranges) => ranges.map((item) => item.id === range.id ? { ...item, end: value } : item))} />
-              <select className="vaango-select-input" value={range.concurrent} onChange={(e) => setTimeRanges((ranges) => ranges.map((item) => item.id === range.id ? { ...item, concurrent: Number(e.target.value) } : item))}>{Array.from({ length: 10 }, (_, i) => i + 1).map((value) => <option key={value} value={value}>{value} customers at once</option>)}</select>
-              {timeRanges.length > 1 && <Button type="button" variant="outline" size="sm" onClick={() => setTimeRanges((ranges) => ranges.filter((item) => item.id !== range.id))}>Remove</Button>}
-            </div>)}
-            <Button type="button" variant="outline" size="sm" onClick={() => setTimeRanges((ranges) => [...ranges, { id: `range-${Date.now()}`, start: '09:00', end: '17:00', concurrent: 1 }])}>+ Add Time Range</Button>
-            <div className="vaango-slot-days">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => <label key={day}><input type="checkbox" checked={availableDays.includes(index)} onChange={(e) => setAvailableDays((days) => e.target.checked ? [...days, index].sort() : days.filter((item) => item !== index))} /> {day}</label>)}</div>
+            <AppointmentScheduleConfig
+              shopId={shop.id}
+              initialConfig={shop.slot_config}
+              onSave={(savedConfig) => {
+                setShop((prev) => (prev ? { ...prev, slot_config: savedConfig } : prev));
+              }}
+            />
           </Card>
         )}
 

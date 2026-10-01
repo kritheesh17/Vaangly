@@ -42,7 +42,9 @@ export const TimePicker12h: React.FC<TimePicker12hProps> = ({ id, value, onChang
       </select>
       <span>:</span>
       <select aria-label="Minute" value={minute} onChange={(e) => { const next = e.target.value; setMinute(next); update(hour, next, period); }}>
-        {['00', '15', '30', '45'].map((option) => <option key={option} value={option}>{option}</option>)}
+        {Array.from(new Set([
+          '00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55', minute
+        ])).sort((a, b) => Number(a) - Number(b)).map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
       <div role="group" aria-label="AM or PM">
         {['AM', 'PM'].map((option) => <button key={option} type="button" className={period === option ? 'active' : ''} onClick={() => { setPeriod(option); update(hour, minute, option); }}>{option}</button>)}

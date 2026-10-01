@@ -41,8 +41,10 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
+import { Modal } from '../../components/ui/Modal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { AppointmentScheduleConfig } from '../../components/shopkeeper/AppointmentScheduleConfig';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { classifyProductError } from '../../lib/productErrorHelper';
@@ -76,6 +78,9 @@ export const ShopkeeperCataloguePage: React.FC = () => {
 
   // Delete Confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Flexible Appointment Schedule Modal State (Group B)
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
 
   const shopType = getShopType(shop?.shop_type_id);
   const workflowGroup: WorkflowGroupCode = (shopType?.workflow_group_code || 'ORDER') as WorkflowGroupCode;
@@ -488,25 +493,39 @@ export const ShopkeeperCataloguePage: React.FC = () => {
               </Button>
             </div>
           ) : (
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => {
-                if (workflowGroup === 'ORDER') {
-                  setEditingProduct(null);
-                  setMasterTemplate(null);
-                  setMasterModalOpen(true);
-                } else {
-                  setEditingService(null);
-                  setServiceModalOpen(true);
-                }
-              }}
-              leftIcon={<Plus size={18} />}
-            >
-              {workflowGroup === 'APPOINTMENT' || workflowGroup === 'SERVICE'
-                ? 'Add New Service / Slot'
-                : 'Add New Product'}
-            </Button>
+            <div className="flex gap-2 flex-wrap">
+              {workflowGroup === 'APPOINTMENT' && (
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => setScheduleModalOpen(true)}
+                  leftIcon={<Clock size={18} />}
+                >
+                  Manage Slots & Schedule
+                </Button>
+              )}
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => {
+                  if (workflowGroup === 'ORDER') {
+                    setEditingProduct(null);
+                    setMasterTemplate(null);
+                    setMasterModalOpen(true);
+                  } else {
+                    setEditingService(null);
+                    setServiceModalOpen(true);
+                  }
+                }}
+                leftIcon={<Plus size={18} />}
+              >
+                {workflowGroup === 'APPOINTMENT'
+                  ? 'Add New Service / Doctor'
+                  : workflowGroup === 'SERVICE'
+                  ? 'Add New Service'
+                  : 'Add New Product'}
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -922,6 +941,25 @@ export const ShopkeeperCataloguePage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Flexible Appointment Schedule Modal */}
+      {scheduleModalOpen && shop && (
+        <Modal
+          isOpen={scheduleModalOpen}
+          onClose={() => setScheduleModalOpen(false)}
+          title="Appointment Schedule & Custom Slots"
+          maxWidth="xl"
+        >
+          <AppointmentScheduleConfig
+            shopId={shop.id}
+            initialConfig={shop.slot_config}
+            onSave={(savedConfig) => {
+              setShop((prev) => (prev ? { ...prev, slot_config: savedConfig } : prev));
+              loadData();
+            }}
+          />
+        </Modal>
       )}
     </div>
   );
