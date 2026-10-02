@@ -74,11 +74,19 @@ export const Header: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Helper to resolve role-specific settings route
+  const getAccountSettingsPath = () => (role === 'shopkeeper' ? '/shopkeeper/profile' : '/profile');
+
   // Close account menu on outside click or Escape key
   useEffect(() => {
     if (!isAccountMenuOpen) return;
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('.vaango-account-sheet') || target.closest('.vaango-account-dropdown')) {
+        return;
+      }
+      if (accountMenuRef.current && !accountMenuRef.current.contains(target)) {
         setIsAccountMenuOpen(false);
       }
     };
@@ -114,9 +122,11 @@ export const Header: React.FC = () => {
     setIsAccountMenuOpen(false);
     try {
       await signOut();
+      success(t('signOut') || 'Logged out successfully');
       navigate('/login');
     } catch (err) {
       console.error('Logout error:', err);
+      navigate('/login');
     }
   };
 
@@ -127,6 +137,7 @@ export const Header: React.FC = () => {
       navigate('/login', { state: { switchAccount: true } });
     } catch (err) {
       console.error('Switch account error:', err);
+      navigate('/login', { state: { switchAccount: true } });
     }
   };
 
@@ -396,7 +407,7 @@ export const Header: React.FC = () => {
                       className="vaango-account-dropdown__item"
                       onClick={() => {
                         setIsAccountMenuOpen(false);
-                        navigate('/profile');
+                        navigate(getAccountSettingsPath());
                       }}
                     >
                       <div className="vaango-account-dropdown__item-left">
@@ -768,7 +779,11 @@ export const Header: React.FC = () => {
       {isAccountMenuOpen && isMobileView && user && (
         <div
           className="vaango-account-sheet-overlay"
-          onClick={() => setIsAccountMenuOpen(false)}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsAccountMenuOpen(false);
+            }
+          }}
           role="presentation"
         >
           <div
@@ -820,7 +835,7 @@ export const Header: React.FC = () => {
                 className="vaango-account-sheet__item"
                 onClick={() => {
                   setIsAccountMenuOpen(false);
-                  navigate('/profile');
+                  navigate(getAccountSettingsPath());
                 }}
               >
                 <div className="vaango-account-sheet__item-left">

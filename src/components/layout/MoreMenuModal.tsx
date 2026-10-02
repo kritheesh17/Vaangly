@@ -25,12 +25,14 @@ interface MoreMenuModalProps {
 }
 
 export const MoreMenuModal: React.FC<MoreMenuModalProps> = ({ isOpen, onClose }) => {
-  const { user, signOut } = useAuth();
+  const { user, role, signOut } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { success, info } = useToast();
   const navigate = useNavigate();
 
   if (!isOpen) return null;
+
+  const profilePath = role === 'shopkeeper' ? '/shopkeeper/profile' : '/profile';
 
   const handleNavigate = (path: string) => {
     onClose();
@@ -45,9 +47,14 @@ export const MoreMenuModal: React.FC<MoreMenuModalProps> = ({ isOpen, onClose })
 
   const handleLogout = async () => {
     onClose();
-    await signOut();
-    success(language === 'ta' ? 'வெற்றிகரமாக வெளியேறியது' : 'Logged out successfully');
-    navigate('/login');
+    try {
+      await signOut();
+      success(language === 'ta' ? 'வெற்றிகரமாக வெளியேறியது' : 'Logged out successfully');
+      navigate('/login');
+    } catch (err) {
+      console.warn('Logout error:', err);
+      navigate('/login');
+    }
   };
 
   const handleHelp = () => {
@@ -96,7 +103,7 @@ export const MoreMenuModal: React.FC<MoreMenuModalProps> = ({ isOpen, onClose })
           <button
             type="button"
             className="vaango-more-modal__user-card"
-            onClick={() => handleNavigate('/profile')}
+            onClick={() => handleNavigate(profilePath)}
           >
             <div className="vaango-more-modal__user-avatar">
               {user.full_name ? user.full_name.charAt(0).toUpperCase() : <User size={20} />}
@@ -115,7 +122,7 @@ export const MoreMenuModal: React.FC<MoreMenuModalProps> = ({ isOpen, onClose })
           <button
             type="button"
             className="vaango-more-modal__item"
-            onClick={() => handleNavigate('/profile')}
+            onClick={() => handleNavigate(user ? profilePath : '/login')}
           >
             <div className="vaango-more-modal__item-left">
               <div className="vaango-more-modal__icon-wrap">
@@ -150,7 +157,7 @@ export const MoreMenuModal: React.FC<MoreMenuModalProps> = ({ isOpen, onClose })
           <button
             type="button"
             className="vaango-more-modal__item"
-            onClick={() => handleNavigate('/profile')}
+            onClick={() => handleNavigate(user ? profilePath : '/login')}
           >
             <div className="vaango-more-modal__item-left">
               <div className="vaango-more-modal__icon-wrap">
@@ -180,7 +187,7 @@ export const MoreMenuModal: React.FC<MoreMenuModalProps> = ({ isOpen, onClose })
           <button
             type="button"
             className="vaango-more-modal__item"
-            onClick={() => handleNavigate('/profile')}
+            onClick={() => handleNavigate(user ? profilePath : '/login')}
           >
             <div className="vaango-more-modal__item-left">
               <div className="vaango-more-modal__icon-wrap">

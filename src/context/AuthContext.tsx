@@ -185,21 +185,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else {
         // Local preview fallback mode
-        const savedCustomUser = localStorage.getItem(LOCAL_STORAGE_DEMO_USER);
-        if (savedCustomUser) {
-          try {
-            setUser(JSON.parse(savedCustomUser));
-          } catch {
-            setUser(DEMO_PROFILES.customer);
-          }
+        const isExplicitlyLoggedOut = localStorage.getItem('vaango_user_logged_out') === 'true';
+        if (isExplicitlyLoggedOut) {
+          setUser(null);
         } else {
-          const savedDemoRole = localStorage.getItem(LOCAL_STORAGE_DEMO_KEY) as UserRole | null;
-          if (savedDemoRole && DEMO_PROFILES[savedDemoRole]) {
-            setUser(DEMO_PROFILES[savedDemoRole]);
+          const savedCustomUser = localStorage.getItem(LOCAL_STORAGE_DEMO_USER);
+          if (savedCustomUser) {
+            try {
+              setUser(JSON.parse(savedCustomUser));
+            } catch {
+              setUser(DEMO_PROFILES.customer);
+            }
           } else {
-            // Default to Customer for evaluation
-            setUser(DEMO_PROFILES.customer);
-            localStorage.setItem(LOCAL_STORAGE_DEMO_KEY, 'customer');
+            const savedDemoRole = localStorage.getItem(LOCAL_STORAGE_DEMO_KEY) as UserRole | null;
+            if (savedDemoRole && DEMO_PROFILES[savedDemoRole]) {
+              setUser(DEMO_PROFILES[savedDemoRole]);
+            } else {
+              // Default to Customer for evaluation
+              setUser(DEMO_PROFILES.customer);
+              localStorage.setItem(LOCAL_STORAGE_DEMO_KEY, 'customer');
+            }
           }
         }
       }
@@ -215,6 +220,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isSupabaseConfigured) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
         if (session?.user) {
+          localStorage.removeItem('vaango_user_logged_out');
           const isGoogleOAuth = session.user.app_metadata?.provider === 'google' ||
             Boolean(session.user.identities?.some((id: { provider?: string }) => id.provider === 'google'));
           const isEmailConfirmed = Boolean(session.user.email_confirmed_at || session.user.confirmed_at || isGoogleOAuth);
@@ -387,6 +393,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
           }
         }
+        localStorage.removeItem('vaango_user_logged_out');
         return { success: true };
       } else {
         // Preview mode login for development evaluation
@@ -396,6 +403,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ? 'shopkeeper'
             : 'customer';
         setUser(DEMO_PROFILES[matchedRole]);
+        localStorage.removeItem('vaango_user_logged_out');
         localStorage.setItem(LOCAL_STORAGE_DEMO_KEY, matchedRole);
         localStorage.removeItem(LOCAL_STORAGE_DEMO_USER);
         return { success: true };
@@ -490,6 +498,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             updated_at: data.user.created_at || new Date().toISOString(),
           });
         }
+        localStorage.removeItem('vaango_user_logged_out');
         return { success: true, requiresEmailConfirmation: false };
       } else {
         // Email confirmation is required by Supabase
@@ -561,6 +570,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         return { success: false, error: error.message };
       }
+      localStorage.removeItem('vaango_user_logged_out');
       return { success: true };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Google authentication failed';
@@ -685,14 +695,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     setIsLoading(true);
     try {
-      if (isSupabaseConfigured) {
-        await supabase.auth.signOut();
-      }
-      setUser(null);
+      localStorage.setItem('vaango_user_logged_out', 'true');
       localStorage.removeItem(LOCAL_STORAGE_DEMO_KEY);
       localStorage.removeItem(LOCAL_STORAGE_DEMO_USER);
       localStorage.removeItem('vaangly_pending_confirmation_email');
+      setUser(null);
+      if (isSupabaseConfigured) {
+        await supabase.auth.signOut().catch((err) => {
+          console.warn('[AuthContext] Supabase sign out notice:', err);
+        });
+      }
+    } catch (err) {
+      console.warn('[AuthContext] Sign out error:', err);
     } finally {
+      setUser(null);
       setIsLoading(false);
     }
   };
@@ -700,6 +716,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Switch demo persona (evaluation tool for reviewers)
   const switchDemoRole = useCallback((newRole: UserRole) => {
     if (!import.meta.env.DEV) return;
+    localStorage.removeItem('vaango_user_logged_out');
     setUser(DEMO_PROFILES[newRole]);
     localStorage.setItem(LOCAL_STORAGE_DEMO_KEY, newRole);
     localStorage.removeItem(LOCAL_STORAGE_DEMO_USER);

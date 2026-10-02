@@ -561,7 +561,7 @@ export const HomePage: React.FC = () => {
           <div className="vaango-home-horizontal-scroll">
             {displayedShops.slice(0, 6).map((shop) => (
               <Link
-                to={(shop as any).isLive ? `/shop/${shop.id}` : '/shops'}
+                to={`/shop/${shop.id}`}
                 key={shop.id}
                 className="vaango-home-ref-shop-card"
               >
@@ -766,7 +766,7 @@ export const HomePage: React.FC = () => {
                       <MapPin size={13} />
                       {shop.distance}
                     </span>
-                    <Link to={(shop as any).isLive ? `/shop/${shop.id}` : '/shops'} className="vaangly-shop-card__btn">
+                    <Link to={`/shop/${shop.id}`} className="vaangly-shop-card__btn">
                       {t('viewShop')}
                     </Link>
                   </div>

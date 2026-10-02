@@ -263,8 +263,14 @@ export const ShopkeeperProfilePage: React.FC = () => {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
+    try {
+      await signOut();
+      success(t('signOut') || 'Logged out successfully');
+      navigate('/login');
+    } catch (err) {
+      console.warn('Sign out error:', err);
+      navigate('/login');
+    }
   };
 
   const handleBillingCycleChange = async (cycle: ShopSubscription['billing_cycle']) => {
