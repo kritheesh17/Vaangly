@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -7,10 +7,10 @@ import {
   Store,
   CreditCard,
   History,
-  ShieldCheck,
   Layers,
+  Menu,
+  X,
 } from 'lucide-react';
-import { Badge } from '../ui/Badge';
 import { NotificationBadge } from '../ui/NotificationBadge';
 import { useSectionUnreadCounts } from '../../hooks/useSectionUnreadCounts';
 import { useLanguage } from '../../context/LanguageContext';
@@ -19,98 +19,123 @@ import './AdminLayout.css';
 export const AdminLayout: React.FC = () => {
   const { t } = useLanguage();
   const { pendingApplications, pendingCatalogue } = useSectionUnreadCounts();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const navLinks = [
+    {
+      to: '/admin/dashboard',
+      label: t('adminDashboard') || 'Dashboard',
+      icon: <LayoutDashboard size={18} />,
+    },
+    {
+      to: '/admin/shops',
+      label: t('adminShops') || 'Shops',
+      icon: <Store size={18} />,
+    },
+    {
+      to: '/admin/applications',
+      label: t('adminApplications') || 'Applications',
+      icon: <FileCheck2 size={18} />,
+      badge: pendingApplications,
+    },
+    {
+      to: '/admin/catalogue',
+      label: 'Catalogue',
+      icon: <Layers size={18} />,
+      badge: pendingCatalogue,
+    },
+    {
+      to: '/admin/subscriptions',
+      label: t('adminSubscriptions') || 'Subscriptions',
+      icon: <CreditCard size={18} />,
+    },
+    {
+      to: '/admin/locations',
+      label: t('adminLocations') || 'Locations',
+      icon: <MapPin size={18} />,
+    },
+    {
+      to: '/admin/audit',
+      label: t('adminAuditLog') || 'Audit Logs',
+      icon: <History size={18} />,
+    },
+  ];
 
   return (
-    <div className="vaango-admin-layout">
-      {/* Admin Subheader Navigation Bar */}
-      <div className="vaango-admin-bar">
-        <div className="container vaango-admin-bar__inner">
-          <div className="vaango-admin-bar__brand">
-            <ShieldCheck size={20} className="vaango-admin-bar__shield" />
-            <span className="vaango-admin-bar__title">{t('operationsConsole')}</span>
-            <Badge variant="primary" size="sm">{t('roleAdmin')}</Badge>
+    <div className="vaango-admin-container">
+      {/* Mobile Header Bar */}
+      <div className="vaango-admin-mobile-header">
+        <button
+          type="button"
+          className="vaango-admin-hamburger"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label="Toggle admin menu"
+        >
+          {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+
+        <div className="vaango-admin-brand-logo">
+          <div className="vaango-admin-brand-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z"
+                fill="#22C55E"
+              />
+            </svg>
           </div>
-
-          <nav className="vaango-admin-bar__nav" aria-label="Admin console navigation">
-            <NavLink
-              to="/admin/dashboard"
-              className={({ isActive }) =>
-                `vaango-admin-nav-item ${isActive ? 'vaango-admin-nav-item--active' : ''}`
-              }
-            >
-              <LayoutDashboard size={16} />
-              <span>{t('adminDashboard')}</span>
-            </NavLink>
-
-            <NavLink
-              to="/admin/locations"
-              className={({ isActive }) =>
-                `vaango-admin-nav-item ${isActive ? 'vaango-admin-nav-item--active' : ''}`
-              }
-            >
-              <MapPin size={16} />
-              <span>{t('adminLocations')}</span>
-            </NavLink>
-
-            <NavLink
-              to="/admin/applications"
-              className={({ isActive }) =>
-                `vaango-admin-nav-item ${isActive ? 'vaango-admin-nav-item--active' : ''}`
-              }
-            >
-              <FileCheck2 size={16} />
-              <span>{t('adminApplications')}</span>
-              <NotificationBadge count={pendingApplications} size="sm" />
-            </NavLink>
-
-            <NavLink
-              to="/admin/shops"
-              className={({ isActive }) =>
-                `vaango-admin-nav-item ${isActive ? 'vaango-admin-nav-item--active' : ''}`
-              }
-            >
-              <Store size={16} />
-              <span>{t('adminShops')}</span>
-            </NavLink>
-
-            <NavLink
-              to="/admin/catalogue"
-              className={({ isActive }) =>
-                `vaango-admin-nav-item ${isActive ? 'vaango-admin-nav-item--active' : ''}`
-              }
-            >
-              <Layers size={16} />
-              <span>Master Catalogue</span>
-              <NotificationBadge count={pendingCatalogue} size="sm" />
-            </NavLink>
-
-            <NavLink
-              to="/admin/subscriptions"
-              className={({ isActive }) =>
-                `vaango-admin-nav-item ${isActive ? 'vaango-admin-nav-item--active' : ''}`
-              }
-            >
-              <CreditCard size={16} />
-              <span>{t('adminSubscriptions')}</span>
-            </NavLink>
-
-            <NavLink
-              to="/admin/audit"
-              className={({ isActive }) =>
-                `vaango-admin-nav-item ${isActive ? 'vaango-admin-nav-item--active' : ''}`
-              }
-            >
-              <History size={16} />
-              <span>{t('adminAuditLog')}</span>
-            </NavLink>
-          </nav>
+          <span className="vaango-admin-brand-name">Vaango</span>
         </div>
+
+        <span className="vaango-admin-badge-mobile">Admin</span>
       </div>
 
-      {/* Main Admin Content */}
-      <div className="vaango-admin-body">
+      {/* Backdrop for mobile drawer */}
+      {isMobileMenuOpen && (
+        <div
+          className="vaango-admin-backdrop"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Dark Sidebar (Reference Screen 4) */}
+      <aside className={`vaango-admin-sidebar ${isMobileMenuOpen ? 'vaango-admin-sidebar--open' : ''}`}>
+        <div className="vaango-admin-sidebar__brand">
+          <div className="vaango-admin-brand-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z"
+                fill="#22C55E"
+              />
+            </svg>
+          </div>
+          <span className="vaango-admin-sidebar__title">Vaango</span>
+        </div>
+
+        <nav className="vaango-admin-sidebar__nav" aria-label="Admin Navigation">
+          {navLinks.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={({ isActive }) =>
+                `vaango-admin-sidebar__link ${isActive ? 'vaango-admin-sidebar__link--active' : ''}`
+              }
+            >
+              <span className="vaango-admin-sidebar__icon">{item.icon}</span>
+              <span className="vaango-admin-sidebar__label">{item.label}</span>
+              {typeof item.badge === 'number' && item.badge > 0 && (
+                <NotificationBadge count={item.badge} size="sm" />
+              )}
+            </NavLink>
+          ))}
+        </nav>
+      </aside>
+
+      {/* Main Admin Content Body */}
+      <main className="vaango-admin-main">
         <Outlet />
-      </div>
+      </main>
     </div>
   );
 };
+

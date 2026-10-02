@@ -12,7 +12,6 @@ import {
   Star,
   ShieldCheck,
   Clock,
-  Store,
   ArrowRight,
   Smartphone,
   CheckCircle2,
@@ -23,26 +22,28 @@ import {
   Building2,
   Users,
   Heart,
-  ShoppingBag,
-  Navigation,
+  Search,
+  ShoppingBasket,
+  HeartPulse,
+  Utensils,
+  MoreHorizontal,
+  X,
 } from 'lucide-react';
 import { useLocationContext } from '../context/LocationContext';
 import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Shop, ShopProduct } from '../types/database';
 import './HomePage.css';
 
 export const HomePage: React.FC = () => {
-  const { selectedLocation, setIsLocationModalOpen } = useLocationContext();
-  const { role } = useAuth();
+  const { selectedLocation } = useLocationContext();
   const { addItem } = useCart();
   const { success, error: toastError } = useToast();
   const { t, language } = useLanguage();
   const navigate = useNavigate();
 
-  // Category filter state for "Discover What's Around You"
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
 
   // Selected variant tracking for demo product discovery
@@ -396,195 +397,317 @@ export const HomePage: React.FC = () => {
     },
   ];
 
+  const referenceCategories = [
+    {
+      id: 'groceries',
+      label: language === 'ta' ? 'மளிகை' : 'Groceries',
+      icon: <ShoppingBasket size={24} style={{ color: '#16A34A' }} />,
+      bg: 'var(--cat-groceries-bg, #EAF8EE)',
+      link: '/shops?group=ORDER&type=groceries',
+    },
+    {
+      id: 'medicine',
+      label: language === 'ta' ? 'மருந்தகம்' : 'Medicine',
+      icon: <HeartPulse size={24} style={{ color: '#0284C7' }} />,
+      bg: 'var(--cat-medicine-bg, #EAF3FD)',
+      link: '/shops?group=ORDER&type=pharmacy',
+    },
+    {
+      id: 'food',
+      label: language === 'ta' ? 'உணவு' : 'Food',
+      icon: <Utensils size={24} style={{ color: '#EA580C' }} />,
+      bg: 'var(--cat-food-bg, #FFF2EB)',
+      link: '/shops?group=ORDER&type=bakery',
+    },
+    {
+      id: 'salon',
+      label: language === 'ta' ? 'சலூன்' : 'Salon',
+      icon: <Scissors size={24} style={{ color: '#E11D48' }} />,
+      bg: 'var(--cat-salon-bg, #FDF0F4)',
+      link: '/shops?group=APPOINTMENT&type=salon',
+    },
+    {
+      id: 'hospitals',
+      label: language === 'ta' ? 'மருத்துவமனை' : 'Hospitals',
+      icon: <Building2 size={24} style={{ color: '#0284C7' }} />,
+      bg: 'var(--cat-hospitals-bg, #EAF5FA)',
+      link: '/shops?group=APPOINTMENT&type=clinic',
+    },
+    {
+      id: 'services',
+      label: language === 'ta' ? 'சேவைகள்' : 'Services',
+      icon: <Wrench size={24} style={{ color: '#D97706' }} />,
+      bg: 'var(--cat-services-bg, #FFF5EB)',
+      link: '/shops?group=SERVICE',
+    },
+    {
+      id: 'electronics',
+      label: language === 'ta' ? 'மின்னணு' : 'Electronics',
+      icon: <Smartphone size={24} style={{ color: '#7C3AED' }} />,
+      bg: 'var(--cat-electronics-bg, #F3EFFC)',
+      link: '/shops?group=ORDER&type=electronics',
+    },
+    {
+      id: 'more',
+      label: language === 'ta' ? 'மேலும்' : 'More',
+      icon: <MoreHorizontal size={24} style={{ color: '#4B5563' }} />,
+      bg: 'var(--cat-more-bg, #F4F5F7)',
+      link: '/shops',
+    },
+  ];
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/shops?q=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      navigate('/shops');
+    }
+  };
+
   return (
     <div className="vaangly-landing">
-      {/* 1. LOCATION CONTEXT BAR (Reference card: 📍 Browsing local businesses in: Kangeyam, Tamil Nadu ⌵) */}
-      <section className="vaangly-context-bar-section">
-        <div className="container vaangly-context-bar__container">
-          <button
-            type="button"
-            className="vaangly-location-context-card"
-            onClick={() => setIsLocationModalOpen(true)}
-            aria-label={`${t('browsingIn')} ${selectedLocation.name}, ${selectedLocation.state}. ${t('changeLocation')}.`}
-          >
-            <div className="vaangly-location-context-card__left">
-              <MapPin size={18} className="vaangly-location-context-card__pin" />
-              <div className="vaangly-location-context-card__text">
-                <span className="vaangly-location-context-card__lead">{t('browsingIn')}</span>{' '}
-                <strong className="vaangly-location-context-card__city">
-                  {selectedLocation.name}, {selectedLocation.state}
-                </strong>
-              </div>
-            </div>
-            <ChevronDown size={16} className="vaangly-location-context-card__chevron" />
-          </button>
-
-          <div className="vaangly-context-bar__actions-row">
-            {/* 2. MARKETPLACE STATUS PILL */}
-            <div className="vaangly-marketplace-status-wrap">
-              <div className="vaangly-marketplace-status-pill">
-                <span className="vaangly-status-dot" aria-hidden="true" />
-                <span>{t('activeMarketplace')}</span>
-              </div>
-            </div>
-
-            {/* 3. QUICK NEAR ME DISCOVERY */}
-            <Link
-              to="/shops?nearMe=true"
-              className="vaangly-context-bar__near-me-btn"
-              aria-label={t('nearMe')}
-            >
-              <Navigation size={13} className="vaango-pulse-icon" />
-              <span>{t('nearMe')}</span>
-            </Link>
-          </div>
+      {/* 1. COMPACT PROMINENT SEARCH BAR (Reference Image 2) */}
+      <section className="vaango-home-search-section">
+        <div className="container vaango-home-search-container">
+          <form onSubmit={handleSearchSubmit} className="vaango-home-search-form">
+            <Search size={18} className="vaango-home-search-icon" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={
+                language === 'ta'
+                  ? 'கடைகள், பொருட்கள் அல்லது சேவைகளைத் தேடுங்கள்...'
+                  : 'Search for shops, products or services...'
+              }
+              className="vaango-home-search-input"
+              aria-label="Search for shops, products or services"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="vaango-home-search-clear"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </form>
         </div>
       </section>
 
-      {/* 3. HERO & PRIMARY EXPERIENCE */}
-      <section className="vaangly-hero-card-section">
-        <div className="container vaangly-hero-card__container">
-          <div className="vaangly-hero-card">
-            {/* Tag / Badge */}
-            <div className="vaangly-hero-sparkle-pill">
-              <Sparkles size={14} className="vaangly-hero-sparkle-icon" />
-              <span>{t('heroPill')}</span>
-            </div>
-
-            {/* Bold Headline in deep forest green */}
-            <h1 className="vaangly-hero-headline">
-              {t('heroTitlePrefix')}
-              <br />
-              <span className="vaangly-hero-headline--green">{t('heroTitleHighlight')}</span>
-            </h1>
-
-            {/* Supporting Subtitle */}
-            <p className="vaangly-hero-description">
-              {t('heroSubtitle')}
-            </p>
-
-            {/* 3 Primary Action Buttons (Pill Row): Order, Booking, Services */}
-            <div className="vaangly-primary-actions-row">
-              <Link
-                to="/shops?group=ORDER"
-                className="vaangly-action-pill vaangly-action-pill--solid"
-                aria-label={t('heroStartOrdering')}
-              >
-                <ShoppingBag size={18} className="vaangly-action-pill__icon" />
-                <span>{t('heroStartOrdering')}</span>
-                <ArrowRight size={16} className="vaangly-action-pill__arrow" />
-              </Link>
-
-              <Link
-                to="/shops?group=APPOINTMENT"
-                className="vaangly-action-pill vaangly-action-pill--outline"
-                aria-label={t('heroStartBooking')}
-              >
-                <Calendar size={18} className="vaangly-action-pill__icon" />
-                <span>{t('heroStartBooking')}</span>
-                <ArrowRight size={16} className="vaangly-action-pill__arrow" />
-              </Link>
-
-              <Link
-                to="/shops?group=SERVICE"
-                className="vaangly-action-pill vaangly-action-pill--outline"
-                aria-label={t('heroStartServices')}
-              >
-                <Wrench size={18} className="vaangly-action-pill__icon" />
-                <span>{t('heroStartServices')}</span>
-                <ArrowRight size={16} className="vaangly-action-pill__arrow" />
-              </Link>
-            </div>
-
-            {/* Secondary Shopkeeper CTA (Full width outlined pill) */}
-            <div className="vaangly-shopkeeper-cta-wrap">
-              <Link
-                to={role === 'shopkeeper' ? '/shopkeeper/dashboard' : '/shopkeeper/apply'}
-                className="vaangly-action-pill vaangly-action-pill--shopkeeper"
-              >
-                <Store size={19} className="vaangly-action-pill__icon" />
-                <span>
-                  {role === 'shopkeeper'
-                    ? (language === 'ta' ? 'கடைக்காரர் கட்டுப்பாட்டகம் →' : 'Go to Shopkeeper Dashboard →')
-                    : `${t('heroOpenShop')} →`}
-                </span>
-              </Link>
-            </div>
-
-            {/* Trust / Benefit Checklist (Clean 2-column on mobile, with green check circles) */}
-            <div className="vaangly-trust-checklist">
-              <div className="vaangly-trust-item">
-                <CheckCircle2 size={18} className="vaangly-trust-icon" />
-                <span>{t('heroFeatureStores')}</span>
-              </div>
-              <div className="vaangly-trust-item">
-                <CheckCircle2 size={18} className="vaangly-trust-icon" />
-                <span>{t('heroFeaturePickup')}</span>
-              </div>
-              <div className="vaangly-trust-item">
-                <CheckCircle2 size={18} className="vaangly-trust-icon" />
-                <span>{t('heroFeatureServices')}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. PROMINENT 3 CORE ACTION ENTRY POINTS (ORDER, APPOINTMENTS, SERVICES) */}
-      <section className="vaangly-core-actions-section" id="core-actions">
+      {/* 2. 8 CATEGORIES GRID (4x2, Reference Image 2) */}
+      <section className="vaango-home-categories-section">
         <div className="container">
-          <div className="vaangly-section__header vaangly-section__header--center">
-            <h2 className="vaangly-section__title">{t('coreActionsTitle')}</h2>
-            <p className="vaangly-section__subtitle">
-              {t('coreActionsSubtitle', { location: selectedLocation.name })}
-            </p>
+          <div className="vaango-home-cat-grid">
+            {referenceCategories.map((cat) => (
+              <Link to={cat.link} key={cat.id} className="vaango-home-cat-item">
+                <div
+                  className="vaango-home-cat-icon-box"
+                  style={{ backgroundColor: cat.bg }}
+                >
+                  {cat.icon}
+                </div>
+                <span className="vaango-home-cat-label">{cat.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 3. PROMOTIONAL CAROUSEL BANNER (Reference Image 2) */}
+      <section className="vaango-home-promo-section">
+        <div className="container">
+          <div className="vaango-home-promo-banner">
+            <div className="vaango-home-promo-info">
+              <h2 className="vaango-home-promo-headline">Fresh Groceries</h2>
+              <p className="vaango-home-promo-sub">from nearby shops</p>
+              <Link to="/shops?group=ORDER" className="vaango-home-promo-btn">
+                <span>{language === 'ta' ? 'ஆர்டர் செய்க' : 'Order Now'}</span>
+                <ArrowRight size={15} />
+              </Link>
+            </div>
+            <div className="vaango-home-promo-media">
+              <img
+                src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&auto=format&fit=crop&q=80"
+                alt="Fresh Groceries"
+                className="vaango-home-promo-img"
+              />
+            </div>
+          </div>
+          <div className="vaango-home-promo-dots">
+            <span className="vaango-home-dot vaango-home-dot--active" />
+            <span className="vaango-home-dot" />
+            <span className="vaango-home-dot" />
+          </div>
+        </div>
+      </section>
+
+      {/* 4. NEARBY SHOPS HORIZONTAL SECTION (Reference Image 2) */}
+      <section className="vaango-home-shops-section">
+        <div className="container">
+          <div className="vaango-home-section-header">
+            <h2 className="vaango-home-section-title">
+              {language === 'ta' ? 'அருகிலுள்ள கடைகள்' : 'Nearby Shops'}
+            </h2>
+            <Link to="/shops" className="vaango-home-section-viewall">
+              <span>{language === 'ta' ? 'அனைத்தும் பார்க்க' : 'View all'}</span>
+              <ArrowRight size={14} />
+            </Link>
           </div>
 
-          <div className="vaangly-core-actions-grid">
-            {/* 1. ORDER */}
-            <Link to="/shops?group=ORDER" className="vaangly-core-action-card vaangly-core-action-card--order">
-              <div className="vaangly-core-action-badge vaangly-core-action-badge--order">
-                <ShoppingBag size={14} />
-                <span>1. {t('coreOrderTitle')}</span>
+          <div className="vaango-home-horizontal-scroll">
+            {displayedShops.slice(0, 6).map((shop) => (
+              <Link
+                to={(shop as any).isLive ? `/shop/${shop.id}` : '/shops'}
+                key={shop.id}
+                className="vaango-home-ref-shop-card"
+              >
+                <div className="vaango-home-ref-shop-media">
+                  <img
+                    src={shop.image}
+                    alt={shop.name}
+                    loading="lazy"
+                    className="vaango-home-ref-shop-img"
+                  />
+                </div>
+                <div className="vaango-home-ref-shop-body">
+                  <h3 className="vaango-home-ref-shop-name">{shop.name}</h3>
+                  <div className="vaango-home-ref-shop-rating">
+                    <Star size={13} fill="#F59E0B" color="#F59E0B" />
+                    <strong>{shop.rating}</strong>
+                    <span>({shop.reviewsCount || 120})</span>
+                  </div>
+                  <div className="vaango-home-ref-shop-meta">
+                    <span className="vaango-home-ref-shop-dist">
+                      <MapPin size={12} />
+                      0.8 km
+                    </span>
+                    <span className="vaango-home-ref-shop-status">
+                      {language === 'ta' ? 'திறந்துள்ளது' : 'Open'}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 5. POPULAR SERVICES HORIZONTAL SECTION (Reference Image 2) */}
+      <section className="vaango-home-services-section">
+        <div className="container">
+          <div className="vaango-home-section-header">
+            <h2 className="vaango-home-section-title">
+              {language === 'ta' ? 'பிரபலமான சேவைகள்' : 'Popular Services'}
+            </h2>
+            <Link to="/shops?group=SERVICE" className="vaango-home-section-viewall">
+              <span>{language === 'ta' ? 'அனைத்தும் பார்க்க' : 'View all'}</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          <div className="vaango-home-services-grid">
+            <Link
+              to="/shops?group=APPOINTMENT&type=clinic"
+              className="vaango-home-service-item vaango-home-service-item--doctor"
+            >
+              <div className="vaango-home-service-icon-box">
+                <Stethoscope size={24} />
               </div>
-              <h3 className="vaangly-core-action-title">{t('coreOrderTitle')}</h3>
-              <div className="vaangly-core-action-sub">{t('coreOrderSubtitle')}</div>
-              <p className="vaangly-core-action-desc">{t('coreOrderDesc')}</p>
-              <div className="vaangly-core-action-btn">
-                <span>{t('coreOrderAction')}</span>
-                <ArrowRight size={16} />
-              </div>
+              <span className="vaango-home-service-name">
+                {language === 'ta' ? 'மருத்துவர் முன்பதிவு' : 'Book Doctor'}
+              </span>
             </Link>
 
-            {/* 2. APPOINTMENTS */}
-            <Link to="/shops?group=APPOINTMENT" className="vaangly-core-action-card vaangly-core-action-card--appointments">
-              <div className="vaangly-core-action-badge vaangly-core-action-badge--appointments">
-                <Calendar size={14} />
-                <span>2. {t('coreAppointmentsTitle')}</span>
+            <Link
+              to="/shops?group=APPOINTMENT&type=salon"
+              className="vaango-home-service-item vaango-home-service-item--salon"
+            >
+              <div className="vaango-home-service-icon-box">
+                <Scissors size={24} />
               </div>
-              <h3 className="vaangly-core-action-title">{t('coreAppointmentsTitle')}</h3>
-              <div className="vaangly-core-action-sub">{t('coreAppointmentsSubtitle')}</div>
-              <p className="vaangly-core-action-desc">{t('coreAppointmentsDesc')}</p>
-              <div className="vaangly-core-action-btn">
-                <span>{t('coreAppointmentsAction')}</span>
-                <ArrowRight size={16} />
-              </div>
+              <span className="vaango-home-service-name">
+                {language === 'ta' ? 'சலூன் முன்பதிவு' : 'Salon Appointment'}
+              </span>
             </Link>
 
-            {/* 3. SERVICES */}
-            <Link to="/shops?group=SERVICE" className="vaangly-core-action-card vaangly-core-action-card--services">
-              <div className="vaangly-core-action-badge vaangly-core-action-badge--services">
-                <Wrench size={14} />
-                <span>3. {t('coreServicesTitle')}</span>
+            <Link
+              to="/shops?group=SERVICE&type=automobile"
+              className="vaango-home-service-item vaango-home-service-item--vehicle"
+            >
+              <div className="vaango-home-service-icon-box">
+                <Wrench size={24} />
               </div>
-              <h3 className="vaangly-core-action-title">{t('coreServicesTitle')}</h3>
-              <div className="vaangly-core-action-sub">{t('coreServicesSubtitle')}</div>
-              <p className="vaangly-core-action-desc">{t('coreServicesDesc')}</p>
-              <div className="vaangly-core-action-btn">
-                <span>{t('coreServicesAction')}</span>
-                <ArrowRight size={16} />
-              </div>
+              <span className="vaango-home-service-name">
+                {language === 'ta' ? 'வாகன சேவை' : 'Vehicle Service'}
+              </span>
             </Link>
+
+            <Link
+              to="/shops?group=SERVICE&type=home"
+              className="vaango-home-service-item vaango-home-service-item--home"
+            >
+              <div className="vaango-home-service-icon-box">
+                <Home size={24} />
+              </div>
+              <span className="vaango-home-service-name">
+                {language === 'ta' ? 'வீட்டு தேவைகள்' : 'Home Needs'}
+              </span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 6. TODAY'S OFFERS (Reference Image 2) */}
+      <section className="vaango-home-offers-section">
+        <div className="container">
+          <div className="vaango-home-section-header">
+            <h2 className="vaango-home-section-title">
+              {language === 'ta' ? 'இன்றைய சலுகைகள்' : "Today's Offers"}
+            </h2>
+            <Link to="/shops?group=ORDER" className="vaango-home-section-viewall">
+              <span>{language === 'ta' ? 'அனைத்தும் பார்க்க' : 'View all'}</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          <div className="vaango-home-offers-row">
+            <div className="vaango-home-offer-card vaango-home-offer-card--veg">
+              <div className="vaango-home-offer-content">
+                <div className="vaango-home-offer-tag">Flat 20% OFF</div>
+                <div className="vaango-home-offer-desc">on fresh vegetables</div>
+                <Link to="/shops?group=ORDER" className="vaango-home-offer-btn">
+                  <span>Order Now</span>
+                  <ArrowRight size={13} />
+                </Link>
+              </div>
+              <div className="vaango-home-offer-thumb">
+                <img
+                  src="https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300&auto=format&fit=crop&q=80"
+                  alt="Vegetables"
+                />
+              </div>
+            </div>
+
+            <div className="vaango-home-offer-card vaango-home-offer-card--med">
+              <div className="vaango-home-offer-content">
+                <div className="vaango-home-offer-tag">Up to 30%</div>
+                <div className="vaango-home-offer-desc">on medicines</div>
+                <Link to="/shops?group=ORDER&type=pharmacy" className="vaango-home-offer-btn">
+                  <span>Explore</span>
+                  <ArrowRight size={13} />
+                </Link>
+              </div>
+              <div className="vaango-home-offer-thumb">
+                <img
+                  src="https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&auto=format&fit=crop&q=80"
+                  alt="Medicines"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>

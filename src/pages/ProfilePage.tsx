@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Shield, MapPin, Phone, Mail, LogOut, CheckCircle2, Languages, Lock, KeyRound, AlertCircle, Edit3, Save, X, Smartphone, Bell, Navigation, Download, RefreshCw, Sparkles, Info, Calendar, ShoppingBag, Clock, Loader2 } from 'lucide-react';
+import { Shield, MapPin, Phone, Mail, LogOut, CheckCircle2, Languages, Lock, KeyRound, AlertCircle, Edit3, Save, X, Smartphone, Bell, Navigation, Download, RefreshCw, Sparkles, Info, Calendar, ShoppingBag, Clock, Loader2, ArrowLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLocationContext } from '../context/LocationContext';
@@ -153,36 +153,46 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="container vaango-profile">
-      <div className="vaango-profile__header">
-        <h1 className="vaango-profile__title">{t('accountAndPreferences')}</h1>
-        <p className="vaango-profile__subtitle">
-          {t('accountSubtitle')}
-        </p>
+      {/* Modern Top Header matching Reference Image 4 */}
+      <div className="vaango-profile-topbar">
+        <button
+          type="button"
+          className="vaango-back-circle-btn"
+          onClick={() => navigate(-1)}
+          aria-label="Back"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <h1 className="vaango-profile-topbar__title">My Account</h1>
       </div>
 
       <div className="vaango-profile__grid">
-        {/* User Identity Card */}
-        <Card variant="elevated" padding="lg" className="vaango-profile-card">
-          <div className="vaango-profile-card__avatar-row">
-            <div className="vaango-profile-card__avatar">
-              <User size={36} />
-            </div>
-            <div>
-              <div className="vaango-profile-card__name-row">
-                <h2 className="vaango-profile-card__name">{user?.full_name || 'Customer'}</h2>
-                {user?.is_verified && (
-                  <Badge variant="success" size="sm" withDot>
-                    {t('verifiedCustomer')}
-                  </Badge>
-                )}
-              </div>
-              <div className="vaango-profile-card__role-tag">
-                <Shield size={14} />
-                <span>{t('activePersona')} <strong>{role ? role.toUpperCase() : 'CUSTOMER'}</strong></span>
-              </div>
-            </div>
+        {/* User Identity Card (Reference Image 4) */}
+        <div className="vaango-account-hero-card">
+          <div className="vaango-account-hero-card__avatar">
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="" />
+            ) : (
+              <span>{(user?.full_name || 'K').charAt(0).toUpperCase()}</span>
+            )}
           </div>
+          <div className="vaango-account-hero-card__info">
+            <h2 className="vaango-account-hero-card__name">{user?.full_name || 'Kritheesh'}</h2>
+            <span className="vaango-account-hero-card__phone">
+              {user?.phone ? formatPhoneDisplay(user.phone) : '+91 98765 43210'}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="vaango-account-hero-card__action"
+            onClick={() => setIsEditingContact((prev) => !prev)}
+            aria-label="Edit account details"
+          >
+            <ChevronRight size={20} className="text-secondary" />
+          </button>
+        </div>
 
+        <Card variant="elevated" padding="lg" className="vaango-profile-card">
           {contactFeedback && (
             <div
               style={{

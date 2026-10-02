@@ -11,6 +11,7 @@ import './ProductCard.css';
 export interface ProductCardProps {
   product: ShopProduct;
   quantityInCart: number;
+  shop?: any;
   getVariantQuantity?: (variantId?: string | null) => number;
   onAdd: (product?: ShopProduct, variant?: ProductVariant | null) => void;
   onIncrease: (variant?: ProductVariant | null) => void;
@@ -20,6 +21,7 @@ export interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   quantityInCart,
+  shop,
   getVariantQuantity,
   onAdd,
   onIncrease,
@@ -150,15 +152,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   {t('outOfStock')}
                 </Button>
               ) : currentQuantity === 0 ? (
-                <Button
-                  variant="primary"
-                  size="md"
+                <button
+                  type="button"
                   onClick={() => onAdd(selectedProduct, selectedVariant)}
-                  leftIcon={<Plus size={16} />}
-                  className="vaango-prod-card__add-btn"
+                  className="vaango-prod-card__circle-add-btn"
+                  aria-label={`${t('add')} ${selectedProduct.name}`}
+                  title={`${t('add')} ₹${selectedProduct.price}`}
                 >
-                  {t('add')} ₹{selectedProduct.price}
-                </Button>
+                  <Plus size={20} />
+                </button>
               ) : (
                 <div className="vaango-qty-control" role="group" aria-label={product.name}>
                   <button
@@ -201,6 +203,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         product={product}
+        shop={shop}
         currentCartQty={quantityInCart}
         onAddToCart={(prod, variant, qty) => {
           for (let i = 0; i < (qty || 1); i++) {

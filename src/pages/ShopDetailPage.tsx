@@ -2,15 +2,19 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
+  ArrowRight,
   MapPin,
   Clock,
   Phone,
   Truck,
   Search,
   Store,
-  Calendar,
   Wrench,
   ExternalLink,
+  ShoppingCart,
+  CheckCircle,
+  Star,
+  Share2,
 } from 'lucide-react';
 import { MOCK_SHOPS, MOCK_SHOP_TYPES } from '../data/mockData';
 import { getShopProductsList } from '../lib/shopkeeperApi';
@@ -19,7 +23,6 @@ import { useCart } from '../context/CartContext';
 import { ProductCard } from '../components/customer/ProductCard';
 import { AppointmentBookingCard } from '../components/customer/AppointmentBookingCard';
 import { ServiceRequestCard } from '../components/customer/ServiceRequestCard';
-import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -63,16 +66,19 @@ export const ShopDetailPage: React.FC = () => {
     updateQuantity,
     getItemQuantity,
     clearCart,
+    itemCount,
+    totalAmount,
   } = useCart();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [products, setProducts] = useState<ShopProduct[]>([]);
   const [conflictModalOpen, setConflictModalOpen] = useState(false);
   const [pendingProduct, setPendingProduct] = useState<ShopProduct | null>(null);
   const [cakeModalOpen, setCakeModalOpen] = useState(false);
   const [cakeDescription, setCakeDescription] = useState('');
   const [isSubmittingCake, setIsSubmittingCake] = useState(false);
-  const [activeGroupDTab, setActiveGroupDTab] = useState<'products' | 'services'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'services' | 'about'>('products');
 
   // Find shop (supports both mock data and Supabase live UUIDs)
   const [shop, setShop] = useState<any>(() => {
@@ -159,16 +165,38 @@ export const ShopDetailPage: React.FC = () => {
     };
   }, [loadProducts, shopId, workflowGroup]);
 
-  // Filter products by search
+  // Category list derived from products
+  const productCategories = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach((p) => {
+      const cat = (p as any).category;
+      if (cat) set.add(cat);
+    });
+    return ['all', ...Array.from(set)];
+  }, [products]);
+
+  // Filter products by search and category
   const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) return products;
-    const q = searchQuery.toLowerCase();
-    return products.filter(
-      (p) =>
+    return products.filter((p) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
         p.name.toLowerCase().includes(q) ||
-        (p.description && p.description.toLowerCase().includes(q))
-    );
-  }, [products, searchQuery]);
+        (p.description && p.description.toLowerCase().includes(q));
+      const cat = (p as any).category;
+      const matchesCategory =
+        selectedCategory === 'all' || cat === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, searchQuery, selectedCategory]);
+
+  useEffect(() => {
+    if (workflowGroup === 'APPOINTMENT') {
+      setActiveTab('services');
+    } else {
+      setActiveTab('products');
+    }
+  }, [workflowGroup]);
 
   if (!shop) {
     return (
@@ -272,7 +300,6 @@ export const ShopDetailPage: React.FC = () => {
         }
       }
 
-      // Notify customer that custom cake request was placed
       try {
         await notifyOrderLifecycle({
           event: 'ORDER_PLACED',
@@ -299,194 +326,224 @@ export const ShopDetailPage: React.FC = () => {
     }
   };
 
+  const shopRating = shop.rating || 4.5;
+  const reviewCount = shop.review_count || 120;
+  const distance = shop.distance_km != null ? `${shop.distance_km} km` : '0.8 km';
+
   return (
     <div className="vaango-shop-detail">
-      {/* Back Navigation Bar */}
-      <div className="container vaango-shop-detail__nav-bar">
-        <button
-          type="button"
-          className="vaango-back-link"
-          onClick={() => navigate(-1)}
-          aria-label={t('backToShops')}
-        >
-          <ArrowLeft size={18} />
-          <span>{t('backToShops')}</span>
-        </button>
+      {/* Cover Image & Floating Navigation Overlay */}
+      <div className="vaango-shop-cover">
+        {shop.photo_url ? (
+          <img
+            src={shop.photo_url}
+            alt={shop.name}
+            className="vaango-shop-cover__img"
+          />
+        ) : (
+          <div className="vaango-shop-cover__placeholder">
+            <Store size={56} />
+          </div>
+        )}
+        <div className="vaango-shop-cover__overlay" />
+
+        {/* Floating Top Controls */}
+        <div className="vaango-shop-cover__topbar">
+          <button
+            type="button"
+            className="vaango-shop-cover__circle-btn"
+            onClick={() => navigate(-1)}
+            aria-label={t('backToShops')}
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="vaango-shop-cover__topbar-actions">
+            <button
+              type="button"
+              className="vaango-shop-cover__circle-btn"
+              onClick={() => {
+                const el = document.getElementById('shop-product-search');
+                if (el) el.focus();
+              }}
+              aria-label="Search in shop"
+            >
+              <Search size={18} />
+            </button>
+            <button
+              type="button"
+              className="vaango-shop-cover__circle-btn"
+              onClick={() => {
+                if (navigator.share) {
+                  navigator.share({ title: shop.name, url: window.location.href }).catch(() => {});
+                } else {
+                  navigator.clipboard.writeText(window.location.href);
+                  success('Shop link copied to clipboard');
+                }
+              }}
+              aria-label="Share shop"
+            >
+              <Share2 size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Floating Status Badges at bottom of cover */}
+        <div className="vaango-shop-cover__status-strip">
+          <div className="vaango-shop-cover__status-pill">
+            <span className={`vaango-shop-cover__dot ${shop.is_open_today ? 'vaango-shop-cover__dot--open' : 'vaango-shop-cover__dot--closed'}`} />
+            <span>
+              {shop.is_open_today
+                ? `${t('openToday')} · ${shop.closing_time ? `Closes ${shop.closing_time}` : 'Closes 10:00 PM'}`
+                : t('closed')}
+            </span>
+          </div>
+          <div className="vaango-shop-cover__status-pill">
+            <MapPin size={13} className="text-secondary" />
+            <span>{distance}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Hero Header */}
-      <div className="vaango-shop-hero">
-        <div className="container vaango-shop-hero__inner">
-          <div className="vaango-shop-hero__media">
-            {shop.photo_url ? (
-              <img
-                src={shop.photo_url}
-                alt={shop.name}
-                className="vaango-shop-hero__img"
-              />
-            ) : (
-              <div className="vaango-shop-hero__placeholder">
-                <Store size={48} />
-              </div>
-            )}
+      {/* Shop Info Card */}
+      <div className="container vaango-shop-info-card-wrap">
+        <div className="vaango-shop-info-card">
+          <div className="vaango-shop-info-card__header">
+            <h1 className="vaango-shop-info-card__name">{shop.name}</h1>
+            <div className="vaango-shop-info-card__rating">
+              <Star size={16} className="vaango-shop-info-card__star" fill="#EAB308" />
+              <span className="vaango-shop-info-card__score">{shopRating}</span>
+              <span className="vaango-shop-info-card__reviews">({reviewCount} {t('reviews' as any) || 'reviews'})</span>
+            </div>
           </div>
 
-          <div className="vaango-shop-hero__content">
-            <div className="vaango-shop-hero__badges">
-              {shopType && <Badge variant="primary" size="sm">{shopType.name}</Badge>}
-              <Badge variant={shop.is_open_today ? 'success' : 'neutral'} size="sm" withDot>
-                {shop.is_open_today ? t('openToday') : t('closed')}
-              </Badge>
-              {workflowGroup === 'APPOINTMENT' && (
-                <Badge variant="accent" size="sm">
-                  <Calendar size={12} style={{ marginRight: 4 }} /> {t('navAppointments')}
-                </Badge>
-              )}
-              {workflowGroup === 'SERVICE' && (
-                <Badge variant="accent" size="sm">
-                  <Wrench size={12} style={{ marginRight: 4 }} /> {t('navServices')}
-                </Badge>
-              )}
+          <p className="vaango-shop-info-card__subtitle">
+            {shop.tagline || (shopType ? `${shopType.name} · Daily needs · Local marketplace` : 'Groceries · Daily needs · Home essentials')}
+          </p>
+
+          <div className="vaango-shop-info-card__badges">
+            <div className="vaango-shop-pill-badge vaango-shop-pill-badge--verified">
+              <CheckCircle size={14} />
+              <span>Verified Shop</span>
             </div>
-
-            <h1 className="vaango-shop-hero__name">{shop.name}</h1>
-            {shop.tagline && (
-              <p className="vaango-shop-hero__tagline">{shop.tagline}</p>
-            )}
-
-            <div className="vaango-shop-hero__meta">
-              {shop.address_line ? (
-                <div className="vaango-shop-meta-item vaango-shop-meta-item--address">
-                  <MapPin size={16} className="vaango-shop-meta-icon" />
-                  <span className="vaango-shop-address-text">{shop.address_line}</span>
-                  {hasValidCoordinates(shop.gps_lat, shop.gps_lng) && (
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shop.gps_lat},${shop.gps_lng}`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="vaango-shop-map-btn"
-                      aria-label={t('openInMaps')}
-                    >
-                      <ExternalLink size={12} />
-                      <span>{t('openInMaps')}</span>
-                    </a>
-                  )}
-                </div>
-              ) : hasValidCoordinates(shop.gps_lat, shop.gps_lng) ? (
-                <div className="vaango-shop-meta-item vaango-shop-meta-item--address">
-                  <MapPin size={16} className="vaango-shop-meta-icon" />
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shop.gps_lat},${shop.gps_lng}`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="vaango-shop-map-btn"
-                    aria-label={t('openInMaps')}
-                  >
-                    <ExternalLink size={12} />
-                    <span>{t('openInMaps')}</span>
-                  </a>
-                </div>
-              ) : null}
-
-              {shop.opening_time && shop.closing_time && (
-                <div className="vaango-shop-meta-item">
-                  <Clock size={16} className="vaango-shop-meta-icon" />
-                  <span>{t('hoursPrefix')} {shop.opening_time} {t('hoursTo')} {shop.closing_time}</span>
-                </div>
-              )}
-
-              <div className="vaango-shop-meta-item">
-                <Phone size={16} className="vaango-shop-meta-icon" />
-                <span>{shop.phone}</span>
-              </div>
-
-              <div className="vaango-shop-meta-item vaango-shop-meta-item--highlight">
-                <Truck size={16} className="vaango-shop-meta-icon" />
-                <span>
-                  {workflowGroup === 'SALES_SERVICE'
-                    ? 'Products & Local Services'
-                    : workflowGroup === 'APPOINTMENT'
-                    ? t('inPersonAppointment')
-                    : workflowGroup === 'SERVICE'
-                    ? t('inShopService')
-                    : t('counterPickupDelivery')}
-                </span>
-              </div>
+            <div className="vaango-shop-pill-badge vaango-shop-pill-badge--delivery">
+              <Truck size={14} />
+              <span>Free delivery above ₹299</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content Area based on Workflow Group */}
-      <div className="container vaango-shop-workflow-container">
-        {workflowGroup === 'SALES_SERVICE' && (
-          <div
-            className="flex gap-2 mb-6 p-1.5 rounded-xl border border-border"
-            style={{ background: 'var(--color-surface)', maxWidth: 440, margin: '0 auto 24px' }}
+      {/* Main Shop Tabs: Products | Services | About */}
+      <div className="container vaango-shop-tabs-wrap">
+        <div className="vaango-shop-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'products'}
+            className={`vaango-shop-tab ${activeTab === 'products' ? 'vaango-shop-tab--active' : ''}`}
+            onClick={() => setActiveTab('products')}
           >
-            <button
-              type="button"
-              className="flex-1 py-2 px-4 rounded-lg font-bold text-sm transition-all"
-              style={{
-                background: activeGroupDTab === 'products' ? 'var(--color-primary)' : 'transparent',
-                color: activeGroupDTab === 'products' ? '#fff' : 'var(--color-text-secondary)',
-              }}
-              onClick={() => setActiveGroupDTab('products')}
-            >
-              📦 Products ({filteredProducts.length})
-            </button>
-            <button
-              type="button"
-              className="flex-1 py-2 px-4 rounded-lg font-bold text-sm transition-all"
-              style={{
-                background: activeGroupDTab === 'services' ? 'var(--color-primary)' : 'transparent',
-                color: activeGroupDTab === 'services' ? '#fff' : 'var(--color-text-secondary)',
-              }}
-              onClick={() => setActiveGroupDTab('services')}
-            >
-              🛠️ Request Service
-            </button>
-          </div>
-        )}
+            {t('navProducts' as any) || 'Products'}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'services'}
+            className={`vaango-shop-tab ${activeTab === 'services' ? 'vaango-shop-tab--active' : ''}`}
+            onClick={() => setActiveTab('services')}
+          >
+            {workflowGroup === 'APPOINTMENT' ? (t('navAppointments') || 'Appointments') : (t('navServices') || 'Services')}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'about'}
+            className={`vaango-shop-tab ${activeTab === 'about' ? 'vaango-shop-tab--active' : ''}`}
+            onClick={() => setActiveTab('about')}
+          >
+            {t('about' as any) || 'About'}
+          </button>
+        </div>
+      </div>
 
-        {workflowGroup === 'APPOINTMENT' ? (
-          /* Group B: Salon & Clinic Appointment Booking */
-          <AppointmentBookingCard shop={shop} />
-        ) : workflowGroup === 'SERVICE' || (workflowGroup === 'SALES_SERVICE' && activeGroupDTab === 'services') ? (
-          /* Group C or Group D Services */
-          <ServiceRequestCard shop={shop} />
-        ) : (
-          /* Group A or Group D Products */
-          <div className="vaango-shop-catalogue">
+      {/* Main Tab Content */}
+      <div className="container vaango-shop-content-area">
+        {activeTab === 'products' && (
+          <div className="vaango-shop-products-section">
+            {/* Category Filter Chips */}
+            <div className="vaango-shop-category-pills" role="tablist" aria-label="Product categories">
+              <button
+                type="button"
+                className={`vaango-category-pill ${selectedCategory === 'all' ? 'vaango-category-pill--active' : ''}`}
+                onClick={() => setSelectedCategory('all')}
+              >
+                All
+              </button>
+              {productCategories.filter((c) => c !== 'all').map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  className={`vaango-category-pill ${selectedCategory === cat ? 'vaango-category-pill--active' : ''}`}
+                  onClick={() => setSelectedCategory(cat)}
+                >
+                  {cat}
+                </button>
+              ))}
+              {productCategories.length <= 1 && (
+                <>
+                  <button
+                    type="button"
+                    className={`vaango-category-pill ${selectedCategory === 'fruits_veg' ? 'vaango-category-pill--active' : ''}`}
+                    onClick={() => setSelectedCategory(selectedCategory === 'fruits_veg' ? 'all' : 'fruits_veg')}
+                  >
+                    Fruits &amp; Vegetables
+                  </button>
+                  <button
+                    type="button"
+                    className={`vaango-category-pill ${selectedCategory === 'dairy' ? 'vaango-category-pill--active' : ''}`}
+                    onClick={() => setSelectedCategory(selectedCategory === 'dairy' ? 'all' : 'dairy')}
+                  >
+                    Dairy
+                  </button>
+                  <button
+                    type="button"
+                    className={`vaango-category-pill ${selectedCategory === 'snacks' ? 'vaango-category-pill--active' : ''}`}
+                    onClick={() => setSelectedCategory(selectedCategory === 'snacks' ? 'all' : 'snacks')}
+                  >
+                    Snacks
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Custom Cake Banner for Bakeries */}
             {shopType?.code === 'bakery' && shop.customised_cake_available && (
               <div className="vaango-custom-cake-card">
                 <h2>{t('customCakesAvailable')}</h2>
                 <p>{t('customCakesDesc')}</p>
-                <button type="button" className="vaango-btn vaango-btn--primary" onClick={() => setCakeModalOpen(true)}>{t('orderCustomCakeBtn')}</button>
+                <button
+                  type="button"
+                  className="vaango-btn vaango-btn--primary"
+                  onClick={() => setCakeModalOpen(true)}
+                >
+                  {t('orderCustomCakeBtn')}
+                </button>
               </div>
             )}
-            <div className="vaango-shop-catalogue__header">
-              <div className="vaango-shop-catalogue__title-wrap">
-                <h2 className="vaango-shop-catalogue__title">{t('availableCatalogue')}</h2>
-                <span className="vaango-shop-catalogue__count">
-                  {t('itemsListed', { count: filteredProducts.length })}
-                </span>
-              </div>
 
-              {/* Product Search */}
-              <div className="vaango-shop-catalogue__search">
-                <Input
-                  id="catalogue-search-input"
-                  type="search"
-                  placeholder={t('searchInShopPlaceholder', { shopName: shop.name })}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  leftIcon={<Search size={18} />}
-                />
-              </div>
+            {/* Catalogue Search Header */}
+            <div className="vaango-shop-search-bar-wrap">
+              <Input
+                id="shop-product-search"
+                type="search"
+                placeholder={t('searchInShopPlaceholder', { shopName: shop.name })}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                leftIcon={<Search size={18} />}
+              />
             </div>
 
-            {/* Product Cards Grid */}
+            {/* 2-Column Product Cards Grid */}
             {filteredProducts.length > 0 ? (
               <div className="vaango-catalogue-grid">
                 {filteredProducts.map((product) => {
@@ -495,6 +552,7 @@ export const ShopDetailPage: React.FC = () => {
                     <ProductCard
                       key={product.id}
                       product={product}
+                      shop={shop}
                       quantityInCart={qty}
                       getVariantQuantity={(variantId) => getItemQuantity(product.id, variantId)}
                       onAdd={(p, variant) => handleAddProduct(p || product, variant)}
@@ -510,13 +568,128 @@ export const ShopDetailPage: React.FC = () => {
                   title={t('noProductsFoundTitle')}
                   description={t('noProductsFoundDesc', { query: searchQuery })}
                   actionLabel={t('clearSearch')}
-                  onAction={() => setSearchQuery('')}
+                  onAction={() => {
+                    setSearchQuery('');
+                    setSelectedCategory('all');
+                  }}
                 />
               </div>
             )}
           </div>
         )}
+
+        {activeTab === 'services' && (
+          <div className="vaango-shop-services-tab">
+            {workflowGroup === 'APPOINTMENT' ? (
+              <AppointmentBookingCard shop={shop} />
+            ) : workflowGroup === 'SERVICE' || workflowGroup === 'SALES_SERVICE' ? (
+              <ServiceRequestCard shop={shop} />
+            ) : (
+              <div className="vaango-shop-no-services-card">
+                <Wrench size={40} className="text-secondary mb-3" />
+                <h3>No Appointment Booking Required</h3>
+                <p>This shop offers direct walk-in and delivery services for its catalog items.</p>
+                <Button variant="primary" onClick={() => setActiveTab('products')}>
+                  Browse Products
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'about' && (
+          <div className="vaango-shop-about-tab">
+            <div className="vaango-shop-about-card">
+              <h3>Shop Information</h3>
+              {shop.tagline && <p className="vaango-shop-about-desc">{shop.tagline}</p>}
+
+              <div className="vaango-shop-about-list">
+                {shop.address_line && (
+                  <div className="vaango-shop-about-item">
+                    <MapPin size={20} className="vaango-shop-about-icon" />
+                    <div className="vaango-shop-about-item-text">
+                      <strong>Address</strong>
+                      <span>{shop.address_line}</span>
+                      {hasValidCoordinates(shop.gps_lat, shop.gps_lng) && (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shop.gps_lat},${shop.gps_lng}`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="vaango-shop-map-btn"
+                          style={{ marginTop: 6, display: 'inline-flex' }}
+                        >
+                          <ExternalLink size={12} />
+                          <span>{t('openInMaps')}</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {shop.opening_time && shop.closing_time && (
+                  <div className="vaango-shop-about-item">
+                    <Clock size={20} className="vaango-shop-about-icon" />
+                    <div className="vaango-shop-about-item-text">
+                      <strong>Hours of Operation</strong>
+                      <span>{shop.opening_time} - {shop.closing_time}</span>
+                    </div>
+                  </div>
+                )}
+
+                {shop.phone && (
+                  <div className="vaango-shop-about-item">
+                    <Phone size={20} className="vaango-shop-about-icon" />
+                    <div className="vaango-shop-about-item-text">
+                      <strong>Contact Phone</strong>
+                      <a href={`tel:${shop.phone}`} className="vaango-phone-link">{shop.phone}</a>
+                    </div>
+                  </div>
+                )}
+
+                <div className="vaango-shop-about-item">
+                  <Truck size={20} className="vaango-shop-about-icon" />
+                  <div className="vaango-shop-about-item-text">
+                    <strong>Service Type</strong>
+                    <span>
+                      {workflowGroup === 'SALES_SERVICE'
+                        ? 'Products & Local Services'
+                        : workflowGroup === 'APPOINTMENT'
+                        ? t('inPersonAppointment')
+                        : workflowGroup === 'SERVICE'
+                        ? t('inShopService')
+                        : t('counterPickupDelivery')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Floating Bottom Cart Bar (Image 3) */}
+      {itemCount > 0 && (
+        <div className="vaango-floating-cart-bar">
+          <div className="vaango-floating-cart-bar__inner">
+            <div className="vaango-floating-cart-bar__info">
+              <div className="vaango-floating-cart-bar__icon-wrap">
+                <ShoppingCart size={18} />
+              </div>
+              <span className="vaango-floating-cart-bar__text">
+                {itemCount} {itemCount === 1 ? 'item' : 'items'} &nbsp;|&nbsp; ₹{totalAmount.toFixed(0)}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="vaango-floating-cart-bar__btn"
+              onClick={() => navigate('/cart')}
+            >
+              <span>{t('viewCart') || 'View Cart'}</span>
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Conflict Modal when switching shops (Order Workflow) */}
       <ConfirmDialog

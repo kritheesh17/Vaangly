@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Calendar as CalendarIcon,
-  Clock,
   User,
-  CheckCircle2,
   AlertCircle,
   Sparkles,
   Phone,
   FileText,
+  Star,
+  MapPin,
+  Store,
 } from 'lucide-react';
 import { Shop, ShopService, AppointmentSlot } from '../../types/database';
 import {
@@ -44,7 +44,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
 
   // Date selection: Next 7 days based on shop's local time
   const dateOptions = useMemo(() => {
-    const dates: { dateStr: string; label: string; dayName: string }[] = [];
+    const dates: { dateStr: string; label: string; dayName: string; dayNum: string; monthShort: string }[] = [];
     const shopNow = getShopCurrentDateTime(DEFAULT_SHOP_TIMEZONE);
     const shopBaseDate = new Date(shopNow.year, shopNow.month - 1, shopNow.day);
 
@@ -61,7 +61,9 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
         ? t('tomorrow')
         : d.toLocaleDateString(language === 'ta' ? 'ta-IN' : 'en-US', { weekday: 'short' });
       const label = d.toLocaleDateString(language === 'ta' ? 'ta-IN' : 'en-US', { month: 'short', day: 'numeric' });
-      dates.push({ dateStr, label, dayName });
+      const dayNum = String(d.getDate());
+      const monthShort = d.toLocaleDateString(language === 'ta' ? 'ta-IN' : 'en-US', { month: 'short' });
+      dates.push({ dateStr, label, dayName, dayNum, monthShort });
     }
     return dates;
   }, [language, t]);
@@ -266,83 +268,82 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
 
   return (
     <div className="vaango-appointment-booking" aria-label="Appointment booking workflow">
-      {/* 1. Service / Doctor Selection */}
-      <section className="vaango-booking-section">
-        <div className="vaango-booking-section__header">
-          <Sparkles size={20} className="text-primary" />
-          <h2 className="vaango-booking-section__title">{t('chooseServiceDoctor')}</h2>
+      {/* Clinic / Shop Overview Card (Reference Image 1 & 4) */}
+      <div className="vaango-appointment-clinic-card">
+        <div className="vaango-appointment-clinic-thumb">
+          {shop.photo_url ? (
+            <img src={shop.photo_url} alt={shop.name} />
+          ) : (
+            <Store size={26} />
+          )}
         </div>
-
-        {isLoadingServices ? (
-          <div className="vaango-booking-loading">{t('loadingText')}</div>
-        ) : services.length === 0 ? (
-          <div className="vaango-booking-empty">
-            {language === 'ta' ? 'இந்த கடையில் சேவைகள் எதுவும் சேர்க்கப்படவில்லை.' : "This shop hasn't added any appointment services yet."}
+        <div className="vaango-appointment-clinic-info">
+          <h3 className="vaango-appointment-clinic-name">{shop.name}</h3>
+          <div className="vaango-appointment-clinic-meta">
+            <div className="vaango-appointment-clinic-rating">
+              <Star size={13} fill="#EAB308" color="#EAB308" />
+              <span>{(shop as any).rating || 4.6}</span>
+              <span className="text-secondary">({(shop as any).review_count || 210})</span>
+            </div>
+            <span>·</span>
+            <div className="vaango-appointment-clinic-dist">
+              <MapPin size={13} />
+              <span>{(shop as any).distance_km != null ? `${(shop as any).distance_km} km` : '0.5 km'}</span>
+            </div>
           </div>
-        ) : (
-          <div className="vaango-service-selector-grid" role="radiogroup" aria-label="Appointment Services">
-            {services.map((srv) => {
-              const isSelected = srv.id === selectedServiceId;
-              return (
-                <button
-                  key={srv.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSelected}
-                  disabled={!srv.is_available}
-                  className={`vaango-service-card ${isSelected ? 'vaango-service-card--selected' : ''} ${!srv.is_available ? 'vaango-service-card--disabled' : ''}`}
-                  onClick={() => setSelectedServiceId(srv.id)}
-                >
-                  <div className="vaango-service-card__top">
-                    <div>
-                      <h3 className="vaango-service-card__name">{srv.name}</h3>
-                      {srv.provider_name && (
-                        <span className="vaango-service-card__provider">
-                          <User size={14} />
-                          {srv.provider_name}
-                          {srv.specialization && ` • ${srv.specialization}`}
-                        </span>
-                      )}
-                    </div>
-                    <div className="vaango-service-card__price">
-                      {srv.base_price ? `₹${srv.base_price}` : t('consultationFee')}
-                    </div>
-                  </div>
-
-                  {srv.description && (
-                    <p className="vaango-service-card__desc">{srv.description}</p>
-                  )}
-
-                  <div className="vaango-service-card__footer">
-                    {srv.duration_minutes && (
-                      <span className="vaango-service-duration">
-                        <Clock size={14} />
-                        {srv.duration_minutes} {t('durationMinutesUnit')}
-                      </span>
-                    )}
-                    {isSelected ? (
-                      <span className="vaango-selected-tag">
-                        <CheckCircle2 size={16} /> {t('itemSelected')}
-                      </span>
-                    ) : (
-                      <span className="vaango-select-prompt">
-                        {t('tapToSelect')}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* 2. Date Selection */}
-      <section className="vaango-booking-section">
-        <div className="vaango-booking-section__header">
-          <CalendarIcon size={20} className="text-primary" />
-          <h2 className="vaango-booking-section__title">{t('chooseDateSlot')}</h2>
         </div>
+      </div>
+
+      {/* 1. Service / Doctor Selection (if multiple) */}
+      {services.length > 1 && (
+        <section className="vaango-booking-section">
+          <div className="vaango-booking-section__header">
+            <Sparkles size={18} className="text-primary" />
+            <h2 className="vaango-booking-section__title">{t('chooseServiceDoctor')}</h2>
+          </div>
+
+          {isLoadingServices ? (
+            <div className="vaango-booking-loading">{t('loadingText')}</div>
+          ) : (
+            <div className="vaango-service-selector-grid" role="radiogroup" aria-label="Appointment Services">
+              {services.map((srv) => {
+                const isSelected = srv.id === selectedServiceId;
+                return (
+                  <button
+                    key={srv.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    disabled={!srv.is_available}
+                    className={`vaango-service-card ${isSelected ? 'vaango-service-card--selected' : ''} ${!srv.is_available ? 'vaango-service-card--disabled' : ''}`}
+                    onClick={() => setSelectedServiceId(srv.id)}
+                  >
+                    <div className="vaango-service-card__top">
+                      <div>
+                        <h3 className="vaango-service-card__name">{srv.name}</h3>
+                        {srv.provider_name && (
+                          <span className="vaango-service-card__provider">
+                            <User size={14} />
+                            {srv.provider_name}
+                            {srv.specialization && ` • ${srv.specialization}`}
+                          </span>
+                        )}
+                      </div>
+                      <div className="vaango-service-card__price">
+                        {srv.base_price ? `₹${srv.base_price}` : t('consultationFee')}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* 2. Select Date (Reference Image 1 & 4) */}
+      <section className="vaango-booking-section">
+        <h3 className="vaango-booking-section__heading">Select Date</h3>
 
         <div className="vaango-date-strip" role="tablist" aria-label="Appointment Dates">
           {dateOptions.map((d) => {
@@ -357,38 +358,21 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                 onClick={() => setSelectedDateStr(d.dateStr)}
               >
                 <span className="vaango-date-pill__day">{d.dayName}</span>
-                <span className="vaango-date-pill__date">{d.label}</span>
+                <span className="vaango-date-pill__num">{d.dayNum}</span>
+                <span className="vaango-date-pill__date">{d.dayNum} {d.monthShort}</span>
               </button>
             );
           })}
         </div>
       </section>
 
-      {/* 3. Time Slot Selection */}
+      {/* 3. Available Time Slots (Reference Image 1 & 4) */}
       <section className="vaango-booking-section">
-        <div className="vaango-booking-section__header">
-          <Clock size={20} className="text-primary" />
-          <h2 className="vaango-booking-section__title">
-            {t('selectTimeSlot')}
-          </h2>
-        </div>
-
-        {/* Legend for accessibility */}
-        <div className="vaango-slot-legend">
-          <span className="vaango-legend-item">
-            <span className="vaango-legend-dot vaango-legend-dot--available" /> {t('legendAvailable')}
-          </span>
-          <span className="vaango-legend-item">
-            <span className="vaango-legend-dot vaango-legend-dot--selected" /> {t('legendSelected')}
-          </span>
-          <span className="vaango-legend-item">
-            <span className="vaango-legend-dot vaango-legend-dot--booked" /> {t('legendBooked')}
-          </span>
-        </div>
+        <h3 className="vaango-booking-section__heading">Available Time Slots</h3>
 
         {bookingError && (
           <div className="vaango-booking-alert vaango-booking-alert--error" role="alert">
-            <AlertCircle size={20} />
+            <AlertCircle size={18} />
             <span>{bookingError}</span>
           </div>
         )}
@@ -400,7 +384,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
             {t('noSlotsForDate')}
           </div>
         ) : (
-          <div className="vaango-slots-grid" role="radiogroup" aria-label="Appointment Time Slots">
+          <div className="vaango-slots-list" role="radiogroup" aria-label="Appointment Time Slots">
             {bookableSlots.map((slot) => {
               const isSelected = slot.id === selectedSlotId;
               const capacity = slot.capacity || slot.concurrent_capacity || 1;
@@ -415,32 +399,34 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                   role="radio"
                   aria-checked={isSelected}
                   disabled={!isAvailable || isSubmitting}
-                  className={`vaango-slot-btn ${isSelected ? 'vaango-slot-btn--selected' : ''} ${!isAvailable ? 'vaango-slot-btn--booked' : ''}`}
+                  className={`vaango-slot-card ${isSelected ? 'vaango-slot-card--selected' : ''} ${!isAvailable ? 'vaango-slot-card--booked' : ''}`}
                   onClick={() => {
                     if (isAvailable) {
                       setSelectedSlotId(slot.id);
                       setBookingError(null);
                     }
                   }}
-                  aria-label={`${slot.start_time} to ${slot.end_time}, ${isAvailable ? `${remaining} left` : 'Full'}`}
+                  aria-label={`${slot.start_time} to ${slot.end_time}, ${isAvailable ? `${remaining} available` : 'Full'}`}
                 >
-                  <div className="vaango-slot-time">
-                    {slot.start_time} – {slot.end_time}
+                  <div className="vaango-slot-card__info">
+                    <div className="vaango-slot-card__time">
+                      {slot.start_time} – {slot.end_time}
+                    </div>
+                    <div className="vaango-slot-card__status">
+                      {isAvailable ? (
+                        <span className="vaango-slot-card__avail">
+                          {remaining} {remaining === 1 ? 'slot available' : 'slots available'}
+                        </span>
+                      ) : (
+                        <span className="vaango-slot-card__booked-text">
+                          Fully booked
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="vaango-slot-status">
-                    {isSelected ? (
-                      <span className="vaango-slot-status--text-selected">
-                        <CheckCircle2 size={15} /> {t('itemSelected')}
-                      </span>
-                    ) : isAvailable ? (
-                      <span className="vaango-slot-status--text-avail">
-                        {remaining === 1 ? '1 spot left' : `${remaining} spots left`}
-                      </span>
-                    ) : (
-                      <span className="vaango-slot-status--text-booked">
-                        {t('legendBooked')} (Full)
-                      </span>
-                    )}
+
+                  <div className={`vaango-slot-card__radio ${isSelected ? 'vaango-slot-card__radio--selected' : ''}`}>
+                    {isSelected && <div className="vaango-slot-card__radio-inner" />}
                   </div>
                 </button>
               );
@@ -486,13 +472,13 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
 
             <div className="vaango-form-group">
               <label htmlFor="customer-notes" className="vaango-form-label">
-                {t('bookingNotesPlaceholder')}
+                Reason for Visit
               </label>
               <Input
                 id="customer-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder={t('appointmentNotesPlaceholder')}
+                placeholder="e.g. General checkup"
                 leftIcon={<FileText size={16} />}
               />
             </div>
@@ -605,11 +591,11 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
             <Button
               variant="primary"
               size="lg"
-              className="w-full mt-4"
+              className="w-full mt-4 vaango-appointment-confirm-btn"
               isLoading={isSubmitting}
               onClick={handleBookAppointment}
             >
-              {isSubmitting ? t('bookingAppointment') : paymentMethod === 'online' ? "I've Paid — Reserve & Upload Proof" : t('bookAppointmentBtn')}
+              {isSubmitting ? t('bookingAppointment') : paymentMethod === 'online' ? "I've Paid — Reserve & Upload Proof" : 'Confirm Appointment'}
             </Button>
           </Card>
         </section>

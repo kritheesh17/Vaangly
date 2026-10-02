@@ -41,6 +41,7 @@ import { ChangePasswordModal } from '../auth/ChangePasswordModal';
 import './Header.css';
 import { useLanguage } from '../../context/LanguageContext';
 import { LanguageToggle } from '../common/LanguageToggle';
+import { LanguageDropdown } from '../common/LanguageDropdown';
 
 export const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -133,7 +134,7 @@ export const Header: React.FC = () => {
     <>
       <header className="vaango-header">
         <div className="vaango-header__inner">
-          {/* LEFT: Logo & Location Selector */}
+          {/* LEFT: Logo & Location Selector (Reference Image 2) */}
           <div className="vaango-header__brand-group">
             <Link
               to={
@@ -144,26 +145,31 @@ export const Header: React.FC = () => {
                     : '/'
               }
               className="vaango-header__logo"
-              aria-label="Vaangly Home"
+              aria-label="Vaango Home"
               onClick={closeMobileMenu}
             >
               <div className="vaango-header__logo-icon" aria-hidden="true">
-                <span>V</span>
+                <MapPin size={20} />
               </div>
-              <span className="vaango-header__logo-text">{t('brand').toUpperCase()}</span>
+              <div className="vaango-header__brand-col">
+                <span className="vaango-header__logo-text">Vaango</span>
+                <button
+                  type="button"
+                  className="vaango-header__location-sub-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsLocationModalOpen(true);
+                  }}
+                  aria-label={`${t('location')}: ${selectedLocation.name}. ${t('changeLocation')}.`}
+                >
+                  <span className="vaango-header__location-text">
+                    {selectedLocation.name}, Tiruppur
+                  </span>
+                  <ChevronDown size={11} className="vaango-header__location-chevron" />
+                </button>
+              </div>
             </Link>
-
-            {/* Location Selector Pill */}
-            <button
-              type="button"
-              className="vaango-header__location-btn"
-              onClick={() => setIsLocationModalOpen(true)}
-              aria-label={`${t('location')}: ${selectedLocation.name}. ${t('changeLocation')}.`}
-            >
-              <MapPin size={14} className="vaango-header__location-icon" />
-              <span className="vaango-header__location-name">{selectedLocation.name}</span>
-              <ChevronDown size={12} className="vaango-header__location-chevron" />
-            </button>
           </div>
 
           {/* CENTER: Desktop Navigation Links */}
@@ -315,9 +321,9 @@ export const Header: React.FC = () => {
               </button>
             )}
 
-            {/* Two-Way Segmented Language Toggle (EN | தமிழ்) - ALWAYS PINNED TOP-RIGHT */}
+            {/* Language Dropdown (EN | தமிழ்) - Reference Image 2 */}
             <div className="vaango-header__lang-toggle-wrap">
-              <LanguageToggle size="sm" />
+              <LanguageDropdown />
             </div>
 
             {/* Compact Theme Toggle Button [ 🌙 in light | ☀️ in dark ] */}
@@ -354,12 +360,12 @@ export const Header: React.FC = () => {
                       user.full_name?.charAt(0).toUpperCase() || <User size={15} />
                     )}
                   </div>
-                  <span className="vaango-header__account-name">
+                  <span className="vaango-header__account-name hidden sm:inline">
                     {role === 'admin' ? 'Admin' : (user.full_name?.split(' ')[0] || 'Account')}
                   </span>
                   <ChevronDown
                     size={13}
-                    className={`vaango-header__account-chevron ${isAccountMenuOpen ? 'vaango-header__account-chevron--open' : ''}`}
+                    className={`vaango-header__account-chevron hidden sm:inline ${isAccountMenuOpen ? 'vaango-header__account-chevron--open' : ''}`}
                   />
                 </button>
 

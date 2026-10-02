@@ -1,21 +1,23 @@
 .vaango-prod-modal {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4, 16px);
+  gap: 14px;
 }
 
+/* 1. Carousel & Media */
 .vaango-prod-modal__gallery {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2, 8px);
+  align-items: center;
+  gap: 10px;
 }
 
 .vaango-prod-modal__main-image-wrap {
   position: relative;
   width: 100%;
-  height: 260px;
-  background-color: var(--color-surface-sunken);
-  border-radius: var(--radius-lg);
+  height: 240px;
+  background-color: #F8FAFC;
+  border-radius: 16px;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -24,7 +26,7 @@
 
 @media (min-width: 640px) {
   .vaango-prod-modal__main-image-wrap {
-    height: 320px;
+    height: 290px;
   }
 }
 
@@ -32,41 +34,41 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background-color: var(--color-surface-sunken);
+  background-color: #F8FAFC;
 }
 
 .vaango-prod-modal__placeholder {
   width: 100%;
-  height: 220px;
-  background: var(--brand-primary-light);
-  color: var(--brand-primary);
+  height: 200px;
+  background: #F0FDF4;
+  color: #15803D;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 3rem;
   font-weight: 800;
-  border-radius: var(--radius-lg);
+  border-radius: 16px;
 }
 
 .vaango-prod-modal__nav-btn {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-full);
-  background: rgba(15, 24, 40, 0.65);
-  color: #fff;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(15, 24, 40, 0.6);
+  color: #FFFFFF;
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color var(--transition-fast);
+  transition: background 0.15s ease;
 }
 
 .vaango-prod-modal__nav-btn:hover {
-  background: rgba(15, 24, 40, 0.9);
+  background: rgba(15, 24, 40, 0.85);
 }
 
 .vaango-prod-modal__nav-btn--prev {
@@ -77,225 +79,325 @@
   right: 10px;
 }
 
-.vaango-prod-modal__thumbnails {
+.vaango-prod-modal__dots {
   display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
-.vaango-prod-modal__thumb {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 2px solid transparent;
+.vaango-prod-modal__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #CBD5E1;
+  border: none;
   padding: 0;
-  background: var(--color-surface-sunken);
   cursor: pointer;
-  flex-shrink: 0;
-  transition: border-color var(--transition-fast);
+  transition: all 0.2s ease;
 }
 
-.vaango-prod-modal__thumb--active {
-  border-color: var(--brand-primary);
+.vaango-prod-modal__dot--active {
+  width: 18px;
+  border-radius: 9999px;
+  background: #15803D;
 }
 
-.vaango-prod-modal__thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
+/* 2. Info Header & Title */
 .vaango-prod-modal__info {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3, 12px);
+  gap: 12px;
 }
 
 .vaango-prod-modal__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
 }
 
 .vaango-prod-modal__title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
+  font-size: 20px;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: -0.01em;
   margin: 0;
+  line-height: 1.3;
 }
 
-.vaango-prod-modal__badges {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
+/* 3. Price & Rating Row (Reference Image 4) */
 .vaango-prod-modal__price-row {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vaango-prod-modal__price-group {
+  display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 8px;
 }
 
 .vaango-prod-modal__price {
-  font-size: 1.5rem;
+  font-size: 24px;
   font-weight: 800;
-  color: var(--brand-primary);
+  color: #0F172A;
 }
 
-[data-theme='dark'] .vaango-prod-modal__price,
-.dark .vaango-prod-modal__price {
-  color: var(--brand-primary);
+.vaango-prod-modal__original-price {
+  font-size: 15px;
+  font-weight: 500;
+  color: #94A3B8;
+  text-decoration: line-through;
 }
 
-.vaango-prod-modal__unit {
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-}
-
-.vaango-prod-modal__section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.vaango-prod-modal__section-title {
-  font-size: 0.82rem;
+.vaango-prod-modal__discount-tag {
+  background: #DCFCE7;
+  color: #15803D;
+  font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-  margin: 0;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.vaango-prod-modal__rating-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #FEF9C3;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #854D0E;
 }
 
 .vaango-prod-modal__desc {
-  font-size: 0.92rem;
-  color: var(--color-text-secondary);
+  font-size: 13.5px;
+  color: #475569;
   line-height: 1.5;
   margin: 0;
 }
 
-.vaango-prod-modal__variants-list {
+/* 4. Available Options (Reference Image 4) */
+.vaango-prod-modal__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vaango-prod-modal__section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 0;
+}
+
+.vaango-prod-modal__options-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.vaango-prod-modal__option-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 78px;
+  padding: 8px 14px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 12px;
+  background: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vaango-prod-modal__option-chip:hover {
+  border-color: #94A3B8;
+}
+
+.vaango-prod-modal__option-chip--active {
+  border-color: #15803D;
+  background: #F0FDF4;
+}
+
+.vaango-prod-modal__option-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.vaango-prod-modal__option-chip--active .vaango-prod-modal__option-name {
+  color: #15803D;
+}
+
+.vaango-prod-modal__option-price {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+  margin-top: 2px;
+}
+
+.vaango-prod-modal__option-chip--active .vaango-prod-modal__option-price {
+  color: #166534;
+}
+
+.vaango-prod-modal__attribute-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.vaango-prod-modal__attr-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.vaango-prod-modal__attr-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.vaango-variant-chip {
+/* 5. Shop Mini Card */
+.vaango-prod-modal__shop-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 10px 14px;
+}
+
+.vaango-prod-modal__shop-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: #15803D;
+  flex-shrink: 0;
+}
+
+.vaango-prod-modal__shop-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vaango-prod-modal__shop-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vaango-prod-modal__shop-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vaango-prod-modal__shop-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748B;
+}
+
+.vaango-prod-modal__shop-rating {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  border: 1.5px solid var(--color-border);
-  background-color: var(--color-surface);
-  color: var(--color-text-primary);
-  cursor: pointer;
-  font-size: 0.88rem;
+  gap: 3px;
   font-weight: 600;
-  transition: all var(--transition-fast);
+  color: #0F172A;
 }
 
-.vaango-variant-chip:hover:not(:disabled) {
-  border-color: var(--brand-primary);
-  background-color: var(--brand-primary-light);
+.vaango-prod-modal__shop-dist {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
-.vaango-variant-chip--active {
-  border-color: var(--brand-primary);
-  background-color: var(--brand-primary-light);
-  color: var(--brand-primary);
-  box-shadow: 0 0 0 2px rgba(27, 77, 62, 0.2);
+/* 6. Delivery Pill */
+.vaango-prod-modal__delivery-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #166534;
 }
 
-[data-theme='dark'] .vaango-variant-chip--active,
-.dark .vaango-variant-chip--active {
-  background-color: rgba(52, 211, 153, 0.15);
-  border-color: var(--brand-primary);
-  color: var(--brand-primary);
-  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.25);
-}
-
-.vaango-variant-chip--out-of-stock {
-  opacity: 0.5;
-  cursor: not-allowed;
-  text-decoration: line-through;
-}
-
-.vaango-variant-chip__price {
-  font-size: 0.8rem;
-  opacity: 0.85;
-}
-
+/* 7. Stepper & Add to Cart CTA Row */
 .vaango-prod-modal__cta-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 8px;
-  padding-top: 14px;
-  border-top: 1px solid var(--color-border);
+  margin-top: 6px;
 }
 
-/* Quantity Control inside Product Details Modal */
-.vaango-prod-modal .vaango-qty-control {
-  display: inline-flex;
-  align-items: center;
-  background-color: var(--brand-primary-light);
-  border: 1.5px solid var(--brand-primary);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  height: 44px;
-  flex-shrink: 0;
-}
-
-[data-theme='dark'] .vaango-prod-modal .vaango-qty-control,
-.dark .vaango-prod-modal .vaango-qty-control {
-  background-color: rgba(52, 211, 153, 0.12);
-  border-color: var(--brand-primary);
-}
-
-.vaango-prod-modal .vaango-qty-btn {
+.vaango-qty-control {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 100%;
-  color: var(--brand-primary);
-  background: transparent;
+  background: #F1F5F9;
+  border-radius: 12px;
+  padding: 4px;
+  border: 1px solid #E2E8F0;
+}
+
+.vaango-qty-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
   border: none;
-  cursor: pointer;
-  transition: background-color var(--transition-fast);
-}
-
-[data-theme='dark'] .vaango-prod-modal .vaango-qty-btn,
-.dark .vaango-prod-modal .vaango-qty-btn {
-  color: var(--brand-primary);
-}
-
-.vaango-prod-modal .vaango-qty-btn:hover {
-  background-color: rgba(10, 123, 131, 0.15);
-}
-
-[data-theme='dark'] .vaango-prod-modal .vaango-qty-btn:hover,
-.dark .vaango-prod-modal .vaango-qty-btn:hover {
-  background-color: rgba(52, 211, 153, 0.2);
-}
-
-.vaango-prod-modal .vaango-qty-display {
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 34px;
-  font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-base);
-  color: var(--brand-primary);
-  user-select: none;
+  color: #1E293B;
+  cursor: pointer;
+  transition: background 0.15s ease;
 }
 
-[data-theme='dark'] .vaango-prod-modal .vaango-qty-display,
-.dark .vaango-prod-modal .vaango-qty-display {
-  color: #E2E8F0;
+.vaango-qty-btn:hover {
+  background: #E2E8F0;
 }
 
+.vaango-qty-display {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0F172A;
+  min-width: 32px;
+  text-align: center;
+}
+
+.vaango-prod-modal__add-btn {
+  flex: 1;
+  background-color: #15803D !important;
+  color: #FFFFFF !important;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+}
+
+.vaango-prod-modal__add-btn:hover {
+  background-color: #166534 !important;
+}

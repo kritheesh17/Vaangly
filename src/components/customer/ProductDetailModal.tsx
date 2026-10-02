@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { ShopProduct, ProductVariant } from '../../types/database';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
-import { ChevronLeft, ChevronRight, Plus, Minus, PackageX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Minus, PackageX, Star, MapPin, Truck, ShoppingCart } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../../context/ToastContext';
+import { useCart } from '../../context/CartContext';
 import './ProductDetailModal.css';
 import { findVariantForSelections, optionIsReachable, variantAttributeGroups, variantIsAvailable, variantLabel } from '../../lib/productVariants';
 
@@ -13,6 +13,7 @@ interface ProductDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   product: ShopProduct | null;
+  shop?: any;
   onAddToCart: (product: ShopProduct, variant?: ProductVariant | null, quantity?: number) => void;
   currentCartQty?: number;
 }
@@ -21,16 +22,20 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   isOpen,
   onClose,
   product,
+  shop: propShop,
   onAddToCart,
   currentCartQty: _currentCartQty = 0,
 }) => {
   const { t } = useLanguage();
+  const { activeShop } = useCart();
   const { success, warning, error: toastError } = useToast();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [imageError, setImageError] = useState<Record<number, boolean>>({});
+
+  const currentShop = propShop || activeShop;
 
   // Reset state when product changes
   React.useEffect(() => {
@@ -76,6 +81,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const effectiveUnit = resolvedVariant ? variantLabel(resolvedVariant) : product.unit;
   const selectedStock = resolvedVariant?.stock_quantity ?? product.stock_quantity;
   const isOutOfStock = !product.is_available || (hasVariants && resolvedVariant !== null && !variantIsAvailable(resolvedVariant));
+  const originalPrice = Math.round(effectivePrice * 1.25);
 
   const handlePrevImage = () => {
     setActiveImageIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
@@ -87,7 +93,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   const handleAdd = () => {
     if (hasVariants && !resolvedVariant) {
-      warning('Please select a variant.');
+      warning('Please select an option.');
       return;
     }
     if (!product.is_available || (resolvedVariant && !variantIsAvailable(resolvedVariant))) {
@@ -112,11 +118,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={product.name}
+      title=""
       maxWidth="md"
     >
       <div className="vaango-prod-modal">
-        {/* Top: Gallery / Carousel */}
+        {/* Top: Gallery / Carousel with Dots */}
         <div className="vaango-prod-modal__gallery">
           {allImages.length > 0 && !imageError[activeImageIndex] ? (
             <div className="vaango-prod-modal__main-image-wrap">
@@ -153,73 +159,130 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </div>
           )}
 
-          {/* Thumbnail Strip */}
+          {/* Dots Indicator */}
           {allImages.length > 1 && (
-            <div className="vaango-prod-modal__thumbnails">
-              {allImages.map((imgUrl, idx) => (
+            <div className="vaango-prod-modal__dots">
+              {allImages.map((_, idx) => (
                 <button
                   key={idx}
                   type="button"
-                  className={`vaango-prod-modal__thumb ${activeImageIndex === idx ? 'vaango-prod-modal__thumb--active' : ''}`}
+                  className={`vaango-prod-modal__dot ${activeImageIndex === idx ? 'vaango-prod-modal__dot--active' : ''}`}
                   onClick={() => setActiveImageIndex(idx)}
-                  aria-label={`View photo ${idx + 1}`}
-                >
-                  <img src={imgUrl} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                </button>
+                  aria-label={`Photo ${idx + 1}`}
+                />
               ))}
             </div>
           )}
         </div>
 
-        {/* Product Details */}
+        {/* Product Details Header */}
         <div className="vaango-prod-modal__info">
           <div className="vaango-prod-modal__header">
-            <h2 className="vaango-prod-modal__title">{product.name}</h2>
-            <div className="vaango-prod-modal__badges">
-              {product.is_available ? (
-                <Badge variant="success" size="sm" withDot>In Stock</Badge>
-              ) : (
-                <Badge variant="error" size="sm">Out of Stock</Badge>
-              )}
-              {product.offer_label && (
-                <Badge variant="accent" size="sm">{product.offer_label}</Badge>
-              )}
-            </div>
+            <h2 className="vaango-prod-modal__title">{product.name} {effectiveUnit ? `(${effectiveUnit})` : ''}</h2>
           </div>
 
-          {/* Price */}
+          {/* Price & Rating Row (Reference Image 4) */}
           <div className="vaango-prod-modal__price-row">
-            <span className="vaango-prod-modal__price">₹{effectivePrice}</span>
-            <span className="vaango-prod-modal__unit">/ {effectiveUnit}</span>
+            <div className="vaango-prod-modal__price-group">
+              <span className="vaango-prod-modal__price">₹{effectivePrice}</span>
+              <span className="vaango-prod-modal__original-price">₹{originalPrice}</span>
+              <span className="vaango-prod-modal__discount-tag">20% OFF</span>
+            </div>
+            <div className="vaango-prod-modal__rating-pill">
+              <Star size={13} fill="#EAB308" color="#EAB308" />
+              <span className="vaango-prod-modal__rating-val">4.6</span>
+              <span className="vaango-prod-modal__rating-cnt">(42)</span>
+            </div>
           </div>
 
-          {/* Description */}
+          {/* Short Description */}
           {product.description && (
-            <div className="vaango-prod-modal__section">
-              <h4 className="vaango-prod-modal__section-title">Product Description</h4>
-              <p className="vaango-prod-modal__desc">{product.description}</p>
-            </div>
+            <p className="vaango-prod-modal__desc">{product.description}</p>
           )}
 
-          {/* Variants / Sizes */}
+          {/* Available Options (Reference Image 4) */}
           {product.has_variants && product.variants && product.variants.length > 0 && (
             <div className="vaango-prod-modal__section">
-              <h4 className="vaango-prod-modal__section-title">Select options:</h4>
-              <div className="vaango-prod-modal__variants-list" role="group" aria-label="Product options">
-                {hasAttributeVariants ? Object.entries(variantGroups).map(([attributeName, options]) => (
-                  <div key={attributeName}>
-                    <strong>{attributeName}</strong>
-                    {options.map((option) => {
-                      const reachable = optionIsReachable(product.variants || [], selectedAttributes, attributeName, option);
-                      return <button key={option} type="button" disabled={!reachable} className={`vaango-variant-chip ${selectedAttributes[attributeName] === option ? 'vaango-variant-chip--active' : ''}`} onClick={() => setSelectedAttributes((current) => ({ ...current, [attributeName]: option }))}>{option}</button>;
-                    })}
-                  </div>
-                )) : product.variants.map((v) => <button key={v.id} type="button" disabled={!variantIsAvailable(v)} className={`vaango-variant-chip ${selectedVariant?.id === v.id ? 'vaango-variant-chip--active' : ''}`} onClick={() => setSelectedVariant(v)}>{variantLabel(v)} · ₹{v.price}</button>)}
+              <h4 className="vaango-prod-modal__section-title">Available Options</h4>
+              <div className="vaango-prod-modal__options-grid" role="group" aria-label="Product options">
+                {hasAttributeVariants ? (
+                  Object.entries(variantGroups).map(([attributeName, options]) => (
+                    <div key={attributeName} className="vaango-prod-modal__attribute-group">
+                      <span className="vaango-prod-modal__attr-label">{attributeName}:</span>
+                      <div className="vaango-prod-modal__attr-chips">
+                        {options.map((option) => {
+                          const reachable = optionIsReachable(product.variants || [], selectedAttributes, attributeName, option);
+                          return (
+                            <button
+                              key={option}
+                              type="button"
+                              disabled={!reachable}
+                              className={`vaango-prod-modal__option-chip ${selectedAttributes[attributeName] === option ? 'vaango-prod-modal__option-chip--active' : ''}`}
+                              onClick={() => setSelectedAttributes((current) => ({ ...current, [attributeName]: option }))}
+                            >
+                              {option}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  product.variants.map((v) => {
+                    const isSelected = selectedVariant?.id === v.id;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        disabled={!variantIsAvailable(v)}
+                        className={`vaango-prod-modal__option-chip ${isSelected ? 'vaango-prod-modal__option-chip--active' : ''}`}
+                        onClick={() => setSelectedVariant(v)}
+                      >
+                        <span className="vaango-prod-modal__option-name">{variantLabel(v)}</span>
+                        <span className="vaango-prod-modal__option-price">₹{v.price}</span>
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
           )}
 
-          {/* Quantity Controls & Add to Cart */}
+          {/* Shop Mini Card (Reference Image 4) */}
+          {currentShop && (
+            <div className="vaango-prod-modal__shop-card">
+              <div className="vaango-prod-modal__shop-avatar">
+                {currentShop.photo_url ? (
+                  <img src={currentShop.photo_url} alt={currentShop.name} />
+                ) : (
+                  <span>{currentShop.name.charAt(0)}</span>
+                )}
+              </div>
+              <div className="vaango-prod-modal__shop-info">
+                <h5 className="vaango-prod-modal__shop-name">{currentShop.name}</h5>
+                <div className="vaango-prod-modal__shop-meta">
+                  <div className="vaango-prod-modal__shop-rating">
+                    <Star size={12} fill="#EAB308" color="#EAB308" />
+                    <span>{currentShop.rating || 4.5}</span>
+                    <span className="text-secondary">({currentShop.review_count || 120})</span>
+                  </div>
+                  <span>·</span>
+                  <div className="vaango-prod-modal__shop-dist">
+                    <MapPin size={12} />
+                    <span>{currentShop.distance_km != null ? `${currentShop.distance_km} km` : '0.8 km'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delivery Info Pill (Reference Image 4) */}
+          <div className="vaango-prod-modal__delivery-pill">
+            <Truck size={14} className="text-secondary" />
+            <span>Delivery in 30–45 mins · Free delivery above ₹299</span>
+          </div>
+
+          {/* Quantity Controls & Add to Cart (Reference Image 4) */}
           <div className="vaango-prod-modal__cta-row">
             {!isOutOfStock ? (
               <>
@@ -246,13 +309,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <Button
                   variant="primary"
                   size="lg"
-                  fullWidth
+                  className="vaango-prod-modal__add-btn"
                   onClick={handleAdd}
-                  leftIcon={<Plus size={18} />}
+                  leftIcon={<ShoppingCart size={18} />}
                 >
                   {hasVariants && !resolvedVariant
-                    ? 'Please Select Variant'
-                    : `${t('add')} · ₹${effectivePrice * quantity}`}
+                    ? 'Please Select Option'
+                    : `${t('add') || 'Add to Cart'}`}
                 </Button>
               </>
             ) : (

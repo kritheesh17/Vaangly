@@ -1,0 +1,204 @@
+/* More Menu Slide-up Modal (Matching Reference Image 2) */
+.vaango-more-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: vaangoFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.vaango-more-modal {
+  width: 100%;
+  max-width: 500px;
+  background-color: var(--color-surface, #ffffff);
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  box-shadow: 0 -10px 40px -10px rgba(0, 0, 0, 0.15);
+  padding: 16px 20px 32px;
+  max-height: 88vh;
+  overflow-y: auto;
+  animation: vaangoSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes vaangoSlideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes vaangoFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.vaango-more-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--color-border-subtle, #f1f5f9);
+  position: relative;
+}
+
+.vaango-more-modal__close-btn {
+  background: none;
+  border: none;
+  padding: 8px;
+  border-radius: 50%;
+  color: var(--color-text-secondary, #4b5563);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+}
+
+.vaango-more-modal__close-btn:hover {
+  background-color: var(--color-surface-sunken, #f1f5f9);
+}
+
+.vaango-more-modal__title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #111827);
+  margin: 0;
+  text-align: center;
+}
+
+.vaango-more-modal__user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin: 14px 0 8px;
+  background-color: var(--color-surface-sunken, #f8fafc);
+  border: 1px solid var(--color-border-subtle, #e2e8f0);
+  border-radius: 16px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.vaango-more-modal__user-card:hover {
+  background-color: #f1f5f9;
+}
+
+.vaango-more-modal__user-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #15803d, #166534);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.vaango-more-modal__user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.vaango-more-modal__user-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--color-text-primary, #111827);
+}
+
+.vaango-more-modal__user-sub {
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.vaango-more-modal__list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+}
+
+.vaango-more-modal__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 8px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-border-subtle, #f8fafc);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background-color 0.15s ease;
+  border-radius: 8px;
+}
+
+.vaango-more-modal__item:hover {
+  background-color: var(--color-surface-sunken, #f8fafc);
+}
+
+.vaango-more-modal__item-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.vaango-more-modal__icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary, #374151);
+  background-color: var(--color-surface-sunken, #f1f5f9);
+}
+
+.vaango-more-modal__label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #1f2937);
+}
+
+.vaango-more-modal__item-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vaango-more-modal__value {
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.vaango-more-modal__chevron {
+  color: var(--color-text-muted, #9ca3af);
+}
+
+/* Logout Red Accent */
+.vaango-more-modal__item--logout:hover {
+  background-color: #fef2f2;
+}
+
+.vaango-more-modal__icon-wrap--logout {
+  color: #dc2626;
+  background-color: #fee2e2;
+}
+
+.vaango-more-modal__label--logout {
+  color: #dc2626;
+  font-weight: 600;
+}

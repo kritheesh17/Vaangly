@@ -133,6 +133,14 @@ export const App: React.FC = () => {
                               </ProtectedRoute>
                             }
                           />
+                          <Route
+                            path="/bookings"
+                            element={
+                              <ProtectedRoute requireVerified={true}>
+                                <OrdersPage defaultGroupFilter="APPOINTMENT" />
+                              </ProtectedRoute>
+                            }
+                          />
                           <Route path="/requests" element={<Navigate to="/orders" replace />} />
                           <Route
                             path="/profile"

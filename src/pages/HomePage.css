@@ -7,16 +7,503 @@
   background-color: var(--color-bg);
   color: var(--color-text-primary);
   overflow-x: hidden;
+  padding-bottom: 40px;
 }
 
 /* ==========================================================================
-   1. LOCATION CONTEXT BAR & MARKETPLACE STATUS
+   REFERENCE IMAGE 2: PROMINENT SEARCH BAR
    ========================================================================== */
 
-.vaangly-context-bar-section {
-  padding: var(--space-3) 0 var(--space-2);
+.vaango-home-search-section {
+  padding: 12px 0 6px;
   background-color: var(--color-bg);
   width: 100%;
+}
+
+.vaango-home-search-container {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.vaango-home-search-form {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 9999px;
+  padding: 0 16px;
+  height: 48px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+}
+
+.vaango-home-search-form:focus-within {
+  border-color: var(--brand-primary, #15803d);
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.15);
+}
+
+.vaango-home-search-icon {
+  color: var(--color-text-muted, #9ca3af);
+  flex-shrink: 0;
+  margin-right: 10px;
+}
+
+.vaango-home-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.95rem;
+  color: var(--color-text-primary, #111827);
+  font-family: inherit;
+}
+
+.vaango-home-search-input::placeholder {
+  color: var(--color-text-muted, #9ca3af);
+}
+
+.vaango-home-search-clear {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #9ca3af);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+
+/* ==========================================================================
+   REFERENCE IMAGE 2: 8 CATEGORIES GRID (4x2)
+   ========================================================================== */
+
+.vaango-home-categories-section {
+  padding: 12px 0 18px;
+}
+
+.vaango-home-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px 10px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.vaango-home-cat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vaango-home-cat-icon-box {
+  width: 58px;
+  height: 58px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+}
+
+.vaango-home-cat-item:hover .vaango-home-cat-icon-box {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.vaango-home-cat-label {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #1f2937);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   REFERENCE IMAGE 2: PROMOTIONAL CAROUSEL BANNER
+   ========================================================================== */
+
+.vaango-home-promo-section {
+  padding: 6px 0 18px;
+}
+
+.vaango-home-promo-banner {
+  background: linear-gradient(135deg, #155e3b 0%, #1b7348 100%);
+  border-radius: 20px;
+  padding: 20px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 680px;
+  margin: 0 auto;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 14px -2px rgba(21, 94, 59, 0.25);
+}
+
+.vaango-home-promo-info {
+  flex: 1;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.vaango-home-promo-headline {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.vaango-home-promo-sub {
+  font-size: 0.88rem;
+  color: #d1fae5;
+  margin: 4px 0 14px;
+}
+
+.vaango-home-promo-btn {
+  background-color: #ffffff;
+  color: #155e3b;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.15s ease;
+}
+
+.vaango-home-promo-btn:hover {
+  transform: translateY(-1px);
+}
+
+.vaango-home-promo-media {
+  width: 130px;
+  height: 90px;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.vaango-home-promo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.vaango-home-promo-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.vaango-home-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-border, #d1d5db);
+  transition: all 0.2s ease;
+}
+
+.vaango-home-dot--active {
+  width: 18px;
+  border-radius: 9999px;
+  background-color: var(--brand-primary, #15803d);
+}
+
+/* ==========================================================================
+   REFERENCE IMAGE 2: NEARBY SHOPS HORIZONTAL SCROLL
+   ========================================================================== */
+
+.vaango-home-shops-section {
+  padding: 12px 0 18px;
+}
+
+.vaango-home-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.vaango-home-section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #111827);
+  margin: 0;
+}
+
+.vaango-home-section-viewall {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--brand-primary, #15803d);
+  text-decoration: none;
+}
+
+.vaango-home-horizontal-scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 4px 2px 12px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.vaango-home-horizontal-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.vaango-home-ref-shop-card {
+  width: 175px;
+  min-width: 175px;
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 16px;
+  overflow: hidden;
+  text-decoration: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  flex-shrink: 0;
+}
+
+.vaango-home-ref-shop-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
+}
+
+.vaango-home-ref-shop-media {
+  width: 100%;
+  height: 105px;
+  position: relative;
+  background-color: var(--color-surface-sunken, #f1f5f9);
+}
+
+.vaango-home-ref-shop-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vaango-home-ref-shop-body {
+  padding: 10px 10px 12px;
+}
+
+.vaango-home-ref-shop-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #111827);
+  margin: 0 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vaango-home-ref-shop-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary, #4b5563);
+  margin-bottom: 6px;
+}
+
+.vaango-home-ref-shop-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vaango-home-ref-shop-dist {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.74rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.vaango-home-ref-shop-status {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #15803d;
+  background-color: #eaf8ee;
+  padding: 2px 7px;
+  border-radius: 9999px;
+}
+
+/* ==========================================================================
+   REFERENCE IMAGE 2: POPULAR SERVICES (Book Doctor, Salon, Vehicle, Home)
+   ========================================================================== */
+
+.vaango-home-services-section {
+  padding: 12px 0 18px;
+}
+
+.vaango-home-services-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.vaango-home-service-item {
+  border-radius: 18px;
+  padding: 16px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  min-height: 100px;
+}
+
+.vaango-home-service-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.vaango-home-service-item--doctor {
+  background-color: #eaf5fa;
+  color: #0284c7;
+}
+
+.vaango-home-service-item--salon {
+  background-color: #fdf0f4;
+  color: #e11d48;
+}
+
+.vaango-home-service-item--vehicle {
+  background-color: #eaf8ee;
+  color: #16a34a;
+}
+
+.vaango-home-service-item--home {
+  background-color: #fff5eb;
+  color: #ea580c;
+}
+
+.vaango-home-service-icon-box {
+  margin-bottom: 8px;
+}
+
+.vaango-home-service-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+/* ==========================================================================
+   REFERENCE IMAGE 2: TODAY'S OFFERS
+   ========================================================================== */
+
+.vaango-home-offers-section {
+  padding: 12px 0 24px;
+}
+
+.vaango-home-offers-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.vaango-home-offer-card {
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  position: relative;
+  overflow: hidden;
+}
+
+.vaango-home-offer-card--veg {
+  background-color: #eaf8ee;
+  border: 1px solid #dcfce7;
+}
+
+.vaango-home-offer-card--med {
+  background-color: #fff1f2;
+  border: 1px solid #ffe4e6;
+}
+
+.vaango-home-offer-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  z-index: 2;
+}
+
+.vaango-home-offer-tag {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.vaango-home-offer-desc {
+  font-size: 0.74rem;
+  color: var(--color-text-secondary, #4b5563);
+  margin: 2px 0 10px;
+}
+
+.vaango-home-offer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background-color: #ffffff;
+  color: #111827;
+  text-decoration: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.vaango-home-offer-thumb {
+  width: 54px;
+  height: 54px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.vaango-home-offer-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 480px) {
+  .vaango-home-offers-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .vaangly-context-bar__container {

@@ -7,41 +7,119 @@
 
 .vaango-admin-dash__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--spacing-md);
   flex-wrap: wrap;
-}
-
-.vaango-admin-dash__badge-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  margin-bottom: 4px;
-}
-
-.vaango-admin-dash__kicker {
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-primary);
+  margin-bottom: 20px;
 }
 
 .vaango-admin-dash__title {
-  font-size: 1.6rem;
+  font-size: 26px;
   font-weight: 800;
-  color: var(--color-text);
-  margin: 0 0 6px 0;
+  color: #0F172A;
+  margin: 0 0 4px 0;
   letter-spacing: -0.02em;
 }
 
 .vaango-admin-dash__subtitle {
-  font-size: 0.95rem;
-  color: var(--color-text-muted);
-  max-width: 680px;
+  font-size: 14px;
+  color: #64748B;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.4;
+}
+
+.vaango-admin-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vaango-admin-date-filter {
+  appearance: none;
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 9999px;
+  padding: 8px 32px 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.vaango-admin-date-filter:focus {
+  border-color: #22C55E;
+}
+
+/* Reference Screen 4: 4 KPI Cards Grid */
+.vaango-admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.vaango-admin-kpi-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vaango-admin-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.vaango-admin-kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vaango-admin-kpi-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748B;
+}
+
+.vaango-admin-kpi-pill {
+  font-size: 12px;
+  font-weight: 700;
+  color: #16A34A;
+  background-color: #DCFCE7;
+  padding: 3px 8px;
+  border-radius: 9999px;
+}
+
+.vaango-admin-kpi-val {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0F172A;
+  line-height: 1.1;
+}
+
+@media (max-width: 1024px) {
+  .vaango-admin-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .vaango-admin-kpi-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Alert Banner */

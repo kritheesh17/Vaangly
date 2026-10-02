@@ -47,7 +47,7 @@
 .vaango-header__logo {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 10px;
   text-decoration: none;
   flex-shrink: 0;
 }
@@ -55,25 +55,28 @@
 .vaango-header__logo-icon {
   width: 36px;
   height: 36px;
-  border-radius: var(--radius-md, 8px);
-  background: var(--brand-primary, #1B4D3E);
+  border-radius: 50%;
+  background: var(--brand-primary, #15803d);
   color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: var(--font-weight-extrabold, 800);
-  font-size: var(--font-size-lg, 1.125rem);
-  box-shadow: 0 2px 6px rgba(27, 77, 62, 0.25);
+  box-shadow: 0 2px 6px rgba(21, 128, 61, 0.25);
   flex-shrink: 0;
 }
 
+.vaango-header__brand-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+
 .vaango-header__logo-text {
-  font-size: 1.22rem;
-  font-weight: var(--font-weight-extrabold, 800);
-  color: var(--brand-primary, #1B4D3E);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-text-primary, #111827);
   letter-spacing: -0.02em;
-  line-height: 1;
-  white-space: nowrap;
 }
 
 [data-theme='dark'] .vaango-header__logo-text,
@@ -81,7 +84,34 @@
   color: #F8FAFC;
 }
 
-/* Location Selector Pill */
+.vaango-header__location-sub-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.15s ease;
+}
+
+.vaango-header__location-sub-btn:hover {
+  color: var(--brand-primary, #15803d);
+}
+
+.vaango-header__location-chevron {
+  color: var(--color-text-muted, #9ca3af);
+  flex-shrink: 0;
+}
+
+/* Location Selector Pill (Legacy fallback) */
 .vaango-header__location-btn {
   display: inline-flex;
   align-items: center;

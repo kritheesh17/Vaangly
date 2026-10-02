@@ -1,314 +1,232 @@
+/* Orders and Appointments Page styling matching Reference Image 4 */
+
 .vaango-orders-page {
-  padding-top: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding-bottom: var(--space-8);
+  padding-top: 14px;
+  padding-bottom: 84px;
+  min-height: 100vh;
+  background-color: var(--color-bg, #F8FAFC);
 }
 
 .vaango-merchant-notice-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-3) var(--space-4);
-  background-color: rgba(10, 123, 131, 0.1);
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  background-color: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: 12px;
+  font-size: 13px;
+  color: #166534;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
-.vaango-orders-header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.vaango-orders-title {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-extrabold);
-}
-
-.vaango-orders-subtitle {
-  font-size: var(--font-size-base);
-  color: var(--color-text-secondary);
-}
-
-.vaango-orders-tabs {
+/* 1. Modern Top Header */
+.vaango-orders-topbar {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  border-bottom: 2px solid var(--color-border);
-  padding-bottom: 2px;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
-.vaango-orders-tab {
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-muted);
-  background: none;
-  border: none;
+.vaango-back-circle-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1E293B;
   cursor: pointer;
-  position: relative;
-  transition: color var(--transition-fast);
+  transition: transform 0.15s ease;
 }
 
-.vaango-orders-tab:hover {
-  color: var(--color-text-primary);
+.vaango-back-circle-btn:active {
+  transform: scale(0.92);
 }
 
-.vaango-orders-tab--active {
-  color: var(--brand-primary);
+.vaango-orders-topbar__title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0;
+  letter-spacing: -0.01em;
 }
 
-.vaango-orders-tab--active::after {
-  content: '';
-  position: absolute;
-  bottom: -4px;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background-color: var(--brand-primary);
-  border-radius: var(--radius-full);
+/* 2. Filter Pills */
+.vaango-orders-filter-pills {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+  scrollbar-width: none;
 }
 
-.vaango-orders-loading,
+.vaango-orders-filter-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.vaango-filter-pill {
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 9999px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.vaango-filter-pill:hover {
+  border-color: #94A3B8;
+}
+
+.vaango-filter-pill--active {
+  background: #15803D !important;
+  border-color: #15803D !important;
+  color: #FFFFFF !important;
+}
+
+/* 3. Orders / Appointments List */
 .vaango-orders-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 10px;
 }
 
-.vaango-order-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  cursor: pointer;
-}
-
-.vaango-order-card__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.vaango-order-card__shop-row {
+.vaango-order-item-card {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.02);
 }
 
-.vaango-order-card__shop-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  background-color: var(--brand-primary-light);
-  color: var(--brand-primary);
+.vaango-order-item-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.vaango-order-item-card__thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #F0FDF4;
+  color: #15803D;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.vaango-order-card__shop-name {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
+.vaango-order-item-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
 }
 
-.vaango-order-card__ref {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  font-family: monospace;
+.vaango-order-item-card__code {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #0F172A;
 }
 
-.vaango-order-card__body {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  line-height: 1.4;
-}
-
-.vaango-order-card__items-preview {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
+.vaango-order-item-card__shop {
+  font-size: 13px;
+  color: #64748B;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.vaango-order-card__footer {
+.vaango-order-item-card__meta {
+  font-size: 12.5px;
+  color: #0F172A;
+  font-weight: 600;
+}
+
+.vaango-order-item-card__status-col {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--color-border-subtle);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.vaango-order-card__time {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+.vaango-order-status-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  white-space: nowrap;
 }
 
-.vaango-order-card__amount-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+.vaango-order-status-badge--preparing,
+.vaango-order-status-badge--in_progress {
+  background-color: #FEF3C7;
+  color: #D97706;
 }
 
-.vaango-order-card__amount {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-extrabold);
-  color: var(--brand-primary);
+.vaango-order-status-badge--ready {
+  background-color: #DCFCE7;
+  color: #15803D;
 }
 
-.vaango-order-card__track-arrow {
+.vaango-order-status-badge--confirmed {
+  background-color: #DCFCE7;
+  color: #15803D;
+}
+
+.vaango-order-status-badge--completed {
+  background-color: #F1F5F9;
+  color: #475569;
+}
+
+.vaango-order-status-badge--cancelled,
+.vaango-order-status-badge--rejected,
+.vaango-order-status-badge--no_show {
+  background-color: #FEE2E2;
+  color: #DC2626;
+}
+
+.vaango-order-status-badge--requested,
+.vaango-order-status-badge--pending {
+  background-color: #EFF6FF;
+  color: #2563EB;
+}
+
+.vaango-order-rate-btn {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  color: var(--brand-primary);
+  gap: 3px;
+  background: #FEF9C3;
+  border: 1px solid #FDE047;
+  border-radius: 9999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #854D0E;
+  cursor: pointer;
 }
 
 .vaango-orders-empty {
-  padding: var(--space-8) 0;
+  padding: 32px 0;
 }
 
-/* Group Tabs (All / Orders / Appointments / Services) */
-.vaango-orders-group-tabs {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  overflow-x: auto;
-  padding-bottom: var(--space-1);
-}
-
-.vaango-group-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all var(--transition-fast);
-}
-
-.vaango-group-pill:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.vaango-group-pill--active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: #ffffff;
-}
-
-.vaango-order-card__appointment-preview,
-.vaango-order-card__service-preview {
+.vaango-orders-loading {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  font-size: var(--text-sm);
+  gap: 10px;
 }
-
-/* Order Status Metrics Grid */
-.vaango-order-metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-}
-
-@media (min-width: 640px) {
-  .vaango-order-metrics-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .vaango-order-metrics-grid {
-    grid-template-columns: repeat(6, 1fr);
-  }
-}
-
-.vaango-order-metric-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  text-align: left;
-  transition: all var(--transition-fast);
-}
-
-.vaango-order-metric-card:hover {
-  border-color: var(--color-primary);
-  background: var(--color-surface-hover);
-}
-
-.vaango-order-metric-card.active {
-  background: var(--color-primary-surface, rgba(16, 185, 129, 0.08));
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary);
-}
-
-.vaango-metric-label {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  font-weight: var(--font-weight-medium);
-}
-
-.vaango-metric-val {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-extrabold);
-  color: var(--color-text-primary);
-}
-
-/* Group Filter Tabs */
-.vaango-group-filter-tabs {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.vaango-group-filter-btn {
-  padding: 6px 14px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all var(--transition-fast);
-}
-
-.vaango-group-filter-btn:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.vaango-group-filter-btn.active {
-  background: var(--brand-primary);
-  border-color: var(--brand-primary);
-  color: #ffffff;
-}
-
