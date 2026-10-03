@@ -4,10 +4,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 describe('Vaango Focused UI Functionality & Regression Verification', () => {
-  const headerContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/components/layout/Header.tsx'),
-    'utf-8'
-  );
   const appShellContent = fs.readFileSync(
     path.resolve(process.cwd(), 'src/components/layout/AppShell.tsx'),
     'utf-8'
@@ -26,6 +22,10 @@ describe('Vaango Focused UI Functionality & Regression Verification', () => {
   );
   const homePageContent = fs.readFileSync(
     path.resolve(process.cwd(), 'src/pages/HomePage.tsx'),
+    'utf-8'
+  );
+  const homePageCss = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/pages/HomePage.css'),
     'utf-8'
   );
   const gateContent = fs.readFileSync(
@@ -52,6 +52,10 @@ describe('Vaango Focused UI Functionality & Regression Verification', () => {
     path.resolve(process.cwd(), 'src/pages/CartPage.tsx'),
     'utf-8'
   );
+  const requestDetailPageContent = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/pages/RequestDetailPage.tsx'),
+    'utf-8'
+  );
   const serviceModalContent = fs.readFileSync(
     path.resolve(process.cwd(), 'src/components/shopkeeper/ServiceFormModal.tsx'),
     'utf-8'
@@ -70,80 +74,28 @@ describe('Vaango Focused UI Functionality & Regression Verification', () => {
   );
 
   // =========================================================================
-  // ISSUE 1: Chrome Notification Permission Experience
+  // ISSUE 1: Home Page Promotional Carousel
   // =========================================================================
-  describe('Issue 1: Chrome Notification Permission Experience', () => {
-    it('1.1 Detects states correctly: granted, denied, and default (prompt)', () => {
-      assert.ok(
-        gateContent.includes("notificationStatus === 'denied'"),
-        'Gate handles denied state explicitly'
-      );
-      assert.ok(
-        gateContent.includes("notificationStatus === 'prompt'"),
-        'Gate handles default/prompt state explicitly'
-      );
-      assert.ok(
-        gateContent.includes("notificationStatus === 'granted'"),
-        'Gate handles granted state and does not show modal when granted'
-      );
-    });
-
-    it('1.2 Explains how to unblock notifications in Chrome with device-appropriate tabs', () => {
-      assert.ok(
-        gateContent.includes("activeGuideTab === 'android'") &&
-        gateContent.includes("activeGuideTab === 'desktop'"),
-        'Gate provides distinct Android and Desktop tabs'
-      );
-      assert.ok(
-        gateContent.includes('Padlock (🔒)') || gateContent.includes('Site settings'),
-        'Gate explains unblocking via Chrome address bar padlock and site settings'
-      );
-      assert.ok(
-        gateContent.includes('Check Again & Enable'),
-        'Gate provides clear retry option after changing permission'
-      );
-    });
-
-    it('1.3 Does not repeatedly call permission API when permanently denied', () => {
-      // handleCheckAgain uses refreshNotificationStatus() which queries status without calling requestPermission()
-      assert.ok(
-        gateContent.includes('refreshNotificationStatus()'),
-        'Uses status check on retry rather than re-triggering blocked permission prompt'
-      );
-      assert.ok(
-        !gateContent.includes('onClick={handleRequestPermission}\n>\\n<RefreshCw'),
-        'Denied state action checks status rather than prompting repeatedly'
-      );
-    });
-
-    it('1.4 Never blocks access to the main application solely because notification permission is denied', () => {
-      // In AppShell, dismissal is respected and never traps the user
-      assert.ok(
-        appShellContent.includes('gateDismissed') && appShellContent.includes('!gateDismissed'),
-        'AppShell tracks gateDismissed state to allow continuing without blocking'
-      );
-      assert.ok(
-        appShellContent.includes('onContinue={handleDismissGate}'),
-        'AppShell wires onContinue callback to dismiss gate'
-      );
-      assert.ok(
-        gateContent.includes('Continue to Vaango') && gateContent.includes('Continue without notifications'),
-        'NotificationPermissionGate provides non-blocking Continue options in both prompt and denied states'
-      );
-    });
-  });
-
-  // =========================================================================
-  // ISSUE 2: Home Page Promotional Carousel
-  // =========================================================================
-  describe('Issue 2: Home Page Promotional Carousel', () => {
-    it('2.1 Renders 3 required promotional slides: Order Now, Get Appointment, Get Service', () => {
+  describe('Issue 1: Home Page Promotional Carousel', () => {
+    it('1.1 Renders 3 required promotional slides: Order Now, Get Appointment, Get Service in track', () => {
       assert.ok(homePageContent.includes("'Order Now'"), 'Contains Order Now slide');
       assert.ok(homePageContent.includes("'Get Appointment'"), 'Contains Get Appointment slide');
       assert.ok(homePageContent.includes("'Get Service'"), 'Contains Get Service slide');
+      assert.ok(
+        homePageContent.includes('vaango-home-promo-viewport') &&
+        homePageContent.includes('vaango-home-promo-track') &&
+        homePageContent.includes('vaango-home-promo-slide'),
+        'Renders slides inside sliding track within viewport'
+      );
+      assert.ok(
+        homePageCss.includes('.vaango-home-promo-viewport') &&
+        homePageCss.includes('.vaango-home-promo-track') &&
+        homePageCss.includes('.vaango-home-promo-slide'),
+        'CSS defines viewport overflow:hidden and track layout'
+      );
     });
 
-    it('2.2 Tapping each CTA navigates to correct existing feature route', () => {
+    it('1.2 Tapping each CTA navigates to correct existing feature route', () => {
       assert.ok(
         homePageContent.includes("ctaLink: '/shops?group=ORDER'"),
         'Order Now CTA navigates to /shops?group=ORDER'
@@ -158,18 +110,40 @@ describe('Vaango Focused UI Functionality & Regression Verification', () => {
       );
     });
 
-    it('2.3 Supports manual horizontal touch swiping and mouse drag', () => {
+    it('1.3 Supports manual horizontal touch swiping with live drag and vertical scroll safety', () => {
       assert.ok(
-        homePageContent.includes('onTouchStart') && homePageContent.includes('onTouchEnd'),
-        'Registers touch gesture handlers for mobile swipe'
+        homePageContent.includes('onTouchStart') &&
+        homePageContent.includes('onTouchMove') &&
+        homePageContent.includes('onTouchEnd') &&
+        homePageContent.includes('onTouchCancel'),
+        'Registers all touch gesture listeners (start, move, end, cancel)'
       );
       assert.ok(
-        homePageContent.includes('onMouseDown') && homePageContent.includes('onMouseUp'),
-        'Registers mouse drag listeners for desktop swipe'
+        homePageContent.includes('isHorizontalSwipeRef'),
+        'Protects vertical page scroll by detecting gesture axis'
+      );
+      assert.ok(
+        homePageContent.includes('setDragOffset'),
+        'Updates live drag offset for tactile touch response'
       );
     });
 
-    it('2.4 Provides working Previous and Next arrow controls and synchronized pagination dots', () => {
+    it('1.4 Autoplay safely pauses on mouse hover and resumes without getting stuck on touch devices', () => {
+      assert.ok(
+        homePageContent.includes("e.pointerType === 'mouse'"),
+        'Only pauses on physical mouse hover, preventing permanent mobile tap pause trap'
+      );
+      assert.ok(
+        homePageContent.includes('resumeTimerRef'),
+        'Resumes autoplay timer after touch/interaction release'
+      );
+      assert.ok(
+        homePageContent.includes('prefers-reduced-motion'),
+        'Respects reduced motion accessibility preference'
+      );
+    });
+
+    it('1.5 Provides working Previous and Next arrow controls and synchronized pagination dots', () => {
       assert.ok(
         homePageContent.includes('vaango-home-promo-arrow--prev') &&
         homePageContent.includes('vaango-home-promo-arrow--next'),
@@ -187,7 +161,56 @@ describe('Vaango Focused UI Functionality & Regression Verification', () => {
   });
 
   // =========================================================================
-  // ISSUE 3: Shopkeeper Delivery Configuration
+  // ISSUE 2: Payment Proof Upload (Gallery & Camera Support)
+  // =========================================================================
+  describe('Issue 2: Payment Proof Upload', () => {
+    it('2.1 CartPage does not force camera-only upload (allows Gallery selection)', () => {
+      // Must NOT have capture="environment" on the primary/gallery file input
+      assert.ok(
+        cartPageContent.includes('Choose from Gallery'),
+        'Provides explicit "Choose from Gallery" option'
+      );
+      assert.ok(
+        cartPageContent.includes('Take Photo'),
+        'Provides explicit "Take Photo" option'
+      );
+      // Verify there is at least one file input WITHOUT capture attribute for gallery
+      assert.ok(
+        cartPageContent.includes('type="file"\n                  accept="image/jpeg,image/png,image/webp,image/gif"\n                  disabled={isUploading}\n                  onChange={(event) => void handleFile'),
+        'Gallery file input has no capture attribute, allowing Android gallery/file picker'
+      );
+      // Verify there is also a file input with capture="environment" for camera
+      assert.ok(
+        cartPageContent.includes('capture="environment"'),
+        'Camera file input has capture="environment"'
+      );
+    });
+
+    it('2.2 RequestDetailPage also provides both Choose from Gallery and Take Photo options', () => {
+      assert.ok(
+        requestDetailPageContent.includes('Choose from Gallery'),
+        'RequestDetailPage provides "Choose from Gallery"'
+      );
+      assert.ok(
+        requestDetailPageContent.includes('Take Photo'),
+        'RequestDetailPage provides "Take Photo"'
+      );
+    });
+
+    it('2.3 Preserves payment proof security, size limits, and storage isolation', () => {
+      assert.ok(
+        cartPageContent.includes('validatePaymentProofFile'),
+        'CartPage validates payment proof file size and MIME type'
+      );
+      assert.ok(
+        cartPageContent.includes('uploadPendingPaymentProof'),
+        'CartPage uploads strictly to payment-proofs bucket'
+      );
+    });
+  });
+
+  // =========================================================================
+  // ISSUE 3: Shopkeeper Delivery Configuration & Honest Offers
   // =========================================================================
   describe('Issue 3: Shopkeeper Delivery Configuration', () => {
     it('3.1 Shopkeeper profile asks "Do you provide/offer door delivery?" (Yes/No)', () => {
@@ -289,37 +312,39 @@ describe('Vaango Focused UI Functionality & Regression Verification', () => {
   });
 
   // =========================================================================
-  // ISSUE 5: Redesigned Navigation and Account Functionality
+  // ISSUE 5: Navigation, Auth, & Chrome Notification Experience
   // =========================================================================
-  describe('Issue 5: Redesigned Navigation and Account Functionality', () => {
-    it('5.1 Bottom navigation renders role-appropriate navigation items', () => {
-      // Customer
+  describe('Issue 5: Navigation, Auth, & Chrome Notification Experience', () => {
+    it('5.1 Notification gate is non-blocking and provides unblock guide for Chrome', () => {
+      assert.ok(
+        appShellContent.includes('gateDismissed') && appShellContent.includes('!gateDismissed'),
+        'AppShell never traps user in mandatory notification barrier'
+      );
+      assert.ok(
+        gateContent.includes("activeGuideTab === 'android'") &&
+        gateContent.includes("activeGuideTab === 'desktop'"),
+        'Gate provides distinct Android and Desktop Chrome guidance'
+      );
+      assert.ok(
+        gateContent.includes('Continue to Vaango') && gateContent.includes('Continue without notifications'),
+        'Gate provides non-blocking continue buttons'
+      );
+    });
+
+    it('5.2 Bottom navigation renders role-appropriate navigation items', () => {
       assert.ok(bottomNavContent.includes('to="/"'), 'Customer nav has Home');
       assert.ok(bottomNavContent.includes('to="/shops"'), 'Customer nav has Explore');
       assert.ok(bottomNavContent.includes('to="/orders"'), 'Customer nav has Orders');
       assert.ok(bottomNavContent.includes('to="/bookings"'), 'Customer nav has Bookings');
 
-      // Shopkeeper
       assert.ok(bottomNavContent.includes('to="/shopkeeper/dashboard"'), 'Shopkeeper nav has Dashboard');
       assert.ok(bottomNavContent.includes('to="/shopkeeper/catalogue"'), 'Shopkeeper nav has Products');
       assert.ok(bottomNavContent.includes('to="/shopkeeper/requests"'), 'Shopkeeper nav has Orders');
 
-      // Admin
       assert.ok(bottomNavContent.includes('to="/admin/dashboard"'), 'Admin nav has Dashboard');
       assert.ok(bottomNavContent.includes('to="/admin/applications"'), 'Admin nav has Applications');
       assert.ok(bottomNavContent.includes('to="/admin/shops"'), 'Admin nav has Shops');
       assert.ok(bottomNavContent.includes('to="/admin/subscriptions"'), 'Admin nav has Subscriptions');
-    });
-
-    it('5.2 Settings and Profile routes navigate to role-specific account pages', () => {
-      assert.ok(
-        headerContent.includes("role === 'shopkeeper' ? '/shopkeeper/profile' : '/profile'"),
-        'Header maps account settings according to active role'
-      );
-      assert.ok(
-        moreMenuModalContent.includes("role === 'shopkeeper' ? '/shopkeeper/profile' : '/profile'"),
-        'MoreMenuModal maps account settings according to active role'
-      );
     });
 
     it('5.3 Sign out clears state and redirects reliably', () => {

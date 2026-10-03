@@ -194,6 +194,25 @@
   }
 }
 
+.vaango-home-promo-viewport {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 20px;
+  position: relative;
+}
+
+.vaango-home-promo-track {
+  display: flex;
+  width: 100%;
+  will-change: transform;
+}
+
+.vaango-home-promo-slide {
+  flex: 0 0 100%;
+  min-width: 100%;
+  width: 100%;
+}
+
 .vaango-home-promo-banner {
   background: linear-gradient(135deg, #155e3b 0%, #1b7348 100%);
   border-radius: 20px;

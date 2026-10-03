@@ -10,6 +10,8 @@ import {
   ShoppingBag,
   Building2,
   Clock,
+  Camera,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { getEffectiveQuantity, useCart, ShopCartGroup } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -86,16 +88,63 @@ const UpiPaymentPanel: React.FC<UpiPaymentPanelProps> = ({ shopName, upiId, qrUr
         {upiId && <p className="vaango-cart-upi-id">UPI ID: <code>{upiId}</code></p>}
         <p className="vaango-cart-payment-help">After completing payment, upload the payment screenshot. Payment remains pending until the shop verifies it.</p>
         {!previewUrl ? (
-          <label className="vaango-payment-proof-upload">
-            <span>{isUploading ? 'Uploading proof...' : 'Add Payment Proof'}</span>
-            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" disabled={isUploading} onChange={(event) => void handleFile(event.target.files?.[0])} />
-          </label>
+          <div className="vaango-payment-proof-options">
+            <span className="text-xs font-semibold text-secondary block mb-1">
+              {isUploading ? 'Uploading payment proof...' : 'Upload Payment Screenshot / Receipt:'}
+            </span>
+            <div className="vaango-payment-proof-buttons">
+              {/* Option A: Gallery / Document Picker (NO capture attribute -> opens system gallery/photos) */}
+              <label className="vaango-payment-proof-upload" title="Choose screenshot from Gallery or Files">
+                <ImageIcon size={16} />
+                <span>Choose from Gallery</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  disabled={isUploading}
+                  onChange={(event) => void handleFile(event.target.files?.[0])}
+                />
+              </label>
+
+              {/* Option B: Direct Camera Capture */}
+              <label className="vaango-payment-proof-upload vaango-payment-proof-upload--camera" title="Take a new photo with camera">
+                <Camera size={16} />
+                <span>Take Photo</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  capture="environment"
+                  disabled={isUploading}
+                  onChange={(event) => void handleFile(event.target.files?.[0])}
+                />
+              </label>
+            </div>
+          </div>
         ) : (
           <div className="vaango-payment-proof-selection">
             <img src={previewUrl} alt="Payment proof preview" className="vaango-payment-proof-preview" />
-            <span>{fileName}</span>
+            <span className="text-xs text-secondary">{fileName}</span>
             <div className="vaango-payment-proof-actions">
-              <label className="vaango-payment-proof-upload"><span>Replace</span><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" onChange={(event) => void handleFile(event.target.files?.[0])} /></label>
+              <label className="vaango-payment-proof-upload" title="Choose another image from Gallery">
+                <ImageIcon size={15} />
+                <span>Gallery</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  disabled={isUploading}
+                  onChange={(event) => void handleFile(event.target.files?.[0])}
+                />
+              </label>
+              <label className="vaango-payment-proof-upload vaango-payment-proof-upload--camera" title="Retake photo with camera">
+                <Camera size={15} />
+                <span>Camera</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  capture="environment"
+                  disabled={isUploading}
+                  onChange={(event) => void handleFile(event.target.files?.[0])}
+                />
+              </label>
               <Button type="button" variant="outline" size="sm" onClick={() => void removeProof()}>Remove</Button>
             </div>
           </div>

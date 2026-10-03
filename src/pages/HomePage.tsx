@@ -159,13 +159,18 @@ export const HomePage: React.FC = () => {
 
   const [activeSlide, setActiveSlide] = useState(0);
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const mouseStartRef = useRef<{ x: number; y: number } | null>(null);
-  const isDraggingRef = useRef(false);
+  const isHorizontalSwipeRef = useRef<boolean | null>(null);
+  const hasDraggedRef = useRef(false);
+  const resumeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Autoplay progression with pause on interaction and reduced-motion guard
   useEffect(() => {
-    if (isCarouselPaused) return;
+    if (isCarouselPaused || isDragging) return;
     if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       return;
     }
@@ -173,50 +178,97 @@ export const HomePage: React.FC = () => {
       setActiveSlide((prev) => (prev + 1) % promoSlides.length);
     }, 4500);
     return () => clearInterval(timer);
-  }, [isCarouselPaused, promoSlides.length]);
+  }, [isCarouselPaused, isDragging, activeSlide, promoSlides.length]);
+
+  // Clean up any pending resume timer on unmount
+  useEffect(() => {
+    return () => {
+      if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    };
+  }, []);
 
   const goToSlide = useCallback((index: number) => {
     setActiveSlide(index);
+    setDragOffset(0);
   }, []);
 
   const goToPrevSlide = useCallback(() => {
     setActiveSlide((prev) => (prev - 1 + promoSlides.length) % promoSlides.length);
+    setDragOffset(0);
   }, [promoSlides.length]);
 
   const goToNextSlide = useCallback(() => {
     setActiveSlide((prev) => (prev + 1) % promoSlides.length);
+    setDragOffset(0);
   }, [promoSlides.length]);
 
+  // Touch Swipe Handlers (Mobile)
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
     setIsCarouselPaused(true);
+    setIsDragging(true);
+    hasDraggedRef.current = false;
+    isHorizontalSwipeRef.current = null;
     touchStartRef.current = {
       x: e.touches[0].clientX,
       y: e.touches[0].clientY,
     };
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    setIsCarouselPaused(false);
+  const handleTouchMove = (e: React.TouchEvent) => {
     if (!touchStartRef.current) return;
-    const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
-    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
-    touchStartRef.current = null;
+    const diffX = e.touches[0].clientX - touchStartRef.current.x;
+    const diffY = e.touches[0].clientY - touchStartRef.current.y;
 
-    // Guard: ignore if predominantly vertical scroll gesture
-    if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+    if (isHorizontalSwipeRef.current === null) {
+      if (Math.abs(diffX) > 8 || Math.abs(diffY) > 8) {
+        isHorizontalSwipeRef.current = Math.abs(diffX) >= Math.abs(diffY);
+      }
+    }
 
-    if (deltaX < -35) {
-      // Swiped left -> next slide
-      setActiveSlide((prev) => (prev + 1) % promoSlides.length);
-    } else if (deltaX > 35) {
-      // Swiped right -> prev slide
-      setActiveSlide((prev) => (prev - 1 + promoSlides.length) % promoSlides.length);
+    if (isHorizontalSwipeRef.current) {
+      hasDraggedRef.current = true;
+      let offset = diffX;
+      if ((activeSlide === 0 && diffX > 0) || (activeSlide === promoSlides.length - 1 && diffX < 0)) {
+        offset = diffX * 0.35;
+      }
+      setDragOffset(offset);
     }
   };
 
+  const handleTouchEnd = () => {
+    if (touchStartRef.current && isHorizontalSwipeRef.current) {
+      if (dragOffset < -40) {
+        goToNextSlide();
+      } else if (dragOffset > 40) {
+        goToPrevSlide();
+      }
+    }
+    touchStartRef.current = null;
+    isHorizontalSwipeRef.current = null;
+    setDragOffset(0);
+    setIsDragging(false);
+
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = setTimeout(() => {
+      setIsCarouselPaused(false);
+    }, 3500);
+  };
+
+  const handleTouchCancel = () => {
+    touchStartRef.current = null;
+    isHorizontalSwipeRef.current = null;
+    setDragOffset(0);
+    setIsDragging(false);
+    setIsCarouselPaused(false);
+  };
+
+  // Mouse Drag Handlers (Desktop)
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
     setIsCarouselPaused(true);
-    isDraggingRef.current = false;
+    setIsDragging(true);
+    hasDraggedRef.current = false;
     mouseStartRef.current = {
       x: e.clientX,
       y: e.clientY,
@@ -225,26 +277,33 @@ export const HomePage: React.FC = () => {
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!mouseStartRef.current) return;
-    const deltaX = Math.abs(e.clientX - mouseStartRef.current.x);
-    if (deltaX > 8) {
-      isDraggingRef.current = true;
+    const diffX = e.clientX - mouseStartRef.current.x;
+    if (Math.abs(diffX) > 8) {
+      hasDraggedRef.current = true;
+      let offset = diffX;
+      if ((activeSlide === 0 && diffX > 0) || (activeSlide === promoSlides.length - 1 && diffX < 0)) {
+        offset = diffX * 0.35;
+      }
+      setDragOffset(offset);
     }
   };
 
-  const handleMouseUp = (e: React.MouseEvent) => {
-    setIsCarouselPaused(false);
-    if (!mouseStartRef.current) return;
-    const deltaX = e.clientX - mouseStartRef.current.x;
-    const deltaY = e.clientY - mouseStartRef.current.y;
-    mouseStartRef.current = null;
-
-    if (Math.abs(deltaY) > Math.abs(deltaX)) return;
-
-    if (deltaX < -40) {
-      setActiveSlide((prev) => (prev + 1) % promoSlides.length);
-    } else if (deltaX > 40) {
-      setActiveSlide((prev) => (prev - 1 + promoSlides.length) % promoSlides.length);
+  const handleMouseUp = () => {
+    if (mouseStartRef.current) {
+      if (dragOffset < -40) {
+        goToNextSlide();
+      } else if (dragOffset > 40) {
+        goToPrevSlide();
+      }
     }
+    mouseStartRef.current = null;
+    setDragOffset(0);
+    setIsDragging(false);
+
+    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = setTimeout(() => {
+      setIsCarouselPaused(false);
+    }, 3500);
   };
 
   const businessCategories = [
@@ -652,13 +711,19 @@ export const HomePage: React.FC = () => {
         <div className="container">
           <div
             className="vaango-home-promo-wrapper"
-            onMouseEnter={() => setIsCarouselPaused(true)}
-            onMouseLeave={() => {
-              setIsCarouselPaused(false);
-              mouseStartRef.current = null;
+            onPointerEnter={(e) => {
+              if (e.pointerType === 'mouse') setIsCarouselPaused(true);
+            }}
+            onPointerLeave={(e) => {
+              if (e.pointerType === 'mouse') {
+                setIsCarouselPaused(false);
+                mouseStartRef.current = null;
+              }
             }}
             onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchCancel}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
@@ -676,33 +741,53 @@ export const HomePage: React.FC = () => {
               <ChevronLeft size={18} />
             </button>
 
-            <div
-              className="vaango-home-promo-banner"
-              style={{ background: promoSlides[activeSlide].bg }}
-            >
-              <div className="vaango-home-promo-info" key={`info-${activeSlide}`}>
-                <h2 className="vaango-home-promo-headline">{promoSlides[activeSlide].headline}</h2>
-                <p className="vaango-home-promo-sub">{promoSlides[activeSlide].sub}</p>
-                <Link
-                  to={promoSlides[activeSlide].ctaLink}
-                  className="vaango-home-promo-btn"
-                  onClick={(e) => {
-                    if (isDraggingRef.current) {
-                      e.preventDefault();
-                    }
-                  }}
-                >
-                  <span>{promoSlides[activeSlide].ctaText}</span>
-                  <ArrowRight size={15} />
-                </Link>
-              </div>
-              <div className="vaango-home-promo-media" key={`media-${activeSlide}`}>
-                <img
-                  src={promoSlides[activeSlide].image}
-                  alt={promoSlides[activeSlide].alt}
-                  className="vaango-home-promo-img"
-                  draggable={false}
-                />
+            {/* Viewport & Sliding Track containing all 3 slides */}
+            <div className="vaango-home-promo-viewport">
+              <div
+                className="vaango-home-promo-track"
+                style={{
+                  transform: `translateX(calc(-${activeSlide * 100}% + ${dragOffset}px))`,
+                  transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
+              >
+                {promoSlides.map((slide, idx) => (
+                  <div
+                    key={slide.id}
+                    className="vaango-home-promo-slide"
+                    aria-hidden={activeSlide !== idx}
+                  >
+                    <div
+                      className="vaango-home-promo-banner"
+                      style={{ background: slide.bg }}
+                    >
+                      <div className="vaango-home-promo-info">
+                        <h2 className="vaango-home-promo-headline">{slide.headline}</h2>
+                        <p className="vaango-home-promo-sub">{slide.sub}</p>
+                        <Link
+                          to={slide.ctaLink}
+                          className="vaango-home-promo-btn"
+                          onClick={(e) => {
+                            if (hasDraggedRef.current) {
+                              e.preventDefault();
+                            }
+                          }}
+                        >
+                          <span>{slide.ctaText}</span>
+                          <ArrowRight size={15} />
+                        </Link>
+                      </div>
+                      <div className="vaango-home-promo-media">
+                        <img
+                          src={slide.image}
+                          alt={slide.alt}
+                          className="vaango-home-promo-img"
+                          draggable={false}
+                          loading={idx === 0 ? 'eager' : 'lazy'}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 

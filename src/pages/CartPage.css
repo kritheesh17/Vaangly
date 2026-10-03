@@ -13,10 +13,16 @@
 .vaango-cart-upi-id { margin: 0; }
 .vaango-cart-payment-help, .vaango-cart-payment-error { margin: 0; font-size: var(--font-size-sm); }
 .vaango-cart-payment-error { color: var(--color-error); }
-.vaango-payment-proof-upload { display: inline-flex; align-items: center; justify-content: center; min-height: var(--min-touch-target); padding: 0 var(--space-4); border-radius: var(--radius-md); background: var(--brand-primary); color: #fff; font-weight: 700; cursor: pointer; }
+.vaango-payment-proof-options { display: flex; flex-direction: column; gap: var(--space-2); }
+.vaango-payment-proof-buttons { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.vaango-payment-proof-upload { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--min-touch-target); padding: 0 var(--space-4); border-radius: var(--radius-md); background: var(--brand-primary); color: #fff; font-weight: 600; font-size: var(--font-size-sm); cursor: pointer; border: 1px solid var(--brand-primary); transition: background-color 0.18s ease, transform 0.1s ease; }
+.vaango-payment-proof-upload:hover { background: var(--brand-primary-hover, #155e3b); }
+.vaango-payment-proof-upload:active { transform: scale(0.98); }
 .vaango-payment-proof-upload input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.vaango-payment-proof-upload--camera { background: var(--color-surface, #fff); color: var(--color-text, #0f172a); border-color: var(--color-border, #cbd5e1); }
+.vaango-payment-proof-upload--camera:hover { background: var(--color-surface-hover, #f1f5f9); }
 .vaango-payment-proof-selection { display: flex; flex-direction: column; gap: var(--space-2); }
-.vaango-payment-proof-selection .vaango-payment-proof-preview { max-width: 280px; max-height: 220px; }
+.vaango-payment-proof-selection .vaango-payment-proof-preview { max-width: 280px; max-height: 220px; border-radius: 8px; border: 1px solid var(--color-border); }
 .vaango-payment-proof-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 
 .vaango-cart-page__empty {

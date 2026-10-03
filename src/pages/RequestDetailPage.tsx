@@ -12,6 +12,8 @@ import {
   XCircle,
   Star,
   Clock,
+  Camera,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Request } from '../types/database';
 import { WorkflowStateCode, WorkflowGroupCode } from '../types/workflow';
@@ -643,8 +645,40 @@ export const RequestDetailPage: React.FC = () => {
                 </div>
                 {!request.payment_screenshot_url || request.payment_status === 'PAYMENT_REJECTED' ? <>
                   <label className="vaango-form-label mt-3" htmlFor="payment-proof">I've Paid — Upload Payment Proof</label>
-                  <input id="payment-proof" type="file" accept="image/*" className="vaango-file-input" onChange={(e) => { const file = e.target.files?.[0] || null; setPaymentProofFile(file); setPaymentProofPreview(file ? URL.createObjectURL(file) : null); }} />
-                  {paymentProofPreview && <img src={paymentProofPreview} alt="Payment screenshot preview" className="vaango-payment-proof-preview" />}
+                  <div className="vaango-payment-proof-buttons flex gap-2 mt-1 mb-2">
+                    <label className="vaango-payment-proof-upload" title="Choose screenshot from Gallery or Files">
+                      <ImageIcon size={16} />
+                      <span>Choose from Gallery</span>
+                      <input
+                        id="payment-proof-gallery"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="vaango-file-input"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setPaymentProofFile(file);
+                          setPaymentProofPreview(file ? URL.createObjectURL(file) : null);
+                        }}
+                      />
+                    </label>
+                    <label className="vaango-payment-proof-upload vaango-payment-proof-upload--camera" title="Take a new photo with camera">
+                      <Camera size={16} />
+                      <span>Take Photo</span>
+                      <input
+                        id="payment-proof-camera"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        capture="environment"
+                        className="vaango-file-input"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setPaymentProofFile(file);
+                          setPaymentProofPreview(file ? URL.createObjectURL(file) : null);
+                        }}
+                      />
+                    </label>
+                  </div>
+                  {paymentProofPreview && <img src={paymentProofPreview} alt="Payment screenshot preview" className="vaango-payment-proof-preview mb-2" />}
                   <Button type="button" variant="primary" size="sm" isLoading={isSubmittingProof} disabled={!paymentProofFile} onClick={() => void handleSubmitPaymentProof()}>{t('submitPaymentProofBtn')}</Button>
                 </> : <Badge variant="warning" size="md">{t('paymentScreenshotSubmittedBadge')}</Badge>}
               </> : <p className="vaango-cart-payment-error">Online payment is currently unavailable for this shop. No merchant QR is displayed.</p>}
