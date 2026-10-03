@@ -137,11 +137,16 @@ export const ProfilePage: React.FC = () => {
 
   const handleSignOut = async () => {
     try {
-      await signOut();
-      success(t('signOut') || 'Logged out successfully');
+      const res = await signOut();
+      if (res && res.error) {
+        toastError(res.error);
+      } else {
+        success(t('signOut') || 'Logged out successfully');
+      }
       navigate('/login');
     } catch (err) {
       console.warn('Sign out error:', err);
+      toastError(err instanceof Error ? err.message : 'Error logging out');
       navigate('/login');
     }
   };

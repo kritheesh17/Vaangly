@@ -133,10 +133,13 @@ export const getShopkeeperShop = async (ownerId: string): Promise<Shop | null> =
  */
 export const updateShopProfile = async (
   shopId: string,
-  updates: Partial<Pick<Shop, 'name' | 'tagline' | 'address_line' | 'phone' | 'photo_url' | 'opening_time' | 'closing_time' | 'is_open_today' | 'delivery_available' | 'delivery_fee' | 'upi_id' | 'upi_qr_url' | 'customised_cake_available' | 'subscription_tier' | 'gps_lat' | 'gps_lng'>>
+  updates: Partial<Pick<Shop, 'name' | 'tagline' | 'address_line' | 'phone' | 'photo_url' | 'opening_time' | 'closing_time' | 'is_open_today' | 'delivery_available' | 'delivery_fee' | 'free_delivery_above' | 'upi_id' | 'upi_qr_url' | 'customised_cake_available' | 'subscription_tier' | 'gps_lat' | 'gps_lng'>>
 ): Promise<{ success: boolean; shop?: Shop; error?: string }> => {
   if (updates.delivery_fee !== undefined && updates.delivery_fee < 0) {
     return { success: false, error: 'Delivery fee cannot be negative.' };
+  }
+  if (updates.free_delivery_above !== undefined && updates.free_delivery_above !== null && updates.free_delivery_above <= 0) {
+    return { success: false, error: 'Free delivery threshold must be greater than ₹0.' };
   }
   if (updates.phone) {
     updates.phone = normalizeIndianPhone(updates.phone) || updates.phone;
@@ -1488,6 +1491,9 @@ export const submitShopApplication = async (
         capabilities: Array.isArray(application.capabilities)
           ? application.capabilities.map((item) => String(item).trim()).filter(Boolean)
           : [],
+        delivery_available: application.delivery_available ?? false,
+        delivery_fee: application.delivery_fee ?? 0,
+        free_delivery_above: application.free_delivery_above ?? null,
         review_notes: null,
         reviewed_by: null,
       };
@@ -1553,6 +1559,9 @@ export const submitShopApplication = async (
     business_type: application.business_type || null,
     offerings: normalizedOfferings,
     capabilities: normalizedCapabilities,
+    delivery_available: application.delivery_available ?? false,
+    delivery_fee: application.delivery_fee ?? 0,
+    free_delivery_above: application.free_delivery_above ?? null,
     review_notes: null,
     reviewed_by: null,
   };

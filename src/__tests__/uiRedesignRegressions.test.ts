@@ -109,4 +109,179 @@ describe('UI Redesign Functional Regression Guards', () => {
     assert.ok(bottomNavContent.includes('to="/bookings"'), 'Contains Bookings link');
     assert.ok(bottomNavContent.includes('MoreMenuModal'), 'Contains More modal trigger');
   });
+
+  // Test 7: Notification Permission Experience in Chrome (Issue 1)
+  it('7. NotificationPermissionGate distinguishes states and avoids fake prompts when denied', () => {
+    const gateContent = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/components/permissions/NotificationPermissionGate.tsx'),
+      'utf-8'
+    );
+    assert.ok(
+      gateContent.includes("notificationStatus === 'denied'"),
+      'Gate checks explicitly for denied permission state'
+    );
+    assert.ok(
+      gateContent.includes("notificationStatus === 'prompt'"),
+      'Gate checks explicitly for default/prompt state'
+    );
+    assert.ok(
+      gateContent.includes('Chrome will not allow websites to reopen the permission prompt dialog automatically'),
+      'Gate explains that Chrome does not allow re-triggering prompt after denial'
+    );
+    assert.ok(
+      gateContent.includes('Check Again & Enter'),
+      'Gate provides Check Again & Enter action'
+    );
+    assert.ok(
+      !gateContent.includes("variant=\"primary\"\n              onClick={handleRequestPermission}\n            >\n              Try Browser Permission Dialog"),
+      'Gate does not present misleading browser dialog button when blocked/denied'
+    );
+  });
+
+  // Test 8: Promotional Carousel Functional Interactions (Issue 3)
+  it('8. HomePage carousel contains 3 required slides, touch gesture listeners, and autoplay pause', () => {
+    assert.ok(
+      homePageContent.includes("'Order Now'"),
+      'Carousel has Order Now slide'
+    );
+    assert.ok(
+      homePageContent.includes("'Get Appointment'"),
+      'Carousel has Get Appointment slide'
+    );
+    assert.ok(
+      homePageContent.includes("'Get Service'"),
+      'Carousel has Get Service slide'
+    );
+    assert.ok(
+      homePageContent.includes("ctaLink: '/shops?group=ORDER'"),
+      'Order Now slide navigates to ORDER group'
+    );
+    assert.ok(
+      homePageContent.includes("ctaLink: '/shops?group=APPOINTMENT'"),
+      'Get Appointment slide navigates to APPOINTMENT group'
+    );
+    assert.ok(
+      homePageContent.includes("ctaLink: '/shops?group=SERVICE'"),
+      'Get Service slide navigates to SERVICE group'
+    );
+    assert.ok(
+      homePageContent.includes('onTouchStart') && homePageContent.includes('onTouchEnd'),
+      'Carousel registers horizontal touch swipe listeners'
+    );
+    assert.ok(
+      homePageContent.includes('onMouseEnter') && homePageContent.includes('onMouseLeave'),
+      'Carousel pauses autoplay on interaction / hover'
+    );
+    assert.ok(
+      homePageContent.includes('prefers-reduced-motion'),
+      'Carousel respects reduced-motion preference'
+    );
+  });
+
+  // Test 9: Free-Delivery Policy & Threshold Elimination of Hardcoding (Issue 4)
+  it('9. Shop and Product pages display dynamic delivery policy and Cart calculates threshold accurately', () => {
+    const shopDetailContent = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/pages/ShopDetailPage.tsx'),
+      'utf-8'
+    );
+    const productModalContent = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/components/customer/ProductDetailModal.tsx'),
+      'utf-8'
+    );
+    const shopkeeperProfileContent = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/pages/shopkeeper/ShopkeeperProfilePage.tsx'),
+      'utf-8'
+    );
+    const cartPageContent = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/pages/CartPage.tsx'),
+      'utf-8'
+    );
+
+    // No hardcoded "Free delivery above ₹299"
+    assert.ok(
+      !shopDetailContent.includes('<span>Free delivery above ₹299</span>'),
+      'ShopDetailPage does not contain hardcoded Free delivery above ₹299'
+    );
+    assert.ok(
+      !productModalContent.includes('<span>Delivery in 30–45 mins · Free delivery above ₹299</span>'),
+      'ProductDetailModal does not contain hardcoded Free delivery above ₹299'
+    );
+
+    // Dynamic badge rendering
+    assert.ok(
+      shopDetailContent.includes('Pickup Only') && shopDetailContent.includes('shop.free_delivery_above'),
+      'ShopDetailPage dynamically displays Pickup Only or configured free delivery threshold'
+    );
+
+    // 3-Question Shopkeeper workflow
+    assert.ok(
+      shopkeeperProfileContent.includes('1. Do you offer door delivery?'),
+      'Shopkeeper profile asks Question 1: Do you offer door delivery?'
+    );
+    assert.ok(
+      shopkeeperProfileContent.includes('2. How much do you charge for delivery?'),
+      'Shopkeeper profile asks Question 2: Delivery charge'
+    );
+    assert.ok(
+      shopkeeperProfileContent.includes('3. Do you offer free delivery above a certain order amount?'),
+      'Shopkeeper profile asks Question 3: Free delivery above threshold'
+    );
+
+    // Cart calculation
+    assert.ok(
+      cartPageContent.includes('freeThreshold != null && freeThreshold > 0 && subtotal >= freeThreshold'),
+      'CartPage checks free delivery threshold against subtotal'
+    );
+    assert.ok(
+      cartPageContent.includes("effectiveDeliveryFee === 0 ? (\n                        <span className=\"text-success font-semibold\">FREE</span>"),
+      'CartPage displays FREE badge when threshold is met'
+    );
+  });
+
+  // Test 10: Appointment Capacity and Slot Customization (Issue 5)
+  it('10. ServiceFormModal supports custom capacity (10+), and schedule config allows per-slot overrides', () => {
+    const serviceModalContent = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/components/shopkeeper/ServiceFormModal.tsx'),
+      'utf-8'
+    );
+    const scheduleConfigContent = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/components/shopkeeper/AppointmentScheduleConfig.tsx'),
+      'utf-8'
+    );
+    const migrationContent = fs.readFileSync(
+      path.resolve(process.cwd(), 'supabase/migrations/20261002000067_flexible_appointment_slots.sql'),
+      'utf-8'
+    );
+
+    // ServiceFormModal allows custom capacity input and 10+ clients
+    assert.ok(
+      serviceModalContent.includes('id="concurrent-capacity-input"'),
+      'ServiceFormModal provides numeric custom capacity input'
+    );
+    assert.ok(
+      serviceModalContent.includes('[1, 2, 3, 5, 10, 20]'),
+      'ServiceFormModal includes preset chips up to 10 and 20'
+    );
+    assert.ok(
+      serviceModalContent.includes('capacityPerInterval: concurrentCapacity'),
+      'ServiceFormModal saves capacityPerInterval'
+    );
+
+    // AppointmentScheduleConfig per-slot definitions
+    assert.ok(
+      scheduleConfigContent.includes('vaango-sched-capacity-input'),
+      'AppointmentScheduleConfig provides editable per-slot capacity input'
+    );
+    assert.ok(
+      scheduleConfigContent.includes("start_time: '09:00', end_time: '09:15', capacity: 5"),
+      'AppointmentScheduleConfig includes example mixed slot capacity'
+    );
+
+    // Backend preservation of confirmed bookings
+    assert.ok(
+      migrationContent.includes('GREATEST(v_capacity, v_existing_confirmed)'),
+      'sync_shop_appointment_slots strictly preserves existing confirmed appointments'
+    );
+  });
 });
+

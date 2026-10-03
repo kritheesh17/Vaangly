@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchCustomerLocationCatalog } from '../lib/search';
 import {
@@ -114,6 +114,127 @@ export const HomePage: React.FC = () => {
       toastError(language === 'ta' ? 'உங்கள் கூடையில் வேறு கடையின் பொருட்கள் உள்ளன. அதை முடித்தபின் புதிய கடையைத் தொடங்குங்கள்.' : 'Your cart contains items from another shop. Please finish or clear your existing order.');
     } else if (res.error) {
       toastError(res.error);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // PROMOTIONAL CAROUSEL STATE & GESTURES (Issue 3)
+  // -------------------------------------------------------------
+  const promoSlides = useMemo(
+    () => [
+      {
+        id: 'order-groceries',
+        headline: language === 'ta' ? 'புதிய மளிகைப் பொருட்கள்' : 'Fresh Groceries',
+        sub: language === 'ta' ? 'அருகிலுள்ள கடைகளில் இருந்து' : 'from nearby shops',
+        ctaText: language === 'ta' ? 'ஆர்டர் செய்க' : 'Order Now',
+        ctaLink: '/shops?group=ORDER',
+        image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&auto=format&fit=crop&q=80',
+        alt: 'Fresh Groceries',
+        bg: 'linear-gradient(135deg, #155e3b 0%, #1b7348 100%)',
+      },
+      {
+        id: 'book-appointment',
+        headline: language === 'ta' ? 'மருத்துவர் & கிளினிக் முன்பதிவு' : 'Get Appointment',
+        sub: language === 'ta' ? 'அருகிலுள்ள மருத்துவமனைகள் & கிளினிக்குகள்' : 'Discover nearby hospitals and book appointments',
+        ctaText: language === 'ta' ? 'முன்பதிவு செய்க' : 'Get Appointment',
+        ctaLink: '/shops?group=APPOINTMENT',
+        image: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=800&auto=format&fit=crop&q=80',
+        alt: 'Get Appointment',
+        bg: 'linear-gradient(135deg, #0369a1 0%, #0284c7 100%)',
+      },
+      {
+        id: 'book-service',
+        headline: language === 'ta' ? 'உள்ளூர் சேவை முன்பதிவு' : 'Get Service',
+        sub: language === 'ta' ? 'உள்ளூர் நம்பகமான சேவைகளை முன்பதிவு செய்க' : 'Discover and book local services',
+        ctaText: language === 'ta' ? 'சேவை பெறுக' : 'Get Service',
+        ctaLink: '/shops?group=SERVICE',
+        image: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80',
+        alt: 'Get Service',
+        bg: 'linear-gradient(135deg, #b45309 0%, #d97706 100%)',
+      },
+    ],
+    [language]
+  );
+
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const mouseStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isDraggingRef = useRef(false);
+
+  // Autoplay progression with pause on interaction and reduced-motion guard
+  useEffect(() => {
+    if (isCarouselPaused) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % promoSlides.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [isCarouselPaused, promoSlides.length]);
+
+  const goToSlide = useCallback((index: number) => {
+    setActiveSlide(index);
+  }, []);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setIsCarouselPaused(true);
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+    };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    setIsCarouselPaused(false);
+    if (!touchStartRef.current) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+
+    // Guard: ignore if predominantly vertical scroll gesture
+    if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+
+    if (deltaX < -35) {
+      // Swiped left -> next slide
+      setActiveSlide((prev) => (prev + 1) % promoSlides.length);
+    } else if (deltaX > 35) {
+      // Swiped right -> prev slide
+      setActiveSlide((prev) => (prev - 1 + promoSlides.length) % promoSlides.length);
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsCarouselPaused(true);
+    isDraggingRef.current = false;
+    mouseStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!mouseStartRef.current) return;
+    const deltaX = Math.abs(e.clientX - mouseStartRef.current.x);
+    if (deltaX > 8) {
+      isDraggingRef.current = true;
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    setIsCarouselPaused(false);
+    if (!mouseStartRef.current) return;
+    const deltaX = e.clientX - mouseStartRef.current.x;
+    const deltaY = e.clientY - mouseStartRef.current.y;
+    mouseStartRef.current = null;
+
+    if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+
+    if (deltaX < -40) {
+      setActiveSlide((prev) => (prev + 1) % promoSlides.length);
+    } else if (deltaX > 40) {
+      setActiveSlide((prev) => (prev - 1 + promoSlides.length) % promoSlides.length);
     }
   };
 
@@ -518,29 +639,65 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* 3. PROMOTIONAL CAROUSEL BANNER (Reference Image 2) */}
-      <section className="vaango-home-promo-section">
+      <section className="vaango-home-promo-section" aria-label="Promotional highlights">
         <div className="container">
-          <div className="vaango-home-promo-banner">
-            <div className="vaango-home-promo-info">
-              <h2 className="vaango-home-promo-headline">Fresh Groceries</h2>
-              <p className="vaango-home-promo-sub">from nearby shops</p>
-              <Link to="/shops?group=ORDER" className="vaango-home-promo-btn">
-                <span>{language === 'ta' ? 'ஆர்டர் செய்க' : 'Order Now'}</span>
-                <ArrowRight size={15} />
-              </Link>
+          <div
+            className="vaango-home-promo-wrapper"
+            onMouseEnter={() => setIsCarouselPaused(true)}
+            onMouseLeave={() => {
+              setIsCarouselPaused(false);
+              mouseStartRef.current = null;
+            }}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+          >
+            <div
+              className="vaango-home-promo-banner"
+              style={{ background: promoSlides[activeSlide].bg }}
+            >
+              <div className="vaango-home-promo-info" key={`info-${activeSlide}`}>
+                <h2 className="vaango-home-promo-headline">{promoSlides[activeSlide].headline}</h2>
+                <p className="vaango-home-promo-sub">{promoSlides[activeSlide].sub}</p>
+                <Link
+                  to={promoSlides[activeSlide].ctaLink}
+                  className="vaango-home-promo-btn"
+                  onClick={(e) => {
+                    if (isDraggingRef.current) {
+                      e.preventDefault();
+                    }
+                  }}
+                >
+                  <span>{promoSlides[activeSlide].ctaText}</span>
+                  <ArrowRight size={15} />
+                </Link>
+              </div>
+              <div className="vaango-home-promo-media" key={`media-${activeSlide}`}>
+                <img
+                  src={promoSlides[activeSlide].image}
+                  alt={promoSlides[activeSlide].alt}
+                  className="vaango-home-promo-img"
+                  draggable={false}
+                />
+              </div>
             </div>
-            <div className="vaango-home-promo-media">
-              <img
-                src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&auto=format&fit=crop&q=80"
-                alt="Fresh Groceries"
-                className="vaango-home-promo-img"
-              />
+
+            {/* Slide Indicators */}
+            <div className="vaango-home-promo-dots" role="tablist" aria-label="Carousel slide indicators">
+              {promoSlides.map((slide, idx) => (
+                <button
+                  key={slide.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeSlide === idx}
+                  aria-label={`Go to slide ${idx + 1}: ${slide.headline}`}
+                  className={`vaango-home-dot ${activeSlide === idx ? 'vaango-home-dot--active' : ''}`}
+                  onClick={() => goToSlide(idx)}
+                />
+              ))}
             </div>
-          </div>
-          <div className="vaango-home-promo-dots">
-            <span className="vaango-home-dot vaango-home-dot--active" />
-            <span className="vaango-home-dot" />
-            <span className="vaango-home-dot" />
           </div>
         </div>
       </section>

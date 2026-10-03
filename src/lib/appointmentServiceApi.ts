@@ -680,7 +680,7 @@ export const saveShopService = async (
     name: string;
     price_type: PriceType;
     item_type?: 'appointment' | 'service';
-    slot_config?: SlotConfig;
+    slot_config?: SlotConfig | null;
   }
 ): Promise<{ success: boolean; service?: ShopService; error?: string }> => {
   if (!service.name?.trim()) {

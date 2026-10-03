@@ -131,6 +131,7 @@ export const CartPage: React.FC = () => {
   const [shopFulfillments, setShopFulfillments] = useState<Record<string, 'DINE_IN' | 'TAKEAWAY' | null>>({});
   const [shopPaymentMethods, setShopPaymentMethods] = useState<Record<string, 'pay_at_shop' | 'upi'>>({});
   const [paymentProofPaths, setPaymentProofPaths] = useState<Record<string, string | null>>({});
+  const [shopDeliveryModes, setShopDeliveryModes] = useState<Record<string, 'PICKUP' | 'DELIVERY'>>({});
   const [shopPickupModes, setShopPickupModes] = useState<Record<string, 'ASAP' | 'SCHEDULED'>>({});
   const [shopPickupDates, setShopPickupDates] = useState<Record<string, string>>({});
   const [shopPickupTimes, setShopPickupTimes] = useState<Record<string, string>>({});
@@ -223,12 +224,16 @@ export const CartPage: React.FC = () => {
       }
     }
 
+    const deliveryAvailable = Boolean(group.shop.delivery_available);
+    const chosenDeliveryMode = shopDeliveryModes[shopId] || (deliveryAvailable ? 'DELIVERY' : 'PICKUP');
+    const effectiveFulfillment = chosenDeliveryMode === 'DELIVERY' ? 'delivery' : (chosenFulfillment || 'TAKEAWAY');
+
     setSubmittingShopId(shopId);
     try {
       const result = await submitShopRequest(
         shopId,
         chosenPayment,
-        chosenFulfillment,
+        effectiveFulfillment,
         chosenNote,
         paymentProofPath,
         chosenPickupAt
@@ -342,6 +347,16 @@ export const CartPage: React.FC = () => {
           const currentPickupTime = shopPickupTimes[shopId] || (availableSlots.length > 0 ? availableSlots[0].isoTimestamp : '');
           const isSelectedDateToday = availableDates.length > 0 && currentPickupDate === availableDates[0].dateStr;
           const shopTimezoneLabel = shop.slot_config?.timeZone || 'Shop Time';
+
+          const deliveryAvailable = Boolean(shop.delivery_available);
+          const currentDeliveryMode = shopDeliveryModes[shopId] || (deliveryAvailable ? 'DELIVERY' : 'PICKUP');
+          const standardFee = shop.delivery_fee != null ? Number(shop.delivery_fee) : 0;
+          const freeThreshold = shop.free_delivery_above != null ? Number(shop.free_delivery_above) : null;
+          const isFreeEligible = currentDeliveryMode === 'DELIVERY' && (
+            standardFee === 0 || (freeThreshold != null && freeThreshold > 0 && subtotal >= freeThreshold)
+          );
+          const effectiveDeliveryFee = currentDeliveryMode === 'DELIVERY' ? (isFreeEligible ? 0 : standardFee) : 0;
+          const finalTotal = subtotal + effectiveDeliveryFee;
 
           return (
             <Card key={shopId} variant="default" padding="lg" className="vaango-cart-shop-group-card">
@@ -476,7 +491,42 @@ export const CartPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* VISUAL SECTION 1: PICKUP TIMING */}
+                {/* VISUAL SECTION 0: DELIVERY OPTION (When shop offers door delivery) */}
+                {deliveryAvailable && (
+                  <div className="vaango-cart-pref-section vaango-cart-delivery-section">
+                    <div className="vaango-cart-section-header">
+                      <span className="vaango-cart-opt-label">Delivery Option</span>
+                      <span className="vaango-cart-section-sub">Choose doorstep delivery or counter pickup</span>
+                    </div>
+                    <div className="vaango-cart-options-toggle" role="radiogroup" aria-label="Delivery Option">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={currentDeliveryMode === 'DELIVERY'}
+                        className={`vaango-cart-option-btn ${currentDeliveryMode === 'DELIVERY' ? 'active' : ''}`}
+                        onClick={() => setShopDeliveryModes((prev) => ({ ...prev, [shopId]: 'DELIVERY' }))}
+                      >
+                        <span className="vaango-cart-option-title">🚚 Door Delivery</span>
+                        <small className="vaango-cart-option-desc">
+                          {isFreeEligible ? 'Free delivery' : `₹${standardFee} delivery charge`}
+                        </small>
+                      </button>
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={currentDeliveryMode === 'PICKUP'}
+                        className={`vaango-cart-option-btn ${currentDeliveryMode === 'PICKUP' ? 'active' : ''}`}
+                        onClick={() => setShopDeliveryModes((prev) => ({ ...prev, [shopId]: 'PICKUP' }))}
+                      >
+                        <span className="vaango-cart-option-title">🏪 Self Pickup</span>
+                        <small className="vaango-cart-option-desc">Collect at shop counter (No charge)</small>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* VISUAL SECTION 1: PICKUP TIMING (For Pickup orders) */}
+                {currentDeliveryMode === 'PICKUP' && (
                 <div className="vaango-cart-pref-section vaango-cart-pickup-section">
                   <div className="vaango-cart-section-header">
                     <span className="vaango-cart-opt-label">Pickup Timing</span>
@@ -604,6 +654,7 @@ export const CartPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* VISUAL SECTION 2: PAYMENT METHOD */}
                 <div className="vaango-cart-pref-section vaango-cart-payment-section">
@@ -646,7 +697,7 @@ export const CartPage: React.FC = () => {
                       shopName={shop.name}
                       upiId={shop.upi_id}
                       qrUrl={shop.upi_qr_url}
-                      amount={subtotal}
+                      amount={finalTotal}
                       userId={user.id}
                       proofPath={paymentProofPaths[shopId] || null}
                       onProofPathChange={(path) => setPaymentProofPaths((prev) => ({ ...prev, [shopId]: path }))}
@@ -672,8 +723,29 @@ export const CartPage: React.FC = () => {
               {/* Storefront Footer & Checkout Button */}
               <div className="vaango-cart-shop-footer">
                 <div className="vaango-cart-shop-subtotal">
-                  <span>Store Total ({shopItems.length} items):</span>
-                  <strong>₹{subtotal}</strong>
+                  <div className="flex justify-between items-center text-sm text-secondary mb-1">
+                    <span>Items Total ({shopItems.length} items):</span>
+                    <span>₹{subtotal}</span>
+                  </div>
+                  {currentDeliveryMode === 'DELIVERY' && (
+                    <div className="flex justify-between items-center text-sm mb-1">
+                      <span>Delivery Fee:</span>
+                      {effectiveDeliveryFee === 0 ? (
+                        <span className="text-success font-semibold">FREE</span>
+                      ) : (
+                        <span>₹{effectiveDeliveryFee}</span>
+                      )}
+                    </div>
+                  )}
+                  {currentDeliveryMode === 'DELIVERY' && freeThreshold != null && freeThreshold > 0 && subtotal < freeThreshold && (
+                    <div className="text-xs text-primary mb-1">
+                      Add ₹{freeThreshold - subtotal} more for Free Delivery!
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center font-bold text-base border-t border-border pt-1">
+                    <span>Store Total:</span>
+                    <strong>₹{finalTotal}</strong>
+                  </div>
                 </div>
                 <Button
                   variant="primary"
@@ -682,7 +754,7 @@ export const CartPage: React.FC = () => {
                   disabled={isSubmitting || isInvalidShopId}
                   onClick={() => handleCheckoutShop(group)}
                 >
-                  Place Order with {shop.name} · ₹{subtotal}
+                  Place Order with {shop.name} · ₹{finalTotal}
                 </Button>
               </div>
             </Card>

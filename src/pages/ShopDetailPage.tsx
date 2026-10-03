@@ -425,10 +425,23 @@ export const ShopDetailPage: React.FC = () => {
               <CheckCircle size={14} />
               <span>Verified Shop</span>
             </div>
-            <div className="vaango-shop-pill-badge vaango-shop-pill-badge--delivery">
-              <Truck size={14} />
-              <span>Free delivery above ₹299</span>
-            </div>
+            {shop.delivery_available ? (
+              <div className="vaango-shop-pill-badge vaango-shop-pill-badge--delivery">
+                <Truck size={14} />
+                <span>
+                  {shop.free_delivery_above != null && Number(shop.free_delivery_above) > 0
+                    ? `Free delivery above ₹${shop.free_delivery_above}`
+                    : Number(shop.delivery_fee) === 0
+                    ? 'Free Delivery'
+                    : `Delivery ₹${shop.delivery_fee}`}
+                </span>
+              </div>
+            ) : (
+              <div className="vaango-shop-pill-badge vaango-shop-pill-badge--pickup">
+                <Store size={14} />
+                <span>Pickup Only</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

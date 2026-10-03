@@ -57,7 +57,7 @@ export const Header: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useLanguage();
-  const { success } = useToast();
+  const { success, error: toastError } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -121,11 +121,16 @@ export const Header: React.FC = () => {
   const handleLogout = async () => {
     setIsAccountMenuOpen(false);
     try {
-      await signOut();
-      success(t('signOut') || 'Logged out successfully');
+      const res = await signOut();
+      if (res && res.error) {
+        toastError(res.error);
+      } else {
+        success(t('signOut') || 'Logged out successfully');
+      }
       navigate('/login');
     } catch (err) {
       console.error('Logout error:', err);
+      toastError(err instanceof Error ? err.message : 'Error logging out');
       navigate('/login');
     }
   };
@@ -653,7 +658,7 @@ export const Header: React.FC = () => {
                 </div>
               ) : (
                 <div className="vaango-mobile-menu__user-card">
-                  <Link to="/profile" className="vaango-mobile-menu__user-info-link" onClick={closeMobileMenu}>
+                  <Link to={getAccountSettingsPath()} className="vaango-mobile-menu__user-info-link" onClick={closeMobileMenu}>
                     <div className="vaango-mobile-menu__user-avatar">
                       {role === 'admin' ? <ShieldCheck size={18} /> : <User size={18} />}
                     </div>
@@ -670,7 +675,7 @@ export const Header: React.FC = () => {
                       type="button"
                       onClick={() => {
                         closeMobileMenu();
-                        navigate('/profile');
+                        navigate(getAccountSettingsPath());
                       }}
                       className="vaango-mobile-menu__link flex items-center gap-2 py-1.5 text-xs text-slate-700 dark:text-slate-300"
                     >

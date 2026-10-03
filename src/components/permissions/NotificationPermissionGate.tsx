@@ -31,7 +31,7 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
     platform,
   } = usePermissions();
 
-  const [activeGuideTab, setActiveGuideTab] = useState<'android' | 'ios' | 'desktop'>(() => {
+  const [activeGuideTab, setActiveGuideTab] = useState<'android' | 'desktop' | 'ios'>(() => {
     if (platform === 'ios') return 'ios';
     if (platform === 'android') return 'android';
     return 'desktop';
@@ -64,7 +64,7 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
       const current = refreshNotificationStatus();
       if (current === 'denied') {
         setFeedback(
-          'Notifications are currently blocked. Please follow the instructions below to allow notifications in your browser settings.'
+          'Notifications were blocked by the browser. Follow the steps below to enable them in Chrome settings.'
         );
       }
     }
@@ -84,10 +84,10 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
       setFeedback(null);
     } else if (status === 'denied') {
       setFeedback(
-        'Notifications are still blocked in your browser settings. Please ensure notifications are set to "Allow" and try again.'
+        'Notifications are still set to Blocked in your browser settings. Please toggle to "Allow" and try again.'
       );
     } else {
-      setFeedback('Notification permission has not yet been granted. Please tap "Request Permission".');
+      setFeedback('Notification permission has not yet been granted. Please tap "Enable Notifications".');
     }
   }, [refreshNotificationStatus]);
 
@@ -102,16 +102,22 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
 
       <div className="vaangly-notif-gate__container">
         <div className="vaangly-notif-gate__card">
-          {/* Top Brand Banner */}
+          {/* Top Brand Banner with Explicit State Badge */}
           <div className="vaangly-notif-gate__header">
-            <div className="vaangly-notif-gate__badge">
+            <div className={`vaangly-notif-gate__badge ${notificationStatus === 'denied' ? 'vaangly-notif-gate__badge--denied' : ''}`}>
               <span className="vaangly-notif-gate__badge-dot" />
-              <span>Mandatory Notification Setup</span>
+              <span>
+                {notificationStatus === 'denied'
+                  ? 'Permission State: Denied (Blocked)'
+                  : notificationStatus === 'unsupported'
+                  ? 'Permission State: Unsupported'
+                  : 'Permission State: Default (Action Required)'}
+              </span>
             </div>
             <h1 className="vaangly-notif-gate__brand">Vaangly</h1>
           </div>
 
-          {/* STATE 1: PROMPT (First time / not yet decided) */}
+          {/* STATE 1: DEFAULT / PROMPT (First time or not yet decided) */}
           {notificationStatus === 'prompt' && (
             <div className="vaangly-notif-gate__body">
               <div className="vaangly-notif-gate__hero-icon">
@@ -190,7 +196,7 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
                 </Button>
 
                 <p className="vaangly-notif-gate__disclaimer">
-                  Tap <strong>Allow</strong> on the browser prompt that appears above. You can customize channels anytime in Settings.
+                  Tap <strong>Allow</strong> on the Chrome permission prompt when it appears.
                 </p>
               </div>
             </div>
@@ -206,12 +212,22 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
               </div>
 
               <h2 id="gate-title" className="vaangly-notif-gate__title text-rose-600 dark:text-rose-400">
-                Notifications are Blocked
+                Notifications are Blocked in Chrome
               </h2>
 
               <p className="vaangly-notif-gate__subtitle">
                 Access to Vaangly is locked until notification permission is enabled. Live token queues and order tracking require immediate alerts.
               </p>
+
+              {/* Important security explanation */}
+              <div className="vaangly-notif-gate__browser-notice">
+                <div className="flex items-start gap-2.5">
+                  <Info size={18} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                    <strong>Browser Security Notice:</strong> Because notifications were previously denied, Chrome will not allow websites to reopen the permission prompt dialog automatically. A website cannot directly change browser permissions for you. You must change the permission to <strong>Allow</strong> in your browser settings.
+                  </div>
+                </div>
+              </div>
 
               {feedback && (
                 <div className="vaangly-notif-gate__alert vaangly-notif-gate__alert--error">
@@ -241,22 +257,22 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
                     <button
                       type="button"
                       role="tab"
-                      aria-selected={activeGuideTab === 'ios'}
-                      className={`vaangly-notif-gate__tab ${activeGuideTab === 'ios' ? 'vaangly-notif-gate__tab--active' : ''}`}
-                      onClick={() => setActiveGuideTab('ios')}
-                    >
-                      <Apple size={13} />
-                      <span>iOS / iPhone</span>
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
                       aria-selected={activeGuideTab === 'desktop'}
                       className={`vaangly-notif-gate__tab ${activeGuideTab === 'desktop' ? 'vaangly-notif-gate__tab--active' : ''}`}
                       onClick={() => setActiveGuideTab('desktop')}
                     >
                       <Globe size={13} />
                       <span>Desktop</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={activeGuideTab === 'ios'}
+                      className={`vaangly-notif-gate__tab ${activeGuideTab === 'ios' ? 'vaangly-notif-gate__tab--active' : ''}`}
+                      onClick={() => setActiveGuideTab('ios')}
+                    >
+                      <Apple size={13} />
+                      <span>iOS / iPhone</span>
                     </button>
                   </div>
                 </div>
@@ -267,7 +283,7 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
                     <li>
                       <span className="vaangly-notif-gate__step-num">1</span>
                       <div>
-                        Tap the <strong>Padlock (🔒)</strong> or <strong>Tune (⚙️)</strong> icon next to the URL in your browser bar.
+                        Tap the <strong>Padlock (🔒)</strong> or <strong>Tune (⚙️)</strong> icon in the Chrome address bar next to the URL.
                       </div>
                     </li>
                     <li>
@@ -279,19 +295,43 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
                     <li>
                       <span className="vaangly-notif-gate__step-num">3</span>
                       <div>
-                        Tap <strong>Notifications</strong> and change it to <strong>Allow</strong>.
+                        Tap <strong>Notifications</strong> and change from &quot;Blocked&quot; to <strong>Allow</strong>.
                       </div>
                     </li>
                     <li>
                       <span className="vaangly-notif-gate__step-num">4</span>
                       <div>
-                        Return to this page and tap <strong>Check Again & Enter</strong> below.
+                        Return to this tab and tap <strong>Check Again & Enter</strong> below.
                       </div>
                     </li>
                   </ol>
                 )}
 
-                {/* Tab 2: iOS Safari & PWA */}
+                {/* Tab 2: Desktop Chrome / Edge / Firefox */}
+                {activeGuideTab === 'desktop' && (
+                  <ol className="vaangly-notif-gate__steps">
+                    <li>
+                      <span className="vaangly-notif-gate__step-num">1</span>
+                      <div>
+                        Click the <strong>Padlock (🔒)</strong> or <strong>View site information</strong> icon to the left of the address bar.
+                      </div>
+                    </li>
+                    <li>
+                      <span className="vaangly-notif-gate__step-num">2</span>
+                      <div>
+                        Find <strong>Notifications</strong> and toggle or change it to <strong>Allow</strong>.
+                      </div>
+                    </li>
+                    <li>
+                      <span className="vaangly-notif-gate__step-num">3</span>
+                      <div>
+                        Return here and click <strong>Check Again & Enter</strong> below (or press Reload).
+                      </div>
+                    </li>
+                  </ol>
+                )}
+
+                {/* Tab 3: iOS Safari & PWA */}
                 {activeGuideTab === 'ios' && (
                   <ol className="vaangly-notif-gate__steps">
                     <li>
@@ -303,43 +343,19 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
                     <li>
                       <span className="vaangly-notif-gate__step-num">2</span>
                       <div>
-                        Scroll down and tap <strong>Vaangly</strong> (or <strong>Safari</strong> &gt; <strong>Advanced</strong>).
+                        Scroll down and tap <strong>Safari</strong> (or <strong>Vaangly</strong> if added to Home Screen).
                       </div>
                     </li>
                     <li>
                       <span className="vaangly-notif-gate__step-num">3</span>
                       <div>
-                        Tap <strong>Notifications</strong> and turn on <strong>Allow Notifications</strong>.
+                        Tap <strong>Notifications</strong> and toggle on <strong>Allow Notifications</strong>.
                       </div>
                     </li>
                     <li>
                       <span className="vaangly-notif-gate__step-num">4</span>
                       <div>
                         Return here and tap <strong>Check Again & Enter</strong> below.
-                      </div>
-                    </li>
-                  </ol>
-                )}
-
-                {/* Tab 3: Desktop Chrome / Edge / Firefox */}
-                {activeGuideTab === 'desktop' && (
-                  <ol className="vaangly-notif-gate__steps">
-                    <li>
-                      <span className="vaangly-notif-gate__step-num">1</span>
-                      <div>
-                        Click the <strong>padlock or site settings icon</strong> on the left side of the address bar.
-                      </div>
-                    </li>
-                    <li>
-                      <span className="vaangly-notif-gate__step-num">2</span>
-                      <div>
-                        Toggle <strong>Notifications</strong> to <strong>Allow</strong>.
-                      </div>
-                    </li>
-                    <li>
-                      <span className="vaangly-notif-gate__step-num">3</span>
-                      <div>
-                        Click <strong>Check Again & Enter</strong> below or reload this page.
                       </div>
                     </li>
                   </ol>
@@ -355,19 +371,13 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
                   isLoading={isCheckingAgain}
                   onClick={handleCheckAgain}
                 >
-                  <RefreshCw size={18} className={isCheckingAgain ? 'vaango-spin' : ''} />
+                  <RefreshCw size={18} className={isCheckingAgain ? 'animate-spin' : ''} />
                   <span>Check Again & Enter</span>
                 </Button>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-xs"
-                  isLoading={isRequestingNotification}
-                  onClick={handleRequestPermission}
-                >
-                  <span>Try Browser Permission Dialog</span>
-                </Button>
+                <p className="vaangly-notif-gate__disclaimer text-center">
+                  Once enabled in Chrome settings, this page will unlock automatically.
+                </p>
               </div>
             </div>
           )}

@@ -27,7 +27,7 @@ interface MoreMenuModalProps {
 export const MoreMenuModal: React.FC<MoreMenuModalProps> = ({ isOpen, onClose }) => {
   const { user, role, signOut } = useAuth();
   const { language, setLanguage, t } = useLanguage();
-  const { success, info } = useToast();
+  const { success, info, error: toastError } = useToast();
   const navigate = useNavigate();
 
   if (!isOpen) return null;
@@ -48,11 +48,16 @@ export const MoreMenuModal: React.FC<MoreMenuModalProps> = ({ isOpen, onClose })
   const handleLogout = async () => {
     onClose();
     try {
-      await signOut();
-      success(language === 'ta' ? 'வெற்றிகரமாக வெளியேறியது' : 'Logged out successfully');
+      const res = await signOut();
+      if (res && res.error) {
+        toastError(res.error);
+      } else {
+        success(language === 'ta' ? 'வெற்றிகரமாக வெளியேறியது' : 'Logged out successfully');
+      }
       navigate('/login');
     } catch (err) {
       console.warn('Logout error:', err);
+      toastError(err instanceof Error ? err.message : 'Error logging out');
       navigate('/login');
     }
   };

@@ -209,6 +209,12 @@
   border: 1px solid #BBF7D0;
 }
 
+.vaango-shop-pill-badge--pickup {
+  background-color: #F8FAFC;
+  color: #475569;
+  border: 1px solid #CBD5E1;
+}
+
 /* 3. Shop Tabs */
 .vaango-shop-tabs-wrap {
   margin-top: 14px;

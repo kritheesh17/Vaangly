@@ -27,62 +27,77 @@ export const BottomNav: React.FC = () => {
 
   if (role === 'admin') {
     return (
-      <nav className="vaango-bottom-nav" aria-label={t('operationsConsole')}>
-        <div className="vaango-bottom-nav__inner">
-          <NavLink
-            to="/admin/dashboard"
-            className={({ isActive }) =>
-              `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
-            }
-            aria-label={t('adminDashboard')}
-          >
-            <div className="vaango-bottom-nav__icon-wrap">
-              <LayoutDashboard size={22} />
-            </div>
-            <span className="vaango-bottom-nav__label">{t('adminDashboard')}</span>
-          </NavLink>
+      <>
+        <nav className="vaango-bottom-nav" aria-label={t('operationsConsole')}>
+          <div className="vaango-bottom-nav__inner">
+            <NavLink
+              to="/admin/dashboard"
+              className={({ isActive }) =>
+                `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
+              }
+              aria-label={t('adminDashboard')}
+            >
+              <div className="vaango-bottom-nav__icon-wrap">
+                <LayoutDashboard size={22} />
+              </div>
+              <span className="vaango-bottom-nav__label">{t('adminDashboard')}</span>
+            </NavLink>
 
-          <NavLink
-            to="/admin/applications"
-            className={({ isActive }) =>
-              `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
-            }
-            aria-label={t('adminApplications')}
-          >
-            <div className="vaango-bottom-nav__icon-wrap">
-              <FileCheck2 size={22} />
-              <NotificationBadge count={pendingApplications} position="overlap" size="sm" />
-            </div>
-            <span className="vaango-bottom-nav__label">{t('adminApplications')}</span>
-          </NavLink>
+            <NavLink
+              to="/admin/applications"
+              className={({ isActive }) =>
+                `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
+              }
+              aria-label={t('adminApplications')}
+            >
+              <div className="vaango-bottom-nav__icon-wrap">
+                <FileCheck2 size={22} />
+                <NotificationBadge count={pendingApplications} position="overlap" size="sm" />
+              </div>
+              <span className="vaango-bottom-nav__label">{t('adminApplications')}</span>
+            </NavLink>
 
-          <NavLink
-            to="/admin/shops"
-            className={({ isActive }) =>
-              `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
-            }
-            aria-label={t('adminShops')}
-          >
-            <div className="vaango-bottom-nav__icon-wrap">
-              <Store size={22} />
-            </div>
-            <span className="vaango-bottom-nav__label">{t('adminShops')}</span>
-          </NavLink>
+            <NavLink
+              to="/admin/shops"
+              className={({ isActive }) =>
+                `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
+              }
+              aria-label={t('adminShops')}
+            >
+              <div className="vaango-bottom-nav__icon-wrap">
+                <Store size={22} />
+              </div>
+              <span className="vaango-bottom-nav__label">{t('adminShops')}</span>
+            </NavLink>
 
-          <NavLink
-            to="/admin/subscriptions"
-            className={({ isActive }) =>
-              `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
-            }
-            aria-label={t('adminSubscriptions')}
-          >
-            <div className="vaango-bottom-nav__icon-wrap">
-              <CreditCard size={22} />
-            </div>
-            <span className="vaango-bottom-nav__label">{t('adminSubscriptions')}</span>
-          </NavLink>
-        </div>
-      </nav>
+            <NavLink
+              to="/admin/subscriptions"
+              className={({ isActive }) =>
+                `vaango-bottom-nav__item ${isActive ? 'vaango-bottom-nav__item--active' : ''}`
+              }
+              aria-label={t('adminSubscriptions')}
+            >
+              <div className="vaango-bottom-nav__icon-wrap">
+                <CreditCard size={22} />
+              </div>
+              <span className="vaango-bottom-nav__label">{t('adminSubscriptions')}</span>
+            </NavLink>
+
+            <button
+              type="button"
+              className="vaango-bottom-nav__item vaango-bottom-nav__item--btn"
+              onClick={() => setIsMoreOpen(true)}
+              aria-label={t('navSettings') || 'More'}
+            >
+              <div className="vaango-bottom-nav__icon-wrap">
+                <MoreHorizontal size={22} />
+              </div>
+              <span className="vaango-bottom-nav__label">{t('navSettings') || 'More'}</span>
+            </button>
+          </div>
+        </nav>
+        <MoreMenuModal isOpen={isMoreOpen} onClose={() => setIsMoreOpen(false)} />
+      </>
     );
   }
 

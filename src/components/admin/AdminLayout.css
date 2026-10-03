@@ -144,6 +144,79 @@
   backdrop-filter: blur(2px);
 }
 
+.vaango-admin-sidebar__footer {
+  margin-top: auto;
+  padding: 16px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vaango-admin-sidebar__user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vaango-admin-sidebar__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22C55E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vaango-admin-sidebar__user-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.vaango-admin-sidebar__user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #F8FAFC;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vaango-admin-sidebar__user-email {
+  font-size: 11px;
+  color: #94A3B8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vaango-admin-sidebar__logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(225, 29, 72, 0.1);
+  color: #FB7185;
+  border: 1px solid rgba(225, 29, 72, 0.2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vaango-admin-sidebar__logout-btn:hover {
+  background: rgba(225, 29, 72, 0.2);
+  color: #FFFFFF;
+  border-color: rgba(225, 29, 72, 0.4);
+}
+
 /* Responsive */
 @media (max-width: 899px) {
   .vaango-admin-container {

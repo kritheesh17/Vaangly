@@ -57,6 +57,7 @@ export interface Shop {
   is_live: boolean;
   delivery_available: boolean;
   delivery_fee: number;
+  free_delivery_above?: number | null;
   upi_id: string | null;
   upi_qr_url?: string | null;
   customised_cake_available?: boolean;
@@ -209,6 +210,8 @@ export interface ShopService {
   buffer_minutes?: number | null;
   advance_booking_days?: number | null;
   payment_requirement?: 'flexible' | 'online_only' | 'shop_only' | null;
+  concurrent_capacity?: number | null;
+  slot_config?: SlotConfig | null;
   provider_name: string | null; // e.g. Doctor name, Senior Stylist
   specialization: string | null; // e.g. General Medicine, Bridal
   service_category: string | null;
@@ -337,6 +340,9 @@ export interface ShopApplication {
   business_type?: string | null;
   offerings?: string[] | Record<string, boolean> | null;
   capabilities?: string[] | null;
+  delivery_available?: boolean;
+  delivery_fee?: number;
+  free_delivery_above?: number | null;
   review_notes: string | null;
   reviewed_by: string | null;
   created_at: string;

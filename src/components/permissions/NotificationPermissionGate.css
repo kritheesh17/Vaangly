@@ -337,3 +337,23 @@
   margin: 4px 0 0;
   line-height: 1.4;
 }
+
+.vaangly-notif-gate__badge--denied {
+  color: #e11d48;
+  background: rgba(225, 29, 72, 0.08);
+  border-color: rgba(225, 29, 72, 0.22);
+}
+
+.vaangly-notif-gate__badge--denied .vaangly-notif-gate__badge-dot {
+  background: #e11d48;
+  box-shadow: 0 0 6px #e11d48;
+}
+
+.vaangly-notif-gate__browser-notice {
+  margin: 0 0 16px 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+

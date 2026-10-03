@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   MapPin,
@@ -10,16 +10,39 @@ import {
   Layers,
   Menu,
   X,
+  LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { NotificationBadge } from '../ui/NotificationBadge';
 import { useSectionUnreadCounts } from '../../hooks/useSectionUnreadCounts';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import './AdminLayout.css';
 
 export const AdminLayout: React.FC = () => {
   const { t } = useLanguage();
+  const { user, signOut } = useAuth();
+  const { success, error: toastError } = useToast();
+  const navigate = useNavigate();
   const { pendingApplications, pendingCatalogue } = useSectionUnreadCounts();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      const res = await signOut();
+      if (res && res.error) {
+        toastError(res.error);
+      } else {
+        success(t('signOut') || 'Logged out successfully');
+      }
+      navigate('/login');
+    } catch (err) {
+      console.warn('Admin logout error:', err);
+      toastError(err instanceof Error ? err.message : 'Error logging out');
+      navigate('/login');
+    }
+  };
 
   const navLinks = [
     {
@@ -129,6 +152,28 @@ export const AdminLayout: React.FC = () => {
             </NavLink>
           ))}
         </nav>
+
+        <div className="vaango-admin-sidebar__footer">
+          <div className="vaango-admin-sidebar__user">
+            <div className="vaango-admin-sidebar__avatar">
+              <ShieldCheck size={18} />
+            </div>
+            <div className="vaango-admin-sidebar__user-details">
+              <span className="vaango-admin-sidebar__user-name">{user?.full_name || 'Administrator'}</span>
+              <span className="vaango-admin-sidebar__user-email">{user?.email || 'admin@vaango.in'}</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="vaango-admin-sidebar__logout-btn"
+            onClick={handleLogout}
+            title={t('signOut') || 'Sign Out'}
+            aria-label={t('signOut') || 'Sign Out'}
+          >
+            <LogOut size={16} />
+            <span>{t('signOut') || 'Sign Out'}</span>
+          </button>
+        </div>
       </aside>
 
       {/* Main Admin Content Body */}

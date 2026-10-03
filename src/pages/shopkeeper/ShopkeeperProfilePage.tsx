@@ -66,6 +66,8 @@ export const ShopkeeperProfilePage: React.FC = () => {
   const [isOpenToday, setIsOpenToday] = useState(true);
   const [deliveryAvailable, setDeliveryAvailable] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState('20');
+  const [hasFreeDeliveryThreshold, setHasFreeDeliveryThreshold] = useState(false);
+  const [freeDeliveryAbove, setFreeDeliveryAbove] = useState('299');
   const [upiId, setUpiId] = useState('');
   const [isBillingSaving, setIsBillingSaving] = useState(false);
   const [slotDuration, setSlotDuration] = useState(30);
@@ -121,7 +123,14 @@ export const ShopkeeperProfilePage: React.FC = () => {
           setClosingTime(data.closing_time || '21:00');
           setIsOpenToday(data.is_open_today);
           setDeliveryAvailable(data.delivery_available);
-          setDeliveryFee(data.delivery_fee.toString());
+          setDeliveryFee(data.delivery_fee != null ? data.delivery_fee.toString() : '20');
+          if (data.free_delivery_above != null && Number(data.free_delivery_above) > 0) {
+            setHasFreeDeliveryThreshold(true);
+            setFreeDeliveryAbove(data.free_delivery_above.toString());
+          } else {
+            setHasFreeDeliveryThreshold(false);
+            setFreeDeliveryAbove('299');
+          }
           setUpiId(data.upi_id || '');
           setCustomisedCakeAvailable(Boolean(data.customised_cake_available));
           if (data.slot_config) {
@@ -232,7 +241,10 @@ export const ShopkeeperProfilePage: React.FC = () => {
         closing_time: closingTime,
         is_open_today: isOpenToday,
         delivery_available: deliveryAvailable,
-        delivery_fee: isNaN(parsedFee) ? 0 : Math.max(0, parsedFee),
+        delivery_fee: deliveryAvailable ? (isNaN(parsedFee) ? 0 : Math.max(0, parsedFee)) : 0,
+        free_delivery_above: deliveryAvailable && hasFreeDeliveryThreshold && !isNaN(parseFloat(freeDeliveryAbove)) && parseFloat(freeDeliveryAbove) > 0
+          ? Math.max(1, parseFloat(freeDeliveryAbove))
+          : null,
         upi_id: upiId.trim() || null,
         upi_qr_url: upiQrUrl,
         customised_cake_available: customisedCakeAvailable,
@@ -264,11 +276,16 @@ export const ShopkeeperProfilePage: React.FC = () => {
 
   const handleSignOut = async () => {
     try {
-      await signOut();
-      success(t('signOut') || 'Logged out successfully');
+      const res = await signOut();
+      if (res && res.error) {
+        toastError(res.error);
+      } else {
+        success(t('signOut') || 'Logged out successfully');
+      }
       navigate('/login');
     } catch (err) {
       console.warn('Sign out error:', err);
+      toastError(err instanceof Error ? err.message : 'Error logging out');
       navigate('/login');
     }
   };
@@ -456,55 +473,124 @@ export const ShopkeeperProfilePage: React.FC = () => {
           </Card>
         )}
 
-        {/* Delivery Configuration */}
+        {/* Delivery Configuration (3-Question Workflow) */}
         <Card variant="default" padding="lg" className="vaango-settings-card">
           <div className="vaango-settings-card__header">
             <Truck size={20} className="text-primary" />
-            <h2 className="vaango-settings-card__title">Local Delivery Option</h2>
+            <h2 className="vaango-settings-card__title">Door Delivery Settings</h2>
           </div>
 
           <p className="vaango-settings-card__desc">
-            Shops can optionally offer doorstep delivery to nearby customers. You deliver directly or via local boy.
+            Configure whether your shop offers door delivery and set your delivery fee and free delivery policy.
           </p>
 
-          <div className="vaango-checkbox-row mb-4">
-            <label className="vaango-switch" htmlFor="delivery-toggle">
-              <input
-                id="delivery-toggle"
-                type="checkbox"
-                checked={deliveryAvailable}
-                onChange={(e) => setDeliveryAvailable(e.target.checked)}
-              />
-              <span className="vaango-switch__slider" />
+          {/* Question 1: Do you offer door delivery? */}
+          <div className="vaango-form-group">
+            <label className="vaango-form-label">
+              <strong>1. Do you offer door delivery?</strong>
             </label>
-            <div>
-              <span className="vaango-checkbox-label">
-                {deliveryAvailable ? 'Home Delivery Available' : 'Counter Pickup Only'}
-              </span>
-              <span className="vaango-checkbox-hint">
-                When enabled, customers can choose delivery during checkout.
-              </span>
+            <div className="vaango-cart-options-toggle" role="radiogroup" aria-label="Do you offer door delivery?">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={deliveryAvailable}
+                className={`vaango-cart-option-btn ${deliveryAvailable ? 'active' : ''}`}
+                onClick={() => setDeliveryAvailable(true)}
+              >
+                <span className="vaango-cart-option-title">🚚 Yes, Door Delivery</span>
+                <small className="vaango-cart-option-desc">Deliver directly to customer doorstep</small>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!deliveryAvailable}
+                className={`vaango-cart-option-btn ${!deliveryAvailable ? 'active' : ''}`}
+                onClick={() => {
+                  setDeliveryAvailable(false);
+                  setHasFreeDeliveryThreshold(false);
+                }}
+              >
+                <span className="vaango-cart-option-title">🏪 No, Pickup Only</span>
+                <small className="vaango-cart-option-desc">Counter / in-store pickup only</small>
+              </button>
             </div>
+            {!deliveryAvailable && (
+              <p className="text-xs text-secondary mt-2">
+                Your shopfront will display &quot;Pickup Only&quot;. No delivery claims or free-delivery badges will be shown.
+              </p>
+            )}
           </div>
 
           {deliveryAvailable && (
-            <div className="vaango-form-group">
-              <label className="vaango-form-label" htmlFor="delivery-fee">
-                Delivery Charge (₹)
-              </label>
-              <Input
-                id="delivery-fee"
-                type="number"
-                min="0"
-                step="5"
-                placeholder="20"
-                value={deliveryFee}
-                onChange={(e) => setDeliveryFee(e.target.value)}
-              />
-              <span className="text-xs text-secondary mt-1">
-                Added to order estimate. Customer pays you directly upon delivery.
-              </span>
-            </div>
+            <>
+              {/* Question 2: How much do you charge for delivery? */}
+              <div className="vaango-form-group mt-4 pt-4 border-t border-border">
+                <label className="vaango-form-label" htmlFor="delivery-fee">
+                  <strong>2. How much do you charge for delivery? (₹)</strong>
+                </label>
+                <Input
+                  id="delivery-fee"
+                  type="number"
+                  min="0"
+                  step="5"
+                  placeholder="e.g. 20 (or 0 for always free delivery)"
+                  value={deliveryFee}
+                  onChange={(e) => setDeliveryFee(e.target.value)}
+                />
+                <span className="text-xs text-secondary mt-1">
+                  Enter 0 if delivery is always free with no minimum purchase required.
+                </span>
+              </div>
+
+              {/* Question 3: Do you offer free delivery above a certain order amount? */}
+              <div className="vaango-form-group mt-4 pt-4 border-t border-border">
+                <label className="vaango-form-label">
+                  <strong>3. Do you offer free delivery above a certain order amount?</strong>
+                </label>
+                <div className="vaango-cart-options-toggle" role="radiogroup" aria-label="Free delivery above minimum order">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={hasFreeDeliveryThreshold}
+                    className={`vaango-cart-option-btn ${hasFreeDeliveryThreshold ? 'active' : ''}`}
+                    onClick={() => setHasFreeDeliveryThreshold(true)}
+                  >
+                    <span className="vaango-cart-option-title">🎉 Yes, Free Above Amount</span>
+                    <small className="vaango-cart-option-desc">Offer free delivery above minimum</small>
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!hasFreeDeliveryThreshold}
+                    className={`vaango-cart-option-btn ${!hasFreeDeliveryThreshold ? 'active' : ''}`}
+                    onClick={() => setHasFreeDeliveryThreshold(false)}
+                  >
+                    <span className="vaango-cart-option-title">❌ No Free Delivery Offer</span>
+                    <small className="vaango-cart-option-desc">Standard delivery fee applies</small>
+                  </button>
+                </div>
+
+                {hasFreeDeliveryThreshold && (
+                  <div className="vaango-form-group mt-3">
+                    <label className="vaango-form-label" htmlFor="free-delivery-above">
+                      Minimum order amount for free delivery (₹)
+                    </label>
+                    <Input
+                      id="free-delivery-above"
+                      type="number"
+                      min="1"
+                      step="50"
+                      placeholder="e.g. 299"
+                      value={freeDeliveryAbove}
+                      onChange={(e) => setFreeDeliveryAbove(e.target.value)}
+                    />
+                    <span className="text-xs text-secondary mt-1">
+                      Customers will see &quot;Free delivery above ₹{freeDeliveryAbove || '...'}&quot; on your store.
+                    </span>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </Card>
 

@@ -152,6 +152,14 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
         setSlotDuration(serviceToEdit.duration_minutes);
         setServiceDuration(serviceToEdit.duration_minutes);
       }
+
+      const existingCap =
+        serviceToEdit.capacity_per_interval ||
+        (serviceToEdit as any).concurrent_capacity ||
+        serviceToEdit.slot_config?.capacityPerInterval ||
+        (serviceToEdit.slot_config?.ranges?.[0] as any)?.concurrent ||
+        1;
+      setConcurrentCapacity(Number(existingCap) || 1);
     } else {
       // Clean initialization for new creation -> FIRST ask what they are creating!
       setItemType(null);
@@ -250,6 +258,10 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
         setFormError('Appointment duration must be greater than 0 minutes.');
         return false;
       }
+      if (!concurrentCapacity || concurrentCapacity < 1 || concurrentCapacity > 100) {
+        setFormError('Maximum appointments per slot must be between 1 and 100 clients.');
+        return false;
+      }
       return true;
     }
 
@@ -345,6 +357,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
         const slotConfigPayload: SlotConfig = {
           ranges,
           slotDurationMinutes: slotDuration,
+          capacityPerInterval: concurrentCapacity,
           availableDays: openDays,
           breaks,
           bufferMinutes,
@@ -1069,11 +1082,14 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
 
                   {/* Capacity per slot */}
                   <div className="vaango-form-group mt-2">
-                    <label className="vaango-form-label">
+                    <label className="vaango-form-label" htmlFor="concurrent-capacity-input">
                       <span>Maximum appointments per slot</span>
                     </label>
-                    <div className="vaango-chips-row">
-                      {[1, 2, 3, 4].map((cap) => (
+                    <p className="vaango-form-help">
+                      Number of clients that can be booked into the same time slot (e.g. 1 for individual, 5–10+ for salons, hospitals, or group sessions).
+                    </p>
+                    <div className="vaango-chips-row mb-2">
+                      {[1, 2, 3, 5, 10, 20].map((cap) => (
                         <button
                           key={cap}
                           type="button"
@@ -1083,6 +1099,24 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
                           {cap} {cap === 1 ? 'client' : 'clients'}
                         </button>
                       ))}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-secondary font-medium">Custom capacity:</span>
+                      <div style={{ maxWidth: '140px' }}>
+                        <Input
+                          id="concurrent-capacity-input"
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={concurrentCapacity}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            setConcurrentCapacity(isNaN(val) ? 1 : Math.max(1, Math.min(100, val)));
+                          }}
+                          placeholder="e.g. 10"
+                        />
+                      </div>
+                      <span className="text-xs text-secondary">clients / slot</span>
                     </div>
                   </div>
 

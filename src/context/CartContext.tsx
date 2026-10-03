@@ -46,7 +46,7 @@ interface CartContextType {
   submitShopRequest: (
     shopId: string,
     paymentMethod?: 'pay_at_shop' | 'cash' | 'upi',
-    overrideFulfillment?: 'DINE_IN' | 'TAKEAWAY' | null,
+    overrideFulfillment?: 'DINE_IN' | 'TAKEAWAY' | 'delivery' | null,
     shopNotes?: string,
     paymentProofPath?: string | null,
     pickupAt?: string | null
@@ -258,7 +258,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const submitShopRequest = async (
     shopId: string,
     paymentMethod: 'pay_at_shop' | 'cash' | 'upi' = 'pay_at_shop',
-    overrideFulfillment?: 'DINE_IN' | 'TAKEAWAY' | null,
+    overrideFulfillment?: 'DINE_IN' | 'TAKEAWAY' | 'delivery' | null,
     shopNotes?: string,
     paymentProofPath?: string | null,
     pickupAt?: string | null
@@ -318,10 +318,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsSubmitting(true);
 
     try {
-      const serverCalculatedTotal = shopItems.reduce((sum, item) => {
+      const itemsTotal = shopItems.reduce((sum, item) => {
         const unitPrice = item.selectedVariant?.price ?? item.product.price;
         return sum + unitPrice * item.billed_quantity;
       }, 0);
+
+      let deliveryCharge = 0;
+      if (chosenFulfillment === 'delivery' && targetShop.delivery_available) {
+        const fee = Number(targetShop.delivery_fee) || 0;
+        const freeAbove = targetShop.free_delivery_above != null ? Number(targetShop.free_delivery_above) : null;
+        if (freeAbove != null && freeAbove > 0 && itemsTotal >= freeAbove) {
+          deliveryCharge = 0;
+        } else {
+          deliveryCharge = fee;
+        }
+      }
+
+      const serverCalculatedTotal = itemsTotal + deliveryCharge;
 
       const referenceCode = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
       const requestPayload = {

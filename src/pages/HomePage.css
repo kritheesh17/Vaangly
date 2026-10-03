@@ -132,6 +132,14 @@
   padding: 6px 0 18px;
 }
 
+.vaango-home-promo-wrapper {
+  max-width: 680px;
+  margin: 0 auto;
+  position: relative;
+  user-select: none;
+  touch-action: pan-y;
+}
+
 .vaango-home-promo-banner {
   background: linear-gradient(135deg, #155e3b 0%, #1b7348 100%);
   border-radius: 20px;
@@ -139,12 +147,17 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 680px;
-  margin: 0 auto;
+  width: 100%;
   color: #ffffff;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 14px -2px rgba(21, 94, 59, 0.25);
+  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.15);
+  transition: background 0.4s ease;
+  cursor: grab;
+}
+
+.vaango-home-promo-banner:active {
+  cursor: grabbing;
 }
 
 .vaango-home-promo-info {
@@ -153,6 +166,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  animation: vaangoFadeIn 0.3s ease;
 }
 
 .vaango-home-promo-headline {
@@ -165,13 +179,13 @@
 
 .vaango-home-promo-sub {
   font-size: 0.88rem;
-  color: #d1fae5;
+  color: rgba(255, 255, 255, 0.9);
   margin: 4px 0 14px;
 }
 
 .vaango-home-promo-btn {
   background-color: #ffffff;
-  color: #155e3b;
+  color: #0f172a;
   font-size: 0.82rem;
   font-weight: 700;
   padding: 7px 14px;
@@ -180,12 +194,13 @@
   align-items: center;
   gap: 6px;
   text-decoration: none;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  transition: transform 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  transition: transform 0.15s ease, background-color 0.15s ease;
 }
 
 .vaango-home-promo-btn:hover {
   transform: translateY(-1px);
+  background-color: #f8fafc;
 }
 
 .vaango-home-promo-media {
@@ -193,6 +208,7 @@
   height: 90px;
   z-index: 2;
   flex-shrink: 0;
+  animation: vaangoFadeIn 0.3s ease;
 }
 
 .vaango-home-promo-img {
@@ -206,23 +222,53 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-top: 10px;
 }
 
 .vaango-home-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background-color: var(--color-border, #d1d5db);
-  transition: all 0.2s ease;
+  background-color: var(--color-border, #cbd5e1);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+}
+
+.vaango-home-dot:hover {
+  background-color: #94a3b8;
 }
 
 .vaango-home-dot--active {
-  width: 18px;
+  width: 22px;
   border-radius: 9999px;
   background-color: var(--brand-primary, #15803d);
 }
+
+@keyframes vaangoFadeIn {
+  from {
+    opacity: 0.6;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vaango-home-promo-banner,
+  .vaango-home-promo-info,
+  .vaango-home-promo-media,
+  .vaango-home-dot {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
 
 /* ==========================================================================
    REFERENCE IMAGE 2: NEARBY SHOPS HORIZONTAL SCROLL

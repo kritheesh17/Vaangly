@@ -31,7 +31,7 @@ export interface AuthContextType {
   resendEmailConfirmation: (email: string) => Promise<{ success: boolean; error?: string }>;
   resetPasswordForEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
   updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>;
-  signOut: () => Promise<void>;
+  signOut: () => Promise<{ success: boolean; error?: string } | void>;
   refreshUser: () => Promise<Profile | null>;
   switchDemoRole: (role: UserRole) => void;
 }
@@ -138,6 +138,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let mounted = true;
 
     async function initSession() {
+      const isExplicitlyLoggedOut = localStorage.getItem('vaango_user_logged_out') === 'true';
+      if (isExplicitlyLoggedOut) {
+        setUser(null);
+        if (mounted) {
+          setIsLoading(false);
+        }
+        return;
+      }
+
       if (isSupabaseConfigured) {
         try {
           const { data: { session } } = await supabase.auth.getSession();
@@ -692,21 +701,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // -------------------------------------------------------------
   // SIGN OUT
   // -------------------------------------------------------------
-  const signOut = async () => {
+  const signOut = async (): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
+    let signOutError: string | null = null;
     try {
       localStorage.setItem('vaango_user_logged_out', 'true');
       localStorage.removeItem(LOCAL_STORAGE_DEMO_KEY);
       localStorage.removeItem(LOCAL_STORAGE_DEMO_USER);
       localStorage.removeItem('vaangly_pending_confirmation_email');
+      localStorage.removeItem('vaango-customer-cart');
+      try {
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch {
+        // ignore localStorage access issues
+      }
       setUser(null);
       if (isSupabaseConfigured) {
-        await supabase.auth.signOut().catch((err) => {
+        const { error } = await supabase.auth.signOut().catch((err) => {
           console.warn('[AuthContext] Supabase sign out notice:', err);
+          return { error: err };
         });
+        if (error) {
+          signOutError = mapSupabaseAuthError(error, 'Sign out encountered a network issue, but local session was cleared.');
+        }
       }
-    } catch (err) {
+      return { success: !signOutError, error: signOutError || undefined };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Sign out failed';
       console.warn('[AuthContext] Sign out error:', err);
+      return { success: false, error: msg };
     } finally {
       setUser(null);
       setIsLoading(false);

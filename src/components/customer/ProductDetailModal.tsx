@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ShopProduct, ProductVariant } from '../../types/database';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { ChevronLeft, ChevronRight, Plus, Minus, PackageX, Star, MapPin, Truck, ShoppingCart } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Minus, PackageX, Star, MapPin, Truck, ShoppingCart, Store } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../../context/ToastContext';
 import { useCart } from '../../context/CartContext';
@@ -276,10 +276,26 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </div>
           )}
 
-          {/* Delivery Info Pill (Reference Image 4) */}
+          {/* Delivery / Pickup Info Pill */}
           <div className="vaango-prod-modal__delivery-pill">
-            <Truck size={14} className="text-secondary" />
-            <span>Delivery in 30–45 mins · Free delivery above ₹299</span>
+            {currentShop?.delivery_available ? (
+              <>
+                <Truck size={14} className="text-secondary" />
+                <span>
+                  Delivery in 30–45 mins ·{' '}
+                  {currentShop.free_delivery_above != null && Number(currentShop.free_delivery_above) > 0
+                    ? `Free delivery above ₹${currentShop.free_delivery_above}`
+                    : Number(currentShop.delivery_fee) === 0
+                    ? 'Free delivery'
+                    : `₹${currentShop.delivery_fee} delivery fee`}
+                </span>
+              </>
+            ) : (
+              <>
+                <Store size={14} className="text-secondary" />
+                <span>Counter Pickup Only</span>
+              </>
+            )}
           </div>
 
           {/* Quantity Controls & Add to Cart (Reference Image 4) */}
