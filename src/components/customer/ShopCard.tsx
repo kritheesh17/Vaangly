@@ -68,9 +68,21 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, categoryName, onClick 
                 <span>{shop.opening_time} - {shop.closing_time}</span>
               </div>
             )}
-            <div className="vaango-shop-card__delivery-badge">
+            <div
+              className={`vaango-shop-card__delivery-badge ${!shop.delivery_available ? 'vaango-shop-card__delivery-badge--pickup' : ''}`}
+            >
               <Truck size={13} />
-              <span>{t('counterPickupDelivery')}</span>
+              <span>
+                {shop.delivery_available
+                  ? shop.free_delivery_above != null && Number(shop.free_delivery_above) > 0
+                    ? `Free delivery > ₹${shop.free_delivery_above}`
+                    : shop.delivery_fee === 0
+                    ? 'Free Delivery'
+                    : shop.delivery_fee != null && Number(shop.delivery_fee) > 0
+                    ? `Delivery ₹${shop.delivery_fee}`
+                    : 'Delivery Available'
+                  : 'Pickup Only'}
+              </span>
             </div>
           </div>
         </div>

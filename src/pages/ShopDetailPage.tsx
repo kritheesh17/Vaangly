@@ -670,7 +670,9 @@ export const ShopDetailPage: React.FC = () => {
                         ? t('inPersonAppointment')
                         : workflowGroup === 'SERVICE'
                         ? t('inShopService')
-                        : t('counterPickupDelivery')}
+                        : shop.delivery_available
+                        ? t('counterPickupDelivery')
+                        : 'Store Pickup Only'}
                     </span>
                   </div>
                 </div>

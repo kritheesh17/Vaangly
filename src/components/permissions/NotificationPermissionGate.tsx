@@ -18,10 +18,12 @@ import './NotificationPermissionGate.css';
 
 interface NotificationPermissionGateProps {
   onAcknowledgeUnsupported?: () => void;
+  onContinue?: () => void;
 }
 
 export const NotificationPermissionGate: React.FC<NotificationPermissionGateProps> = ({
   onAcknowledgeUnsupported,
+  onContinue,
 }) => {
   const {
     notificationStatus,
@@ -192,11 +194,23 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
                   onClick={handleRequestPermission}
                 >
                   <Bell size={18} />
-                  <span>Enable Notifications to Continue</span>
+                  <span>Enable Notifications</span>
                 </Button>
 
+                {onContinue && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="md"
+                    className="vaangly-notif-gate__btn-secondary"
+                    onClick={onContinue}
+                  >
+                    <span>Continue without notifications</span>
+                  </Button>
+                )}
+
                 <p className="vaangly-notif-gate__disclaimer">
-                  Tap <strong>Allow</strong> on the Chrome permission prompt when it appears.
+                  Tap <strong>Allow</strong> on the Chrome permission prompt. Notifications are optional and you can adjust them in settings at any time.
                 </p>
               </div>
             </div>
@@ -216,7 +230,7 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
               </h2>
 
               <p className="vaangly-notif-gate__subtitle">
-                Access to Vaangly is locked until notification permission is enabled. Live token queues and order tracking require immediate alerts.
+                Notifications help you receive live token queue alerts and order updates. To receive alerts, please unblock notifications in Chrome site settings.
               </p>
 
               {/* Important security explanation */}
@@ -372,11 +386,23 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
                   onClick={handleCheckAgain}
                 >
                   <RefreshCw size={18} className={isCheckingAgain ? 'animate-spin' : ''} />
-                  <span>Check Again & Enter</span>
+                  <span>Check Again & Enable</span>
                 </Button>
 
+                {onContinue && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="md"
+                    className="vaangly-notif-gate__btn-secondary"
+                    onClick={onContinue}
+                  >
+                    <span>Continue to Vaango</span>
+                  </Button>
+                )}
+
                 <p className="vaangly-notif-gate__disclaimer text-center">
-                  Once enabled in Chrome settings, this page will unlock automatically.
+                  Notifications are optional. You can continue using Vaango now and enable alerts later in Chrome site settings.
                 </p>
               </div>
             </div>
@@ -404,9 +430,12 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
                   variant="primary"
                   size="lg"
                   className="w-full"
-                  onClick={() => onAcknowledgeUnsupported && onAcknowledgeUnsupported()}
+                  onClick={() => {
+                    if (onAcknowledgeUnsupported) onAcknowledgeUnsupported();
+                    if (onContinue) onContinue();
+                  }}
                 >
-                  <span>Continue in Limited Notification Mode</span>
+                  <span>Continue to Vaango</span>
                 </Button>
               </div>
             </div>

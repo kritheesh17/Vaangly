@@ -22,7 +22,23 @@ export const AppShell: React.FC = () => {
   const { itemCount, activeShop } = useCart();
   const { notificationStatus } = usePermissions();
   const [unsupportedAcknowledged, setUnsupportedAcknowledged] = useState(false);
+  const [gateDismissed, setGateDismissed] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('vaango_notif_gate_dismissed') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [isSmallAdminViewport, setIsSmallAdminViewport] = useState(false);
+
+  const handleDismissGate = () => {
+    try {
+      sessionStorage.setItem('vaango_notif_gate_dismissed', 'true');
+    } catch {
+      // ignore
+    }
+    setGateDismissed(true);
+  };
 
   const isCartBarVisible =
     itemCount > 0 &&
@@ -52,15 +68,21 @@ export const AppShell: React.FC = () => {
     return <Navigate to="/complete-profile" state={{ from: location }} replace />;
   }
 
-  // Mandatory Notification Permission Gate:
-  // User must grant notification permission before accessing the main app.
+  // Notification Permission Experience:
+  // Shows setup guide when not granted, but allows users to continue using Vaango
+  // (never blocking access solely because notification permission is denied or dismissed)
   if (
     notificationStatus !== 'granted' &&
+    !gateDismissed &&
     !(notificationStatus === 'unsupported' && unsupportedAcknowledged)
   ) {
     return (
       <NotificationPermissionGate
-        onAcknowledgeUnsupported={() => setUnsupportedAcknowledged(true)}
+        onContinue={handleDismissGate}
+        onAcknowledgeUnsupported={() => {
+          setUnsupportedAcknowledged(true);
+          handleDismissGate();
+        }}
       />
     );
   }

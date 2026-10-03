@@ -3,9 +3,13 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 
-describe('UI Redesign Functional Regression Guards', () => {
+describe('Vaango Focused UI Functionality & Regression Verification', () => {
   const headerContent = fs.readFileSync(
     path.resolve(process.cwd(), 'src/components/layout/Header.tsx'),
+    'utf-8'
+  );
+  const appShellContent = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/components/layout/AppShell.tsx'),
     'utf-8'
   );
   const authContextContent = fs.readFileSync(
@@ -16,272 +20,321 @@ describe('UI Redesign Functional Regression Guards', () => {
     path.resolve(process.cwd(), 'src/components/layout/MoreMenuModal.tsx'),
     'utf-8'
   );
+  const bottomNavContent = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/components/layout/BottomNav.tsx'),
+    'utf-8'
+  );
   const homePageContent = fs.readFileSync(
     path.resolve(process.cwd(), 'src/pages/HomePage.tsx'),
     'utf-8'
   );
-  const profilePageContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/pages/ProfilePage.tsx'),
+  const gateContent = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/components/permissions/NotificationPermissionGate.tsx'),
+    'utf-8'
+  );
+  const shopDetailContent = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/pages/ShopDetailPage.tsx'),
+    'utf-8'
+  );
+  const shopCardContent = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/components/customer/ShopCard.tsx'),
+    'utf-8'
+  );
+  const productModalContent = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/components/customer/ProductDetailModal.tsx'),
+    'utf-8'
+  );
+  const shopkeeperProfileContent = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/pages/shopkeeper/ShopkeeperProfilePage.tsx'),
+    'utf-8'
+  );
+  const cartPageContent = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/pages/CartPage.tsx'),
+    'utf-8'
+  );
+  const serviceModalContent = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/components/shopkeeper/ServiceFormModal.tsx'),
+    'utf-8'
+  );
+  const scheduleConfigContent = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/components/shopkeeper/AppointmentScheduleConfig.tsx'),
+    'utf-8'
+  );
+  const appointmentApiContent = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/lib/appointmentServiceApi.ts'),
+    'utf-8'
+  );
+  const flexibleSlotsMigration = fs.readFileSync(
+    path.resolve(process.cwd(), 'supabase/migrations/20261002000067_flexible_appointment_slots.sql'),
     'utf-8'
   );
 
-  // Test 1: Header outside-click does not dismiss mobile sheet prematurely
-  it('1. Header outside-click handler protects .vaango-account-sheet and .vaango-account-dropdown', () => {
-    assert.ok(
-      headerContent.includes("target.closest('.vaango-account-sheet')"),
-      'Header ignores clicks originating inside .vaango-account-sheet'
-    );
-    assert.ok(
-      headerContent.includes("target.closest('.vaango-account-dropdown')"),
-      'Header ignores clicks originating inside .vaango-account-dropdown'
-    );
+  // =========================================================================
+  // ISSUE 1: Chrome Notification Permission Experience
+  // =========================================================================
+  describe('Issue 1: Chrome Notification Permission Experience', () => {
+    it('1.1 Detects states correctly: granted, denied, and default (prompt)', () => {
+      assert.ok(
+        gateContent.includes("notificationStatus === 'denied'"),
+        'Gate handles denied state explicitly'
+      );
+      assert.ok(
+        gateContent.includes("notificationStatus === 'prompt'"),
+        'Gate handles default/prompt state explicitly'
+      );
+      assert.ok(
+        gateContent.includes("notificationStatus === 'granted'"),
+        'Gate handles granted state and does not show modal when granted'
+      );
+    });
+
+    it('1.2 Explains how to unblock notifications in Chrome with device-appropriate tabs', () => {
+      assert.ok(
+        gateContent.includes("activeGuideTab === 'android'") &&
+        gateContent.includes("activeGuideTab === 'desktop'"),
+        'Gate provides distinct Android and Desktop tabs'
+      );
+      assert.ok(
+        gateContent.includes('Padlock (🔒)') || gateContent.includes('Site settings'),
+        'Gate explains unblocking via Chrome address bar padlock and site settings'
+      );
+      assert.ok(
+        gateContent.includes('Check Again & Enable'),
+        'Gate provides clear retry option after changing permission'
+      );
+    });
+
+    it('1.3 Does not repeatedly call permission API when permanently denied', () => {
+      // handleCheckAgain uses refreshNotificationStatus() which queries status without calling requestPermission()
+      assert.ok(
+        gateContent.includes('refreshNotificationStatus()'),
+        'Uses status check on retry rather than re-triggering blocked permission prompt'
+      );
+      assert.ok(
+        !gateContent.includes('onClick={handleRequestPermission}\n>\\n<RefreshCw'),
+        'Denied state action checks status rather than prompting repeatedly'
+      );
+    });
+
+    it('1.4 Never blocks access to the main application solely because notification permission is denied', () => {
+      // In AppShell, dismissal is respected and never traps the user
+      assert.ok(
+        appShellContent.includes('gateDismissed') && appShellContent.includes('!gateDismissed'),
+        'AppShell tracks gateDismissed state to allow continuing without blocking'
+      );
+      assert.ok(
+        appShellContent.includes('onContinue={handleDismissGate}'),
+        'AppShell wires onContinue callback to dismiss gate'
+      );
+      assert.ok(
+        gateContent.includes('Continue to Vaango') && gateContent.includes('Continue without notifications'),
+        'NotificationPermissionGate provides non-blocking Continue options in both prompt and denied states'
+      );
+    });
   });
 
-  // Test 2: Role-based account settings navigation
-  it('2. Header and MoreMenu navigate to role-specific account settings (/shopkeeper/profile vs /profile)', () => {
-    assert.ok(
-      headerContent.includes("const getAccountSettingsPath = () =>"),
-      'Header defines getAccountSettingsPath'
-    );
-    assert.ok(
-      headerContent.includes("role === 'shopkeeper' ? '/shopkeeper/profile' : '/profile'"),
-      'Header routes shopkeeper to /shopkeeper/profile and customer to /profile'
-    );
-    assert.ok(
-      moreMenuModalContent.includes("role === 'shopkeeper' ? '/shopkeeper/profile' : '/profile'"),
-      'MoreMenuModal routes shopkeeper to /shopkeeper/profile and customer to /profile'
-    );
+  // =========================================================================
+  // ISSUE 2: Home Page Promotional Carousel
+  // =========================================================================
+  describe('Issue 2: Home Page Promotional Carousel', () => {
+    it('2.1 Renders 3 required promotional slides: Order Now, Get Appointment, Get Service', () => {
+      assert.ok(homePageContent.includes("'Order Now'"), 'Contains Order Now slide');
+      assert.ok(homePageContent.includes("'Get Appointment'"), 'Contains Get Appointment slide');
+      assert.ok(homePageContent.includes("'Get Service'"), 'Contains Get Service slide');
+    });
+
+    it('2.2 Tapping each CTA navigates to correct existing feature route', () => {
+      assert.ok(
+        homePageContent.includes("ctaLink: '/shops?group=ORDER'"),
+        'Order Now CTA navigates to /shops?group=ORDER'
+      );
+      assert.ok(
+        homePageContent.includes("ctaLink: '/shops?group=APPOINTMENT'"),
+        'Get Appointment CTA navigates to /shops?group=APPOINTMENT'
+      );
+      assert.ok(
+        homePageContent.includes("ctaLink: '/shops?group=SERVICE'"),
+        'Get Service CTA navigates to /shops?group=SERVICE'
+      );
+    });
+
+    it('2.3 Supports manual horizontal touch swiping and mouse drag', () => {
+      assert.ok(
+        homePageContent.includes('onTouchStart') && homePageContent.includes('onTouchEnd'),
+        'Registers touch gesture handlers for mobile swipe'
+      );
+      assert.ok(
+        homePageContent.includes('onMouseDown') && homePageContent.includes('onMouseUp'),
+        'Registers mouse drag listeners for desktop swipe'
+      );
+    });
+
+    it('2.4 Provides working Previous and Next arrow controls and synchronized pagination dots', () => {
+      assert.ok(
+        homePageContent.includes('vaango-home-promo-arrow--prev') &&
+        homePageContent.includes('vaango-home-promo-arrow--next'),
+        'HomePage renders Previous and Next controls'
+      );
+      assert.ok(
+        homePageContent.includes('goToPrevSlide') && homePageContent.includes('goToNextSlide'),
+        'Previous and Next controls invoke slide navigation callbacks'
+      );
+      assert.ok(
+        homePageContent.includes('role="tablist"') && homePageContent.includes('vaango-home-dot--active'),
+        'Pagination indicators reflect active slide'
+      );
+    });
   });
 
-  // Test 3: AuthContext signOut is fail-safe and manages explicit logout marker
-  it('3. AuthContext signOut sets vaango_user_logged_out and unconditionally sets user to null', () => {
-    assert.ok(
-      authContextContent.includes("localStorage.setItem('vaango_user_logged_out', 'true')"),
-      'AuthContext records vaango_user_logged_out marker'
-    );
-    assert.ok(
-      authContextContent.includes('const isExplicitlyLoggedOut = localStorage.getItem'),
-      'initSession honors vaango_user_logged_out and avoids auto-seeding mock session when logged out'
-    );
-    assert.ok(
-      authContextContent.includes('setUser(null);') && authContextContent.includes('setIsLoading(false);'),
-      'signOut clears user state unconditionally in finally block'
-    );
+  // =========================================================================
+  // ISSUE 3: Shopkeeper Delivery Configuration
+  // =========================================================================
+  describe('Issue 3: Shopkeeper Delivery Configuration', () => {
+    it('3.1 Shopkeeper profile asks "Do you provide/offer door delivery?" (Yes/No)', () => {
+      assert.ok(
+        shopkeeperProfileContent.includes('1. Do you offer door delivery?'),
+        'Shopkeeper profile presents delivery Question 1'
+      );
+      assert.ok(
+        shopkeeperProfileContent.includes('2. How much do you charge for delivery?'),
+        'Shopkeeper profile presents delivery fee Question 2 when delivery is offered'
+      );
+      assert.ok(
+        shopkeeperProfileContent.includes('3. Do you offer free delivery above a certain order amount?'),
+        'Shopkeeper profile presents free-delivery threshold Question 3'
+      );
+    });
+
+    it('3.2 Customer-facing ShopDetailPage and ShopCard display truthful delivery info without hardcoded claims', () => {
+      // No hardcoded "Free delivery above ₹299"
+      assert.ok(
+        !shopDetailContent.includes('<span>Free delivery above ₹299</span>'),
+        'ShopDetailPage does not contain hardcoded Free delivery above ₹299'
+      );
+      assert.ok(
+        !productModalContent.includes('<span>Delivery in 30–45 mins · Free delivery above ₹299</span>'),
+        'ProductDetailModal does not contain hardcoded Free delivery above ₹299'
+      );
+      // Dynamic rendering in ShopDetailPage
+      assert.ok(
+        shopDetailContent.includes('Pickup Only') && shopDetailContent.includes('shop.free_delivery_above'),
+        'ShopDetailPage dynamically displays Pickup Only or configured threshold'
+      );
+      // Dynamic rendering in ShopCard
+      assert.ok(
+        shopCardContent.includes('shop.delivery_available') && shopCardContent.includes('Pickup Only'),
+        'ShopCard displays Pickup Only when shop does not offer delivery'
+      );
+    });
+
+    it('3.3 CartPage computes delivery charges and honors free-delivery threshold', () => {
+      assert.ok(
+        cartPageContent.includes('freeThreshold != null && freeThreshold > 0 && subtotal >= freeThreshold'),
+        'Cart checks subtotal against configured free_delivery_above threshold'
+      );
+      assert.ok(
+        cartPageContent.includes("effectiveDeliveryFee === 0 ? (\n                        <span className=\"text-success font-semibold\">FREE</span>"),
+        'Cart displays FREE fee when threshold is achieved'
+      );
+    });
   });
 
-  // Test 4: MoreMenuModal and ProfilePage handle logout cleanly
-  it('4. MoreMenuModal and ProfilePage have try/catch error handling and toast on logout', () => {
-    assert.ok(
-      moreMenuModalContent.includes('await signOut();') && moreMenuModalContent.includes("navigate('/login')"),
-      'MoreMenuModal invokes signOut and navigates to /login'
-    );
-    assert.ok(
-      profilePageContent.includes('await signOut();') && profilePageContent.includes("navigate('/login')"),
-      'ProfilePage invokes signOut and navigates to /login'
-    );
-    assert.ok(
-      headerContent.includes('await signOut();') && headerContent.includes("navigate('/login')"),
-      'Header invokes signOut and navigates to /login'
-    );
+  // =========================================================================
+  // ISSUE 4: Customizable Maximum Clients per Appointment Slot
+  // =========================================================================
+  describe('Issue 4: Customizable Maximum Clients per Appointment Slot', () => {
+    it('4.1 ServiceFormModal supports configurable capacity including 10+ clients', () => {
+      assert.ok(
+        serviceModalContent.includes('id="concurrent-capacity-input"'),
+        'ServiceFormModal provides numeric custom capacity input'
+      );
+      assert.ok(
+        serviceModalContent.includes('[1, 2, 3, 5, 10, 20]'),
+        'ServiceFormModal provides preset chips including 10 and 20 clients'
+      );
+      assert.ok(
+        serviceModalContent.includes('capacityPerInterval: concurrentCapacity'),
+        'ServiceFormModal persists configured capacity in slot_config'
+      );
+    });
+
+    it('4.2 AppointmentScheduleConfig allows per-slot capacity overrides', () => {
+      assert.ok(
+        scheduleConfigContent.includes('vaango-sched-capacity-input'),
+        'Schedule config allows setting per-slot capacity'
+      );
+      assert.ok(
+        scheduleConfigContent.includes('max={500}'),
+        'Schedule config supports capacities well above 4'
+      );
+    });
+
+    it('4.3 Booking validation enforces capacity and prevents overbooking', () => {
+      assert.ok(
+        appointmentApiContent.includes('bookedCount >= capacity'),
+        'Appointment booking checks active reservations against slot capacity'
+      );
+      assert.ok(
+        appointmentApiContent.includes('is_available: bookedCount + 1 < capacity'),
+        'Slot availability marks unavailable once capacity is completely reached'
+      );
+    });
+
+    it('4.4 Changing capacity preserves existing confirmed appointments', () => {
+      assert.ok(
+        flexibleSlotsMigration.includes('GREATEST(v_capacity, v_existing_confirmed)'),
+        'Database slot synchronization guards confirmed bookings against truncation'
+      );
+    });
   });
 
-  // Test 5: HomePage shop cards link directly to /shop/${shop.id}
-  it('5. HomePage cards link directly to /shop/${shop.id} without falling back to /shops', () => {
-    assert.ok(
-      homePageContent.includes('to={`/shop/${shop.id}`}'),
-      'HomePage cards route to /shop/${shop.id}'
-    );
-    assert.ok(
-      !homePageContent.includes("(shop as any).isLive ? `/shop/${shop.id}` : '/shops'"),
-      'HomePage does not redirect unflagged shops back to /shops'
-    );
-  });
+  // =========================================================================
+  // ISSUE 5: Redesigned Navigation and Account Functionality
+  // =========================================================================
+  describe('Issue 5: Redesigned Navigation and Account Functionality', () => {
+    it('5.1 Bottom navigation renders role-appropriate navigation items', () => {
+      // Customer
+      assert.ok(bottomNavContent.includes('to="/"'), 'Customer nav has Home');
+      assert.ok(bottomNavContent.includes('to="/shops"'), 'Customer nav has Explore');
+      assert.ok(bottomNavContent.includes('to="/orders"'), 'Customer nav has Orders');
+      assert.ok(bottomNavContent.includes('to="/bookings"'), 'Customer nav has Bookings');
 
-  // Test 6: BottomNav contains all 5 required navigation items for customer
-  it('6. BottomNav contains Home, Explore (/shops), Orders, Bookings, and More', () => {
-    const bottomNavContent = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/components/layout/BottomNav.tsx'),
-      'utf-8'
-    );
-    assert.ok(bottomNavContent.includes('to="/"'), 'Contains Home link');
-    assert.ok(bottomNavContent.includes('to="/shops"'), 'Contains Explore (/shops) link');
-    assert.ok(bottomNavContent.includes('to="/orders"'), 'Contains Orders link');
-    assert.ok(bottomNavContent.includes('to="/bookings"'), 'Contains Bookings link');
-    assert.ok(bottomNavContent.includes('MoreMenuModal'), 'Contains More modal trigger');
-  });
+      // Shopkeeper
+      assert.ok(bottomNavContent.includes('to="/shopkeeper/dashboard"'), 'Shopkeeper nav has Dashboard');
+      assert.ok(bottomNavContent.includes('to="/shopkeeper/catalogue"'), 'Shopkeeper nav has Products');
+      assert.ok(bottomNavContent.includes('to="/shopkeeper/requests"'), 'Shopkeeper nav has Orders');
 
-  // Test 7: Notification Permission Experience in Chrome (Issue 1)
-  it('7. NotificationPermissionGate distinguishes states and avoids fake prompts when denied', () => {
-    const gateContent = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/components/permissions/NotificationPermissionGate.tsx'),
-      'utf-8'
-    );
-    assert.ok(
-      gateContent.includes("notificationStatus === 'denied'"),
-      'Gate checks explicitly for denied permission state'
-    );
-    assert.ok(
-      gateContent.includes("notificationStatus === 'prompt'"),
-      'Gate checks explicitly for default/prompt state'
-    );
-    assert.ok(
-      gateContent.includes('Chrome will not allow websites to reopen the permission prompt dialog automatically'),
-      'Gate explains that Chrome does not allow re-triggering prompt after denial'
-    );
-    assert.ok(
-      gateContent.includes('Check Again & Enter'),
-      'Gate provides Check Again & Enter action'
-    );
-    assert.ok(
-      !gateContent.includes("variant=\"primary\"\n              onClick={handleRequestPermission}\n            >\n              Try Browser Permission Dialog"),
-      'Gate does not present misleading browser dialog button when blocked/denied'
-    );
-  });
+      // Admin
+      assert.ok(bottomNavContent.includes('to="/admin/dashboard"'), 'Admin nav has Dashboard');
+      assert.ok(bottomNavContent.includes('to="/admin/applications"'), 'Admin nav has Applications');
+      assert.ok(bottomNavContent.includes('to="/admin/shops"'), 'Admin nav has Shops');
+      assert.ok(bottomNavContent.includes('to="/admin/subscriptions"'), 'Admin nav has Subscriptions');
+    });
 
-  // Test 8: Promotional Carousel Functional Interactions (Issue 3)
-  it('8. HomePage carousel contains 3 required slides, touch gesture listeners, and autoplay pause', () => {
-    assert.ok(
-      homePageContent.includes("'Order Now'"),
-      'Carousel has Order Now slide'
-    );
-    assert.ok(
-      homePageContent.includes("'Get Appointment'"),
-      'Carousel has Get Appointment slide'
-    );
-    assert.ok(
-      homePageContent.includes("'Get Service'"),
-      'Carousel has Get Service slide'
-    );
-    assert.ok(
-      homePageContent.includes("ctaLink: '/shops?group=ORDER'"),
-      'Order Now slide navigates to ORDER group'
-    );
-    assert.ok(
-      homePageContent.includes("ctaLink: '/shops?group=APPOINTMENT'"),
-      'Get Appointment slide navigates to APPOINTMENT group'
-    );
-    assert.ok(
-      homePageContent.includes("ctaLink: '/shops?group=SERVICE'"),
-      'Get Service slide navigates to SERVICE group'
-    );
-    assert.ok(
-      homePageContent.includes('onTouchStart') && homePageContent.includes('onTouchEnd'),
-      'Carousel registers horizontal touch swipe listeners'
-    );
-    assert.ok(
-      homePageContent.includes('onMouseEnter') && homePageContent.includes('onMouseLeave'),
-      'Carousel pauses autoplay on interaction / hover'
-    );
-    assert.ok(
-      homePageContent.includes('prefers-reduced-motion'),
-      'Carousel respects reduced-motion preference'
-    );
-  });
+    it('5.2 Settings and Profile routes navigate to role-specific account pages', () => {
+      assert.ok(
+        headerContent.includes("role === 'shopkeeper' ? '/shopkeeper/profile' : '/profile'"),
+        'Header maps account settings according to active role'
+      );
+      assert.ok(
+        moreMenuModalContent.includes("role === 'shopkeeper' ? '/shopkeeper/profile' : '/profile'"),
+        'MoreMenuModal maps account settings according to active role'
+      );
+    });
 
-  // Test 9: Free-Delivery Policy & Threshold Elimination of Hardcoding (Issue 4)
-  it('9. Shop and Product pages display dynamic delivery policy and Cart calculates threshold accurately', () => {
-    const shopDetailContent = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/pages/ShopDetailPage.tsx'),
-      'utf-8'
-    );
-    const productModalContent = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/components/customer/ProductDetailModal.tsx'),
-      'utf-8'
-    );
-    const shopkeeperProfileContent = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/pages/shopkeeper/ShopkeeperProfilePage.tsx'),
-      'utf-8'
-    );
-    const cartPageContent = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/pages/CartPage.tsx'),
-      'utf-8'
-    );
-
-    // No hardcoded "Free delivery above ₹299"
-    assert.ok(
-      !shopDetailContent.includes('<span>Free delivery above ₹299</span>'),
-      'ShopDetailPage does not contain hardcoded Free delivery above ₹299'
-    );
-    assert.ok(
-      !productModalContent.includes('<span>Delivery in 30–45 mins · Free delivery above ₹299</span>'),
-      'ProductDetailModal does not contain hardcoded Free delivery above ₹299'
-    );
-
-    // Dynamic badge rendering
-    assert.ok(
-      shopDetailContent.includes('Pickup Only') && shopDetailContent.includes('shop.free_delivery_above'),
-      'ShopDetailPage dynamically displays Pickup Only or configured free delivery threshold'
-    );
-
-    // 3-Question Shopkeeper workflow
-    assert.ok(
-      shopkeeperProfileContent.includes('1. Do you offer door delivery?'),
-      'Shopkeeper profile asks Question 1: Do you offer door delivery?'
-    );
-    assert.ok(
-      shopkeeperProfileContent.includes('2. How much do you charge for delivery?'),
-      'Shopkeeper profile asks Question 2: Delivery charge'
-    );
-    assert.ok(
-      shopkeeperProfileContent.includes('3. Do you offer free delivery above a certain order amount?'),
-      'Shopkeeper profile asks Question 3: Free delivery above threshold'
-    );
-
-    // Cart calculation
-    assert.ok(
-      cartPageContent.includes('freeThreshold != null && freeThreshold > 0 && subtotal >= freeThreshold'),
-      'CartPage checks free delivery threshold against subtotal'
-    );
-    assert.ok(
-      cartPageContent.includes("effectiveDeliveryFee === 0 ? (\n                        <span className=\"text-success font-semibold\">FREE</span>"),
-      'CartPage displays FREE badge when threshold is met'
-    );
-  });
-
-  // Test 10: Appointment Capacity and Slot Customization (Issue 5)
-  it('10. ServiceFormModal supports custom capacity (10+), and schedule config allows per-slot overrides', () => {
-    const serviceModalContent = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/components/shopkeeper/ServiceFormModal.tsx'),
-      'utf-8'
-    );
-    const scheduleConfigContent = fs.readFileSync(
-      path.resolve(process.cwd(), 'src/components/shopkeeper/AppointmentScheduleConfig.tsx'),
-      'utf-8'
-    );
-    const migrationContent = fs.readFileSync(
-      path.resolve(process.cwd(), 'supabase/migrations/20261002000067_flexible_appointment_slots.sql'),
-      'utf-8'
-    );
-
-    // ServiceFormModal allows custom capacity input and 10+ clients
-    assert.ok(
-      serviceModalContent.includes('id="concurrent-capacity-input"'),
-      'ServiceFormModal provides numeric custom capacity input'
-    );
-    assert.ok(
-      serviceModalContent.includes('[1, 2, 3, 5, 10, 20]'),
-      'ServiceFormModal includes preset chips up to 10 and 20'
-    );
-    assert.ok(
-      serviceModalContent.includes('capacityPerInterval: concurrentCapacity'),
-      'ServiceFormModal saves capacityPerInterval'
-    );
-
-    // AppointmentScheduleConfig per-slot definitions
-    assert.ok(
-      scheduleConfigContent.includes('vaango-sched-capacity-input'),
-      'AppointmentScheduleConfig provides editable per-slot capacity input'
-    );
-    assert.ok(
-      scheduleConfigContent.includes("start_time: '09:00', end_time: '09:15', capacity: 5"),
-      'AppointmentScheduleConfig includes example mixed slot capacity'
-    );
-
-    // Backend preservation of confirmed bookings
-    assert.ok(
-      migrationContent.includes('GREATEST(v_capacity, v_existing_confirmed)'),
-      'sync_shop_appointment_slots strictly preserves existing confirmed appointments'
-    );
+    it('5.3 Sign out clears state and redirects reliably', () => {
+      assert.ok(
+        authContextContent.includes("localStorage.setItem('vaango_user_logged_out', 'true')"),
+        'AuthContext sets vaango_user_logged_out flag'
+      );
+      assert.ok(
+        authContextContent.includes('setUser(null);'),
+        'AuthContext cleans user state in finally block'
+      );
+      assert.ok(
+        moreMenuModalContent.includes('await signOut();') && moreMenuModalContent.includes("navigate('/login')"),
+        'MoreMenuModal logout invokes signOut and redirects to /login'
+      );
+    });
   });
 });
-

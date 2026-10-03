@@ -6,6 +6,7 @@ import {
   Wrench,
   MapPin,
   Sparkles,
+  ChevronLeft,
   ChevronRight,
   ChevronDown,
   Check,
@@ -177,6 +178,14 @@ export const HomePage: React.FC = () => {
   const goToSlide = useCallback((index: number) => {
     setActiveSlide(index);
   }, []);
+
+  const goToPrevSlide = useCallback(() => {
+    setActiveSlide((prev) => (prev - 1 + promoSlides.length) % promoSlides.length);
+  }, [promoSlides.length]);
+
+  const goToNextSlide = useCallback(() => {
+    setActiveSlide((prev) => (prev + 1) % promoSlides.length);
+  }, [promoSlides.length]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setIsCarouselPaused(true);
@@ -654,6 +663,19 @@ export const HomePage: React.FC = () => {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
           >
+            {/* Previous slide control */}
+            <button
+              type="button"
+              className="vaango-home-promo-arrow vaango-home-promo-arrow--prev"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPrevSlide();
+              }}
+              aria-label="Previous promotional slide"
+            >
+              <ChevronLeft size={18} />
+            </button>
+
             <div
               className="vaango-home-promo-banner"
               style={{ background: promoSlides[activeSlide].bg }}
@@ -683,6 +705,19 @@ export const HomePage: React.FC = () => {
                 />
               </div>
             </div>
+
+            {/* Next slide control */}
+            <button
+              type="button"
+              className="vaango-home-promo-arrow vaango-home-promo-arrow--next"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToNextSlide();
+              }}
+              aria-label="Next promotional slide"
+            >
+              <ChevronRight size={18} />
+            </button>
 
             {/* Slide Indicators */}
             <div className="vaango-home-promo-dots" role="tablist" aria-label="Carousel slide indicators">

@@ -330,6 +330,26 @@
   border-radius: 12px;
 }
 
+.vaangly-notif-gate__btn-secondary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  background: transparent;
+  color: var(--color-text-secondary, #475569);
+  padding: 10px 16px;
+  transition: all 0.2s ease;
+}
+
+.vaangly-notif-gate__btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--color-text, #0f172a);
+}
+
 .vaangly-notif-gate__disclaimer {
   font-size: 0.725rem;
   color: var(--color-text-muted, #64748b);
