@@ -1,7 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { getShopBusinessFeatures } from '../lib/shopBusinessTypes';
-import { getDateRangeFromPreset, calculateShopAnalytics } from '../lib/analyticsApi';
+import {
+  getDateRangeFromPreset,
+  calculateShopAnalytics,
+  getPaymentMethodLabel,
+  extractPaymentMethodCode,
+} from '../lib/analyticsApi';
 import { Shop, Request } from '../types/database';
 
 describe('Shopkeeper Dynamic Navigation & Sales Analysis Suite', () => {
@@ -294,4 +299,132 @@ describe('Shopkeeper Dynamic Navigation & Sales Analysis Suite', () => {
       assert.ok(typeof sample.order_count === 'number', 'Daily point must track order_count for order volume chart');
     });
   });
+
+  describe('4. Phase 1: Payment Method Integrity & Executive Overview KPIs', () => {
+    it('4.1 getPaymentMethodLabel maps authoritative DB values to user-facing labels', () => {
+      assert.strictEqual(getPaymentMethodLabel('cash'), 'Cash');
+      assert.strictEqual(getPaymentMethodLabel('upi'), 'UPI / QR Code');
+      assert.strictEqual(getPaymentMethodLabel('pay_at_shop'), 'Pay at Shop');
+      assert.strictEqual(getPaymentMethodLabel('online'), 'Online Transfer');
+      assert.strictEqual(getPaymentMethodLabel(null), 'Cash');
+      assert.strictEqual(getPaymentMethodLabel(undefined), 'Cash');
+    });
+
+    it('4.2 extractPaymentMethodCode extracts authoritative payment_method or notes payload', () => {
+      const reqWithMethod: Partial<Request> = { payment_method: 'upi' };
+      assert.strictEqual(extractPaymentMethodCode(reqWithMethod as Request), 'upi');
+
+      const reqWithNotes: Partial<Request> = {
+        payment_method: null,
+        notes: JSON.stringify({ payment_method: 'pay_at_shop' }),
+      };
+      assert.strictEqual(extractPaymentMethodCode(reqWithNotes as Request), 'pay_at_shop');
+
+      const reqDefault: Partial<Request> = { payment_method: null, notes: null };
+      assert.strictEqual(extractPaymentMethodCode(reqDefault as Request), 'cash');
+    });
+
+    it('4.3 Payment methods aggregation strictly isolates settled revenue matching Net Settled Sales', async () => {
+      const analytics = await calculateShopAnalytics(orderOnlyShop, {
+        preset: '30d',
+        startDate: '2026-01-01',
+        endDate: '2026-12-31',
+      });
+
+      const settledPaymentsSum = analytics.payment_methods.reduce((sum, pm) => sum + pm.total_amount, 0);
+      assert.strictEqual(
+        settledPaymentsSum,
+        analytics.overview.total_sales,
+        'Sum of payment methods total_amount must strictly equal overview.total_sales (Net Settled Sales)'
+      );
+
+      const completedOrdersSum = analytics.payment_methods.reduce((sum, pm) => sum + pm.count, 0);
+      assert.strictEqual(
+        completedOrdersSum,
+        analytics.overview.completed_orders,
+        'Sum of payment method completed transaction counts must equal completed_orders'
+      );
+    });
+
+    it('4.4 Executive Overview metrics: fulfillment rate and safe zero prior-period comparison', async () => {
+      const analytics = await calculateShopAnalytics(orderOnlyShop, {
+        preset: '30d',
+        startDate: '2026-01-01',
+        endDate: '2026-12-31',
+      });
+
+      // Fulfillment rate
+      assert.ok(typeof analytics.overview.fulfillment_rate_pct === 'number');
+      if (analytics.overview.total_orders > 0) {
+        const expected = Math.round(
+          (analytics.overview.completed_orders / analytics.overview.total_orders) * 100
+        );
+        assert.strictEqual(analytics.overview.fulfillment_rate_pct, expected);
+      }
+
+      // If previous period has 0 sales, sales_growth_pct is null (never misleading +100%)
+      if (analytics.overview.previous_period_sales === 0) {
+        assert.strictEqual(
+          analytics.overview.sales_growth_pct,
+          null,
+          'Zero previous period sales must yield null for growth pct so UI shows neutral message'
+        );
+      }
+    });
+
+    it('4.5 Customer Loyalty classifies returning vs new based on lifetime completed orders', async () => {
+      const analytics = await calculateShopAnalytics(orderOnlyShop, {
+        preset: '30d',
+        startDate: '2026-01-01',
+        endDate: '2026-12-31',
+      });
+
+      const metrics = analytics.customer_metrics;
+      assert.ok(typeof metrics.returning_percentage === 'number');
+      assert.ok(typeof metrics.returning_customers === 'number');
+      assert.ok(typeof metrics.new_customers === 'number');
+      assert.ok(typeof metrics.repeat_order_count === 'number');
+
+      // The sum of new + returning customers must equal total unique completed customers in period
+      assert.strictEqual(
+        metrics.new_customers + metrics.returning_customers,
+        metrics.total_completed_customers,
+        'new_customers + returning_customers must equal total unique completed customers'
+      );
+
+      // If returning percentage is calculated, it must be between 0 and 100
+      assert.ok(metrics.returning_percentage >= 0 && metrics.returning_percentage <= 100);
+    });
+
+    it('4.6 Top Booked Services isolates settled revenue from cancelled/unsettled bookings', async () => {
+      const analytics = await calculateShopAnalytics(serviceAndAppointmentShop, {
+        preset: '30d',
+        startDate: '2026-01-01',
+        endDate: '2026-12-31',
+      });
+
+      const apt = analytics.appointments;
+      if (apt.has_appointment_vertical && apt.most_booked_services.length > 0) {
+        for (const srv of apt.most_booked_services) {
+          assert.ok(typeof srv.count === 'number', 'count should be number');
+          assert.ok(typeof srv.revenue === 'number', 'revenue should be number');
+          // Settled revenue must never exceed total booked value if booked_value exists
+          if (srv.booked_value !== undefined) {
+            assert.ok(
+              srv.revenue <= srv.booked_value,
+              `Settled revenue (₹${srv.revenue}) cannot exceed booked pipeline value (₹${srv.booked_value})`
+            );
+          }
+        }
+
+        // Sum of settled service revenues must never exceed Net Settled Sales
+        const totalSettledFromServices = apt.most_booked_services.reduce((acc, s) => acc + s.revenue, 0);
+        assert.ok(
+          totalSettledFromServices <= analytics.overview.total_sales,
+          'Sum of service settled revenues must not exceed Net Settled Sales'
+        );
+      }
+    });
+  });
 });
+

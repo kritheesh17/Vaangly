@@ -127,6 +127,45 @@ export const extractItemsFromRequest = (req: Request): ParsedOrderItem[] => {
 };
 
 /**
+ * Maps authoritative payment_method database values to clean user-facing labels
+ */
+export const getPaymentMethodLabel = (methodCode?: string | null): string => {
+  const code = (methodCode || '').toLowerCase().trim();
+  switch (code) {
+    case 'cash':
+      return 'Cash';
+    case 'upi':
+      return 'UPI / QR Code';
+    case 'pay_at_shop':
+      return 'Pay at Shop';
+    case 'online':
+      return 'Online Transfer';
+    default:
+      return 'Cash'; // Default fallback matching store checkout default
+  }
+};
+
+/**
+ * Extracts authoritative payment method code from Request or payload notes
+ */
+export const extractPaymentMethodCode = (r: Request): string => {
+  if (r.payment_method) {
+    return String(r.payment_method).toLowerCase().trim();
+  }
+  if (r.notes) {
+    try {
+      const parsed = JSON.parse(r.notes);
+      if (parsed.payment_method) {
+        return String(parsed.payment_method).toLowerCase().trim();
+      }
+    } catch {
+      // not JSON notes
+    }
+  }
+  return 'cash';
+};
+
+/**
  * Main Authoritative Analytics Calculation Engine
  */
 export const calculateShopAnalytics = async (
@@ -188,8 +227,6 @@ export const calculateShopAnalytics = async (
   let salesGrowthPct: number | null = null;
   if (previousPeriodSales > 0) {
     salesGrowthPct = Math.round(((totalSales - previousPeriodSales) / previousPeriodSales) * 100);
-  } else if (totalSales > 0 && previousPeriodSales === 0) {
-    salesGrowthPct = 100;
   }
 
   let ordersGrowthPct: number | null = null;
@@ -198,6 +235,8 @@ export const calculateShopAnalytics = async (
       ((completedOrders - completedPrevious.length) / completedPrevious.length) * 100
     );
   }
+
+  const fulfillmentRatePct = totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0;
 
   const overview: SalesOverview = {
     total_sales: totalSales,
@@ -212,6 +251,7 @@ export const calculateShopAnalytics = async (
     orders_growth_pct: ordersGrowthPct,
     product_sales: productSales,
     service_appointment_sales: serviceAppointmentSales,
+    fulfillment_rate_pct: fulfillmentRatePct,
   };
 
   // 2. Revenue Trends Points (Daily or Grouped)
@@ -353,7 +393,14 @@ export const calculateShopAnalytics = async (
   });
 
   // 5. Customer Metrics (New vs Returning)
-  // Determine returning customers based on lifetime completed orders prior to this order
+  // Determine returning customers based on lifetime completed orders prior to this window or overall
+  const priorCompletedCustomerOrders = new Map<string, number>();
+  allRequests
+    .filter((r) => r.current_state === 'COMPLETED' && new Date(r.created_at).getTime() < startTs)
+    .forEach((r) => {
+      priorCompletedCustomerOrders.set(r.customer_id, (priorCompletedCustomerOrders.get(r.customer_id) || 0) + 1);
+    });
+
   const lifetimeCompleted = allRequests.filter((r) => r.current_state === 'COMPLETED');
   const completedCustomerOrders = new Map<string, number>();
   lifetimeCompleted.forEach((r) => {
@@ -368,8 +415,9 @@ export const calculateShopAnalytics = async (
   completedCurrent.forEach((r) => {
     if (!currentCompletedCustomers.has(r.customer_id)) {
       currentCompletedCustomers.add(r.customer_id);
+      const priorOrders = priorCompletedCustomerOrders.get(r.customer_id) || 0;
       const totalLifetimeOrders = completedCustomerOrders.get(r.customer_id) || 1;
-      if (totalLifetimeOrders > 1) {
+      if (priorOrders > 0 || totalLifetimeOrders > 1) {
         returningCustomersCount += 1;
       } else {
         newCustomersCount += 1;
@@ -418,16 +466,34 @@ export const calculateShopAnalytics = async (
   const aptCancelled = appointmentRequests.filter((r) => r.current_state === 'CANCELLED').length;
   const aptRejected = appointmentRequests.filter((r) => r.current_state === 'REJECTED').length;
 
-  const serviceBookings = new Map<string, { count: number; revenue: number }>();
+  const serviceBookings = new Map<
+    string,
+    {
+      count: number;
+      completed_count: number;
+      settled_revenue: number;
+      booked_value: number;
+    }
+  >();
   const slotBookings = new Map<string, number>();
 
   appointmentRequests.forEach((r) => {
     try {
       const parsed = JSON.parse(r.notes || '{}');
       if (parsed.service_name) {
-        const entry = serviceBookings.get(parsed.service_name) || { count: 0, revenue: 0 };
+        const entry = serviceBookings.get(parsed.service_name) || {
+          count: 0,
+          completed_count: 0,
+          settled_revenue: 0,
+          booked_value: 0,
+        };
         entry.count += 1;
-        entry.revenue += Number(r.total_estimate) || 0;
+        const estimate = Number(r.total_estimate) || 0;
+        entry.booked_value += estimate;
+        if (r.current_state === 'COMPLETED') {
+          entry.completed_count += 1;
+          entry.settled_revenue += estimate;
+        }
         serviceBookings.set(parsed.service_name, entry);
       }
       if (parsed.start_time) {
@@ -439,7 +505,13 @@ export const calculateShopAnalytics = async (
   });
 
   const mostBookedServices = Array.from(serviceBookings.entries())
-    .map(([name, data]) => ({ name, count: data.count, revenue: data.revenue }))
+    .map(([name, data]) => ({
+      name,
+      count: data.count,
+      completed_count: data.completed_count,
+      revenue: data.settled_revenue, // Strictly settled revenue from completed appointments
+      booked_value: data.booked_value, // Total booked pipeline value across all appointments
+    }))
     .sort((a, b) => b.count - a.count);
 
   const peakSlots = Array.from(slotBookings.entries())
@@ -485,32 +557,68 @@ export const calculateShopAnalytics = async (
     rejection_rate: rejectionRate,
   };
 
-  // 9. Payment Methods Breakdown
-  const paymentMap = new Map<string, { count: number; total: number; verified: number; unverified: number }>();
+  // 9. Payment Methods Breakdown (Authoritative database field with settled revenue isolation)
+  const paymentMap = new Map<
+    string,
+    {
+      method_code: string;
+      method: string;
+      completed_count: number;
+      settled_amount: number;
+      verified_count: number;
+      pending_count: number;
+      cancelled_count: number;
+    }
+  >();
+
   currentRequests.forEach((r) => {
-    let method = 'Cash / Direct Settlement';
-    if (r.payment_screenshot_url || r.customer_paid) {
-      method = 'UPI / Online Transfer';
+    const methodCode = extractPaymentMethodCode(r);
+    const methodLabel = getPaymentMethodLabel(methodCode);
+
+    const entry = paymentMap.get(methodCode) || {
+      method_code: methodCode,
+      method: methodLabel,
+      completed_count: 0,
+      settled_amount: 0,
+      verified_count: 0,
+      pending_count: 0,
+      cancelled_count: 0,
+    };
+
+    const isCompleted = r.current_state === 'COMPLETED';
+    const isPending = ['REQUESTED', 'ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY'].includes(
+      r.current_state
+    );
+    const isCancelledOrRejected = ['CANCELLED', 'REJECTED', 'EXPIRED'].includes(r.current_state);
+
+    if (isCompleted) {
+      entry.completed_count += 1;
+      entry.settled_amount += r.total_estimate || 0;
+      if (r.customer_paid || r.payment_status === 'PAYMENT_VERIFIED' || r.payment_status === 'paid') {
+        entry.verified_count += 1;
+      }
+    } else if (isPending) {
+      entry.pending_count += 1;
+    } else if (isCancelledOrRejected) {
+      entry.cancelled_count += 1;
     }
 
-    const entry = paymentMap.get(method) || { count: 0, total: 0, verified: 0, unverified: 0 };
-    entry.count += 1;
-    entry.total += r.total_estimate || 0;
-    if (r.customer_paid) {
-      entry.verified += 1;
-    } else {
-      entry.unverified += 1;
-    }
-    paymentMap.set(method, entry);
+    paymentMap.set(methodCode, entry);
   });
 
-  const paymentMethods: PaymentMethodMetrics[] = Array.from(paymentMap.entries()).map(([method, data]) => ({
-    method,
-    count: data.count,
-    total_amount: data.total,
-    verified_count: data.verified,
-    unverified_count: data.unverified,
-  }));
+  const paymentMethods: PaymentMethodMetrics[] = Array.from(paymentMap.values())
+    .filter((data) => data.completed_count > 0 || data.pending_count > 0 || data.cancelled_count > 0)
+    .map((data) => ({
+      method_code: data.method_code,
+      method: data.method,
+      count: data.completed_count,
+      total_amount: data.settled_amount,
+      verified_count: data.verified_count,
+      unverified_count: data.pending_count,
+      pending_count: data.pending_count,
+      cancelled_count: data.cancelled_count,
+    }))
+    .sort((a, b) => b.total_amount - a.total_amount);
 
   return {
     tier: shop.subscription_tier || 'FREE',

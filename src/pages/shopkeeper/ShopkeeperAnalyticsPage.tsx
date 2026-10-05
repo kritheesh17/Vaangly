@@ -329,6 +329,11 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
   const serviceSalesVal = analytics?.overview.service_appointment_sales || 0;
   const productSharePct = totalSalesVal > 0 ? Math.round((productSalesVal / totalSalesVal) * 100) : 0;
   const serviceSharePct = totalSalesVal > 0 ? 100 - productSharePct : 0;
+  const fulfillmentRate =
+    analytics?.overview.fulfillment_rate_pct ??
+    (analytics?.overview.total_orders && analytics.overview.total_orders > 0
+      ? Math.round((analytics.overview.completed_orders / analytics.overview.total_orders) * 100)
+      : 0);
 
   return (
     <div className="container vaango-analytics-page">
@@ -348,7 +353,7 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
               </Button>
               / Business Intelligence
             </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <h1 className="vaango-analytics-header__title">Sales Analysis</h1>
               <Badge variant="primary" size="md">
                 {shop.name}
@@ -446,144 +451,221 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
 
       {analytics && (
         <>
-          {/* Overview KPI Cards */}
-          <div className="vaango-analytics-kpi-grid">
-            {/* 1. Total Sales */}
-            <div className="vaango-kpi-card">
-              <div className="vaango-kpi-card__top">
-                <span>Total Sales</span>
-                <div className="vaango-kpi-card__icon"><IndianRupee size={16} /></div>
+          {/* Executive Overview Section (Phase 1) */}
+          <section className="vaango-exec-overview" aria-label="Executive Overview">
+            <div className="vaango-exec-header">
+              <div className="vaango-exec-header__title-group">
+                <span className="vaango-exec-header__kicker">EXECUTIVE OVERVIEW</span>
+                <h2 className="vaango-exec-header__title">Business Health Snapshot</h2>
               </div>
-              <div className="vaango-kpi-card__val">
-                ₹{analytics.overview.total_sales.toLocaleString('en-IN')}
-              </div>
-              <div>
-                {analytics.overview.sales_growth_pct !== null ? (
-                  <span className={`vaango-kpi-card__growth ${analytics.overview.sales_growth_pct >= 0 ? 'vaango-kpi-card__growth--up' : 'vaango-kpi-card__growth--down'}`}>
-                    {analytics.overview.sales_growth_pct >= 0 ? '↑ +' : '↓ '}{analytics.overview.sales_growth_pct}% vs prior period
+              <span className="vaango-exec-header__note">
+                Realtime settled figures for the selected period
+              </span>
+            </div>
+
+            <div className="vaango-exec-grid">
+              {/* KPI 1 — Net Settled Sales */}
+              <div className="vaango-exec-card">
+                <div className="vaango-exec-card__top">
+                  <span className="vaango-exec-card__label">Net Settled Sales</span>
+                  <div className="vaango-exec-card__icon">
+                    <IndianRupee size={16} />
+                  </div>
+                </div>
+                <div className="vaango-exec-card__body">
+                  <div className="vaango-exec-card__val">
+                    ₹{totalSalesVal.toLocaleString('en-IN')}
+                  </div>
+                  <span className="vaango-exec-card__sublabel">
+                    Settled from completed orders
                   </span>
-                ) : (
-                  <span className="vaango-kpi-card__growth vaango-kpi-card__growth--neutral">Completed orders only</span>
-                )}
+                </div>
+                <div className="vaango-exec-card__footer">
+                  {analytics.overview.previous_period_sales > 0 && analytics.overview.sales_growth_pct !== null ? (
+                    <span
+                      className={`vaango-exec-pill ${
+                        analytics.overview.sales_growth_pct >= 0
+                          ? 'vaango-exec-pill--up'
+                          : 'vaango-exec-pill--down'
+                      }`}
+                    >
+                      {analytics.overview.sales_growth_pct >= 0 ? '↑ +' : '↓ '}
+                      {analytics.overview.sales_growth_pct}% vs previous period
+                    </span>
+                  ) : (
+                    <span className="vaango-exec-pill vaango-exec-pill--neutral">
+                      {totalSalesVal > 0 ? 'New this period' : 'No previous data'}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* 2. Total Orders */}
-            <div className="vaango-kpi-card">
-              <div className="vaango-kpi-card__top">
-                <span>Total Orders</span>
-                <div className="vaango-kpi-card__icon"><ShoppingBag size={16} /></div>
+              {/* KPI 2 — Order Volume & Fulfillment */}
+              <div className="vaango-exec-card">
+                <div className="vaango-exec-card__top">
+                  <span className="vaango-exec-card__label">Order Volume & Fulfillment</span>
+                  <div className="vaango-exec-card__icon vaango-exec-card__icon--blue">
+                    <CheckCircle2 size={16} />
+                  </div>
+                </div>
+                <div className="vaango-exec-card__body">
+                  <div className="vaango-exec-card__val">
+                    {analytics.overview.total_orders} requests
+                  </div>
+                  <div className="vaango-exec-detail-row" style={{ marginTop: '2px' }}>
+                    <span>{analytics.overview.completed_orders} completed</span>
+                    <strong style={{ color: 'var(--color-primary)' }}>{fulfillmentRate}% fulfillment</strong>
+                  </div>
+                </div>
+                <div className="vaango-exec-card__footer">
+                  <div className="vaango-exec-progress" title={`${fulfillmentRate}% fulfilled`}>
+                    <div
+                      className="vaango-exec-progress__fill"
+                      style={{ width: `${Math.min(fulfillmentRate, 100)}%` }}
+                    />
+                  </div>
+                  <div className="vaango-exec-detail-row">
+                    <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Workload:</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>
+                      {analytics.overview.total_orders > 0
+                        ? `${analytics.overview.completed_orders} of ${analytics.overview.total_orders} fulfilled`
+                        : '0 of 0 fulfilled'}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="vaango-kpi-card__val">
-                {analytics.overview.total_orders}
-              </div>
-              <span className="vaango-kpi-card__growth vaango-kpi-card__growth--neutral">
-                Gross ₹{analytics.overview.gross_order_value.toLocaleString('en-IN')}
-              </span>
-            </div>
 
-            {/* 3. Completed Orders */}
-            <div className="vaango-kpi-card">
-              <div className="vaango-kpi-card__top">
-                <span>Completed Orders</span>
-                <div className="vaango-kpi-card__icon"><CheckCircle2 size={16} /></div>
-              </div>
-              <div className="vaango-kpi-card__val">
-                {analytics.overview.completed_orders}
-              </div>
-              <div>
-                {analytics.overview.orders_growth_pct !== null ? (
-                  <span className={`vaango-kpi-card__growth ${analytics.overview.orders_growth_pct >= 0 ? 'vaango-kpi-card__growth--up' : 'vaango-kpi-card__growth--down'}`}>
-                    {analytics.overview.orders_growth_pct >= 0 ? '↑ +' : '↓ '}{analytics.overview.orders_growth_pct}% volume
+              {/* KPI 3 — Average Order Value */}
+              <div className="vaango-exec-card">
+                <div className="vaango-exec-card__top">
+                  <span className="vaango-exec-card__label">Average Order Value</span>
+                  <div className="vaango-exec-card__icon">
+                    <TrendingUp size={16} />
+                  </div>
+                </div>
+                <div className="vaango-exec-card__body">
+                  <div className="vaango-exec-card__val">
+                    {analytics.overview.completed_orders > 0
+                      ? `₹${analytics.overview.average_order_value.toLocaleString('en-IN')}`
+                      : '—'}
+                  </div>
+                  <span className="vaango-exec-card__sublabel">
+                    Per completed order
                   </span>
-                ) : (
-                  <span className="vaango-kpi-card__growth vaango-kpi-card__growth--neutral">Fulfilled orders</span>
-                )}
-              </div>
-            </div>
-
-            {/* 4. Pending Orders */}
-            <div className="vaango-kpi-card">
-              <div className="vaango-kpi-card__top">
-                <span>Pending Orders</span>
-                <div className="vaango-kpi-card__icon"><Clock size={16} /></div>
-              </div>
-              <div className="vaango-kpi-card__val">
-                {analytics.overview.pending_orders}
-              </div>
-              <span className="vaango-kpi-card__growth vaango-kpi-card__growth--neutral">
-                Awaiting counter pickup / preparation
-              </span>
-            </div>
-
-            {/* 5. Average Order Value */}
-            <div className="vaango-kpi-card">
-              <div className="vaango-kpi-card__top">
-                <span>Average Order Value</span>
-                <div className="vaango-kpi-card__icon"><TrendingUp size={16} /></div>
-              </div>
-              <div className="vaango-kpi-card__val">
-                ₹{analytics.overview.average_order_value.toLocaleString('en-IN')}
-              </div>
-              <span className="vaango-kpi-card__growth vaango-kpi-card__growth--neutral">
-                Per completed transaction
-              </span>
-            </div>
-          </div>
-
-          {/* Revenue Stream Breakdown (For hybrid shops with products + services/appointments) */}
-          {hasDualRevenueStreams && (
-            <div className="vaango-chart-card" style={{ marginTop: 'var(--spacing-md)' }}>
-              <div className="vaango-chart-card__header">
-                <h3 className="vaango-chart-card__title">
-                  <Layers size={18} /> Revenue by Stream (No Double Counting)
-                </h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                  Total Completed: ₹{totalSalesVal.toLocaleString('en-IN')}
-                </span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', margin: '12px 0' }}>
-                <div style={{ padding: '12px', background: 'var(--color-surface-hover)', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '4px' }}>
-                    📦 Product Order Revenue
-                  </div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--brand-primary)' }}>
-                    ₹{productSalesVal.toLocaleString('en-IN')}
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
-                    {productSharePct}% of total completed sales
-                  </div>
                 </div>
-
-                <div style={{ padding: '12px', background: 'var(--color-surface-hover)', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '4px' }}>
-                    ✂️ Service & Appointment Revenue
-                  </div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0284c7' }}>
-                    ₹{serviceSalesVal.toLocaleString('en-IN')}
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
-                    {serviceSharePct}% of total completed sales
+                <div className="vaango-exec-card__footer">
+                  <div className="vaango-exec-detail-row">
+                    <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Fulfilled basis:</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>
+                      {analytics.overview.completed_orders > 0
+                        ? `Across ${analytics.overview.completed_orders} completed`
+                        : 'No completed orders'}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {totalSalesVal > 0 && (
-                <div className="vaango-progress-bar" style={{ height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div
-                    className="vaango-progress-bar__fill"
-                    style={{ width: `${productSharePct}%`, background: 'var(--brand-primary)' }}
-                    title={`Products: ${productSharePct}%`}
-                  />
-                  <div
-                    style={{ width: `${serviceSharePct}%`, background: '#0284c7', height: '100%' }}
-                    title={`Services/Appointments: ${serviceSharePct}%`}
-                  />
+              {/* KPI 4 — Revenue by Stream */}
+              <div className="vaango-exec-card">
+                <div className="vaango-exec-card__top">
+                  <span className="vaango-exec-card__label">Revenue Mix</span>
+                  <div className="vaango-exec-card__icon vaango-exec-card__icon--purple">
+                    <Layers size={16} />
+                  </div>
                 </div>
-              )}
+                <div className="vaango-exec-card__body">
+                  {totalSalesVal === 0 ? (
+                    <>
+                      <div className="vaango-exec-card__val">₹0</div>
+                      <span className="vaango-exec-card__sublabel">No settled revenue in period</span>
+                    </>
+                  ) : !businessFeatures.hasProducts && (businessFeatures.hasServices || businessFeatures.hasAppointments) ? (
+                    <>
+                      <div className="vaango-exec-card__val" style={{ color: '#0284c7' }}>
+                        ₹{serviceSalesVal.toLocaleString('en-IN')}
+                      </div>
+                      <span className="vaango-exec-card__sublabel">100% Services & Bookings</span>
+                    </>
+                  ) : businessFeatures.hasProducts && !businessFeatures.hasServices && !businessFeatures.hasAppointments ? (
+                    <>
+                      <div className="vaango-exec-card__val" style={{ color: 'var(--brand-primary)' }}>
+                        ₹{productSalesVal.toLocaleString('en-IN')}
+                      </div>
+                      <span className="vaango-exec-card__sublabel">100% Product Orders</span>
+                    </>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--brand-primary)' }}>
+                        📦 Products: ₹{productSalesVal.toLocaleString('en-IN')} ({productSharePct}%)
+                      </div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#0284c7' }}>
+                        ✂️ Services: ₹{serviceSalesVal.toLocaleString('en-IN')} ({serviceSharePct}%)
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="vaango-exec-card__footer">
+                  {totalSalesVal > 0 && hasDualRevenueStreams ? (
+                    <div className="vaango-exec-split-bar" title={`Products: ${productSharePct}%, Services: ${serviceSharePct}%`}>
+                      <div style={{ width: `${productSharePct}%`, background: 'var(--brand-primary)', height: '100%' }} />
+                      <div style={{ width: `${serviceSharePct}%`, background: '#0284c7', height: '100%' }} />
+                    </div>
+                  ) : totalSalesVal > 0 ? (
+                    <div className="vaango-exec-progress">
+                      <div
+                        className={`vaango-exec-progress__fill ${
+                          !businessFeatures.hasProducts ? 'vaango-exec-progress__fill--blue' : ''
+                        }`}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  ) : null}
+                  <div className="vaango-exec-detail-row">
+                    <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Share of sales:</span>
+                    <strong style={{ fontSize: '0.72rem' }}>
+                      {totalSalesVal > 0 ? '100% of settled sales' : '—'}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* KPI 5 — Customer Loyalty */}
+              <div className="vaango-exec-card">
+                <div className="vaango-exec-card__top">
+                  <span className="vaango-exec-card__label">Customer Loyalty</span>
+                  <div className="vaango-exec-card__icon">
+                    <Users size={16} />
+                  </div>
+                </div>
+                <div className="vaango-exec-card__body">
+                  <div className="vaango-exec-card__val">
+                    {analytics.customer_metrics.returning_percentage}%
+                  </div>
+                  <span className="vaango-exec-card__sublabel">
+                    Returning Customers
+                  </span>
+                </div>
+                <div className="vaango-exec-card__footer">
+                  <div className="vaango-exec-progress" title={`${analytics.customer_metrics.returning_percentage}% returning`}>
+                    <div
+                      className="vaango-exec-progress__fill"
+                      style={{ width: `${analytics.customer_metrics.returning_percentage}%` }}
+                    />
+                  </div>
+                  <div className="vaango-exec-detail-row">
+                    <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Repeat orders:</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>
+                      {analytics.customer_metrics.repeat_order_count} in window
+                    </span>
+                  </div>
+                  <div className="vaango-exec-detail-row" style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
+                    <span>{analytics.customer_metrics.returning_customers} returning</span>
+                    <span>{analytics.customer_metrics.new_customers} new</span>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
+          </section>
 
           {/* Section: Revenue Trends & Peak Hours */}
           <div className="vaango-analytics-grid-2col" style={{ marginTop: 'var(--spacing-md)' }}>
@@ -798,9 +880,29 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
                     </h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {analytics.appointments.most_booked_services.slice(0, 5).map((srv) => (
-                        <div key={srv.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--color-surface-hover)', borderRadius: '6px', fontSize: '0.82rem' }}>
+                        <div
+                          key={srv.name}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            padding: '6px 10px',
+                            background: 'var(--color-surface-hover)',
+                            borderRadius: '6px',
+                            fontSize: '0.82rem',
+                            alignItems: 'center',
+                          }}
+                        >
                           <span>{srv.name}</span>
-                          <span style={{ fontWeight: 700 }}>{srv.count} booking(s) • ₹{srv.revenue.toLocaleString('en-IN')}</span>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontWeight: 700, display: 'block' }}>
+                              {srv.count} booking(s) • ₹{srv.revenue.toLocaleString('en-IN')} settled
+                            </span>
+                            {srv.booked_value !== undefined && srv.booked_value !== srv.revenue && (
+                              <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
+                                ₹{srv.booked_value.toLocaleString('en-IN')} booked value
+                              </span>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -864,7 +966,7 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
                 <IndianRupee size={18} /> Payment Methods & Settlements
               </h3>
               <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                Breakdown by tender type
+                Settled revenue and pipeline breakdown by tender type
               </span>
             </div>
 
@@ -880,21 +982,33 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
                     <thead>
                       <tr>
                         <th>Payment Method</th>
-                        <th>Transactions</th>
-                        <th>Total Value</th>
-                        <th>Verification</th>
+                        <th>Settled Orders</th>
+                        <th>Settled Revenue</th>
+                        <th>Verification & Pipeline</th>
                       </tr>
                     </thead>
                     <tbody>
                       {analytics.payment_methods.map((pm) => (
                         <tr key={pm.method}>
                           <td><strong>{pm.method}</strong></td>
-                          <td>{pm.count} orders</td>
-                          <td>₹{pm.total_amount.toLocaleString('en-IN')}</td>
+                          <td>{pm.count} completed</td>
+                          <td><strong>₹{pm.total_amount.toLocaleString('en-IN')}</strong></td>
                           <td>
-                            <Badge variant={pm.verified_count > 0 ? 'success' : 'neutral'} size="sm">
-                              {pm.verified_count} verified ({pm.unverified_count} pending)
-                            </Badge>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                              <Badge variant={pm.verified_count > 0 ? 'success' : 'neutral'} size="sm">
+                                {pm.verified_count} verified
+                              </Badge>
+                              {pm.unverified_count > 0 && (
+                                <Badge variant="warning" size="sm">
+                                  {pm.unverified_count} pending
+                                </Badge>
+                              )}
+                              {(pm.cancelled_count || 0) > 0 && (
+                                <Badge variant="neutral" size="sm">
+                                  {pm.cancelled_count} cancelled
+                                </Badge>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -908,17 +1022,24 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
                     <div key={pm.method} className="vaango-analytics-mobile-card">
                       <div className="vaango-analytics-mobile-card__header">
                         <div className="vaango-analytics-mobile-card__title">{pm.method}</div>
-                        <Badge variant={pm.verified_count > 0 ? 'success' : 'neutral'} size="sm">
-                          {pm.verified_count} verified
-                        </Badge>
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                          <Badge variant={pm.verified_count > 0 ? 'success' : 'neutral'} size="sm">
+                            {pm.verified_count} verified
+                          </Badge>
+                          {pm.unverified_count > 0 && (
+                            <Badge variant="warning" size="sm">
+                              {pm.unverified_count} pending
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                       <div className="vaango-analytics-mobile-card__grid">
                         <div className="vaango-analytics-mobile-card__cell">
-                          <span className="vaango-analytics-mobile-card__label">Orders</span>
+                          <span className="vaango-analytics-mobile-card__label">Settled Orders</span>
                           <span className="vaango-analytics-mobile-card__value">{pm.count}</span>
                         </div>
                         <div className="vaango-analytics-mobile-card__cell">
-                          <span className="vaango-analytics-mobile-card__label">Total Value</span>
+                          <span className="vaango-analytics-mobile-card__label">Settled Revenue</span>
                           <span className="vaango-analytics-mobile-card__value">₹{pm.total_amount.toLocaleString('en-IN')}</span>
                         </div>
                       </div>

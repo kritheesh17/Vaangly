@@ -47,8 +47,6 @@
   color: var(--color-text-primary);
   margin: 0;
   line-height: 1.25;
-  overflow-wrap: break-word;
-  word-break: break-word;
 }
 
 .vaango-analytics-header__actions {
@@ -116,6 +114,234 @@
   background-color: var(--color-surface);
   color: var(--color-text-primary);
   font-size: var(--font-size-xs);
+}
+
+/* Executive Overview (Phase 1) */
+.vaango-exec-overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+
+.vaango-exec-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  padding: 0 2px;
+}
+
+.vaango-exec-header__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vaango-exec-header__kicker {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--color-primary);
+}
+
+.vaango-exec-header__title {
+  font-size: clamp(1.1rem, 3.5vw, 1.35rem);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.vaango-exec-header__note {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.vaango-exec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .vaango-exec-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 768px) {
+  .vaango-exec-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .vaango-exec-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.vaango-exec-card {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.vaango-exec-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.vaango-exec-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vaango-exec-card__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-text-secondary);
+}
+
+.vaango-exec-card__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-surface-hover);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.vaango-exec-card__icon--blue {
+  color: #0284c7;
+  background-color: rgba(2, 132, 199, 0.08);
+}
+
+.vaango-exec-card__icon--purple {
+  color: #7c3aed;
+  background-color: rgba(124, 58, 237, 0.08);
+}
+
+.vaango-exec-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vaango-exec-card__val {
+  font-size: clamp(1.4rem, 4vw, 1.85rem);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  word-break: break-word;
+}
+
+.vaango-exec-card__sublabel {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+.vaango-exec-card__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.vaango-exec-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  width: fit-content;
+}
+
+.vaango-exec-pill--up {
+  color: #047857;
+  background-color: rgba(16, 185, 129, 0.12);
+}
+
+.vaango-exec-pill--down {
+  color: #b91c1c;
+  background-color: rgba(239, 68, 68, 0.12);
+}
+
+.vaango-exec-pill--neutral {
+  color: var(--color-text-secondary);
+  background-color: var(--color-surface-hover);
+}
+
+.vaango-exec-pill--primary {
+  color: var(--color-primary);
+  background-color: rgba(5, 150, 105, 0.12);
+}
+
+.vaango-exec-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  color: var(--color-text-secondary);
+}
+
+.vaango-exec-detail-row strong {
+  color: var(--color-text-primary);
+}
+
+.vaango-exec-progress {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background-color: var(--color-surface-hover);
+  overflow: hidden;
+  display: flex;
+}
+
+.vaango-exec-progress__fill {
+  height: 100%;
+  background-color: var(--color-primary);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.vaango-exec-progress__fill--blue {
+  background-color: #0284c7;
+}
+
+.vaango-exec-split-bar {
+  display: flex;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background-color: var(--color-surface-hover);
 }
 
 /* KPI Summary Cards */

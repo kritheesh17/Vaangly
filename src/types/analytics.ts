@@ -25,6 +25,7 @@ export interface SalesOverview {
   orders_growth_pct: number | null;
   product_sales: number; // Disaggregated product order revenue
   service_appointment_sales: number; // Disaggregated service & appointment revenue
+  fulfillment_rate_pct?: number; // completed_orders / total_orders * 100
 }
 
 export interface ProductPerformance {
@@ -78,7 +79,13 @@ export interface AppointmentAnalytics {
   cancelled: number;
   rejected: number;
   utilization_rate: number;
-  most_booked_services: { name: string; count: number; revenue: number }[];
+  most_booked_services: {
+    name: string;
+    count: number;
+    revenue: number; // Strictly settled revenue from completed appointments
+    booked_value?: number; // Total gross booked pipeline value across all appointments
+    completed_count?: number;
+  }[];
   peak_slots: { time: string; count: number }[];
 }
 
@@ -93,11 +100,14 @@ export interface CancellationMetrics {
 }
 
 export interface PaymentMethodMetrics {
-  method: string; // "UPI", "Cash on Pickup / Delivery", etc.
-  count: number;
-  total_amount: number;
-  verified_count: number;
-  unverified_count: number;
+  method_code?: string; // 'cash' | 'upi' | 'pay_at_shop' | 'online' | 'other'
+  method: string; // User-facing label: "Cash", "UPI / QR Code", "Pay at Shop", "Online Transfer", etc.
+  count: number; // completed settled transactions
+  total_amount: number; // settled revenue strictly from completed orders
+  verified_count: number; // completed & verified payments
+  unverified_count: number; // active pending payments awaiting verification / settlement
+  pending_count?: number; // active pending orders
+  cancelled_count?: number; // cancelled / rejected requests
 }
 
 export type DateRangePreset = 'today' | '7d' | '30d' | 'this_month' | '3m' | '6m' | '1y' | 'custom';
