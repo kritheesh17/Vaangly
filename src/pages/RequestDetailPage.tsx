@@ -502,21 +502,62 @@ export const RequestDetailPage: React.FC = () => {
             </span>
             <h1 className="vaango-request-ref-code">{request.reference_code}</h1>
           </div>
-          <Badge
-            variant={
-              ['CONFIRMED', 'READY', 'COMPLETED'].includes(request.current_state)
-                ? 'success'
-                : request.current_state === 'DELAYED'
-                ? 'warning'
-                : ['REJECTED', 'CANCELLED', 'NO_SHOW'].includes(request.current_state)
-                ? 'error'
-                : 'primary'
-            }
-            size="md"
-            withDot
-          >
-            {(t as any)(`status_${request.current_state}`) || request.current_state}
-          </Badge>
+          {groupCode === 'APPOINTMENT' ? (
+            <div className="vaango-apt-detail-status-grid">
+              <div className="vaango-apt-detail-status-item">
+                <span className="vaango-apt-detail-status-label">Appointment Status</span>
+                <Badge
+                  variant={
+                    ['CONFIRMED', 'READY', 'COMPLETED'].includes(request.current_state)
+                      ? 'success'
+                      : request.current_state === 'DELAYED'
+                      ? 'warning'
+                      : ['REJECTED', 'CANCELLED', 'NO_SHOW'].includes(request.current_state)
+                      ? 'error'
+                      : 'primary'
+                  }
+                  size="md"
+                  withDot
+                >
+                  {(t as any)(`status_${request.current_state}`) || (request.current_state === 'NO_SHOW' ? 'Customer No-Show' : request.current_state)}
+                </Badge>
+              </div>
+
+              <div className="vaango-apt-detail-status-item">
+                <span className="vaango-apt-detail-status-label">Payment Status</span>
+                <Badge
+                  variant={isPaymentVerified ? 'success' : 'neutral'}
+                  size="md"
+                  withDot
+                >
+                  {isPaymentVerified ? (t('paidBadge') || 'Paid') : 'Unpaid'}
+                </Badge>
+                {isPaymentVerified && (
+                  <div className="vaango-apt-detail-payment-sub">
+                    <span className="vaango-apt-detail-payment-amount">
+                      ₹{request.total_estimate || payload.confirmed_price || (payload as any).base_price || 0} received
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <Badge
+              variant={
+                ['CONFIRMED', 'READY', 'COMPLETED'].includes(request.current_state)
+                  ? 'success'
+                  : request.current_state === 'DELAYED'
+                  ? 'warning'
+                  : ['REJECTED', 'CANCELLED', 'NO_SHOW'].includes(request.current_state)
+                  ? 'error'
+                  : 'primary'
+              }
+              size="md"
+              withDot
+            >
+              {(t as any)(`status_${request.current_state}`) || request.current_state}
+            </Badge>
+          )}
         </div>
 
         {/* Ready for Pickup Callout Banner */}

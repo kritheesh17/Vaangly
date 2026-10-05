@@ -387,6 +387,19 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
 
   const items = decoded.items || [];
 
+  const payableAmount = decoded.confirmed_price ?? request.total_estimate ?? request.payment_amount ?? 0;
+  const isPaid = Boolean(
+    request.customer_paid ||
+    request.payment_status === 'PAYMENT_VERIFIED' ||
+    request.payment_status === 'paid'
+  );
+  const hasPaidDuringBooking = Boolean(
+    (request as any)?.paid_during_booking ||
+    (decoded as any)?.paid_during_booking ||
+    (request as any)?.payment_timing === 'booking' ||
+    (decoded as any)?.payment_timing === 'booking'
+  );
+
   const renderPaymentSection = () => {
     if (!request) return null;
 
@@ -397,12 +410,6 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
     const isOnline = ['upi', 'online', 'card', 'netbanking'].includes(methodLower);
     const isUnavailable = !isPayAtShop && !isOnline;
 
-    const payableAmount = decoded.confirmed_price ?? request.total_estimate ?? request.payment_amount ?? 0;
-    const isPaid = Boolean(
-      request.customer_paid ||
-      request.payment_status === 'PAYMENT_VERIFIED' ||
-      request.payment_status === 'paid'
-    );
     const isTerminal = ['REJECTED', 'CANCELLED'].includes(request.current_state);
     const refundAmount = request.refund_amount ?? request.payment_amount ?? payableAmount;
 
@@ -718,21 +725,79 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
             <h1 className="vaango-req-header__ref">{request.reference_code}</h1>
           </div>
 
-          <Badge
-            variant={
-              ['READY', 'CONFIRMED', 'COMPLETED'].includes(request.current_state)
-                ? 'success'
-                : request.current_state === 'DELAYED'
-                  ? 'warning'
-                  : ['REJECTED', 'CANCELLED', 'NO_SHOW'].includes(request.current_state)
-                    ? 'error'
-                    : 'primary'
-            }
-            size="md"
-            withDot
-          >
-            {request.current_state}
-          </Badge>
+          {groupCode === 'APPOINTMENT' ? (
+            <div className="vaango-apt-detail-status-grid">
+              <div className="vaango-apt-detail-status-item">
+                <span className="vaango-apt-detail-status-label">Appointment Status</span>
+                <Badge
+                  variant={
+                    ['READY', 'CONFIRMED', 'COMPLETED'].includes(request.current_state)
+                      ? 'success'
+                      : request.current_state === 'DELAYED'
+                        ? 'warning'
+                        : ['REJECTED', 'CANCELLED', 'NO_SHOW'].includes(request.current_state)
+                          ? 'error'
+                          : 'primary'
+                  }
+                  size="md"
+                  withDot
+                >
+                  {request.current_state === 'NO_SHOW' ? 'Customer No-Show' : request.current_state}
+                </Badge>
+              </div>
+
+              <div className="vaango-apt-detail-status-item">
+                <span className="vaango-apt-detail-status-label">Payment Status</span>
+                <Badge
+                  variant={
+                    isPaid
+                      ? 'success'
+                      : request.payment_status === 'PAYMENT_REJECTED'
+                        ? 'error'
+                        : request.payment_status === 'PAYMENT_PROOF_SUBMITTED'
+                          ? 'warning'
+                          : 'neutral'
+                  }
+                  size="md"
+                  withDot
+                >
+                  {isPaid
+                    ? 'Paid'
+                    : request.payment_status === 'PAYMENT_REJECTED'
+                      ? 'Proof Rejected'
+                      : request.payment_status === 'PAYMENT_PROOF_SUBMITTED'
+                        ? 'Pending Verification'
+                        : 'Unpaid'}
+                </Badge>
+                {isPaid && (
+                  <div className="vaango-apt-detail-payment-sub">
+                    <span className="vaango-apt-detail-payment-amount">
+                      ₹{payableAmount} received
+                    </span>
+                    {hasPaidDuringBooking && (
+                      <span className="vaango-apt-detail-payment-timing">Paid during booking</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <Badge
+              variant={
+                ['READY', 'CONFIRMED', 'COMPLETED'].includes(request.current_state)
+                  ? 'success'
+                  : request.current_state === 'DELAYED'
+                    ? 'warning'
+                    : ['REJECTED', 'CANCELLED', 'NO_SHOW'].includes(request.current_state)
+                      ? 'error'
+                      : 'primary'
+              }
+              size="md"
+              withDot
+            >
+              {request.current_state}
+            </Badge>
+          )}
         </div>
 
         {/* Customer Contact & Meta */}

@@ -87,16 +87,38 @@ export const RequestCard: React.FC<RequestCardProps> = ({
       case 'READY':
         return <Badge variant="success" size="sm" withDot>{t('status_READY')}</Badge>;
       case 'COMPLETED':
-        return <Badge variant="success" size="sm">{t('status_COMPLETED')}</Badge>;
+        return <Badge variant="success" size="sm" withDot>{t('status_COMPLETED')}</Badge>;
       case 'NO_SHOW':
-        return <Badge variant="error" size="sm">{t('status_NO_SHOW')}</Badge>;
+        return <Badge variant="error" size="sm" withDot>{t('status_NO_SHOW')}</Badge>;
       case 'REJECTED':
-        return <Badge variant="error" size="sm">{t('status_REJECTED')}</Badge>;
+        return <Badge variant="error" size="sm" withDot>{t('status_REJECTED')}</Badge>;
       case 'CANCELLED':
-        return <Badge variant="error" size="sm">{t('status_CANCELLED')}</Badge>;
+        return <Badge variant="error" size="sm" withDot>{t('status_CANCELLED')}</Badge>;
       default:
-        return <Badge variant="neutral" size="sm">{request.current_state}</Badge>;
+        return <Badge variant="neutral" size="sm" withDot>{request.current_state}</Badge>;
     }
+  };
+
+  // Payment badge for appointments (visually distinct independent status)
+  const getPaymentStatusBadge = () => {
+    const isPaid = Boolean(
+      request.customer_paid ||
+      request.payment_status === 'PAYMENT_VERIFIED' ||
+      request.payment_status === 'paid'
+    );
+    if (isPaid) {
+      return <Badge variant="success" size="sm" withDot>Paid</Badge>;
+    }
+    if (request.payment_status === 'PAYMENT_REJECTED') {
+      return <Badge variant="error" size="sm" withDot>Proof Rejected</Badge>;
+    }
+    if (request.payment_status === 'PAYMENT_PROOF_SUBMITTED') {
+      return <Badge variant="warning" size="sm" withDot>Pending Verification</Badge>;
+    }
+    if (request.refund_status === 'refunded' || request.payment_status === 'refunded') {
+      return <Badge variant="neutral" size="sm" withDot>Refunded</Badge>;
+    }
+    return <Badge variant="neutral" size="sm" withDot>Unpaid</Badge>;
   };
 
   const formattedTime = () => {
@@ -125,8 +147,22 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             {formattedTime()}
           </span>
         </div>
-        {getStatusBadge()}
+        {groupCode !== 'APPOINTMENT' && getStatusBadge()}
       </div>
+
+      {/* For appointments: prominent dual status row showing Appointment and Payment independently */}
+      {groupCode === 'APPOINTMENT' && (
+        <div className="vaango-apt-card-statuses">
+          <div className="vaango-apt-card-status-item">
+            <span className="vaango-apt-card-status-label">Appointment</span>
+            {getStatusBadge()}
+          </div>
+          <div className="vaango-apt-card-status-item">
+            <span className="vaango-apt-card-status-label">Payment</span>
+            {getPaymentStatusBadge()}
+          </div>
+        </div>
+      )}
 
       {/* Customer summary */}
       <div className="vaango-shop-req-card__customer">
@@ -241,8 +277,8 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             ₹{decoded.confirmed_price || request.total_estimate || 0}
           </span>
         </div>
-        {request.payment_method === 'upi' && <Badge variant={request.payment_status === 'PAYMENT_VERIFIED' ? 'success' : request.payment_status === 'PAYMENT_REJECTED' ? 'error' : 'warning'} size="sm">{request.payment_status === 'PAYMENT_VERIFIED' ? 'Payment verified' : request.payment_status === 'PAYMENT_REJECTED' ? 'Payment rejected' : 'UPI proof pending'}</Badge>}
-        {request.payment_method !== 'upi' && request.customer_paid && <Badge variant="success" size="sm">{t('paidBadge')}</Badge>}
+        {groupCode !== 'APPOINTMENT' && request.payment_method === 'upi' && <Badge variant={request.payment_status === 'PAYMENT_VERIFIED' ? 'success' : request.payment_status === 'PAYMENT_REJECTED' ? 'error' : 'warning'} size="sm">{request.payment_status === 'PAYMENT_VERIFIED' ? 'Payment verified' : request.payment_status === 'PAYMENT_REJECTED' ? 'Payment rejected' : 'UPI proof pending'}</Badge>}
+        {groupCode !== 'APPOINTMENT' && request.payment_method !== 'upi' && request.customer_paid && <Badge variant="success" size="sm">{t('paidBadge')}</Badge>}
 
         <div className="vaango-shop-req-card__actions">
           {/* Quick Primary Transition Buttons */}
