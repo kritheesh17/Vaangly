@@ -363,3 +363,303 @@
   gap: 8px;
   font-size: 13px;
 }
+
+/* 7. Payment Method Selector */
+.vaango-payment-methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+}
+
+@media (max-width: 520px) {
+  .vaango-payment-methods {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+.vaango-payment-method-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  text-align: left;
+  padding: 14px 16px;
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.vaango-payment-method-card:hover:not(:disabled) {
+  border-color: #94A3B8;
+  background: #F8FAFC;
+}
+
+/* Selected Payment Method State: Vaangly Green Border & Subtle Light-Green Background */
+.vaango-payment-method-card--selected {
+  border: 2px solid #15803D !important;
+  background: #F0FDF4 !important;
+  box-shadow: 0 0 0 1px rgba(21, 128, 61, 0.15);
+}
+
+[data-theme='dark'] .vaango-payment-method-card,
+.dark .vaango-payment-method-card {
+  background: #1E293B;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .vaango-payment-method-card:hover:not(:disabled),
+.dark .vaango-payment-method-card:hover:not(:disabled) {
+  background: #334155;
+  border-color: #475569;
+}
+
+[data-theme='dark'] .vaango-payment-method-card--selected,
+.dark .vaango-payment-method-card--selected {
+  background: rgba(21, 128, 61, 0.15) !important;
+  border-color: #22C55E !important;
+}
+
+.vaango-payment-method-card--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: #F8FAFC;
+}
+
+.vaango-payment-method-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.vaango-payment-method-card__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.vaango-payment-method-card__icon {
+  font-size: 17px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.vaango-payment-method-card__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0F172A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vaango-payment-method-card--selected .vaango-payment-method-card__title {
+  color: #15803D;
+}
+
+[data-theme='dark'] .vaango-payment-method-card__title,
+.dark .vaango-payment-method-card__title {
+  color: #F1F5F9;
+}
+
+[data-theme='dark'] .vaango-payment-method-card--selected .vaango-payment-method-card__title,
+.dark .vaango-payment-method-card--selected .vaango-payment-method-card__title {
+  color: #4ADE80;
+}
+
+.vaango-payment-method-card__check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.vaango-payment-method-card__check-icon {
+  color: #15803D;
+}
+
+[data-theme='dark'] .vaango-payment-method-card__check-icon,
+.dark .vaango-payment-method-card__check-icon {
+  color: #4ADE80;
+}
+
+.vaango-payment-method-card__check-placeholder {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #CBD5E1;
+  display: inline-block;
+  box-sizing: border-box;
+}
+
+.vaango-payment-method-card__desc {
+  font-size: 12px;
+  color: #64748B;
+  line-height: 1.45;
+  margin-top: 2px;
+}
+
+[data-theme='dark'] .vaango-payment-method-card__desc,
+.dark .vaango-payment-method-card__desc {
+  color: #94A3B8;
+}
+
+/* 8. Responsive UPI QR Section */
+.vaango-appointment-upi-card {
+  margin-top: 14px;
+  padding: 18px 16px;
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+[data-theme='dark'] .vaango-appointment-upi-card,
+.dark .vaango-appointment-upi-card {
+  background: #1E293B;
+  border-color: #334155;
+}
+
+.vaango-appointment-upi-card__header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.vaango-appointment-upi-card__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+[data-theme='dark'] .vaango-appointment-upi-card__title,
+.dark .vaango-appointment-upi-card__title {
+  color: #F1F5F9;
+}
+
+.vaango-appointment-upi-card__subtitle {
+  font-size: 12.5px;
+  color: #64748B;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Centered & Responsive UPI QR Wrapper */
+.vaango-appointment-upi-qr-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 14px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+}
+
+/* Constrained, square, undistorted QR image */
+.vaango-appointment-upi-card__qr {
+  display: block;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #FFFFFF;
+}
+
+/* Mobile responsive constraints (220px - 280px) */
+@media (max-width: 640px) {
+  .vaango-appointment-upi-card {
+    padding: 14px 12px;
+    gap: 12px;
+  }
+
+  .vaango-appointment-upi-qr-wrapper {
+    padding: 10px;
+  }
+
+  .vaango-appointment-upi-card__qr {
+    max-width: min(260px, calc(100vw - 64px));
+  }
+}
+
+@media (max-width: 360px) {
+  .vaango-appointment-upi-card__qr {
+    max-width: 220px;
+  }
+}
+
+/* UPI Details Box */
+.vaango-appointment-upi-card__details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  background: #F8FAFC;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  box-sizing: border-box;
+}
+
+[data-theme='dark'] .vaango-appointment-upi-card__details,
+.dark .vaango-appointment-upi-card__details {
+  background: #0F172A;
+  border-color: #334155;
+}
+
+.vaango-appointment-upi-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  gap: 8px;
+}
+
+.vaango-appointment-upi-card__label {
+  color: #64748B;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.vaango-appointment-upi-card__val {
+  color: #0F172A;
+  font-family: monospace;
+  font-weight: 700;
+  word-break: break-all;
+  text-align: right;
+}
+
+[data-theme='dark'] .vaango-appointment-upi-card__val,
+.dark .vaango-appointment-upi-card__val {
+  color: #F8FAFC;
+}
+
+.vaango-appointment-upi-card__hint {
+  font-size: 11.5px;
+  color: #64748B;
+  line-height: 1.4;
+  margin: 0;
+}
+

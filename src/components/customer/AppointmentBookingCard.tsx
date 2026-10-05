@@ -9,6 +9,7 @@ import {
   Star,
   MapPin,
   Store,
+  CheckCircle2,
 } from 'lucide-react';
 import { Shop, ShopService, AppointmentSlot } from '../../types/database';
 import {
@@ -486,42 +487,61 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
             {/* Payment Method Selector */}
             <div className="vaango-form-group mb-4">
               <label className="vaango-form-label">Payment Method</label>
-              <div className="vaango-payment-methods flex gap-3">
+              <div className="vaango-payment-methods" role="radiogroup" aria-label="Payment Method">
                 {(selectedService.payment_requirement !== 'online_only' || !hasAuthoritativeUpi) && (
                   <button
                     type="button"
-                    className={`flex-1 p-3 rounded-lg border text-left transition-all ${
-                      paymentMethod === 'pay_at_shop'
-                        ? 'border-primary bg-primary/5 text-primary font-semibold ring-2 ring-primary/20'
-                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    role="radio"
+                    aria-checked={paymentMethod === 'pay_at_shop'}
+                    className={`vaango-payment-method-card ${
+                      paymentMethod === 'pay_at_shop' ? 'vaango-payment-method-card--selected' : ''
                     }`}
                     onClick={() => setPaymentMethod('pay_at_shop')}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">💵</span>
-                      <span>{t('payAtShop')}</span>
+                    <div className="vaango-payment-method-card__top">
+                      <div className="vaango-payment-method-card__title-wrap">
+                        <span className="vaango-payment-method-card__icon" aria-hidden="true">💵</span>
+                        <strong className="vaango-payment-method-card__title">{t('payAtShop')}</strong>
+                      </div>
+                      <div className="vaango-payment-method-card__check">
+                        {paymentMethod === 'pay_at_shop' ? (
+                          <CheckCircle2 size={18} className="vaango-payment-method-card__check-icon" />
+                        ) : (
+                          <span className="vaango-payment-method-card__check-placeholder" />
+                        )}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1">
+                    <div className="vaango-payment-method-card__desc">
                       Get queue token immediately. Pay cash/UPI at counter.
                     </div>
                   </button>
                 )}
+
                 {selectedService.payment_requirement !== 'shop_only' && (
                   <button
                     type="button"
-                    className={`flex-1 p-3 rounded-lg border text-left transition-all ${
-                      paymentMethod === 'online'
-                        ? 'border-primary bg-primary/5 text-primary font-semibold ring-2 ring-primary/20'
-                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
-                    }`}
+                    role="radio"
+                    aria-checked={paymentMethod === 'online'}
                     disabled={!hasAuthoritativeUpi}
+                    className={`vaango-payment-method-card ${
+                      paymentMethod === 'online' ? 'vaango-payment-method-card--selected' : ''
+                    } ${!hasAuthoritativeUpi ? 'vaango-payment-method-card--disabled' : ''}`}
                     onClick={() => setPaymentMethod('online')}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">📱</span>
-                      <span>Pay Online (UPI)</span>
+                    <div className="vaango-payment-method-card__top">
+                      <div className="vaango-payment-method-card__title-wrap">
+                        <span className="vaango-payment-method-card__icon" aria-hidden="true">📱</span>
+                        <strong className="vaango-payment-method-card__title">Pay Online (UPI)</strong>
+                      </div>
+                      <div className="vaango-payment-method-card__check">
+                        {paymentMethod === 'online' ? (
+                          <CheckCircle2 size={18} className="vaango-payment-method-card__check-icon" />
+                        ) : (
+                          <span className="vaango-payment-method-card__check-placeholder" />
+                        )}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1">
+                    <div className="vaango-payment-method-card__desc">
                       {hasAuthoritativeUpi
                         ? 'Reserve a 10-min hold while uploading payment proof.'
                         : 'Online payment is unavailable until this shop adds its UPI QR.'}
@@ -535,21 +555,38 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
               <div className="vaango-appointment-upi-card" aria-live="polite">
                 {hasAuthoritativeUpi ? (
                   <>
-                    <div>
-                      <strong>Pay Online (UPI)</strong>
-                      <p>Scan the merchant QR using any UPI app. Payment is verified only after you upload proof and the shopkeeper reviews it.</p>
+                    <div className="vaango-appointment-upi-card__header">
+                      <strong className="vaango-appointment-upi-card__title">Pay Online (UPI)</strong>
+                      <p className="vaango-appointment-upi-card__subtitle">
+                        Scan the merchant QR using any UPI app. Payment is verified only after you upload proof and the shopkeeper reviews it.
+                      </p>
                     </div>
-                    <img src={shop.upi_qr_url || undefined} alt={`${shop.name} UPI QR code`} className="vaango-appointment-upi-card__qr" />
+
+                    <div className="vaango-appointment-upi-qr-wrapper">
+                      <img
+                        src={shop.upi_qr_url || undefined}
+                        alt={`${shop.name} UPI QR code`}
+                        className="vaango-appointment-upi-card__qr"
+                      />
+                    </div>
+
                     <div className="vaango-appointment-upi-card__details">
-                      <span>UPI ID</span>
-                      <strong>{shop.upi_id}</strong>
-                      <span>Amount</span>
-                      <strong>₹{appointmentAmount}</strong>
+                      <div className="vaango-appointment-upi-card__row">
+                        <span className="vaango-appointment-upi-card__label">UPI ID</span>
+                        <strong className="vaango-appointment-upi-card__val">{shop.upi_id}</strong>
+                      </div>
+                      <div className="vaango-appointment-upi-card__row">
+                        <span className="vaango-appointment-upi-card__label">Amount</span>
+                        <strong className="vaango-appointment-upi-card__val text-primary">₹{appointmentAmount}</strong>
+                      </div>
                     </div>
+
                     <Button type="button" variant="outline" size="sm" onClick={() => void copyMerchantUpiId()}>
                       Copy UPI ID
                     </Button>
-                    <p className="vaango-appointment-upi-card__hint">After you pay, use the booking button below to reserve the slot and upload your payment proof.</p>
+                    <p className="vaango-appointment-upi-card__hint">
+                      After you pay, use the booking button below to reserve the slot and upload your payment proof.
+                    </p>
                   </>
                 ) : (
                   <div className="vaango-booking-alert vaango-booking-alert--error">
