@@ -502,6 +502,136 @@
   display: block;
 }
 
+/* Phase 2: Daily Trends Summary Strip (Peak Day & Average Pace) */
+.vaango-trend-summary-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 4px 0 2px 0;
+}
+
+.vaango-trend-stat-chip {
+  flex: 1 1 180px;
+  min-width: 140px;
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vaango-trend-stat-chip--empty {
+  opacity: 0.75;
+}
+
+.vaango-trend-stat-chip__label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+}
+
+.vaango-trend-stat-chip__val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  line-height: 1.25;
+}
+
+.vaango-trend-stat-chip__val--empty {
+  color: var(--color-text-muted);
+}
+
+.vaango-trend-stat-chip__sub {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* Phase 2: Touch-Friendly Interactive Chart Card & Hint */
+.vaango-trend-touch-card {
+  margin-top: 10px;
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+  animation: fadeIn 0.15s ease;
+}
+
+.vaango-trend-touch-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vaango-trend-touch-card__date {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.vaango-trend-touch-card__close {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.vaango-trend-touch-card__close:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-surface);
+}
+
+.vaango-trend-touch-card__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+}
+
+.vaango-trend-touch-card__stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.78rem;
+}
+
+.vaango-trend-touch-card__k {
+  color: var(--color-text-secondary);
+}
+
+.vaango-trend-touch-card__v {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.vaango-trend-touch-card__v--primary {
+  color: var(--color-primary);
+}
+
+.vaango-trend-touch-card__v--prior {
+  color: #6366f1;
+}
+
+.vaango-trend-touch-hint {
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
 /* Grid Layout for Analytics Sections */
 .vaango-analytics-grid-2col {
   display: grid;

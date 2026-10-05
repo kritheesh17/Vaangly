@@ -6,6 +6,9 @@ import {
   calculateShopAnalytics,
   getPaymentMethodLabel,
   extractPaymentMethodCode,
+  getISTDateString,
+  getCalendarDaysList,
+  getPreviousPeriod,
 } from '../lib/analyticsApi';
 import { Shop, Request } from '../types/database';
 
@@ -306,8 +309,8 @@ describe('Shopkeeper Dynamic Navigation & Sales Analysis Suite', () => {
       assert.strictEqual(getPaymentMethodLabel('upi'), 'UPI / QR Code');
       assert.strictEqual(getPaymentMethodLabel('pay_at_shop'), 'Pay at Shop');
       assert.strictEqual(getPaymentMethodLabel('online'), 'Online Transfer');
-      assert.strictEqual(getPaymentMethodLabel(null), 'Cash');
-      assert.strictEqual(getPaymentMethodLabel(undefined), 'Cash');
+      assert.strictEqual(getPaymentMethodLabel(null), 'Unspecified');
+      assert.strictEqual(getPaymentMethodLabel(undefined), 'Unspecified');
     });
 
     it('4.2 extractPaymentMethodCode extracts authoritative payment_method or notes payload', () => {
@@ -321,7 +324,7 @@ describe('Shopkeeper Dynamic Navigation & Sales Analysis Suite', () => {
       assert.strictEqual(extractPaymentMethodCode(reqWithNotes as Request), 'pay_at_shop');
 
       const reqDefault: Partial<Request> = { payment_method: null, notes: null };
-      assert.strictEqual(extractPaymentMethodCode(reqDefault as Request), 'cash');
+      assert.strictEqual(extractPaymentMethodCode(reqDefault as Request), 'unspecified');
     });
 
     it('4.3 Payment methods aggregation strictly isolates settled revenue matching Net Settled Sales', async () => {
@@ -422,6 +425,131 @@ describe('Shopkeeper Dynamic Navigation & Sales Analysis Suite', () => {
         assert.ok(
           totalSettledFromServices <= analytics.overview.total_sales,
           'Sum of service settled revenues must not exceed Net Settled Sales'
+        );
+      }
+    });
+  });
+
+  describe('5. Phase 2: Revenue & Growth Audited Regression Suite', () => {
+    it('5.0 Continuous daily range generates inclusive list without UTC drift', () => {
+      const days = getCalendarDaysList('2026-10-01', '2026-10-05');
+      assert.deepStrictEqual(days, [
+        '2026-10-01',
+        '2026-10-02',
+        '2026-10-03',
+        '2026-10-04',
+        '2026-10-05',
+      ]);
+    });
+
+    it('5.1 A: IST late-night 2026-10-04T19:00:00.000Z correctly buckets to 2026-10-05', () => {
+      const result = getISTDateString('2026-10-04T19:00:00.000Z');
+      assert.strictEqual(
+        result,
+        '2026-10-05',
+        'Late night 19:00 UTC is 00:30 AM IST next calendar day'
+      );
+    });
+
+    it('5.2 B: IST morning 2026-10-05T04:30:00.000Z correctly buckets to 2026-10-05', () => {
+      const result = getISTDateString('2026-10-05T04:30:00.000Z');
+      assert.strictEqual(
+        result,
+        '2026-10-05',
+        'Morning 04:30 UTC is 10:00 AM IST same calendar day'
+      );
+    });
+
+    it('5.3 C: Daily trends completed sales reconcile exactly with overview.total_sales', async () => {
+      const analytics = await calculateShopAnalytics(orderOnlyShop, {
+        preset: '30d',
+        startDate: '2026-01-01',
+        endDate: '2026-12-31',
+      });
+      const trendsCompletedSum = analytics.revenue_trends.reduce(
+        (sum, pt) => sum + pt.completed_sales,
+        0
+      );
+      assert.strictEqual(
+        trendsCompletedSum,
+        analytics.overview.total_sales,
+        'sum(revenue_trends.completed_sales) must strictly equal overview.total_sales'
+      );
+    });
+
+    it('5.4 D: This Month prior-period matching: October 1–5 must compare against September 1–5', () => {
+      const prev = getPreviousPeriod({
+        preset: 'this_month',
+        startDate: '2026-10-01',
+        endDate: '2026-10-05',
+      });
+      assert.strictEqual(
+        prev.startDate,
+        '2026-09-01',
+        'Prior period must start on 1st of previous month'
+      );
+      assert.strictEqual(
+        prev.endDate,
+        '2026-09-05',
+        'Prior period must end on 5th of previous month (MTD equivalent)'
+      );
+    });
+
+    it('5.5 E: Peak day correctly identifies highest completed_sales day', async () => {
+      const analytics = await calculateShopAnalytics(orderOnlyShop, {
+        preset: '30d',
+        startDate: '2026-01-01',
+        endDate: '2026-12-31',
+      });
+      if (analytics.overview.total_sales > 0) {
+        assert.ok(analytics.peak_day !== null, 'Peak day must not be null when settled sales exist');
+        const maxCompletedInTrends = Math.max(
+          ...analytics.revenue_trends.map((p) => p.completed_sales)
+        );
+        assert.strictEqual(
+          analytics.peak_day?.completed_sales,
+          maxCompletedInTrends,
+          'Peak day completed_sales must equal highest daily completed_sales'
+        );
+      } else {
+        assert.strictEqual(analytics.peak_day, null, 'Peak day must be null when no completed sales');
+      }
+    });
+
+    it('5.6 F: Unknown payment methods preserve human-readable format and do NOT become Cash', () => {
+      assert.strictEqual(getPaymentMethodLabel('card'), 'Card');
+      assert.strictEqual(getPaymentMethodLabel('bank_transfer'), 'Bank Transfer');
+      assert.strictEqual(getPaymentMethodLabel('credit_card'), 'Credit Card');
+      assert.notStrictEqual(getPaymentMethodLabel('card'), 'Cash', 'Card must not become Cash');
+      assert.notStrictEqual(
+        getPaymentMethodLabel('bank_transfer'),
+        'Cash',
+        'bank_transfer must not become Cash'
+      );
+      assert.strictEqual(getPaymentMethodLabel(null), 'Unspecified');
+      assert.strictEqual(getPaymentMethodLabel(''), 'Unspecified');
+    });
+
+    it('5.7 G: No previous period data: comparison trend is absent/null rather than fabricated zero data', async () => {
+      const emptyShop: Shop = {
+        ...orderOnlyShop,
+        id: '30000000-0000-0000-0000-000000000099',
+      };
+      const analytics = await calculateShopAnalytics(emptyShop, {
+        preset: '7d',
+        startDate: '2020-01-01',
+        endDate: '2020-01-07',
+      });
+      assert.strictEqual(
+        analytics.has_previous_period_trend,
+        false,
+        'has_previous_period_trend must be false when no prior data exists'
+      );
+      for (const pt of analytics.revenue_trends) {
+        assert.strictEqual(
+          pt.previous_completed_sales,
+          null,
+          'previous_completed_sales must be null (not fabricated zero)'
         );
       }
     });

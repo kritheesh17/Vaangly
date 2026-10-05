@@ -47,6 +47,7 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
 
   // Chart View Tab Toggle: Revenue Trends vs Daily Order Count
   const [chartView, setChartView] = useState<'revenue' | 'orders'>('revenue');
+  const [selectedTrendIdx, setSelectedTrendIdx] = useState<number | null>(null);
 
   // Date Filter State
   const [preset, setPreset] = useState<DateRangePreset>('30d');
@@ -164,9 +165,20 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
     const svgHeight = 200;
     const padding = 24;
 
+    const hasPriorTrend = Boolean(
+      analytics.has_previous_period_trend &&
+        points.some((p) => p.previous_completed_sales !== null && p.previous_completed_sales !== undefined)
+    );
+
+    const selectedPoint =
+      selectedTrendIdx !== null && selectedTrendIdx >= 0 && selectedTrendIdx < points.length
+        ? points[selectedTrendIdx]
+        : null;
+
     if (chartView === 'orders') {
       const maxOrders = Math.max(...points.map((p) => p.order_count), 5);
       const barWidth = Math.max(4, Math.min(24, (svgWidth - padding * 2) / points.length - 4));
+      const colStep = (svgWidth - padding * 2) / Math.max(points.length, 1);
 
       return (
         <div className="vaango-svg-chart-wrap">
@@ -181,17 +193,32 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
               const x = padding + (idx / Math.max(points.length - 1, 1)) * (svgWidth - padding * 2) - barWidth / 2;
               const barHeight = (p.order_count / maxOrders) * (svgHeight - padding * 2);
               const y = svgHeight - padding - barHeight;
+              const isSelected = selectedTrendIdx === idx;
 
               return (
                 <g key={p.date}>
+                  {/* Invisible touch/click hit area */}
+                  <rect
+                    x={Math.max(0, padding + idx * colStep - colStep / 2)}
+                    y={0}
+                    width={colStep}
+                    height={svgHeight}
+                    fill="transparent"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setSelectedTrendIdx(isSelected ? null : idx)}
+                    onMouseEnter={() => setSelectedTrendIdx(idx)}
+                  />
                   <rect
                     x={Math.max(padding, x)}
                     y={y}
                     width={barWidth}
                     height={Math.max(barHeight, 2)}
                     rx={3}
-                    fill={p.order_count > 0 ? 'var(--color-primary)' : 'var(--color-border)'}
+                    fill={p.order_count > 0 ? (isSelected ? 'var(--color-primary-hover)' : 'var(--color-primary)') : 'var(--color-border)'}
                     opacity={p.order_count > 0 ? 0.9 : 0.4}
+                    stroke={isSelected ? 'var(--color-text-primary)' : 'none'}
+                    strokeWidth={isSelected ? 1.5 : 0}
+                    style={{ pointerEvents: 'none' }}
                   >
                     <title>{`${p.label}: ${p.order_count} order(s)`}</title>
                   </rect>
@@ -206,15 +233,70 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
             {points.length > 2 && <span>{points[Math.floor(points.length / 2)]?.label}</span>}
             <span>{points[points.length - 1]?.label}</span>
           </div>
+
+          {/* Interactive Tap / Hover Details Card */}
+          {selectedPoint ? (
+            <div className="vaango-trend-touch-card" role="status">
+              <div className="vaango-trend-touch-card__header">
+                <span className="vaango-trend-touch-card__date">
+                  {selectedPoint.full_date_label || selectedPoint.label}
+                </span>
+                <button
+                  type="button"
+                  className="vaango-trend-touch-card__close"
+                  onClick={() => setSelectedTrendIdx(null)}
+                  aria-label="Close details"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="vaango-trend-touch-card__grid">
+                <div className="vaango-trend-touch-card__stat">
+                  <span className="vaango-trend-touch-card__k">Order Volume:</span>
+                  <strong className="vaango-trend-touch-card__v vaango-trend-touch-card__v--primary">
+                    {selectedPoint.order_count} {selectedPoint.order_count === 1 ? 'order' : 'orders'}
+                  </strong>
+                </div>
+                <div className="vaango-trend-touch-card__stat">
+                  <span className="vaango-trend-touch-card__k">Completed Revenue:</span>
+                  <strong className="vaango-trend-touch-card__v">
+                    ₹{selectedPoint.completed_sales.toLocaleString('en-IN')}
+                  </strong>
+                </div>
+                {selectedPoint.gross_order_value > selectedPoint.completed_sales && (
+                  <div className="vaango-trend-touch-card__stat">
+                    <span className="vaango-trend-touch-card__k">Gross Placed:</span>
+                    <span className="vaango-trend-touch-card__v">
+                      ₹{selectedPoint.gross_order_value.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="vaango-trend-touch-hint">
+              <span>💡 Tap any day on the chart for exact daily breakdown</span>
+            </div>
+          )}
         </div>
       );
     }
 
     // Revenue Trends Area / Line Chart
-    const maxVal = Math.max(...points.map((p) => Math.max(p.gross_order_value, p.completed_sales)), 100);
+    const maxVal = Math.max(
+      ...points.map((p) =>
+        Math.max(
+          p.gross_order_value,
+          p.completed_sales,
+          hasPriorTrend && p.previous_completed_sales != null ? p.previous_completed_sales : 0
+        )
+      ),
+      100
+    );
 
     const getX = (idx: number) => padding + (idx / Math.max(points.length - 1, 1)) * (svgWidth - padding * 2);
     const getY = (val: number) => svgHeight - padding - (val / maxVal) * (svgHeight - padding * 2);
+    const colStep = (svgWidth - padding * 2) / Math.max(points.length - 1, 1);
 
     const completedPath = points
       .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx)} ${getY(p.completed_sales)}`)
@@ -223,6 +305,12 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
     const grossPath = points
       .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx)} ${getY(p.gross_order_value)}`)
       .join(' ');
+
+    const priorPath = hasPriorTrend
+      ? points
+          .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${getX(idx)} ${getY(p.previous_completed_sales || 0)}`)
+          .join(' ')
+      : '';
 
     const completedArea = `${completedPath} L ${getX(points.length - 1)} ${svgHeight - padding} L ${getX(0)} ${svgHeight - padding} Z`;
 
@@ -243,26 +331,73 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
           </defs>
           <path d={completedArea} fill="url(#completedGrad)" />
 
+          {/* Prior Period Line (Subtle Secondary Dashed) */}
+          {hasPriorTrend && priorPath && (
+            <path
+              d={priorPath}
+              fill="none"
+              stroke="#6366f1"
+              strokeWidth="2"
+              strokeDasharray="4 4"
+              opacity="0.8"
+            />
+          )}
+
           {/* Gross Order Line (Dashed) */}
-          <path d={grossPath} fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeDasharray="4 4" />
+          <path d={grossPath} fill="none" stroke="var(--color-text-muted)" strokeWidth="1.75" strokeDasharray="3 3" opacity="0.65" />
 
           {/* Completed Sales Line (Solid) */}
           <path d={completedPath} fill="none" stroke="var(--color-primary)" strokeWidth="2.5" />
 
-          {/* Data Points */}
+          {/* Transparent full-column tap hit targets */}
           {points.map((p, idx) => (
-            <circle
-              key={p.date}
-              cx={getX(idx)}
-              cy={getY(p.completed_sales)}
-              r={points.length > 31 ? 2 : 4}
-              fill="var(--color-surface)"
-              stroke="var(--color-primary)"
-              strokeWidth="2"
-            >
-              <title>{`${p.label}: Completed ₹${p.completed_sales.toLocaleString('en-IN')}, Gross ₹${p.gross_order_value.toLocaleString('en-IN')}`}</title>
-            </circle>
+            <rect
+              key={`hit-${p.date}`}
+              x={Math.max(0, getX(idx) - colStep / 2)}
+              y={0}
+              width={colStep}
+              height={svgHeight}
+              fill="transparent"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setSelectedTrendIdx(selectedTrendIdx === idx ? null : idx)}
+              onMouseEnter={() => setSelectedTrendIdx(idx)}
+            />
           ))}
+
+          {/* Prior Period Points (when active) */}
+          {hasPriorTrend &&
+            points.map((p, idx) =>
+              p.previous_completed_sales != null ? (
+                <circle
+                  key={`prior-pt-${p.date}`}
+                  cx={getX(idx)}
+                  cy={getY(p.previous_completed_sales)}
+                  r={selectedTrendIdx === idx ? 4 : 2}
+                  fill="#6366f1"
+                  opacity={0.85}
+                  style={{ pointerEvents: 'none' }}
+                />
+              ) : null
+            )}
+
+          {/* Current Period Data Points */}
+          {points.map((p, idx) => {
+            const isSelected = selectedTrendIdx === idx;
+            return (
+              <circle
+                key={p.date}
+                cx={getX(idx)}
+                cy={getY(p.completed_sales)}
+                r={isSelected ? 6 : points.length > 31 ? 2 : 3.5}
+                fill={isSelected ? 'var(--color-primary)' : 'var(--color-surface)'}
+                stroke={isSelected ? 'var(--color-surface)' : 'var(--color-primary)'}
+                strokeWidth={isSelected ? 2.5 : 2}
+                style={{ pointerEvents: 'none', transition: 'r 0.15s ease' }}
+              >
+                <title>{`${p.label}: Completed ₹${p.completed_sales.toLocaleString('en-IN')}, Gross ₹${p.gross_order_value.toLocaleString('en-IN')}`}</title>
+              </circle>
+            );
+          })}
         </svg>
 
         {/* X Axis Labels */}
@@ -271,6 +406,59 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
           {points.length > 2 && <span>{points[Math.floor(points.length / 2)]?.label}</span>}
           <span>{points[points.length - 1]?.label}</span>
         </div>
+
+        {/* Interactive Tap / Hover Details Card */}
+        {selectedPoint ? (
+          <div className="vaango-trend-touch-card" role="status">
+            <div className="vaango-trend-touch-card__header">
+              <span className="vaango-trend-touch-card__date">
+                {selectedPoint.full_date_label || selectedPoint.label}
+              </span>
+              <button
+                type="button"
+                className="vaango-trend-touch-card__close"
+                onClick={() => setSelectedTrendIdx(null)}
+                aria-label="Close details"
+              >
+                ×
+              </button>
+            </div>
+            <div className="vaango-trend-touch-card__grid">
+              <div className="vaango-trend-touch-card__stat">
+                <span className="vaango-trend-touch-card__k">Completed Sales:</span>
+                <strong className="vaango-trend-touch-card__v vaango-trend-touch-card__v--primary">
+                  ₹{selectedPoint.completed_sales.toLocaleString('en-IN')}
+                </strong>
+              </div>
+              <div className="vaango-trend-touch-card__stat">
+                <span className="vaango-trend-touch-card__k">Orders:</span>
+                <strong className="vaango-trend-touch-card__v">{selectedPoint.order_count}</strong>
+              </div>
+              {selectedPoint.gross_order_value > selectedPoint.completed_sales && (
+                <div className="vaango-trend-touch-card__stat">
+                  <span className="vaango-trend-touch-card__k">Gross Placed:</span>
+                  <span className="vaango-trend-touch-card__v">
+                    ₹{selectedPoint.gross_order_value.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              )}
+              {hasPriorTrend &&
+                selectedPoint.previous_completed_sales !== null &&
+                selectedPoint.previous_completed_sales !== undefined && (
+                  <div className="vaango-trend-touch-card__stat">
+                    <span className="vaango-trend-touch-card__k">Prior Period:</span>
+                    <strong className="vaango-trend-touch-card__v vaango-trend-touch-card__v--prior">
+                      ₹{selectedPoint.previous_completed_sales.toLocaleString('en-IN')}
+                    </strong>
+                  </div>
+                )}
+            </div>
+          </div>
+        ) : (
+          <div className="vaango-trend-touch-hint">
+            <span>💡 Tap any day on the chart for exact daily breakdown</span>
+          </div>
+        )}
       </div>
     );
   };
@@ -672,7 +860,7 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
             {/* Visual Trends Chart */}
             <div className="vaango-chart-card">
               <div className="vaango-chart-card__header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <h3 className="vaango-chart-card__title">
                     <TrendingUp size={18} /> Daily Trends
                   </h3>
@@ -680,14 +868,20 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
                     <button
                       type="button"
                       className={`vaango-chart-toggle-btn ${chartView === 'revenue' ? 'vaango-chart-toggle-btn--active' : ''}`}
-                      onClick={() => setChartView('revenue')}
+                      onClick={() => {
+                        setChartView('revenue');
+                        setSelectedTrendIdx(null);
+                      }}
                     >
                       Revenue (₹)
                     </button>
                     <button
                       type="button"
                       className={`vaango-chart-toggle-btn ${chartView === 'orders' ? 'vaango-chart-toggle-btn--active' : ''}`}
-                      onClick={() => setChartView('orders')}
+                      onClick={() => {
+                        setChartView('orders');
+                        setSelectedTrendIdx(null);
+                      }}
                     >
                       Daily Orders
                     </button>
@@ -698,6 +892,9 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
                   <div className="vaango-chart-card__legend">
                     <span><span className="vaango-legend-dot" style={{ backgroundColor: 'var(--color-primary)' }} /> Completed</span>
                     <span><span className="vaango-legend-dot" style={{ backgroundColor: 'var(--color-text-muted)' }} /> Gross</span>
+                    {analytics.has_previous_period_trend && (
+                      <span><span className="vaango-legend-dot" style={{ backgroundColor: '#6366f1' }} /> Prior Period</span>
+                    )}
                   </div>
                 ) : (
                   <div className="vaango-chart-card__legend">
@@ -705,6 +902,40 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Phase 2: Peak Day & Average Daily Settled Revenue Summary Strip */}
+              <div className="vaango-trend-summary-strip">
+                {analytics.peak_day ? (
+                  <div className="vaango-trend-stat-chip">
+                    <span className="vaango-trend-stat-chip__label">Peak Revenue</span>
+                    <strong className="vaango-trend-stat-chip__val">
+                      ₹{analytics.peak_day.completed_sales.toLocaleString('en-IN')}
+                    </strong>
+                    <span className="vaango-trend-stat-chip__sub">{analytics.peak_day.label}</span>
+                  </div>
+                ) : (
+                  <div className="vaango-trend-stat-chip vaango-trend-stat-chip--empty">
+                    <span className="vaango-trend-stat-chip__label">Peak Revenue</span>
+                    <span className="vaango-trend-stat-chip__val vaango-trend-stat-chip__val--empty">—</span>
+                    <span className="vaango-trend-stat-chip__sub">No settled revenue in period</span>
+                  </div>
+                )}
+
+                <div className="vaango-trend-stat-chip">
+                  <span className="vaango-trend-stat-chip__label">Daily Average Pace</span>
+                  <strong className="vaango-trend-stat-chip__val">
+                    ₹{(analytics.average_daily_revenue || 0).toLocaleString('en-IN', {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 2,
+                    })}
+                    <span style={{ fontSize: '0.72rem', fontWeight: 500, color: 'var(--color-text-muted)' }}> / day</span>
+                  </strong>
+                  <span className="vaango-trend-stat-chip__sub">
+                    Across {analytics.revenue_trends.length} calendar days
+                  </span>
+                </div>
+              </div>
+
               {renderTrendsChart()}
             </div>
 

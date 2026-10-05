@@ -5,11 +5,13 @@ export type SubscriptionTier = 'FREE' | 'PRO';
 export interface RevenueTrendPoint {
   date: string; // YYYY-MM-DD or Month/Week label
   label: string;
+  full_date_label?: string;
   gross_order_value: number;
   completed_sales: number;
   cancelled_amount: number;
   verified_payments: number;
   order_count: number;
+  previous_completed_sales?: number | null;
 }
 
 export interface SalesOverview {
@@ -118,11 +120,21 @@ export interface AnalyticsFilter {
   endDate: string; // YYYY-MM-DD
 }
 
+export interface PeakDayMetric {
+  date: string; // YYYY-MM-DD
+  label: string; // e.g. "Saturday, Oct 4"
+  completed_sales: number;
+  order_count: number;
+}
+
 export interface BusinessAnalyticsData {
   tier: SubscriptionTier;
   filter: AnalyticsFilter;
   overview: SalesOverview;
   revenue_trends: RevenueTrendPoint[];
+  peak_day?: PeakDayMetric | null;
+  average_daily_revenue?: number;
+  has_previous_period_trend?: boolean;
   top_products: ProductPerformance[];
   variant_performance: VariantPerformance[];
   slow_moving_products: SlowMovingProduct[];

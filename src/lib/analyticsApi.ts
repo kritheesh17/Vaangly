@@ -3,6 +3,7 @@ import {
   BusinessAnalyticsData,
   AnalyticsFilter,
   RevenueTrendPoint,
+  PeakDayMetric,
   SalesOverview,
   ProductPerformance,
   VariantPerformance,
@@ -14,6 +15,114 @@ import {
   DateRangePreset,
 } from '../types/analytics';
 import { getShopRequests, getShopProductsList } from './shopkeeperApi';
+
+/**
+ * Authoritative Asia/Kolkata date string extractor (YYYY-MM-DD)
+ * Guarantees that late-night and early-morning orders in India are accurately bucketed
+ * regardless of the client machine's local timezone.
+ */
+export const getISTDateString = (input: string | Date | number): string => {
+  const d = typeof input === 'string' || typeof input === 'number' ? new Date(input) : input;
+  if (!d || isNaN(d.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(d);
+  const year = parts.find((p) => p.type === 'year')?.value;
+  const month = parts.find((p) => p.type === 'month')?.value;
+  const day = parts.find((p) => p.type === 'day')?.value;
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * Returns the hour of the day (0-23) in Asia/Kolkata timezone
+ */
+export const getISTHour = (input: string | Date | number): number => {
+  const d = typeof input === 'string' || typeof input === 'number' ? new Date(input) : input;
+  if (!d || isNaN(d.getTime())) return 0;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    hourCycle: 'h23',
+  }).formatToParts(d);
+  const hourPart = parts.find((p) => p.type === 'hour')?.value;
+  return hourPart ? parseInt(hourPart, 10) : 0;
+};
+
+/**
+ * Generates an inclusive continuous list of YYYY-MM-DD date strings between start and end
+ */
+export const getCalendarDaysList = (startDateStr: string, endDateStr: string): string[] => {
+  const dates: string[] = [];
+  const [sYear, sMonth, sDay] = startDateStr.split('-').map(Number);
+  const [eYear, eMonth, eDay] = endDateStr.split('-').map(Number);
+
+  const current = new Date(Date.UTC(sYear, sMonth - 1, sDay, 12, 0, 0));
+  const end = new Date(Date.UTC(eYear, eMonth - 1, eDay, 12, 0, 0));
+
+  while (current.getTime() <= end.getTime()) {
+    const y = current.getUTCFullYear();
+    const m = String(current.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(current.getUTCDate()).padStart(2, '0');
+    dates.push(`${y}-${m}-${d}`);
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return dates;
+};
+
+/**
+ * Calculates the exact prior comparison period for a given filter.
+ * - 'this_month': compares Month-To-Date (e.g. Oct 1-5 compares with Sept 1-5).
+ * - 'today': compares with yesterday.
+ * - '7d', '30d', 'custom', etc.: compares with the preceding equal-duration window.
+ */
+export const getPreviousPeriod = (
+  filter: AnalyticsFilter
+): { startDate: string; endDate: string } => {
+  const { preset, startDate, endDate } = filter;
+
+  if (preset === 'this_month') {
+    const [curYear, curMonth] = startDate.split('-').map(Number);
+    const endDay = parseInt(endDate.split('-')[2], 10);
+    const prevYear = curMonth === 1 ? curYear - 1 : curYear;
+    const prevMonth = curMonth === 1 ? 12 : curMonth - 1;
+    const prevMonthStr = String(prevMonth).padStart(2, '0');
+    const prevStartDate = `${prevYear}-${prevMonthStr}-01`;
+    const daysInPrevMonth = new Date(Date.UTC(prevYear, prevMonth, 0, 12, 0, 0)).getUTCDate();
+    const prevEndDay = Math.min(endDay, daysInPrevMonth);
+    const prevEndDate = `${prevYear}-${prevMonthStr}-${String(prevEndDay).padStart(2, '0')}`;
+    return { startDate: prevStartDate, endDate: prevEndDate };
+  }
+
+  if (preset === 'today') {
+    const [y, m, d] = startDate.split('-').map(Number);
+    const prevDate = new Date(Date.UTC(y, m - 1, d - 1, 12, 0, 0));
+    const yStr = prevDate.getUTCFullYear();
+    const mStr = String(prevDate.getUTCMonth() + 1).padStart(2, '0');
+    const dStr = String(prevDate.getUTCDate()).padStart(2, '0');
+    const yesterdayStr = `${yStr}-${mStr}-${dStr}`;
+    return { startDate: yesterdayStr, endDate: yesterdayStr };
+  }
+
+  // Preceding equal-duration window
+  const [sY, sM, sD] = startDate.split('-').map(Number);
+  const [eY, eM, eD] = endDate.split('-').map(Number);
+  const sUtc = Date.UTC(sY, sM - 1, sD, 12, 0, 0);
+  const eUtc = Date.UTC(eY, eM - 1, eD, 12, 0, 0);
+  const numDays = Math.round((eUtc - sUtc) / (1000 * 60 * 60 * 24)) + 1;
+
+  const pEndUtc = sUtc - 1000 * 60 * 60 * 24;
+  const pStartUtc = pEndUtc - (numDays - 1) * 1000 * 60 * 60 * 24;
+  const pStart = new Date(pStartUtc);
+  const pEnd = new Date(pEndUtc);
+
+  const fmt = (dt: Date) =>
+    `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+
+  return { startDate: fmt(pStart), endDate: fmt(pEnd) };
+};
 
 /**
  * Calculates start and end ISO date strings for a given preset
@@ -130,7 +239,10 @@ export const extractItemsFromRequest = (req: Request): ParsedOrderItem[] => {
  * Maps authoritative payment_method database values to clean user-facing labels
  */
 export const getPaymentMethodLabel = (methodCode?: string | null): string => {
-  const code = (methodCode || '').toLowerCase().trim();
+  if (!methodCode || !methodCode.trim() || methodCode.trim().toLowerCase() === 'unspecified') {
+    return 'Unspecified';
+  }
+  const code = methodCode.toLowerCase().trim();
   switch (code) {
     case 'cash':
       return 'Cash';
@@ -140,8 +252,13 @@ export const getPaymentMethodLabel = (methodCode?: string | null): string => {
       return 'Pay at Shop';
     case 'online':
       return 'Online Transfer';
+    case 'card':
+      return 'Card';
     default:
-      return 'Cash'; // Default fallback matching store checkout default
+      return code
+        .split(/[_\-\s]+/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
   }
 };
 
@@ -162,7 +279,7 @@ export const extractPaymentMethodCode = (r: Request): string => {
       // not JSON notes
     }
   }
-  return 'cash';
+  return 'unspecified';
 };
 
 /**
@@ -178,22 +295,18 @@ export const calculateShopAnalytics = async (
   ]);
 
   const { startDate, endDate } = filter;
-  const startTs = new Date(`${startDate}T00:00:00`).getTime();
-  const endTs = new Date(`${endDate}T23:59:59.999`).getTime();
 
-  // Filter requests for current selected window
+  // Filter requests for current selected window using IST calendar dates
   const currentRequests = allRequests.filter((r) => {
-    const t = new Date(r.created_at).getTime();
-    return t >= startTs && t <= endTs;
+    const dStr = getISTDateString(r.created_at);
+    return dStr >= startDate && dStr <= endDate;
   });
 
   // Calculate prior period for comparison
-  const windowDuration = endTs - startTs;
-  const prevStartTs = startTs - windowDuration;
-  const prevEndTs = startTs - 1;
+  const { startDate: prevStartDate, endDate: prevEndDate } = getPreviousPeriod(filter);
   const previousRequests = allRequests.filter((r) => {
-    const t = new Date(r.created_at).getTime();
-    return t >= prevStartTs && t <= prevEndTs;
+    const dStr = getISTDateString(r.created_at);
+    return dStr >= prevStartDate && dStr <= prevEndDate;
   });
 
   // 1. Sales & Revenue Metrics
@@ -254,23 +367,34 @@ export const calculateShopAnalytics = async (
     fulfillment_rate_pct: fulfillmentRatePct,
   };
 
-  // 2. Revenue Trends Points (Daily or Grouped)
+  // 2. Revenue Trends Points (Continuous calendar days in IST)
+  const currentDaysList = getCalendarDaysList(startDate, endDate);
+  const prevDaysList = getCalendarDaysList(prevStartDate, prevEndDate);
+
+  // Prior period daily map (indexed by relative calendar day)
+  const prevDailyMap = new Map<string, number>();
+  prevDaysList.forEach((dStr) => prevDailyMap.set(dStr, 0));
+  completedPrevious.forEach((r) => {
+    const dStr = getISTDateString(r.created_at);
+    const existing = prevDailyMap.get(dStr) || 0;
+    prevDailyMap.set(dStr, existing + (r.total_estimate || 0));
+  });
+  const prevDailyValues = prevDaysList.map((dStr) => prevDailyMap.get(dStr) || 0);
+  const hasPreviousPeriodData = previousPeriodSales > 0 || completedPrevious.length > 0;
+
+  // Current period trends map
   const trendsMap = new Map<
     string,
     { gross: number; completed: number; cancelled: number; verified: number; count: number }
   >();
-
-  // Initialize dates in range for continuous chart rendering
-  const cursor = new Date(startTs);
-  while (cursor.getTime() <= endTs) {
-    const dStr = cursor.toISOString().slice(0, 10);
+  currentDaysList.forEach((dStr) => {
     trendsMap.set(dStr, { gross: 0, completed: 0, cancelled: 0, verified: 0, count: 0 });
-    cursor.setDate(cursor.getDate() + 1);
-  }
+  });
 
   currentRequests.forEach((r) => {
-    const dStr = r.created_at.slice(0, 10);
-    const existing = trendsMap.get(dStr) || { gross: 0, completed: 0, cancelled: 0, verified: 0, count: 0 };
+    const dStr = getISTDateString(r.created_at);
+    const existing = trendsMap.get(dStr);
+    if (!existing) return;
     const amt = r.total_estimate || 0;
 
     existing.count += 1;
@@ -286,22 +410,62 @@ export const calculateShopAnalytics = async (
     if (r.customer_paid) {
       existing.verified += amt;
     }
-    trendsMap.set(dStr, existing);
   });
 
-  const revenueTrends: RevenueTrendPoint[] = Array.from(trendsMap.entries()).map(([dStr, data]) => {
-    const dateObj = new Date(`${dStr}T00:00:00`);
+  const revenueTrends: RevenueTrendPoint[] = currentDaysList.map((dStr, idx) => {
+    const data = trendsMap.get(dStr) || { gross: 0, completed: 0, cancelled: 0, verified: 0, count: 0 };
+    const [y, m, d] = dStr.split('-').map(Number);
+    const dateObj = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
     const label = dateObj.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+    const fullDateLabel = dateObj.toLocaleDateString('en-IN', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+    const prevSales =
+      hasPreviousPeriodData && idx < prevDailyValues.length ? prevDailyValues[idx] : null;
+
     return {
       date: dStr,
       label,
+      full_date_label: fullDateLabel,
       gross_order_value: data.gross,
       completed_sales: data.completed,
       cancelled_amount: data.cancelled,
       verified_payments: data.verified,
       order_count: data.count,
+      previous_completed_sales: prevSales,
     };
   });
+
+  // Peak day calculation strictly on completed/settled sales
+  let peakDay: PeakDayMetric | null = null;
+  let maxCompleted = 0;
+  revenueTrends.forEach((p) => {
+    if (p.completed_sales > maxCompleted) {
+      maxCompleted = p.completed_sales;
+      const [y, m, d] = p.date.split('-').map(Number);
+      const dateObj = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+      const formattedLabel = dateObj.toLocaleDateString('en-IN', {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+      });
+      peakDay = {
+        date: p.date,
+        label: formattedLabel,
+        completed_sales: p.completed_sales,
+        order_count: p.order_count,
+      };
+    }
+  });
+
+  // Average daily settled revenue across all calendar days in selected reporting window
+  const calendarDaysCount = revenueTrends.length;
+  const averageDailyRevenue =
+    calendarDaysCount > 0 ? Math.round((totalSales / calendarDaysCount) * 100) / 100 : 0;
 
   // 3. Product & Variant Performance
   const productAgg = new Map<string, { name: string; category?: string; qty: number; sales: number }>();
@@ -396,7 +560,7 @@ export const calculateShopAnalytics = async (
   // Determine returning customers based on lifetime completed orders prior to this window or overall
   const priorCompletedCustomerOrders = new Map<string, number>();
   allRequests
-    .filter((r) => r.current_state === 'COMPLETED' && new Date(r.created_at).getTime() < startTs)
+    .filter((r) => r.current_state === 'COMPLETED' && getISTDateString(r.created_at) < startDate)
     .forEach((r) => {
       priorCompletedCustomerOrders.set(r.customer_id, (priorCompletedCustomerOrders.get(r.customer_id) || 0) + 1);
     });
@@ -438,7 +602,7 @@ export const calculateShopAnalytics = async (
     returning_percentage: returningPct,
   };
 
-  // 6. Peak Ordering Hours (0 to 23 in business timezone)
+  // 6. Peak Ordering Hours (0 to 23 in Asia/Kolkata business timezone)
   const hourBins = Array.from({ length: 24 }, (_, h) => ({
     hour: h,
     formatted_hour: `${h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`}`,
@@ -448,8 +612,7 @@ export const calculateShopAnalytics = async (
   }));
 
   currentRequests.forEach((r) => {
-    const d = new Date(r.created_at);
-    const hour = d.getHours(); // Local browser/business hour
+    const hour = getISTHour(r.created_at);
     if (hourBins[hour]) {
       hourBins[hour].order_count += 1;
       if (r.current_state === 'COMPLETED') {
@@ -625,6 +788,9 @@ export const calculateShopAnalytics = async (
     filter,
     overview,
     revenue_trends: revenueTrends,
+    peak_day: peakDay,
+    average_daily_revenue: averageDailyRevenue,
+    has_previous_period_trend: hasPreviousPeriodData,
     top_products: topProducts,
     variant_performance: variantPerformance,
     slow_moving_products: slowMovingProducts,
@@ -660,7 +826,7 @@ export const exportAnalyticsReportCsv = (shop: Shop, requests: Request[], filter
     const completedAt = req.current_state === 'COMPLETED' ? req.updated_at.slice(0, 19).replace('T', ' ') : '-';
 
     return [
-      req.created_at.slice(0, 10),
+      getISTDateString(req.created_at),
       req.reference_code,
       `CUST-${req.customer_id.slice(-6).toUpperCase()}`,
       req.workflow_group_code,
