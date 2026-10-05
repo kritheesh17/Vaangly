@@ -206,8 +206,17 @@ export const ShopkeeperRequestsPage: React.FC = () => {
     }
   };
 
-  // Filter requests by tab and search
-  const filteredRequests = requests.filter((req) => {
+  const activeGroup = searchParams.get('group') as WorkflowGroupCode | null;
+
+  // Filter requests by group, tab, and search
+  const groupFilteredRequests = requests.filter((req) => {
+    if (activeGroup) {
+      if (req.workflow_group_code !== activeGroup) return false;
+    }
+    return true;
+  });
+
+  const filteredRequests = groupFilteredRequests.filter((req) => {
     // Tab filter
     if (activeTab === 'new' && req.current_state !== 'REQUESTED') return false;
     if (activeTab === 'active' && !['ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'DELAYED'].includes(req.current_state)) return false;
@@ -231,13 +240,25 @@ export const ShopkeeperRequestsPage: React.FC = () => {
   const sortedRequests = sortRequestsChronologicalDesc(filteredRequests);
 
   const counts = {
-    all: requests.length,
-    new: requests.filter((r) => r.current_state === 'REQUESTED').length,
-    active: requests.filter((r) => ['ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'DELAYED'].includes(r.current_state)).length,
-    ready: requests.filter((r) => ['READY', 'IN_PROGRESS'].includes(r.current_state)).length,
-    completed: requests.filter((r) => r.current_state === 'COMPLETED').length,
-    cancelled: requests.filter((r) => ['REJECTED', 'CANCELLED', 'NO_SHOW'].includes(r.current_state)).length,
+    all: groupFilteredRequests.length,
+    new: groupFilteredRequests.filter((r) => r.current_state === 'REQUESTED').length,
+    active: groupFilteredRequests.filter((r) => ['ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'DELAYED'].includes(r.current_state)).length,
+    ready: groupFilteredRequests.filter((r) => ['READY', 'IN_PROGRESS'].includes(r.current_state)).length,
+    completed: groupFilteredRequests.filter((r) => r.current_state === 'COMPLETED').length,
+    cancelled: groupFilteredRequests.filter((r) => ['REJECTED', 'CANCELLED', 'NO_SHOW'].includes(r.current_state)).length,
   };
+
+  const pageTitle =
+    activeGroup === 'APPOINTMENT'
+      ? 'Appointment Bookings'
+      : activeGroup === 'ORDER'
+      ? 'Customer Orders Inbox'
+      : 'Customer Requests Inbox';
+
+  const pageSubtitle =
+    activeGroup === 'APPOINTMENT'
+      ? 'Manage customer appointment confirmations, doctor schedules, and slot tokens.'
+      : 'Manage incoming pre-orders and fulfill customer counter requests.';
 
   return (
     <div className="container vaango-shop-reqs">
@@ -255,10 +276,8 @@ export const ShopkeeperRequestsPage: React.FC = () => {
 
         <div className="vaango-shop-reqs__title-row">
           <div>
-            <h1 className="vaango-shop-reqs__title">Customer Requests Inbox</h1>
-            <p className="vaango-shop-reqs__subtitle">
-              Manage incoming pre-orders and fulfill customer counter requests.
-            </p>
+            <h1 className="vaango-shop-reqs__title">{pageTitle}</h1>
+            <p className="vaango-shop-reqs__subtitle">{pageSubtitle}</p>
           </div>
 
           <button

@@ -14,13 +14,17 @@ export interface RevenueTrendPoint {
 
 export interface SalesOverview {
   total_sales: number; // Only COMPLETED orders
+  total_orders: number; // All orders placed in period
   completed_orders: number;
+  pending_orders: number; // Orders pending fulfillment (REQUESTED, ACCEPTED, PREPARING, CONFIRMED, IN_PROGRESS, READY)
   average_order_value: number;
   gross_order_value: number; // Placed orders
   previous_period_sales: number;
   sales_growth_pct: number | null;
   previous_period_orders: number;
   orders_growth_pct: number | null;
+  product_sales: number; // Disaggregated product order revenue
+  service_appointment_sales: number; // Disaggregated service & appointment revenue
 }
 
 export interface ProductPerformance {
@@ -96,7 +100,7 @@ export interface PaymentMethodMetrics {
   unverified_count: number;
 }
 
-export type DateRangePreset = '7d' | '30d' | '3m' | '6m' | '1y' | 'custom';
+export type DateRangePreset = 'today' | '7d' | '30d' | 'this_month' | '3m' | '6m' | '1y' | 'custom';
 
 export interface AnalyticsFilter {
   preset: DateRangePreset;

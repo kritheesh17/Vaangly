@@ -574,3 +574,45 @@
   opacity: 0.6;
   user-select: none;
 }
+
+/* Chart view toggle buttons */
+.vaango-chart-toggle-group {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 2px;
+}
+
+.vaango-chart-toggle-btn {
+  padding: 4px 10px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  border-radius: calc(var(--radius-md) - 2px);
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaango-chart-toggle-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.vaango-chart-toggle-btn--active {
+  background-color: var(--color-surface);
+  color: var(--brand-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.vaango-back-kicker {
+  padding: 0 !important;
+  height: auto !important;
+  font-size: var(--font-size-xs) !important;
+  color: var(--brand-primary) !important;
+  font-weight: 700 !important;
+}
+

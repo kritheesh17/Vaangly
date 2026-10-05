@@ -203,6 +203,7 @@ export const App: React.FC = () => {
                               </ProtectedRoute>
                             }
                           />
+                          <Route path="/shopkeeper/sales-analysis" element={<Navigate to="/shopkeeper/analytics" replace />} />
                           <Route path="/shopkeeper/settings" element={<Navigate to="/shopkeeper/profile" replace />} />
                           <Route
                             path="/shopkeeper/apply"

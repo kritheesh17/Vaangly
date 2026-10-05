@@ -149,7 +149,7 @@ export const HomePage: React.FC = () => {
         sub: language === 'ta' ? 'உள்ளூர் நம்பகமான சேவைகளை முன்பதிவு செய்க' : 'Discover and book local services',
         ctaText: language === 'ta' ? 'சேவை பெறுக' : 'Get Service',
         ctaLink: '/shops?group=SERVICE',
-        image: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80',
+        image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&auto=format&fit=crop&q=80',
         alt: 'Get Service',
         bg: 'linear-gradient(135deg, #b45309 0%, #d97706 100%)',
       },
@@ -394,7 +394,7 @@ export const HomePage: React.FC = () => {
       rating: 4.9,
       reviewsCount: 94,
       tagline: 'Oil servicing, electrical repair & periodic tune-ups',
-      image: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80',
+      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&auto=format&fit=crop&q=80',
       badge: t('serviceSlotsAvailable'),
     },
   ];
@@ -848,6 +848,10 @@ export const HomePage: React.FC = () => {
                     alt={shop.name}
                     loading="lazy"
                     className="vaango-home-ref-shop-img"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src =
+                        'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&auto=format&fit=crop&q=80';
+                    }}
                   />
                 </div>
                 <div className="vaango-home-ref-shop-body">
@@ -1025,7 +1029,16 @@ export const HomePage: React.FC = () => {
             {filteredShops.map((shop) => (
               <div key={shop.id} className="vaangly-shop-card">
                 <div className="vaangly-shop-card__image-wrap">
-                  <img src={shop.image} alt={shop.name} loading="lazy" className="vaangly-shop-card__img" />
+                  <img
+                    src={shop.image}
+                    alt={shop.name}
+                    loading="lazy"
+                    className="vaangly-shop-card__img"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src =
+                        'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&auto=format&fit=crop&q=80';
+                    }}
+                  />
                   <span className="vaangly-shop-card__badge">{shop.badge}</span>
                 </div>
                 <div className="vaangly-shop-card__body">

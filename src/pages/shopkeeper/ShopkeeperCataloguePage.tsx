@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus,
   Search,
@@ -62,7 +62,17 @@ export const ShopkeeperCataloguePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [stockFilter, setStockFilter] = useState<'all' | 'in_stock' | 'out_of_stock'>('all');
-  const [salesServiceTab, setSalesServiceTab] = useState<'products' | 'services'>('products');
+  const [searchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab');
+  const [salesServiceTab, setSalesServiceTab] = useState<'products' | 'services'>(
+    urlTab === 'services' ? 'services' : 'products'
+  );
+
+  useEffect(() => {
+    if (urlTab === 'services' || urlTab === 'products') {
+      setSalesServiceTab(urlTab);
+    }
+  }, [urlTab]);
 
   // Master Catalogue Modal State
   const [masterModalOpen, setMasterModalOpen] = useState(false);

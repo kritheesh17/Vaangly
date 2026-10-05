@@ -35,11 +35,17 @@ export const getDateRangeFromPreset = (
   }
 
   switch (preset) {
+    case 'today':
+      // start and end are already today (00:00:00 to 23:59:59.999)
+      break;
     case '7d':
       start.setDate(end.getDate() - 6);
       break;
     case '30d':
       start.setDate(end.getDate() - 29);
+      break;
+    case 'this_month':
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
       break;
     case '3m':
       start.setMonth(end.getMonth() - 3);
@@ -54,9 +60,16 @@ export const getDateRangeFromPreset = (
       start.setDate(end.getDate() - 29);
   }
 
+  const formatLocalDate = (d: Date): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   return {
-    startDate: start.toISOString().slice(0, 10),
-    endDate: end.toISOString().slice(0, 10),
+    startDate: formatLocalDate(start),
+    endDate: formatLocalDate(end),
   };
 };
 
@@ -151,11 +164,26 @@ export const calculateShopAnalytics = async (
   const totalSales = completedCurrent.reduce((sum, r) => sum + (r.total_estimate || 0), 0);
   const previousPeriodSales = completedPrevious.reduce((sum, r) => sum + (r.total_estimate || 0), 0);
 
-  const grossOrderValue = currentRequests
-    .filter((r) => r.current_state !== 'REJECTED')
+  // Revenue stream disaggregation (guaranteed to sum to totalSales without double-counting)
+  const productSales = completedCurrent
+    .filter((r) => r.workflow_group_code === 'ORDER')
     .reduce((sum, r) => sum + (r.total_estimate || 0), 0);
 
-  const averageOrderValue = completedCurrent.length > 0 ? Math.round(totalSales / completedCurrent.length) : 0;
+  const serviceAppointmentSales = completedCurrent
+    .filter((r) => r.workflow_group_code === 'APPOINTMENT' || r.workflow_group_code === 'SERVICE')
+    .reduce((sum, r) => sum + (r.total_estimate || 0), 0);
+
+  const totalOrders = currentRequests.length;
+  const completedOrders = completedCurrent.length;
+  const pendingOrders = currentRequests.filter((r) =>
+    ['REQUESTED', 'ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY'].includes(r.current_state)
+  ).length;
+
+  const grossOrderValue = currentRequests
+    .filter((r) => r.current_state !== 'REJECTED' && r.current_state !== 'CANCELLED')
+    .reduce((sum, r) => sum + (r.total_estimate || 0), 0);
+
+  const averageOrderValue = completedOrders > 0 ? Math.round(totalSales / completedOrders) : 0;
 
   let salesGrowthPct: number | null = null;
   if (previousPeriodSales > 0) {
@@ -167,19 +195,23 @@ export const calculateShopAnalytics = async (
   let ordersGrowthPct: number | null = null;
   if (completedPrevious.length > 0) {
     ordersGrowthPct = Math.round(
-      ((completedCurrent.length - completedPrevious.length) / completedPrevious.length) * 100
+      ((completedOrders - completedPrevious.length) / completedPrevious.length) * 100
     );
   }
 
   const overview: SalesOverview = {
     total_sales: totalSales,
-    completed_orders: completedCurrent.length,
+    total_orders: totalOrders,
+    completed_orders: completedOrders,
+    pending_orders: pendingOrders,
     average_order_value: averageOrderValue,
     gross_order_value: grossOrderValue,
     previous_period_sales: previousPeriodSales,
     sales_growth_pct: salesGrowthPct,
     previous_period_orders: completedPrevious.length,
     orders_growth_pct: ordersGrowthPct,
+    product_sales: productSales,
+    service_appointment_sales: serviceAppointmentSales,
   };
 
   // 2. Revenue Trends Points (Daily or Grouped)

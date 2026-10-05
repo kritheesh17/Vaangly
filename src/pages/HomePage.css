@@ -122,6 +122,9 @@
   color: var(--color-text-primary, #1f2937);
   text-align: center;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ==========================================================================

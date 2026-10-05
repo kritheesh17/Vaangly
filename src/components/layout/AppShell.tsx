@@ -24,7 +24,10 @@ export const AppShell: React.FC = () => {
   const [unsupportedAcknowledged, setUnsupportedAcknowledged] = useState(false);
   const [gateDismissed, setGateDismissed] = useState<boolean>(() => {
     try {
-      return sessionStorage.getItem('vaango_notif_gate_dismissed') === 'true';
+      return (
+        sessionStorage.getItem('vaango_notif_gate_dismissed') === 'true' ||
+        localStorage.getItem('vaango_notif_gate_dismissed') === 'true'
+      );
     } catch {
       return false;
     }
@@ -34,6 +37,7 @@ export const AppShell: React.FC = () => {
   const handleDismissGate = () => {
     try {
       sessionStorage.setItem('vaango_notif_gate_dismissed', 'true');
+      localStorage.setItem('vaango_notif_gate_dismissed', 'true');
     } catch {
       // ignore
     }

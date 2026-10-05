@@ -99,3 +99,47 @@ button.vaango-bottom-nav__item:active .vaango-bottom-nav__icon-wrap {
   background-color: rgba(52, 211, 153, 0.15);
   color: #34D399;
 }
+
+/* Compact and Scrollable Layout for 6+ Tabs on Mobile */
+.vaango-bottom-nav__inner--compact .vaango-bottom-nav__item {
+  padding: 2px 2px;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vaango-bottom-nav__inner--compact .vaango-bottom-nav__icon-wrap {
+  width: 28px;
+  height: 28px;
+}
+
+.vaango-bottom-nav__inner--compact .vaango-bottom-nav__label {
+  font-size: 10px;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 62px;
+}
+
+@media (max-width: 440px) {
+  .vaango-bottom-nav__inner--scrollable {
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 0 4px;
+  }
+
+  .vaango-bottom-nav__inner--scrollable::-webkit-scrollbar {
+    display: none;
+  }
+
+  .vaango-bottom-nav__inner--scrollable .vaango-bottom-nav__item {
+    flex: 0 0 auto;
+    min-width: 58px;
+    padding: 2px 4px;
+  }
+}
+

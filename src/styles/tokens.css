@@ -249,4 +249,15 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.25);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
   --shadow-elevated: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+
+  /* Category Card Pastel Backgrounds for Dark Theme */
+  --cat-groceries-bg: rgba(22, 163, 74, 0.16);
+  --cat-medicine-bg: rgba(2, 132, 199, 0.16);
+  --cat-food-bg: rgba(234, 88, 12, 0.16);
+  --cat-salon-bg: rgba(225, 29, 72, 0.16);
+  --cat-hospitals-bg: rgba(2, 132, 199, 0.16);
+  --cat-services-bg: rgba(217, 119, 6, 0.16);
+  --cat-electronics-bg: rgba(124, 58, 237, 0.16);
+  --cat-more-bg: rgba(148, 163, 184, 0.16);
 }
+

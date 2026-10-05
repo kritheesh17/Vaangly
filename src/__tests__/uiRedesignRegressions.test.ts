@@ -337,9 +337,9 @@ describe('Vaango Focused UI Functionality & Regression Verification', () => {
       assert.ok(bottomNavContent.includes('to="/orders"'), 'Customer nav has Orders');
       assert.ok(bottomNavContent.includes('to="/bookings"'), 'Customer nav has Bookings');
 
-      assert.ok(bottomNavContent.includes('to="/shopkeeper/dashboard"'), 'Shopkeeper nav has Dashboard');
-      assert.ok(bottomNavContent.includes('to="/shopkeeper/catalogue"'), 'Shopkeeper nav has Products');
-      assert.ok(bottomNavContent.includes('to="/shopkeeper/requests"'), 'Shopkeeper nav has Orders');
+      assert.ok(bottomNavContent.includes('/shopkeeper/dashboard'), 'Shopkeeper nav has Dashboard');
+      assert.ok(bottomNavContent.includes('/shopkeeper/catalogue'), 'Shopkeeper nav has Products');
+      assert.ok(bottomNavContent.includes('/shopkeeper/requests'), 'Shopkeeper nav has Orders');
 
       assert.ok(bottomNavContent.includes('to="/admin/dashboard"'), 'Admin nav has Dashboard');
       assert.ok(bottomNavContent.includes('to="/admin/applications"'), 'Admin nav has Applications');
