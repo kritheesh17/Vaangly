@@ -1319,6 +1319,82 @@ export const fetchShopTypes = async (): Promise<ShopType[]> => {
 };
 
 /**
+ * Clean up uploaded files after a failed submission attempt.
+ * Only deletes specified paths that were uploaded in the current attempt.
+ * Safely swallows cleanup errors and logs sanitized warnings so original failure is preserved.
+ */
+export const cleanupApplicationUploads = async (
+  uploadedPaths: { bucket: string; paths: string[] }[]
+): Promise<void> => {
+  if (!isSupabaseConfigured) return;
+  const tasks = uploadedPaths.map(async ({ bucket, paths }) => {
+    if (!paths || paths.length === 0) return;
+    try {
+      const { error } = await supabase.storage.from(bucket).remove(paths);
+      if (error) {
+        console.warn(`[cleanupApplicationUploads] Failed to remove ${paths.length} file(s) from ${bucket}:`, error.message);
+      }
+    } catch (cleanupErr: unknown) {
+      console.warn(`[cleanupApplicationUploads] Exception removing files from ${bucket}:`, cleanupErr instanceof Error ? cleanupErr.message : cleanupErr);
+    }
+  });
+
+  await Promise.allSettled(tasks);
+};
+
+/**
+ * Prepares database-compatible payload for public.shop_applications table.
+ * Strictly excludes unsupported delivery fields (delivery_available, delivery_fee, free_delivery_above)
+ * which do not exist on the live database table and are configured post-approval.
+ */
+export const prepareShopApplicationPayload = (
+  application: Omit<ShopApplication, 'id' | 'status' | 'created_at' | 'updated_at' | 'review_notes' | 'reviewed_by'>,
+  meta: {
+    verifiedApplicantId: string;
+    resolvedShopTypeId: string;
+    resolvedLocationId: string;
+    normalizedContactPhone: string;
+  }
+) => {
+  return {
+    applicant_id: meta.verifiedApplicantId,
+    shop_name: application.shop_name.trim(),
+    owner_name: application.owner_name?.trim() || '',
+    description: application.description?.trim() || null,
+    shop_type_id: meta.resolvedShopTypeId,
+    location_id: meta.resolvedLocationId,
+    contact_phone: meta.normalizedContactPhone,
+    address_line: application.address_line ? application.address_line.trim() : '',
+    status: 'submitted' as const,
+    photo_url: application.photo_url || null,
+    photo_urls: application.photo_urls || (application.photo_url ? [application.photo_url] : []),
+    upi_id: application.upi_id || null,
+    upi_qr_url: application.upi_qr_url || null,
+    id_proof_url: application.id_proof_url || null,
+    gps_lat: application.gps_lat != null ? application.gps_lat : null,
+    gps_lng: application.gps_lng != null ? application.gps_lng : null,
+    google_maps_url: application.google_maps_url || null,
+    area: application.area?.trim() || null,
+    district: application.district?.trim() || null,
+    taluk: application.taluk?.trim() || null,
+    pincode: application.pincode?.trim() || null,
+    business_type: application.business_type || null,
+    offerings: Array.isArray(application.offerings)
+      ? application.offerings.map((item) => String(item).trim()).filter(Boolean)
+      : (application.offerings && typeof application.offerings === 'object')
+        ? Object.entries(application.offerings as Record<string, unknown>)
+            .filter(([_, val]) => Boolean(val))
+            .map(([key]) => key.trim())
+        : [],
+    capabilities: Array.isArray(application.capabilities)
+      ? application.capabilities.map((item) => String(item).trim()).filter(Boolean)
+      : [],
+    review_notes: null,
+    reviewed_by: null,
+  };
+};
+
+/**
  * 12. Submit Shopkeeper Onboarding Application
  */
 export const submitShopApplication = async (
@@ -1458,45 +1534,12 @@ export const submitShopApplication = async (
         }
       }
 
-      const newAppPayload = {
-        applicant_id: verifiedApplicantId,
-        shop_name: application.shop_name.trim(),
-        owner_name: application.owner_name?.trim() || '',
-        description: application.description?.trim() || null,
-        shop_type_id: resolvedShopTypeId,
-        location_id: resolvedLocationId,
-        contact_phone: normalizedContactPhone,
-        address_line: application.address_line.trim(),
-        status: 'submitted' as const,
-        photo_url: application.photo_url || null,
-        photo_urls: application.photo_urls || (application.photo_url ? [application.photo_url] : []),
-        upi_id: application.upi_id || null,
-        upi_qr_url: application.upi_qr_url || null,
-        id_proof_url: application.id_proof_url || null,
-        gps_lat: application.gps_lat != null ? application.gps_lat : null,
-        gps_lng: application.gps_lng != null ? application.gps_lng : null,
-        google_maps_url: application.google_maps_url || null,
-        area: application.area?.trim() || null,
-        district: application.district?.trim() || null,
-        taluk: application.taluk?.trim() || null,
-        pincode: application.pincode?.trim() || null,
-        business_type: application.business_type || null,
-        offerings: Array.isArray(application.offerings)
-          ? application.offerings.map((item) => String(item).trim()).filter(Boolean)
-          : (application.offerings && typeof application.offerings === 'object')
-            ? Object.entries(application.offerings as Record<string, unknown>)
-                .filter(([_, val]) => Boolean(val))
-                .map(([key]) => key.trim())
-            : [],
-        capabilities: Array.isArray(application.capabilities)
-          ? application.capabilities.map((item) => String(item).trim()).filter(Boolean)
-          : [],
-        delivery_available: application.delivery_available ?? false,
-        delivery_fee: application.delivery_fee ?? 0,
-        free_delivery_above: application.free_delivery_above ?? null,
-        review_notes: null,
-        reviewed_by: null,
-      };
+      const newAppPayload = prepareShopApplicationPayload(application, {
+        verifiedApplicantId,
+        resolvedShopTypeId,
+        resolvedLocationId,
+        normalizedContactPhone,
+      });
 
       const { data, error } = await supabase
         .from('shop_applications')
@@ -1505,6 +1548,7 @@ export const submitShopApplication = async (
         .single();
 
       if (error) {
+        console.error('Supabase submitShopApplication insert error:', error.message || error);
         const classified = classifyApplicationError(error);
         return {
           success: false,
@@ -1515,6 +1559,7 @@ export const submitShopApplication = async (
       }
       return { success: true, application: data as ShopApplication };
     } catch (err: unknown) {
+      console.error('Supabase submitShopApplication exception:', err);
       const classified = classifyApplicationError(err);
       return {
         success: false,

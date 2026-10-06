@@ -27,6 +27,7 @@ import {
   getLatestApplication,
   simulateApplicationReview,
   fetchShopTypes,
+  cleanupApplicationUploads,
 } from '../../lib/shopkeeperApi';
 import { ShopApplication, ShopType } from '../../types/database';
 import { GPSLocationPicker } from '../../components/shopkeeper/GPSLocationPicker';
@@ -582,6 +583,22 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
 
     if (isSubmitting) return;
     setIsSubmitting(true);
+
+    // Track objects uploaded strictly during this attempt for safe cleanup if submission fails
+    const attemptUploadedPhotoPaths: string[] = [];
+    const attemptUploadedDocPaths: string[] = [];
+
+    const cleanupAttemptUploads = async () => {
+      try {
+        await cleanupApplicationUploads([
+          { bucket: 'shop-photos', paths: attemptUploadedPhotoPaths },
+          { bucket: 'shop-documents', paths: attemptUploadedDocPaths },
+        ]);
+      } catch (cleanupErr: unknown) {
+        console.warn('[Onboarding] Error during storage cleanup:', cleanupErr instanceof Error ? cleanupErr.message : cleanupErr);
+      }
+    };
+
     try {
       let activeUserId = user.id;
       if (isSupabaseConfigured) {
@@ -597,17 +614,37 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       }
 
       // Fast concurrent upload of storefront photos, ID document, and UPI QR
+      const now = Date.now();
       const idExt = idProofFile.name.toLowerCase().endsWith('.pdf') ? 'pdf' : (idProofFile.name.split('.').pop()?.toLowerCase() || 'jpg');
+      const plannedPhotoPaths = shopPhotos.map((file, i) => {
+        const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        return `${activeUserId}/photos/${now}_${i}.${ext}`;
+      });
+      const plannedIdProofPath = `${activeUserId}/id_proof_${now}.${idExt}`;
+      const plannedUpiQrPath = upiQrFile
+        ? `${activeUserId}/upi-qr/upi_qr_${now}.${upiQrFile.name.split('.').pop()?.toLowerCase() || 'jpg'}`
+        : null;
+
       const [photoUrls, idProofPath, upiQrUrl] = await Promise.all([
         Promise.all(
-          shopPhotos.map((file, i) => {
-            const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-            return uploadFile('shop-photos', `${activeUserId}/photos/${Date.now()}_${i}.${ext}`, file);
+          shopPhotos.map(async (file, i) => {
+            const path = plannedPhotoPaths[i];
+            const url = await uploadFile('shop-photos', path, file);
+            attemptUploadedPhotoPaths.push(path);
+            return url;
           })
         ),
-        uploadFile('shop-documents', `${activeUserId}/id_proof_${Date.now()}.${idExt}`, idProofFile),
-        upiQrFile
-          ? uploadFile('shop-photos', `${activeUserId}/upi-qr/upi_qr_${Date.now()}.${upiQrFile.name.split('.').pop()?.toLowerCase() || 'jpg'}`, upiQrFile)
+        (async () => {
+          const res = await uploadFile('shop-documents', plannedIdProofPath, idProofFile);
+          attemptUploadedDocPaths.push(plannedIdProofPath);
+          return res;
+        })(),
+        upiQrFile && plannedUpiQrPath
+          ? (async () => {
+              const res = await uploadFile('shop-photos', plannedUpiQrPath, upiQrFile);
+              attemptUploadedPhotoPaths.push(plannedUpiQrPath);
+              return res;
+            })()
           : Promise.resolve(null),
       ]);
       if (upiId.trim() && !isValidUpiQrUrl(upiQrUrl)) {
@@ -651,11 +688,13 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         success('Storefront application submitted for verification!');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
+        await cleanupAttemptUploads();
         const errMsg = res.error || "Couldn't submit your application right now. Your entered information has been preserved. Please try again.";
         setFormError(errMsg);
         toastError(errMsg);
       }
     } catch (err: unknown) {
+      await cleanupAttemptUploads();
       const classified = classifyApplicationError(err);
       setFormError(classified.userMessage);
       toastError(classified.userMessage);
