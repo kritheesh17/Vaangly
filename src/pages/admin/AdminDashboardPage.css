@@ -1,30 +1,41 @@
+/* ==========================================================================
+   VAANGLY ADMIN DASHBOARD — STYLESHEET
+   Professional SaaS Interface • Responsive • Full Dark/Light Theme Support
+   ========================================================================== */
+
 .vaango-admin-dash {
-  padding-top: var(--spacing-lg);
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: var(--space-6);
+  max-width: 1400px;
+  margin: 0 auto;
+  color: var(--color-text-primary);
 }
 
+/* --------------------------------------------------------------------------
+   1. HEADER & CONTROLS
+   -------------------------------------------------------------------------- */
 .vaango-admin-dash__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--spacing-md);
+  gap: var(--space-4);
   flex-wrap: wrap;
-  margin-bottom: 20px;
+  padding-bottom: var(--space-2);
 }
 
 .vaango-admin-dash__title {
-  font-size: 26px;
+  font-size: 1.625rem; /* 26px */
   font-weight: 800;
-  color: #0F172A;
+  color: var(--color-text-primary);
   margin: 0 0 4px 0;
   letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .vaango-admin-dash__subtitle {
-  font-size: 14px;
-  color: #64748B;
+  font-size: 0.875rem; /* 14px */
+  color: var(--color-text-muted);
   margin: 0;
   line-height: 1.4;
 }
@@ -32,514 +43,949 @@
 .vaango-admin-header-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .vaango-admin-date-filter {
   appearance: none;
-  background-color: #FFFFFF;
-  border: 1px solid #E2E8F0;
-  border-radius: 9999px;
-  padding: 8px 32px 8px 14px;
-  font-size: 13px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 8px 34px 8px 14px;
+  font-size: 0.8125rem; /* 13px */
   font-weight: 600;
-  color: #334155;
+  color: var(--color-text-primary);
   cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 10px center;
+  background-position: right 12px center;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.vaango-admin-date-filter:hover {
+  border-color: var(--color-border-focus);
 }
 
 .vaango-admin-date-filter:focus {
-  border-color: #22C55E;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
-/* Reference Screen 4: 4 KPI Cards Grid */
-.vaango-admin-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
+.vaango-admin-last-sync {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.vaango-admin-kpi-card {
-  background-color: #FFFFFF;
-  border: 1px solid #E2E8F0;
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.vaango-admin-kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.vaango-admin-kpi-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.vaango-admin-kpi-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #64748B;
-}
-
-.vaango-admin-kpi-pill {
-  font-size: 12px;
-  font-weight: 700;
-  color: #16A34A;
-  background-color: #DCFCE7;
-  padding: 3px 8px;
-  border-radius: 9999px;
-}
-
-.vaango-admin-kpi-val {
-  font-size: 28px;
-  font-weight: 800;
-  color: #0F172A;
-  line-height: 1.1;
-}
-
-@media (max-width: 1024px) {
-  .vaango-admin-kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .vaango-admin-kpi-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Alert Banner */
+/* --------------------------------------------------------------------------
+   2. OPERATIONAL ACTION BANNER
+   -------------------------------------------------------------------------- */
 .vaango-admin-alert-banner {
-  background-color: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  border-radius: var(--radius-md);
-  padding: 16px;
+  background-color: var(--color-warning-bg);
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-4);
   flex-wrap: wrap;
+  box-shadow: var(--shadow-sm);
 }
 
 .vaango-admin-alert-banner__content {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  color: var(--color-text);
+  gap: var(--space-3);
+  color: var(--color-text-primary);
+  flex: 1;
+  min-width: 260px;
+}
+
+.vaango-admin-alert-banner__content strong {
+  font-size: 0.9375rem;
+  display: block;
+  margin-bottom: 2px;
 }
 
 .vaango-admin-alert-banner__content p {
-  margin: 4px 0 0 0;
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
 }
 
 .vaango-admin-alert-banner__icon {
-  color: var(--color-accent);
+  color: var(--color-warning);
   flex-shrink: 0;
   margin-top: 2px;
 }
 
 .vaango-admin-alert-banner__actions {
   display: flex;
-  gap: 10px;
+  gap: var(--space-3);
   align-items: center;
+  flex-wrap: wrap;
 }
 
-/* Metrics Grid */
-.vaango-admin-metrics-grid {
+/* --------------------------------------------------------------------------
+   3. REAL KPI ROW
+   -------------------------------------------------------------------------- */
+.vaango-admin-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--spacing-md);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
 }
 
-/* Breakpoint: Desktop (>= 1280px) - 5 clean equal columns */
-@media (min-width: 1280px) {
-  .vaango-admin-metrics-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-
-/* Breakpoint: Laptop / Medium Tablet (900px - 1279px) - 3 columns */
-@media (min-width: 900px) and (max-width: 1279px) {
-  .vaango-admin-metrics-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-/* Breakpoint: Small Tablet (600px - 899px) - 2 columns */
-@media (min-width: 600px) and (max-width: 899px) {
-  .vaango-admin-metrics-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-/* Breakpoint: Mobile (<= 599px) - 1 full-width column */
-@media (max-width: 599px) {
-  .vaango-admin-metrics-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.vaango-admin-stat-card {
+.vaango-admin-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
   min-width: 0;
-  overflow: hidden;
 }
 
-.vaango-admin-stat-card:hover {
+.vaango-admin-kpi-card:hover {
   transform: translateY(-2px);
-  border-color: var(--color-primary);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-md);
 }
 
-.vaango-admin-stat-card__header {
+.vaango-admin-kpi-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--space-2);
 }
 
-.vaango-admin-stat-card__label {
-  font-size: 0.8rem;
+.vaango-admin-kpi-label {
+  font-size: 0.78125rem; /* 12.5px */
   font-weight: 700;
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.vaango-admin-stat-card__icon--primary {
-  color: var(--color-primary);
-}
-
-.vaango-admin-stat-card__icon--success {
-  color: var(--color-success);
-}
-
-.vaango-admin-stat-card__icon--accent {
-  color: var(--color-accent);
-}
-
-.vaango-admin-stat-card__icon--danger {
-  color: var(--color-error);
-}
-
-.vaango-admin-stat-card__value {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: var(--color-text);
-  line-height: 1.2;
-  margin-bottom: 6px;
+.vaango-admin-kpi-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
   display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.vaango-admin-stat-card__value--text {
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--color-text);
-  letter-spacing: -0.01em;
-  word-break: break-word;
-  white-space: normal;
-}
-
-.vaango-admin-stat-group {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  white-space: nowrap;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-.vaango-admin-stat-card__subval {
-  font-size: 0.92rem;
-  font-weight: 500;
-  color: var(--color-text-muted);
-  white-space: nowrap;
+.vaango-admin-kpi-icon--emerald {
+  background-color: var(--brand-primary-subtle);
+  color: var(--brand-primary);
 }
 
-.vaango-admin-stat-card__divider {
-  color: var(--color-border);
-  font-weight: 400;
-  font-size: 1.1rem;
-  margin: 0 2px;
+.vaango-admin-kpi-icon--blue {
+  background-color: rgba(2, 132, 199, 0.12);
+  color: var(--color-info);
 }
 
-.vaango-admin-stat-card__hint {
-  font-size: 0.78rem;
-  color: var(--color-text-muted);
-  line-height: 1.35;
-  word-break: break-word;
+.vaango-admin-kpi-icon--amber {
+  background-color: rgba(217, 119, 6, 0.12);
+  color: var(--color-warning);
 }
 
-/* Cancellation Section */
-.vaango-admin-dash__section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
+.vaango-admin-kpi-icon--purple {
+  background-color: rgba(139, 92, 246, 0.12);
+  color: #8B5CF6;
 }
 
-.vaango-admin-dash__section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-md);
-  flex-wrap: wrap;
-}
-
-.vaango-admin-dash__section-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  margin: 0;
-  color: var(--color-text);
-}
-
-.vaango-admin-dash__section-subtitle {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
+.vaango-admin-kpi-val {
+  font-size: 1.875rem; /* 30px */
+  font-weight: 800;
+  color: var(--color-text-primary);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
   margin: 2px 0 0 0;
 }
 
-.vaango-admin-cancellation-grid {
+.vaango-admin-kpi-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  min-width: 0;
+  margin-top: auto;
+}
+
+.vaango-admin-kpi-pill {
+  font-size: 0.6875rem; /* 11px */
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.vaango-admin-kpi-pill--live {
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.vaango-admin-kpi-pill--neutral {
+  background-color: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+}
+
+.vaango-admin-kpi-meta {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --------------------------------------------------------------------------
+   4. BALANCED ANALYTICS SECTION
+   -------------------------------------------------------------------------- */
+.vaango-admin-analytics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-sm);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
 }
 
-@media (min-width: 1024px) {
-  .vaango-admin-cancellation-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 600px) and (max-width: 1023px) {
-  .vaango-admin-cancellation-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 599px) {
-  .vaango-admin-cancellation-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.vaango-admin-cancellation-card {
+.vaango-admin-chart-card,
+.vaango-admin-pipeline-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+  min-height: 290px;
 }
 
-.vaango-cancellation-card__label {
-  font-size: 0.8rem;
+.vaango-admin-chart-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.vaango-admin-panel-title {
+  font-size: 1.0625rem; /* 17px */
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 2px 0;
+  line-height: 1.3;
+}
+
+.vaango-admin-panel-subtitle {
+  font-size: 0.78125rem; /* 12.5px */
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.vaango-admin-toggle-group {
+  display: inline-flex;
+  background-color: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 3px;
+  gap: 2px;
+}
+
+.vaango-admin-toggle-btn {
+  background: none;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 4px 12px;
+  font-size: 0.75rem;
   font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaango-admin-toggle-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.vaango-admin-toggle-btn--active {
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+  font-weight: 700;
+}
+
+.vaango-admin-chart-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.vaango-admin-chart-wrap {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.vaango-admin-svg-chart {
+  width: 100%;
+  height: 180px;
+  display: block;
+}
+
+.vaango-admin-chart-xaxis {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px 0 12px;
+  font-size: 0.71875rem;
   color: var(--color-text-muted);
 }
 
-.vaango-cancellation-card__value {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: var(--color-text);
+.vaango-admin-chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 40px 16px;
+  color: var(--color-text-muted);
+  text-align: center;
+  gap: 8px;
 }
 
-.vaango-cancellation-card__note {
+.vaango-admin-chart-empty-icon {
+  opacity: 0.5;
+}
+
+.vaango-admin-chart-empty p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* Interactive Floating Details Tooltip */
+.vaango-admin-chart-tooltip {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+  min-width: 200px;
+}
+
+.vaango-admin-chart-tooltip__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.vaango-admin-chart-tooltip__date {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.vaango-admin-chart-tooltip__close {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.vaango-admin-chart-tooltip__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vaango-admin-chart-tooltip__stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.vaango-admin-chart-tooltip__stat-label {
+  color: var(--color-text-muted);
+}
+
+.vaango-admin-chart-tooltip__stat-val {
+  color: var(--color-text-primary);
+}
+
+.vaango-admin-chart-tooltip__stat-val--primary {
+  color: var(--color-primary);
+}
+
+/* Pipeline Status Distribution Panel */
+.vaango-admin-pipeline-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  flex: 1;
+  justify-content: center;
+}
+
+.vaango-admin-segmented-bar {
+  display: flex;
+  height: 12px;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background-color: var(--color-surface-sunken);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.vaango-admin-segment {
+  height: 100%;
+  transition: width var(--transition-normal);
+}
+
+.vaango-admin-segment--completed {
+  background-color: var(--color-success);
+}
+
+.vaango-admin-segment--active {
+  background-color: var(--color-info);
+}
+
+.vaango-admin-segment--cancelled {
+  background-color: var(--color-error);
+}
+
+.vaango-admin-status-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.vaango-admin-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: var(--color-surface-sunken);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.vaango-admin-status-col {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.vaango-admin-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.vaango-admin-dot--completed {
+  background-color: var(--color-success);
+}
+
+.vaango-admin-dot--active {
+  background-color: var(--color-info);
+}
+
+.vaango-admin-dot--cancelled {
+  background-color: var(--color-error);
+}
+
+.vaango-admin-status-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.vaango-admin-status-numbers {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.vaango-admin-status-numbers strong {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.vaango-admin-status-pct {
   font-size: 0.75rem;
   color: var(--color-text-muted);
 }
 
-/* Admin Modules Grid */
-.vaango-admin-modules-grid {
+.vaango-admin-cancellation-summary {
+  font-size: 0.8125rem;
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--color-border);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------------------
+   5. OPERATIONS SECTION
+   -------------------------------------------------------------------------- */
+.vaango-admin-ops-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--spacing-md);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
 }
 
-@media (min-width: 1024px) {
-  .vaango-admin-modules-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 600px) and (max-width: 1023px) {
-  .vaango-admin-modules-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 599px) {
-  .vaango-admin-modules-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.vaango-admin-module-card {
-  cursor: pointer;
+.vaango-admin-ops-card {
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  min-height: 290px;
 }
 
-.vaango-admin-module-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--color-primary);
+.vaango-admin-ops-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
-.vaango-admin-module-card__icon-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-md);
-  background-color: rgba(10, 123, 131, 0.12);
-  color: var(--color-primary);
+.vaango-admin-ops-card__title-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-bottom: 12px;
+  gap: var(--space-2);
 }
 
-.vaango-admin-module-card__title {
-  font-size: 1.05rem;
+.vaango-admin-badge-count {
+  background-color: rgba(217, 119, 6, 0.15);
+  color: var(--color-warning);
+  font-size: 0.6875rem;
   font-weight: 700;
-  margin: 0 0 6px 0;
-  color: var(--color-text);
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
 }
 
-.vaango-admin-module-card__desc {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-  line-height: 1.45;
-  margin: 0 0 16px 0;
+.vaango-admin-ops-card__body {
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.vaango-admin-module-card__link {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--color-primary);
-  display: inline-flex;
+.vaango-admin-ops-empty {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 36px 16px;
+  text-align: center;
   gap: 6px;
 }
 
-/* Audit Log Stream */
+.vaango-admin-ops-empty-icon {
+  color: var(--color-success);
+  opacity: 0.7;
+}
+
+.vaango-admin-ops-empty p {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Pending Applications List */
+.vaango-admin-app-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.vaango-admin-app-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 10px 14px;
+  background-color: var(--color-surface-sunken);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast);
+}
+
+.vaango-admin-app-row:hover {
+  border-color: var(--brand-primary);
+}
+
+.vaango-admin-app-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.vaango-admin-app-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vaango-admin-app-name {
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vaango-admin-app-status-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-warning);
+  background-color: rgba(217, 119, 6, 0.12);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  text-transform: capitalize;
+}
+
+.vaango-admin-app-meta {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vaango-admin-dot-sep {
+  opacity: 0.4;
+}
+
+/* Recent Audit Activity List */
 .vaango-admin-audit-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
-.vaango-admin-audit-row {
+.vaango-admin-audit-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px 14px;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
+  gap: 10px;
+  padding: 9px 12px;
+  background-color: var(--color-surface-sunken);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
 }
 
-.vaango-admin-audit-row__icon {
-  width: 32px;
-  height: 32px;
+.vaango-admin-audit-icon-wrap {
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background-color: rgba(10, 123, 131, 0.1);
+  background-color: var(--brand-primary-subtle);
   color: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin-top: 1px;
 }
 
-.vaango-admin-audit-row__content {
+.vaango-admin-audit-item__content {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
-.vaango-admin-audit-row__header {
+.vaango-admin-audit-item__top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
-.vaango-admin-audit-action {
-  font-size: 0.8rem;
+.vaango-admin-audit-action-badge {
+  font-size: 0.71875rem;
   font-weight: 700;
   color: var(--color-primary);
   letter-spacing: 0.02em;
 }
 
 .vaango-admin-audit-time {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   color: var(--color-text-muted);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  white-space: nowrap;
 }
 
-.vaango-admin-audit-detail {
-  font-size: 0.85rem;
-  color: var(--color-text);
+.vaango-admin-audit-item__details {
+  font-size: 0.78125rem;
+  color: var(--color-text-primary);
+  line-height: 1.35;
+  word-break: break-word;
 }
 
-.vaango-admin-audit-meta {
+.vaango-admin-audit-meta-text {
+  font-size: 0.75rem;
   color: var(--color-text-muted);
-  font-size: 0.8rem;
 }
 
+/* --------------------------------------------------------------------------
+   6. COMPACT ADMINISTRATIVE SHORTCUTS STRIP
+   -------------------------------------------------------------------------- */
+.vaango-admin-shortcuts-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+
+.vaango-admin-shortcuts-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.vaango-admin-shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.vaango-admin-shortcut-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 12px 16px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+  outline: none;
+}
+
+.vaango-admin-shortcut-chip:hover,
+.vaango-admin-shortcut-chip:focus-visible {
+  border-color: var(--brand-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.vaango-admin-shortcut-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-sunken);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vaango-admin-shortcut-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.vaango-admin-shortcut-text strong {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vaango-admin-shortcut-text span {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vaango-admin-shortcut-arrow {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.vaango-admin-shortcut-chip:hover .vaango-admin-shortcut-arrow {
+  opacity: 1;
+  color: var(--color-primary);
+}
+
+/* --------------------------------------------------------------------------
+   UTILITY CLASSES & ANIMATIONS
+   -------------------------------------------------------------------------- */
+.vaango-admin-text-muted {
+  color: var(--color-text-muted);
+}
+
+.vaango-spin {
+  animation: vaango-spin-anim 0.8s linear infinite;
+}
+
+@keyframes vaango-spin-anim {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.vaango-admin-header-skeleton {
+  padding-bottom: var(--space-4);
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE BREAKPOINTS
+   -------------------------------------------------------------------------- */
+/* Tablet & Medium Screens (600px - 1023px) */
+@media (max-width: 1023px) {
+  .vaango-admin-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vaango-admin-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vaango-admin-ops-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vaango-admin-shortcuts-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Mobile Screens (<= 599px) */
 @media (max-width: 599px) {
   .vaango-admin-dash {
-    gap: var(--spacing-md);
+    gap: var(--space-4);
   }
 
   .vaango-admin-dash__title {
-    font-size: 1.35rem;
+    font-size: 1.375rem;
+  }
+
+  .vaango-admin-header-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .vaango-admin-date-filter {
+    flex: 1;
+  }
+
+  .vaango-admin-kpi-grid {
+    grid-template-columns: 1fr;
   }
 
   .vaango-admin-alert-banner {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
   }
 
   .vaango-admin-alert-banner__actions {
     width: 100%;
-    flex-direction: column;
-    align-items: stretch;
   }
 
-  .vaango-admin-alert-banner__actions .vaango-btn {
+  .vaango-admin-alert-banner__actions button {
     width: 100%;
     justify-content: center;
   }
 
-  .vaango-admin-stat-card__value {
-    font-size: 1.5rem;
+  .vaango-admin-shortcuts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   LEGACY STAT CARD COMPATIBILITY RULES
+   -------------------------------------------------------------------------- */
+.vaango-admin-stat-card__value {
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.vaango-admin-stat-card__value--text {
+  font-size: 1.25rem;
+}
+
+.vaango-admin-stat-card__subval {
+  white-space: nowrap;
+}
+
+.vaango-admin-stat-group {
+  white-space: nowrap;
+}
+
+@media (min-width: 1280px) {
+  .vaango-admin-metrics-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1279px) {
+  .vaango-admin-metrics-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 600px) and (max-width: 899px) {
+  .vaango-admin-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 599px) {
+  .vaango-admin-metrics-grid {
+    grid-template-columns: 1fr;
   }
 }
 
