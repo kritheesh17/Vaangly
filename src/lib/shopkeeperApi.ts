@@ -9,6 +9,7 @@ import { normalizeIndianPhone } from './phoneUtils';
 import { classifyProductError, classifyApplicationError } from './productErrorHelper';
 import { notifyOrderLifecycle, type OrderLifecycleNotificationParams } from './notificationApi';
 import { sortRequestsChronologicalDesc } from './orderPickupUtils';
+import { variantIsAvailable, updateVariantInList } from './productVariants';
 
 const DEMO_SHOPS_KEY = 'vaango_demo_shops';
 const DEMO_PRODUCTS_KEY = 'vaango_demo_products';
@@ -485,7 +486,27 @@ export const updateShopProduct = async (
   if (updates.offer_type !== undefined) sanitizedUpdates.offer_type = updates.offer_type ?? null;
   if (updates.offer_value !== undefined) sanitizedUpdates.offer_value = updates.offer_value ?? null;
   if (updates.has_variants !== undefined) sanitizedUpdates.has_variants = Boolean(updates.has_variants);
-  if (updates.variants !== undefined) sanitizedUpdates.variants = Array.isArray(updates.variants) ? updates.variants : [];
+  if (updates.variants !== undefined) {
+    const rawVariants = Array.isArray(updates.variants) ? updates.variants : [];
+    const normalizedVariants = rawVariants.map((v) => {
+      const stock = v.stock_quantity != null ? Number(v.stock_quantity) : null;
+      const isStockZero = stock !== null && stock <= 0;
+      return {
+        ...v,
+        price: Number(v.price) || 0,
+        stock_quantity: stock,
+        in_stock: isStockZero ? false : (v.in_stock !== false),
+        is_available: isStockZero ? false : (v.is_available !== false),
+      };
+    });
+    sanitizedUpdates.variants = normalizedVariants;
+
+    const hasVariants = updates.has_variants ?? existingProduct?.has_variants;
+    if (hasVariants && normalizedVariants.length > 0) {
+      const anyInStock = normalizedVariants.some((v) => variantIsAvailable(v));
+      sanitizedUpdates.is_available = anyInStock;
+    }
+  }
   if (updates.attribute_groups !== undefined) sanitizedUpdates.attribute_groups = Array.isArray(updates.attribute_groups) ? updates.attribute_groups : [];
   if (updates.track_inventory !== undefined) sanitizedUpdates.track_inventory = Boolean(updates.track_inventory);
   if (updates.stock_quantity !== undefined) sanitizedUpdates.stock_quantity = updates.stock_quantity == null || (updates.stock_quantity as unknown) === '' ? null : Number(updates.stock_quantity);
@@ -566,11 +587,65 @@ export const updateShopProduct = async (
   const updatedProd: ShopProduct = {
     ...current[index],
     ...updates,
+    ...(sanitizedUpdates.is_available !== undefined ? { is_available: Boolean(sanitizedUpdates.is_available) } : {}),
+    ...(sanitizedUpdates.variants !== undefined ? { variants: sanitizedUpdates.variants as ShopProduct['variants'] } : {}),
   };
   current[index] = updatedProd;
   saveMockProducts(shopId, current);
 
   return { success: true, product: updatedProd };
+};
+
+/**
+ * 6b. Update Single Variant Stock & Availability
+ */
+export const updateShopProductVariantStock = async (
+  shopId: string,
+  productId: string,
+  variantId: string,
+  newStock: number | null,
+  isAvailable?: boolean
+): Promise<{ success: boolean; product?: ShopProduct; error?: string }> => {
+  let product: ShopProduct | undefined;
+  const currentProds = getStoredMockProducts(shopId);
+  product = currentProds.find((p) => p.id === productId);
+
+  const isMockShop = shopId.startsWith('30000000-') || shopId.startsWith('shop-');
+  const isMockProduct = productId.startsWith('prod-');
+
+  if (isSupabaseConfigured && !isMockShop && !isMockProduct) {
+    try {
+      const { data, error } = await supabase
+        .from('shop_products')
+        .select('*')
+        .eq('id', productId)
+        .maybeSingle();
+      if (!error && data) {
+        product = data as ShopProduct;
+      }
+    } catch {
+      // Fallback to local
+    }
+  }
+
+  if (!product) {
+    return { success: false, error: 'Product not found.' };
+  }
+
+  const existingVariants = Array.isArray(product.variants) ? product.variants : [];
+  const targetIndex = existingVariants.findIndex((v) => v.id === variantId);
+  if (targetIndex === -1) {
+    return { success: false, error: 'Variant not found on product.' };
+  }
+
+  const updatedVariants = updateVariantInList(existingVariants, variantId, {
+    stock_quantity: newStock,
+    is_available: isAvailable,
+  });
+
+  return updateShopProduct(shopId, productId, {
+    variants: updatedVariants,
+  });
 };
 
 /**

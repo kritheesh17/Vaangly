@@ -22,11 +22,17 @@ import {
   getShopProductsList,
   createShopProduct,
   updateShopProduct,
+  updateShopProductVariantStock,
   toggleProductStock,
   deleteShopProduct,
   toggleShopLive,
   updateSlotConfig,
 } from '../../lib/shopkeeperApi';
+import {
+  variantIsAvailable,
+  variantLabel,
+  updateVariantInList,
+} from '../../lib/productVariants';
 import {
   fetchShopServices,
   saveShopService,
@@ -141,6 +147,40 @@ export const ShopkeeperCataloguePage: React.FC = () => {
     }
     const nextStock = !currentStock;
 
+    if (targetProduct?.has_variants && targetProduct.variants && targetProduct.variants.length > 0) {
+      const updatedVariants = targetProduct.variants.map((v) => {
+        if (!nextStock) {
+          return { ...v, is_available: false, in_stock: false };
+        } else {
+          const st = v.stock_quantity != null && v.stock_quantity > 0 ? v.stock_quantity : 5;
+          return { ...v, stock_quantity: st, is_available: true, in_stock: true };
+        }
+      });
+
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, is_available: nextStock, variants: updatedVariants } : p))
+      );
+
+      try {
+        const res = await updateShopProduct(shop.id, productId, {
+          is_available: nextStock,
+          variants: updatedVariants,
+        });
+        if (res.success && res.product) {
+          setProducts((prev) => prev.map((p) => (p.id === productId ? res.product! : p)));
+          if (nextStock) success(t('itemMarkedInStock'));
+          else info(t('itemMarkedOutOfStock'));
+        } else {
+          setProducts((prev) => prev.map((p) => (p.id === productId ? targetProduct : p)));
+          toastError(res.error || t('genericError'));
+        }
+      } catch (err: unknown) {
+        setProducts((prev) => prev.map((p) => (p.id === productId ? targetProduct : p)));
+        toastError(err instanceof Error ? err.message : t('genericError'));
+      }
+      return;
+    }
+
     setProducts((prev) =>
       prev.map((p) => (p.id === productId ? { ...p, is_available: nextStock } : p))
     );
@@ -162,6 +202,68 @@ export const ShopkeeperCataloguePage: React.FC = () => {
     } catch (err: unknown) {
       setProducts((prev) =>
         prev.map((p) => (p.id === productId ? { ...p, is_available: currentStock } : p))
+      );
+      toastError(err instanceof Error ? err.message : t('genericError'));
+    }
+  };
+
+  // Individual Variant Stock & Availability Toggle
+  const handleVariantStockToggle = async (productId: string, variantId: string, currentInStock: boolean) => {
+    if (!shop) return;
+    const targetProduct = products.find((p) => p.id === productId);
+    if (!targetProduct || targetProduct.is_banned) {
+      if (targetProduct?.is_banned) {
+        toastError('This product has been restricted or banned by platform administration.');
+      }
+      return;
+    }
+
+    const nextInStock = !currentInStock;
+    const targetVariant = targetProduct.variants?.find((v) => v.id === variantId);
+    const nextStock = nextInStock ? (targetVariant?.stock_quantity && targetVariant.stock_quantity > 0 ? targetVariant.stock_quantity : 5) : 0;
+
+    const updatedVariants = updateVariantInList(targetProduct.variants || [], variantId, {
+      stock_quantity: nextStock,
+      is_available: nextInStock,
+      in_stock: nextInStock,
+    });
+
+    const nextProductAvailable = updatedVariants.some((v) => variantIsAvailable(v));
+
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === productId
+          ? { ...p, variants: updatedVariants, is_available: nextProductAvailable }
+          : p
+      )
+    );
+
+    try {
+      const res = await updateShopProductVariantStock(
+        shop.id,
+        productId,
+        variantId,
+        nextStock,
+        nextInStock
+      );
+      if (res.success && res.product) {
+        setProducts((prev) =>
+          prev.map((p) => (p.id === productId ? res.product! : p))
+        );
+        if (nextInStock) {
+          success(`Variant marked in stock (${nextStock} units)`);
+        } else {
+          info('Variant marked out of stock');
+        }
+      } else {
+        setProducts((prev) =>
+          prev.map((p) => (p.id === productId ? targetProduct : p))
+        );
+        toastError(res.error || t('genericError'));
+      }
+    } catch (err: unknown) {
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? targetProduct : p))
       );
       toastError(err instanceof Error ? err.message : t('genericError'));
     }
@@ -801,10 +903,26 @@ export const ShopkeeperCataloguePage: React.FC = () => {
                           <Badge variant="error" size="sm">
                             RESTRICTED BY ADMIN
                           </Badge>
+                        ) : prod.has_variants && prod.variants && prod.variants.length > 0 ? (
+                          (() => {
+                            const inStockCount = prod.variants.filter(variantIsAvailable).length;
+                            return (
+                              <Badge variant={inStockCount > 0 ? 'success' : 'neutral'} size="sm">
+                                {inStockCount > 0
+                                  ? `In Stock (${inStockCount}/${prod.variants.length} available)`
+                                  : `Out of Stock (0/${prod.variants.length})`}
+                              </Badge>
+                            );
+                          })()
                         ) : (
                           <Badge variant={prod.is_available ? 'success' : 'neutral'} size="sm">
                             {prod.is_available ? 'In Stock' : 'Out of Stock'}
                           </Badge>
+                        )}
+                        {!prod.has_variants && prod.track_inventory && prod.stock_quantity != null && (
+                          <span className="text-[11px] text-secondary font-medium">
+                            Stock: {prod.stock_quantity}
+                          </span>
                         )}
                       </div>
 
@@ -824,6 +942,61 @@ export const ShopkeeperCataloguePage: React.FC = () => {
                           ₹{prod.price} <span className="text-xs font-normal">/ {prod.unit}</span>
                         </span>
                       </div>
+
+                      {prod.has_variants && prod.variants && prod.variants.length > 0 && (
+                        <div className="vaango-prod-variants-list mt-3 pt-2 border-t border-border/40">
+                          <div className="text-xs font-semibold text-secondary mb-1 flex items-center justify-between">
+                            <span>Variant Stock & Availability ({prod.variants.length})</span>
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            {prod.variants.map((v) => {
+                              const isVarInStock = variantIsAvailable(v);
+                              return (
+                                <div
+                                  key={v.id}
+                                  className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-surface/40 border border-border/30 gap-2"
+                                >
+                                  <div className="flex-1 truncate">
+                                    <span className="font-semibold text-text-primary">{variantLabel(v)}</span>
+                                    <span className="text-secondary ml-1.5 font-medium">₹{v.price}</span>
+                                    {v.stock_quantity != null ? (
+                                      <span
+                                        className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                          v.stock_quantity > 0
+                                            ? 'bg-emerald-500/10 text-emerald-600'
+                                            : 'bg-red-500/10 text-red-600'
+                                        }`}
+                                      >
+                                        Stock: {v.stock_quantity}
+                                      </span>
+                                    ) : (
+                                      <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-600">
+                                        Unlimited
+                                      </span>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    disabled={prod.is_banned}
+                                    className={`text-[11px] px-2.5 py-1 rounded font-semibold transition-all ${
+                                      isVarInStock
+                                        ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
+                                        : 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300'
+                                    }`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleVariantStockToggle(prod.id, v.id, isVarInStock);
+                                    }}
+                                    title={isVarInStock ? 'Click to mark out of stock' : 'Click to mark in stock'}
+                                  >
+                                    {isVarInStock ? 'In Stock' : 'Out of Stock'}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="vaango-prod-card__actions">

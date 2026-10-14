@@ -7,6 +7,7 @@ import { isValidIndianMobile, normalizeIndianPhone } from '../lib/phoneUtils';
 import { notifyOrderLifecycle } from '../lib/notificationApi';
 import { validateOrderPickupAt } from '../lib/orderPickupUtils';
 import { cleanPaymentProofPath } from '../lib/paymentProof';
+import { variantIsAvailable } from '../lib/productVariants';
 
 export interface CartItem {
   product: ShopProduct;
@@ -171,9 +172,35 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // Prevent adding out of stock products
+    // Prevent adding out of stock products or unavailable variants
     if (!product.is_available) {
       return { success: false, error: 'Product is currently out of stock' };
+    }
+
+    if (product.has_variants) {
+      if (!variant) {
+        return { success: false, error: 'Please select an available variant.' };
+      }
+      if (!variantIsAvailable(variant)) {
+        return { success: false, error: 'Selected variant is currently out of stock.' };
+      }
+      if (variant.stock_quantity != null) {
+        const currentVariantQty = getItemQuantity(product.id, variant.id);
+        if (currentVariantQty + 1 > variant.stock_quantity) {
+          return {
+            success: false,
+            error: `Only ${variant.stock_quantity} available in stock for ${variant.label || 'this option'}.`,
+          };
+        }
+      }
+    } else if (product.track_inventory && product.stock_quantity != null) {
+      const currentProdQty = getItemQuantity(product.id);
+      if (currentProdQty + 1 > product.stock_quantity) {
+        return {
+          success: false,
+          error: `Only ${product.stock_quantity} available in stock for this product.`,
+        };
+      }
     }
 
     setItems((prev) => {
@@ -219,7 +246,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           i.product.id === productId &&
           (!variantId || i.selectedVariant?.id === variantId)
         ) {
-          const nextQuantity = Math.min(99, Math.max(1, quantity));
+          let maxStock = 99;
+          if (i.selectedVariant && i.selectedVariant.stock_quantity != null) {
+            maxStock = Math.max(0, i.selectedVariant.stock_quantity);
+          } else if (i.product.track_inventory && i.product.stock_quantity != null) {
+            maxStock = Math.max(0, i.product.stock_quantity);
+          }
+          if (maxStock <= 0) {
+            return i;
+          }
+          const nextQuantity = Math.min(maxStock, Math.min(99, Math.max(1, quantity)));
           return { ...i, quantity: nextQuantity, billed_quantity: nextQuantity };
         }
         return i;
@@ -309,10 +345,32 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'Please choose Dine-in or Parcel / Takeaway before submitting.' };
     }
 
-    // Client-side pre-validation
-    const hasOutOfStock = shopItems.some((i) => !i.product.is_available);
-    if (hasOutOfStock) {
-      return { success: false, error: 'One or more items in your cart are no longer in stock.' };
+    // Client-side pre-validation: validate product and variant availability and stock
+    for (const item of shopItems) {
+      if (!item.product.is_available) {
+        return { success: false, error: `${item.product.name} is currently out of stock.` };
+      }
+      if (item.product.has_variants) {
+        if (!item.selectedVariant || !variantIsAvailable(item.selectedVariant)) {
+          return {
+            success: false,
+            error: `${item.product.name} (${item.selectedVariant?.label || 'Selected Option'}) is currently out of stock.`,
+          };
+        }
+        if (item.selectedVariant.stock_quantity != null && getEffectiveQuantity(item) > item.selectedVariant.stock_quantity) {
+          return {
+            success: false,
+            error: `Only ${item.selectedVariant.stock_quantity} available for ${item.product.name} (${item.selectedVariant.label || 'Option'}).`,
+          };
+        }
+      } else if (item.product.track_inventory && item.product.stock_quantity != null) {
+        if (getEffectiveQuantity(item) > item.product.stock_quantity) {
+          return {
+            success: false,
+            error: `Only ${item.product.stock_quantity} available for ${item.product.name}.`,
+          };
+        }
+      }
     }
 
     setIsSubmitting(true);

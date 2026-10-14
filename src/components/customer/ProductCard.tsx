@@ -58,9 +58,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const currentDisplayImage = validImages[activeImageIndex] || validImages[0] || null;
 
+  const isOverallOutOfStock =
+    !product.is_available ||
+    (product.has_variants && availableVariants.length > 0 && availableVariants.every((v) => !variantIsAvailable(v)));
+  const isCurrentSelectionOutOfStock =
+    isOverallOutOfStock || (product.has_variants && (!selectedVariant || !variantIsAvailable(selectedVariant)));
+
   return (
     <>
-      <div className={`vaango-prod-card ${!product.is_available ? 'vaango-prod-card--out-of-stock' : ''}`}>
+      <div className={`vaango-prod-card ${isOverallOutOfStock ? 'vaango-prod-card--out-of-stock' : ''}`}>
         {/* Product Image Thumbnail */}
         <div
           className="vaango-prod-card__media vaango-prod-card__clickable-header"
@@ -101,7 +107,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <span>{product.name.charAt(0).toUpperCase()}</span>
             </div>
           )}
-          {!product.is_available && (
+          {isOverallOutOfStock && (
             <div className="vaango-prod-card__stock-overlay">
               <Badge variant="error" size="sm">
                 {t('outOfStock')}
@@ -135,7 +141,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   })}
                 </div>
               ))}
-              {!Object.keys(variantGroups).length && availableVariants.map((variant) => <button key={variant.id} type="button" disabled={!variantIsAvailable(variant)} className={selectedVariant?.id === variant.id ? 'active' : ''} onClick={() => setSelectedVariantId(variant.id)}>{variantLabel(variant)} · ₹{variant.price}</button>)}
+              {!Object.keys(variantGroups).length && availableVariants.map((variant) => {
+                const isVarAvail = variantIsAvailable(variant);
+                return (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    className={`${selectedVariant?.id === variant.id ? 'active' : ''} ${!isVarAvail ? 'opacity-60' : ''}`}
+                    onClick={() => setSelectedVariantId(variant.id)}
+                  >
+                    {variantLabel(variant)} · ₹{variant.price}{!isVarAvail ? ' (Out)' : ''}
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -147,7 +165,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
             {/* Action: Add Button OR Quantity Controls */}
             <div className="vaango-prod-card__action">
-              {!product.is_available || (product.has_variants && (!selectedVariant || !variantIsAvailable(selectedVariant))) ? (
+              {isCurrentSelectionOutOfStock ? (
                 <Button variant="secondary" size="md" disabled leftIcon={<PackageX size={16} />}>
                   {t('outOfStock')}
                 </Button>

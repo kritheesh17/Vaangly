@@ -230,16 +230,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 ) : (
                   product.variants.map((v) => {
                     const isSelected = selectedVariant?.id === v.id;
+                    const isVarAvail = variantIsAvailable(v);
                     return (
                       <button
                         key={v.id}
                         type="button"
-                        disabled={!variantIsAvailable(v)}
-                        className={`vaango-prod-modal__option-chip ${isSelected ? 'vaango-prod-modal__option-chip--active' : ''}`}
+                        className={`vaango-prod-modal__option-chip ${isSelected ? 'vaango-prod-modal__option-chip--active' : ''} ${!isVarAvail ? 'opacity-60' : ''}`}
                         onClick={() => setSelectedVariant(v)}
                       >
                         <span className="vaango-prod-modal__option-name">{variantLabel(v)}</span>
-                        <span className="vaango-prod-modal__option-price">₹{v.price}</span>
+                        <span className="vaango-prod-modal__option-price">
+                          ₹{v.price}
+                          {!isVarAvail ? ' · Out of Stock' : ''}
+                        </span>
                       </button>
                     );
                   })

@@ -273,19 +273,38 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         })
       );
       const allImageUrls = [...existingImageUrls, ...uploadedUrls].filter((url) => !url.startsWith('blob:'));
+      let finalIsAvailable = isAvailable;
+      let finalVariants = variants;
+      if (hasVariants) {
+        finalVariants = variants.map((v) => {
+          const st = v.stock_quantity != null ? Number(v.stock_quantity) : null;
+          const isZero = st !== null && st <= 0;
+          return {
+            ...v,
+            stock_quantity: st,
+            in_stock: isZero ? false : (v.in_stock !== false),
+            is_available: isZero ? false : (v.is_available !== false),
+          };
+        });
+        const anyInStock = finalVariants.some(
+          (v) => v.is_available !== false && v.in_stock !== false && (v.stock_quantity == null || v.stock_quantity > 0)
+        );
+        finalIsAvailable = anyInStock;
+      }
+
       const result = await onSubmit({
         name: name.trim(),
         description: description.trim(),
         price: parsedPrice,
         unit: finalUnit,
-        is_available: isAvailable,
+        is_available: finalIsAvailable,
         image_url: allImageUrls[0] || imageUrl.trim() || null,
         image_urls: allImageUrls,
         offer_label: offerLabel.trim() || null,
         offer_type: offerType,
         offer_value: offerType && offerType !== 'bogo' ? (parseFloat(offerValue) || null) : null,
         has_variants: hasVariants,
-        variants,
+        variants: finalVariants,
         attribute_groups: hasVariants ? [] : attributeGroups,
         track_inventory: !hasVariants && trackInventory,
         stock_quantity: !hasVariants && trackInventory ? (stockQuantity === '' ? null : Number(stockQuantity)) : null,
@@ -475,13 +494,23 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     }
                   }} />
                   <Input type="number" min="0" placeholder={t('pricePlaceholder')} value={variant.price} onChange={(e) => setVariants((items) => items.map((item) => item.id === variant.id ? { ...item, price: Number(e.target.value) } : item))} />
-                  <Input type="number" min="0" step="1" placeholder="Stock" value={variant.stock_quantity ?? ''} onChange={(e) => setVariants((items) => items.map((item) => item.id === variant.id ? { ...item, stock_quantity: e.target.value === '' ? null : Number(e.target.value), in_stock: e.target.value === '' || Number(e.target.value) > 0 } : item))} />
-                  <label><input type="checkbox" checked={variant.is_available !== false} onChange={(e) => setVariants((items) => items.map((item) => item.id === variant.id ? { ...item, is_available: e.target.checked, in_stock: e.target.checked } : item))} /> Available</label>
+                  <Input type="number" min="0" step="1" placeholder="Stock" value={variant.stock_quantity ?? ''} onChange={(e) => setVariants((items) => items.map((item) => {
+                    if (item.id !== variant.id) return item;
+                    const val = e.target.value === '' ? null : Number(e.target.value);
+                    const isZero = val !== null && val <= 0;
+                    return {
+                      ...item,
+                      stock_quantity: val,
+                      in_stock: isZero ? false : true,
+                      is_available: isZero ? false : (item.is_available !== false),
+                    };
+                  }))} />
+                  <label><input type="checkbox" checked={variant.is_available !== false && variant.in_stock !== false && (variant.stock_quantity == null || variant.stock_quantity > 0)} onChange={(e) => setVariants((items) => items.map((item) => item.id === variant.id ? { ...item, is_available: e.target.checked, in_stock: e.target.checked } : item))} /> Available</label>
                   <Button type="button" variant="outline" size="sm" onClick={() => { setVariants((items) => items.filter((item) => item.id !== variant.id)); setVariantAttributeText((current) => { const next = { ...current }; delete next[variant.id]; return next; }); }}>{t('deleteItem')}</Button>
                 </div>
               ))}
               {variants.length < 8 && (
-                <Button type="button" variant="outline" size="sm" onClick={() => { const id = crypto.randomUUID(); setVariants((items) => [...items, { id, label: '', attributes: {}, price: Number(price) || 0, stock_quantity: 0, is_available: true, in_stock: false }]); setVariantAttributeText((current) => ({ ...current, [id]: '{}' })); }}>
+                <Button type="button" variant="outline" size="sm" onClick={() => { const id = crypto.randomUUID(); setVariants((items) => [...items, { id, label: '', attributes: {}, price: Number(price) || 0, stock_quantity: 1, is_available: true, in_stock: true }]); setVariantAttributeText((current) => ({ ...current, [id]: '{}' })); }}>
                   + {t('addVariantBtn')}
                 </Button>
               )}
