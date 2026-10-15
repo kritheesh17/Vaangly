@@ -13,6 +13,7 @@ import {
   Request,
   RequestEvent,
   ShopProduct,
+  ShopService,
 } from '../types/database';
 import {
   OperationalMetrics,
@@ -20,10 +21,13 @@ import {
   AdminShopFilterOptions,
   AdminApplicationFilterOptions,
   RecordPaymentPayload,
+  AdminShopStatistics,
+  AdminShopOrderSummary,
 } from '../types/admin';
 import { DEFAULT_LOCATIONS } from '../context/LocationContext';
-import { MOCK_SHOPS, MOCK_SHOP_TYPES } from '../data/mockData';
+import { MOCK_SHOPS, MOCK_SHOP_TYPES, LEGACY_SHOP_ID_MAP } from '../data/mockData';
 import { getStoredMockShops, saveMockShops, getStoredMockProducts, saveMockProducts } from './shopkeeperApi';
+import { fetchShopServices } from './appointmentServiceApi';
 import { createNotification } from './notificationApi';
 
 // Local Storage Keys for Mock Admin Data
@@ -726,21 +730,52 @@ export async function fetchAdminShops(filters?: AdminShopFilterOptions): Promise
 
   if (isSupabaseConfigured) {
     try {
-      let query = supabase.from('shops').select('*, shop_avg_ratings(avg_rating, total_ratings)').order('created_at', { ascending: false });
+      let query = supabase
+        .from('shops')
+        .select(`
+          *,
+          shop_avg_ratings(avg_rating, total_ratings),
+          profiles!shops_owner_id_fkey(id, full_name, email, phone, role, is_verified, created_at),
+          shop_types!shops_shop_type_id_fkey(id, name, code, workflow_group_code)
+        `)
+        .order('created_at', { ascending: false });
       if (filters?.locationId) query = query.eq('location_id', filters.locationId);
       if (filters?.shopTypeId) query = query.eq('shop_type_id', filters.shopTypeId);
       if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status);
       const { data, error } = await query;
       if (error) throw error;
-      shops = (data || []).map((shop) => {
+      shops = (data || []).map((shop: any) => {
         const rating = Array.isArray(shop.shop_avg_ratings) ? shop.shop_avg_ratings[0] : shop.shop_avg_ratings;
-        return { ...shop, avg_rating: rating?.avg_rating ?? null, total_ratings: rating?.total_ratings ?? 0 };
+        const owner = Array.isArray(shop.profiles) ? shop.profiles[0] : shop.profiles;
+        const shopType = Array.isArray(shop.shop_types) ? shop.shop_types[0] : shop.shop_types;
+        return {
+          ...shop,
+          avg_rating: rating?.avg_rating ?? null,
+          total_ratings: rating?.total_ratings ?? 0,
+          owner: owner || shop.owner || null,
+          shop_type: shopType || shop.shop_type || null,
+        };
       });
     } catch (err) {
       console.error('Failed to fetch shops from Supabase:', err);
     }
   } else {
-    shops = getStoredMockShops();
+    shops = getStoredMockShops().map((s) => {
+      const type = MOCK_SHOP_TYPES.find((t) => t.id === s.shop_type_id);
+      return {
+        ...s,
+        shop_type: type || s.shop_type || null,
+        owner: s.owner || {
+          id: s.owner_id || 'mock-owner',
+          full_name: 'Store Owner',
+          email: 'owner@example.com',
+          phone: s.phone,
+          role: 'shopkeeper',
+          is_verified: true,
+          created_at: s.created_at || new Date().toISOString(),
+        },
+      };
+    });
   }
 
   // Client-side multi-vertical filter matching
@@ -1090,13 +1125,16 @@ export async function unbanShopProduct(
  * 60-Day Trial Calculation: Begins strictly from actual shop go_live_date (Day 0).
  * Max Daily Rate: Capped at ₹20/day.
  */
-export function calculateTrialWindow(goLiveDateStr: string | null): {
+export function calculateTrialWindow(
+  goLiveDateStr: string | null,
+  referenceDate?: Date
+): {
   trialStartDate: string;
   trialEndDate: string;
   daysRemaining: number;
   isTrialExpired: boolean;
 } {
-  const now = new Date();
+  const now = referenceDate || new Date();
   if (!goLiveDateStr) {
     // If shop hasn't gone live yet, trial is pending initiation
     const futureEnd = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
@@ -1126,15 +1164,59 @@ export async function fetchAdminSubscriptions(
 ): Promise<ShopSubscription[]> {
   if (isSupabaseConfigured) {
     try {
-      let query = supabase.from('shop_subscriptions').select('*').order('created_at', { ascending: false });
+      let query = supabase
+        .from('shop_subscriptions')
+        .select(`
+          *,
+          shops!shop_subscriptions_shop_id_fkey(
+            id,
+            name,
+            tagline,
+            status,
+            is_live,
+            owner_id,
+            shop_type_id,
+            phone,
+            address_line,
+            photo_url,
+            created_at,
+            profiles!shops_owner_id_fkey(id, full_name, email, phone, role, is_verified, created_at),
+            shop_types!shops_shop_type_id_fkey(id, name, code, workflow_group_code)
+          )
+        `)
+        .order('created_at', { ascending: false });
+
       if (statusFilter && statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
       }
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+
+      return (data || []).map((sub: any) => {
+        const shopObj = sub.shops ? (Array.isArray(sub.shops) ? sub.shops[0] : sub.shops) : null;
+        if (shopObj) {
+          const owner = Array.isArray(shopObj.profiles) ? shopObj.profiles[0] : shopObj.profiles;
+          const shopType = Array.isArray(shopObj.shop_types) ? shopObj.shop_types[0] : shopObj.shop_types;
+          shopObj.owner = owner || shopObj.owner || null;
+          shopObj.shop_type = shopType || shopObj.shop_type || null;
+        }
+        return {
+          ...sub,
+          shop: shopObj || sub.shop || null,
+        } as ShopSubscription;
+      });
     } catch (err) {
-      console.error('Failed to fetch subscriptions from Supabase:', err);
+      console.error('Failed to fetch subscriptions with joined shops from Supabase:', err);
+      try {
+        let fallbackQuery = supabase.from('shop_subscriptions').select('*').order('created_at', { ascending: false });
+        if (statusFilter && statusFilter !== 'all') {
+          fallbackQuery = fallbackQuery.eq('status', statusFilter);
+        }
+        const { data: fbData } = await fallbackQuery;
+        if (fbData) return fbData as ShopSubscription[];
+      } catch (fbErr) {
+        console.error('Failed fallback subscription query:', fbErr);
+      }
     }
   }
 
@@ -1142,7 +1224,14 @@ export async function fetchAdminSubscriptions(
   if (statusFilter && statusFilter !== 'all') {
     list = list.filter((s) => s.status === statusFilter);
   }
-  return list;
+  const mockShops = getStoredMockShops();
+  return list.map((s) => {
+    const matchingShop = mockShops.find((m) => m.id === s.shop_id || LEGACY_SHOP_ID_MAP[m.id] === s.shop_id);
+    return {
+      ...s,
+      shop: s.shop || matchingShop || null,
+    };
+  });
 }
 
 export async function fetchShopSubscription(shopId: string): Promise<ShopSubscription | null> {
@@ -1161,6 +1250,286 @@ export async function fetchShopSubscription(shopId: string): Promise<ShopSubscri
 
   const list = getStoredSubscriptions();
   return list.find((s) => s.shop_id === shopId) || null;
+}
+
+export interface AdminShopDetailResult {
+  shop: Shop;
+  subscription: ShopSubscription | null;
+  payments: SubscriptionPayment[];
+  products: ShopProduct[];
+  services: ShopService[];
+  statistics: AdminShopStatistics;
+  recentOrders: AdminShopOrderSummary[];
+  period: 'all' | '30d' | '7d';
+}
+
+export interface AdminShopDetailResponse {
+  data: AdminShopDetailResult | null;
+  error: string | null;
+  isNotFound: boolean;
+}
+
+export async function fetchAdminShopDetail(
+  shopId: string,
+  period: 'all' | '30d' | '7d' = 'all'
+): Promise<AdminShopDetailResponse> {
+  // 1. Fetch Shop with owner profile, shop type, location, and ratings
+  let shop: Shop | null = null;
+  let queryError: string | null = null;
+  let isNotFound = false;
+
+  if (isSupabaseConfigured) {
+    try {
+      const { data: sData, error: sErr } = await supabase
+        .from('shops')
+        .select(`
+          *,
+          shop_avg_ratings(avg_rating, total_ratings),
+          profiles!shops_owner_id_fkey(id, full_name, email, phone, role, is_verified, created_at),
+          shop_types!shops_shop_type_id_fkey(id, name, code, workflow_group_code),
+          locations!shops_location_id_fkey(id, name, state, pincode)
+        `)
+        .eq('id', shopId)
+        .maybeSingle();
+
+      if (sErr) {
+        console.warn(`[adminApi] Joined shop query error (${sErr.code}): ${sErr.message}. Attempting resilient fallback query...`);
+        // Resilient fallback: Query shops table directly to handle column/relationship mismatches gracefully
+        const { data: directShop, error: directErr } = await supabase
+          .from('shops')
+          .select('*')
+          .eq('id', shopId)
+          .maybeSingle();
+
+        if (directErr) {
+          queryError = directErr.message || 'Database query error';
+        } else if (!directShop) {
+          isNotFound = true;
+        } else {
+          // Direct shop found! Populate foreign key relations safely and independently
+          const [profRes, stRes, locRes, ratingRes] = await Promise.all([
+            directShop.owner_id
+              ? supabase.from('profiles').select('id, full_name, email, phone, role, is_verified, created_at').eq('id', directShop.owner_id).maybeSingle()
+              : Promise.resolve({ data: null, error: null }),
+            directShop.shop_type_id
+              ? supabase.from('shop_types').select('id, name, code, workflow_group_code').eq('id', directShop.shop_type_id).maybeSingle()
+              : Promise.resolve({ data: null, error: null }),
+            directShop.location_id
+              ? supabase.from('locations').select('id, name, state, pincode').eq('id', directShop.location_id).maybeSingle()
+              : Promise.resolve({ data: null, error: null }),
+            supabase.from('shop_avg_ratings').select('avg_rating, total_ratings').eq('shop_id', directShop.id).maybeSingle(),
+          ]);
+
+          shop = {
+            ...directShop,
+            avg_rating: ratingRes.data?.avg_rating ?? null,
+            total_ratings: ratingRes.data?.total_ratings ?? 0,
+            owner: profRes.data || null,
+            shop_type: stRes.data || null,
+            location: locRes.data || null,
+          } as Shop;
+        }
+      } else if (!sData) {
+        isNotFound = true;
+      } else {
+        const rating = Array.isArray(sData.shop_avg_ratings) ? sData.shop_avg_ratings[0] : sData.shop_avg_ratings;
+        const owner = Array.isArray(sData.profiles) ? sData.profiles[0] : sData.profiles;
+        const shopType = Array.isArray(sData.shop_types) ? sData.shop_types[0] : sData.shop_types;
+        const location = Array.isArray(sData.locations) ? sData.locations[0] : sData.locations;
+        shop = {
+          ...sData,
+          avg_rating: rating?.avg_rating ?? null,
+          total_ratings: rating?.total_ratings ?? 0,
+          owner: owner || sData.owner || null,
+          shop_type: shopType || sData.shop_type || null,
+          location: location || sData.location || null,
+        } as Shop;
+      }
+    } catch (err) {
+      console.error('Error fetching shop detail from Supabase:', err);
+      queryError = extractErrorMessage(err, 'Failed to fetch shop details');
+    }
+  }
+
+  // Fallback if not found in Supabase (e.g. mock shops or legacy IDs)
+  if (!shop && !queryError) {
+    const mockShops = getStoredMockShops();
+    const found = mockShops.find((s) => s.id === shopId || LEGACY_SHOP_ID_MAP[s.id] === shopId);
+    if (found) {
+      const mockShopType = MOCK_SHOP_TYPES.find((t) => t.id === found.shop_type_id);
+      shop = {
+        ...found,
+        shop_type: mockShopType || found.shop_type || null,
+        owner: found.owner || {
+          id: found.owner_id || 'mock-owner',
+          full_name: 'Store Owner',
+          email: 'owner@example.com',
+          phone: found.phone,
+          role: 'shopkeeper',
+          is_verified: true,
+          created_at: found.created_at || new Date().toISOString(),
+        },
+      };
+      isNotFound = false;
+    }
+  }
+
+  if (!shop) {
+    return {
+      data: null,
+      error: queryError,
+      isNotFound: Boolean(isNotFound || !queryError),
+    };
+  }
+
+  // 2. Fetch Subscription & Payments
+  const [subscription, payments] = await Promise.all([
+    fetchShopSubscription(shop.id),
+    fetchSubscriptionPayments(shop.id),
+  ]);
+
+  // 3. Fetch Products and Services
+  const [products, services] = await Promise.all([
+    fetchAdminShopProducts(shop.id),
+    fetchShopServices(shop.id),
+  ]);
+
+  // 4. Fetch Requests / Orders for Statistics
+  let requestsList: any[] = [];
+  if (isSupabaseConfigured) {
+    try {
+      const { data: reqs, error: reqErr } = await supabase
+        .from('requests')
+        .select(
+          'id, reference_code, customer_id, shop_id, workflow_group_code, current_state, total_amount, subtotal, payment_status, created_at, completed_at, cancelled_at, fulfillment_type, request_kind, customer_phone'
+        )
+        .eq('shop_id', shop.id)
+        .order('created_at', { ascending: false });
+      if (!reqErr && reqs) {
+        requestsList = reqs;
+      }
+    } catch (err) {
+      console.error('Error fetching shop requests:', err);
+    }
+  }
+
+  // Date filtering based on selected period
+  const now = Date.now();
+  const periodCutoff =
+    period === '7d'
+      ? now - 7 * 24 * 60 * 60 * 1000
+      : period === '30d'
+        ? now - 30 * 24 * 60 * 60 * 1000
+        : 0;
+
+  const filteredRequests =
+    periodCutoff > 0
+      ? requestsList.filter((r) => new Date(r.created_at).getTime() >= periodCutoff)
+      : requestsList;
+
+  // Products stock stats: check variants independently
+  let inStockCount = 0;
+  let outOfStockCount = 0;
+  let bannedCount = 0;
+
+  products.forEach((p) => {
+    if (p.is_banned) {
+      bannedCount++;
+    } else if (p.has_variants && p.variants && p.variants.length > 0) {
+      const anyVariantAvailable = p.variants.some(
+        (v) =>
+          v.is_available !== false &&
+          v.in_stock !== false &&
+          (v.stock_quantity === null || v.stock_quantity === undefined || v.stock_quantity > 0)
+      );
+      if (anyVariantAvailable) {
+        inStockCount++;
+      } else {
+        outOfStockCount++;
+      }
+    } else if (p.is_available) {
+      inStockCount++;
+    } else {
+      outOfStockCount++;
+    }
+  });
+
+  // Order stats
+  const totalOrders = filteredRequests.length;
+  const pendingOrders = filteredRequests.filter((r) =>
+    ['REQUESTED', 'SUBMITTED', 'ACCEPTED', 'READY_FOR_PICKUP', 'IN_TRANSIT', 'DELAYED'].includes(
+      r.current_state
+    )
+  ).length;
+  const completedOrders = filteredRequests.filter((r) => r.current_state === 'COMPLETED').length;
+  const cancelledOrders = filteredRequests.filter((r) =>
+    ['CANCELLED', 'REJECTED'].includes(r.current_state)
+  ).length;
+
+  // Revenue: ONLY count COMPLETED orders, strictly excluding CANCELLED and REJECTED
+  const totalRevenue = filteredRequests
+    .filter((r) => r.current_state === 'COMPLETED')
+    .reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0);
+
+  // Appointments stats
+  const apptRequests = filteredRequests.filter(
+    (r) => r.workflow_group_code === 'APPOINTMENT' || r.request_kind === 'APPOINTMENT'
+  );
+  const totalAppointments = apptRequests.length;
+  const completedAppointments = apptRequests.filter((r) => r.current_state === 'COMPLETED').length;
+  const cancelledAppointments = apptRequests.filter((r) =>
+    ['CANCELLED', 'REJECTED', 'NO_SHOW'].includes(r.current_state)
+  ).length;
+  const pendingAppointments = apptRequests.filter((r) =>
+    ['REQUESTED', 'CONFIRMED', 'SCHEDULED', 'ACCEPTED'].includes(r.current_state)
+  ).length;
+
+  const statistics: AdminShopStatistics = {
+    period,
+    totalProducts: products.length,
+    activeProducts: inStockCount,
+    outOfStockProducts: outOfStockCount,
+    bannedProducts: bannedCount,
+    totalOrders,
+    pendingOrders,
+    completedOrders,
+    cancelledOrders,
+    totalRevenue,
+    totalAppointments,
+    completedAppointments,
+    cancelledAppointments,
+    pendingAppointments,
+    calculationPeriod: period,
+    periodRevenue: totalRevenue,
+    periodOrdersCount: totalOrders,
+  };
+
+  const recentOrders: AdminShopOrderSummary[] = filteredRequests.slice(0, 10).map((r) => ({
+    id: r.id,
+    reference_code: r.reference_code || `ORD-${r.id.substring(0, 6)}`,
+    customer_phone: r.customer_phone || null,
+    current_state: r.current_state,
+    total_amount: Number(r.total_amount) || 0,
+    payment_status: r.payment_status || 'verified',
+    created_at: r.created_at,
+    fulfillment_type: r.fulfillment_type || null,
+    request_kind: r.request_kind || r.workflow_group_code || null,
+  }));
+
+  return {
+    data: {
+      shop,
+      subscription,
+      payments,
+      products,
+      services,
+      statistics,
+      recentOrders,
+      period,
+    },
+    error: null,
+    isNotFound: false,
+  };
 }
 
 export async function updateShopBillingCycle(

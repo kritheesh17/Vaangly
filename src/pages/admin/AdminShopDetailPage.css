@@ -34,12 +34,16 @@
   color: var(--color-text);
   margin: 0 0 4px 0;
   letter-spacing: -0.02em;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .vaango-shop-detail__subtitle {
   font-size: 0.9rem;
   color: var(--color-text-muted);
   margin: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .vaango-shop-detail__actions {
@@ -427,3 +431,598 @@
   margin-bottom: 16px;
   font-size: 0.85rem;
 }
+
+/* Nav & Breadcrumbs */
+.vaango-shop-detail__nav-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+
+.vaango-breadcrumb-sep {
+  color: var(--color-border);
+}
+
+.vaango-breadcrumb-current {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* Header Avatar */
+.vaango-shop-detail__header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.vaango-shop-detail__avatar-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-lg, 12px);
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vaango-shop-detail__avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vaango-shop-detail__avatar-placeholder {
+  color: var(--color-primary);
+}
+
+/* 2-Column Top Row: Overview & Shopkeeper */
+.vaango-shop-detail__top-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg, 24px);
+  align-items: stretch;
+}
+
+@media (max-width: 960px) {
+  .vaango-shop-detail__top-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vaango-shop-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.vaango-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.vaango-section-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md, 8px);
+  background-color: rgba(10, 123, 131, 0.1);
+  color: var(--color-primary, #0a7b83);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vaango-section-icon-badge--user {
+  background-color: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+.vaango-section-icon-badge--stats {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.vaango-section-icon-badge--cat {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.vaango-section-icon-badge--sub {
+  background-color: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+}
+
+.vaango-sec-sub {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* -------------------------------------------------------------
+ * Responsive Definition List (Shop Overview & Shopkeeper Details)
+ * Independent grid cells for labels and values
+ * ------------------------------------------------------------- */
+.vaango-shop-dl {
+  display: grid;
+  grid-template-columns: 175px minmax(0, 1fr);
+  row-gap: 14px;
+  column-gap: 20px;
+  align-items: baseline;
+  margin: 0;
+  padding: 0;
+}
+
+.vaango-field-label {
+  grid-column: 1;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  margin: 0;
+  padding: 0;
+  letter-spacing: 0.01em;
+  word-break: break-word;
+}
+
+.vaango-field-value {
+  grid-column: 2;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--color-text);
+  line-height: 1.45;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.vaango-field-value strong {
+  font-weight: 700;
+  color: var(--color-text);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.vaango-field-icon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .vaango-shop-dl {
+    grid-template-columns: 1fr;
+    row-gap: 4px;
+  }
+
+  .vaango-field-label {
+    grid-column: 1;
+    margin-top: 12px;
+  }
+
+  .vaango-field-label:first-child {
+    margin-top: 0;
+  }
+
+  .vaango-field-value {
+    grid-column: 1;
+    margin-bottom: 2px;
+  }
+}
+
+.vaango-code-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.8rem;
+  background-color: var(--color-surface-hover);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--color-border);
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  display: inline-block;
+}
+
+.vaango-tel-link {
+  color: var(--color-primary);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.vaango-tel-link:hover {
+  text-decoration: underline;
+}
+
+.vaango-types-pill-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vaango-type-pill {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.vaango-type-pill--enabled {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.vaango-type-pill--disabled {
+  background-color: rgba(107, 114, 128, 0.08);
+  color: #9ca3af;
+  border: 1px solid rgba(107, 114, 128, 0.15);
+}
+
+.vaango-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #059669;
+  font-weight: 600;
+}
+
+.vaango-unverified-badge {
+  color: #d97706;
+  font-weight: 500;
+}
+
+.vaango-secrets-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background-color: rgba(10, 123, 131, 0.04);
+  border: 1px solid rgba(10, 123, 131, 0.15);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-top: 20px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.vaango-secrets-icon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.vaango-secrets-notice p {
+  margin: 0;
+}
+
+/* SECTION D: Statistics & Activity */
+.vaango-stats-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.vaango-stats-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.vaango-period-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--color-surface-hover);
+  padding: 3px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.vaango-period-tab {
+  background: none;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vaango-period-tab:hover {
+  color: var(--color-text);
+}
+
+.vaango-period-tab--active {
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.vaango-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.vaango-kpi-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.vaango-kpi-card--revenue {
+  border-color: rgba(16, 185, 129, 0.3);
+  background-color: rgba(16, 185, 129, 0.02);
+}
+
+.vaango-kpi-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background-color: var(--color-surface-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.vaango-kpi-card--revenue .vaango-kpi-icon-wrap {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.vaango-kpi-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.vaango-kpi-label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  word-break: break-word;
+}
+
+.vaango-kpi-val {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--color-text);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.vaango-kpi-hint {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.vaango-sub-heading {
+  font-size: 0.95rem;
+  font-weight: 750;
+  color: var(--color-text);
+  margin: 0 0 10px 0;
+}
+
+.vaango-empty-hint {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 8px 0;
+  font-style: italic;
+}
+
+.vaango-table-responsive {
+  overflow-x: auto;
+}
+
+.vaango-activity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.vaango-activity-table th {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vaango-activity-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.vaango-activity-table tr:hover {
+  background-color: var(--color-surface-hover);
+}
+
+/* SECTION C: Variant Stock Breakdown */
+.vaango-variant-breakdown-box {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background-color: var(--color-surface-hover);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.vaango-variant-breakdown-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.vaango-variant-pills-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vaango-variant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+}
+
+.vaango-variant-chip--available {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.vaango-variant-chip--unavailable {
+  border-color: rgba(239, 68, 68, 0.3);
+  opacity: 0.8;
+}
+
+.vaango-chip-label {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.vaango-chip-price {
+  color: var(--color-text-muted);
+}
+
+.vaango-chip-stock {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.vaango-variant-chip--available .vaango-chip-stock {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.vaango-variant-chip--unavailable .vaango-chip-stock {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+/* SECTION E: Subscription & Billing Metrics */
+.vaango-sub-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.vaango-sub-metric-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  background-color: var(--color-surface-hover);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+.vaango-sub-metric-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  word-break: break-word;
+}
+
+.vaango-sub-metric-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-text);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.vaango-sub-metric-hint {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+.vaango-sub-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-top: 16px;
+}
+
+.vaango-entitlement-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex: 1;
+  min-width: 280px;
+}
+
+.vaango-payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vaango-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .vaango-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import {
   fetchAdminSubscriptions,
+  fetchAdminShops,
   recordSubscriptionPayment,
   fetchSubscriptionPayments,
   calculateTrialWindow,
@@ -65,13 +66,14 @@ export const AdminSubscriptionsPage: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [subsData, allPayments] = await Promise.all([
+      const [subsData, allPayments, allShops] = await Promise.all([
         fetchAdminSubscriptions(statusFilter),
         fetchSubscriptionPayments(),
+        fetchAdminShops(),
       ]);
       setSubscriptions(subsData);
       setPayments(allPayments);
-      setShops(getStoredMockShops());
+      setShops(allShops && allShops.length > 0 ? allShops : getStoredMockShops());
     } catch (err) {
       console.error('Error loading subscriptions data:', err);
     } finally {
@@ -277,18 +279,65 @@ export const AdminSubscriptionsPage: React.FC = () => {
               </thead>
               <tbody>
                 {subscriptions.map((sub) => {
-                  const shop = shops.find((s) => s.id === sub.shop_id);
+                  const shop = sub.shop || shops.find((s) => s.id === sub.shop_id) || null;
                   const trialInfo = calculateTrialWindow(sub.go_live_date);
+                  const shopName = shop?.name || sub.shop_id;
+                  const ownerName = shop?.owner?.full_name;
+                  const categoryName = shop?.shop_type?.name;
+                  const targetShop = shop || ({ id: sub.shop_id, name: shopName } as Shop);
 
                   return (
-                    <tr key={sub.id}>
+                    <tr
+                      key={sub.id}
+                      className="vaango-admin-table__row--clickable"
+                      onClick={() => navigate(`/admin/shops/${sub.shop_id}`)}
+                      title={`Inspect shop details for ${shopName}`}
+                    >
                       <td>
                         <div className="vaango-sub-shop-cell">
-                          <Store size={16} className="vaango-sub-shop-icon" />
-                          <div>
-                            <strong>{shop?.name || sub.shop_id}</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                              {shop?.is_live ? 'Store Live' : 'Store Not Live Yet'}
+                          <div className="vaango-sub-shop-avatar">
+                            {shop?.photo_url ? (
+                              <img src={shop.photo_url} alt={shopName} className="vaango-sub-shop-img" />
+                            ) : (
+                              <Store size={18} className="vaango-sub-shop-icon" />
+                            )}
+                          </div>
+                          <div className="vaango-sub-shop-info">
+                            <button
+                              type="button"
+                              className="vaango-sub-shop-name-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/admin/shops/${sub.shop_id}`);
+                              }}
+                              title={`Inspect shop details for ${shopName}`}
+                            >
+                              {shopName}
+                            </button>
+                            <div className="vaango-sub-shop-secondary">
+                              {ownerName && <span className="vaango-sub-shop-owner">{ownerName}</span>}
+                              {ownerName && categoryName && <span className="vaango-sub-shop-sep">•</span>}
+                              {categoryName && <span className="vaango-sub-shop-cat">{categoryName}</span>}
+                              {!ownerName && !categoryName && shop?.tagline && (
+                                <span className="vaango-sub-shop-tagline">{shop.tagline}</span>
+                              )}
+                            </div>
+                            <div className="vaango-sub-shop-status-row">
+                              {shop?.is_live ? (
+                                <span className="vaango-live-indicator vaango-live-indicator--active">
+                                  <span className="vaango-indicator-dot vaango-indicator-dot--active" /> Live
+                                </span>
+                              ) : (
+                                <span className="vaango-live-indicator vaango-live-indicator--inactive">
+                                  <span className="vaango-indicator-dot vaango-indicator-dot--inactive" /> Inactive
+                                </span>
+                              )}
+                              {shop?.status === 'verified' && (
+                                <span className="vaango-verified-pill">Verified</span>
+                              )}
+                              {shop?.status === 'suspended' && (
+                                <span className="vaango-suspended-pill">Suspended</span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -353,21 +402,25 @@ export const AdminSubscriptionsPage: React.FC = () => {
                         )}
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <div className="vaango-admin-actions-cell">
-                          {shop && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => handleViewHistory(shop, e)}
-                              title="Payment Receipt History"
-                            >
-                              <Receipt size={14} />
-                            </Button>
-                          )}
+                        <div className="vaango-admin-actions-cell" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewHistory(targetShop, e);
+                            }}
+                            title="Payment Receipt History"
+                          >
+                            <Receipt size={14} />
+                          </Button>
                           <Button
                             variant="primary"
                             size="sm"
-                            onClick={(e) => handleOpenRecordPayment(sub, e)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenRecordPayment(sub, e);
+                            }}
                           >
                             Record UPI
                           </Button>

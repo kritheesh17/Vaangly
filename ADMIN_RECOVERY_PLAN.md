@@ -1,9 +1,9 @@
 # Vaangly Admin Access Recovery & Security Runbook
 
 > **Target Project**: `vaangly-staging-test-2` (`pndikgqbgchzkrmlrmzo`)  
-> **Target Administrator**: `support.vaangly@gmail.com` (`d68951e7-ba08-455f-bdfa-26307ef34fe8`)  
+> **Target Administrator**: `support.vaangly@gmail.com` (`d68951e7-ba08-455f-bdfa-26307fe34fe8`, corrected from transposed notes)  
 > **Legacy Account (Untouched)**: `admin@vaangly.test` (`786b787f-d0c0-4f50-b027-162683211c6c`)  
-> **Status**: Review-Only Runbook. Awaiting live database preflight execution and explicit authorization.
+> **Status**: COMPLETED. Privileged transaction executed and verified on 2026-10-15.
 
 ---
 
@@ -358,3 +358,22 @@ COMMIT;
 ### Legacy Account Boundary
 - **`admin@vaangly.test` remains 100% untouched.**
 - Zero role changes, zero auth banning, and zero token revocations on the legacy account until new admin operation is verified and an explicit future decision is requested.
+
+---
+
+## 8. Execution Record & Live Verification Results (2026-10-15)
+
+### Execution Summary
+- **Target User**: `support.vaangly@gmail.com`
+- **Confirmed UUID**: `d68951e7-ba08-455f-bdfa-26307fe34fe8`
+- **Mechanism**: Atomic privileged transaction with `SET LOCAL role = 'service_role'`. Security trigger `trg_prevent_profile_role_escalation` remained 100% active.
+- **Executed At**: 2026-10-15T08:39:23Z
+- **Audit ID**: `55b64914-d18e-4a35-a930-a231718f781d`
+
+### Verified Post-State
+1. **`public.profiles`**: `role = 'admin'`, `is_verified = false` (preserved), personal details intact.
+2. **`public.user_roles`**: Contains both `admin` (`granted_by = NULL`) and `customer` (`granted_by = NULL`).
+3. **`public.is_admin()`**: Evaluates to `true` under simulated authenticated session.
+4. **`public.has_role('admin')`**: Evaluates to `true`.
+5. **Admin RLS Visibility**: Target account verified with full read access to `admin_audit_logs` and `shops`.
+6. **Legacy Boundary**: `admin@vaangly.test` (6 audit logs, role = admin) confirmed 100% untouched.

@@ -53,3 +53,39 @@ export interface RecordPaymentPayload {
   paymentReference: string;
   notes?: string;
 }
+
+export interface AdminShopOrderSummary {
+  id: string;
+  reference_code: string;
+  created_at: string;
+  current_state: string;
+  total_amount: number | null;
+  payment_status: string;
+  customer_phone?: string | null;
+  request_kind?: string | null;
+  payment_method?: string | null;
+  fulfillment_type?: string | null;
+  workflow_group_code?: string | null;
+}
+
+export interface AdminShopStatistics {
+  period?: 'all' | '30d' | '7d';
+  totalProducts: number;
+  activeProducts: number;
+  outOfStockProducts: number;
+  bannedProducts: number;
+  totalOrders: number;
+  pendingOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+  totalRevenue: number;
+  totalAppointments: number;
+  confirmedAppointments?: number;
+  completedAppointments: number;
+  cancelledAppointments: number;
+  pendingAppointments?: number;
+  recentOrders?: AdminShopOrderSummary[];
+  calculationPeriod?: 'all' | '30d' | '7d';
+  periodRevenue?: number;
+  periodOrdersCount?: number;
+}

@@ -79,6 +79,21 @@ export interface Shop {
   subscription_tier?: 'FREE' | 'PRO';
   business_type?: string | null;
   capabilities?: string[] | null;
+  description?: string | null;
+  location?: Location | null;
+  locations?: Location | null;
+  owner?: {
+    id: string;
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
+    role?: string | null;
+    is_verified?: boolean | null;
+    created_at?: string | null;
+    avatar_url?: string | null;
+  } | null;
+  shop_type?: ShopType | null;
+  shop_types?: ShopType | null;
 }
 
 export interface SlotBreak {
@@ -389,6 +404,8 @@ export interface ShopSubscription {
   grace_period_days: number; // Configurable; default 0
   created_at: string;
   updated_at: string;
+  shop?: Shop | null;
+  shops?: Shop | null;
 }
 
 export interface SubscriptionPayment {
