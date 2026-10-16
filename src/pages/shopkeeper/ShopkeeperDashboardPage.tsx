@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   ShoppingBag,
   Calendar,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Shop, Request, ShopProduct } from '../../types/database';
@@ -16,6 +18,7 @@ import {
   transitionRequestState,
   getLatestApplication,
 } from '../../lib/shopkeeperApi';
+import { getISTDateString } from '../../lib/analyticsApi';
 import { fetchShopServices } from '../../lib/appointmentServiceApi';
 import { useToast } from '../../context/ToastContext';
 import { RequestCard } from '../../components/shopkeeper/RequestCard';
@@ -38,12 +41,14 @@ export const ShopkeeperDashboardPage: React.FC = () => {
   const [applicationStatus, setApplicationStatus] = useState<'submitted' | 'under_review' | 'approved' | 'rejected' | undefined>(undefined);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isTogglingLive, setIsTogglingLive] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   const loadDashboardData = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
+    setLoadError(null);
 
     try {
       // 1. Fetch shop
@@ -82,6 +87,7 @@ export const ShopkeeperDashboardPage: React.FC = () => {
       }
     } catch (err) {
       console.error('Error loading dashboard data:', err);
+      setLoadError('Failed to load dashboard data. Please check your network connection and retry.');
     } finally {
       setIsLoading(false);
     }
@@ -226,39 +232,32 @@ export const ShopkeeperDashboardPage: React.FC = () => {
     );
   }
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const todaysRequests = requests.filter((r) => r.created_at.slice(0, 10) === todayStr);
-  const todaysOrdersCount = todaysRequests.length;
-  const todaysPendingCount = requests.filter((r) =>
-    ['ACCEPTED', 'PREPARING', 'IN_PROGRESS', 'CONFIRMED'].includes(r.current_state)
-  ).length;
+  const todayIST = getISTDateString(new Date());
 
+  // Segregate Order pipeline vs Appointment bookings
   const orderRequests = requests.filter((r) => r.workflow_group_code !== 'APPOINTMENT');
   const appointmentRequests = requests.filter((r) => r.workflow_group_code === 'APPOINTMENT');
 
+  // 1. New Orders: Real incoming orders strictly in REQUESTED state
   const newOrdersCount = orderRequests.filter((r) => r.current_state === 'REQUESTED').length;
-  const pendingOrdersCount = todaysPendingCount;
-  const upcomingAppointmentsCount = appointmentRequests.filter(
-    (r) => !['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(r.current_state)
+
+  // 2. Pending: Real orders currently in prep/fulfillment pipeline (ACCEPTED, PREPARING, IN_PROGRESS, READY, CONFIRMED)
+  // Non-overlapping with New Orders (REQUESTED) to avoid double counting
+  const pendingOrdersCount = orderRequests.filter((r) =>
+    ['ACCEPTED', 'PREPARING', 'IN_PROGRESS', 'READY', 'CONFIRMED'].includes(r.current_state)
   ).length;
 
-  const todaysSalesAmount = requests.reduce((sum, req) => {
-    if (['COMPLETED', 'READY', 'ACCEPTED', 'PREPARING'].includes(req.current_state)) {
-      try {
-        if (req.notes) {
-          const parsed = JSON.parse(req.notes);
-          if (parsed.items && Array.isArray(parsed.items)) {
-            const itemTotal = parsed.items.reduce((s: number, it: any) => s + (it.subtotal || (it.price * it.quantity) || 0), 0);
-            return sum + itemTotal;
-          }
-          if (parsed.confirmed_price) return sum + parsed.confirmed_price;
-        }
-      } catch {
-        // fallback
-      }
-      return sum + (req.total_estimate || 0);
-    }
-    return sum;
+  // 3. Appointments: Active/upcoming appointments not yet completed, cancelled, or rejected
+  const upcomingAppointmentsCount = appointmentRequests.filter(
+    (r) => !['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW', 'EXPIRED'].includes(r.current_state)
+  ).length;
+
+  // 4. Today's Sales: Strictly completed transactions on today's local business day in Asia/Kolkata
+  const completedTodaysRequests = requests.filter((r) => {
+    return r.current_state === 'COMPLETED' && getISTDateString(r.created_at) === todayIST;
+  });
+  const todaysSalesAmount = completedTodaysRequests.reduce((sum, req) => {
+    return sum + (Number(req.total_amount ?? req.total_estimate) || 0);
   }, 0);
 
   return (
@@ -332,9 +331,21 @@ export const ShopkeeperDashboardPage: React.FC = () => {
 
       {/* Main Tab Content */}
       <main className="vaango-sk-content">
+        {loadError && (
+          <div className="vaango-sk-error-banner" role="alert">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={18} />
+              <span>{loadError}</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={loadDashboardData} leftIcon={<RefreshCw size={14} />}>
+              Retry
+            </Button>
+          </div>
+        )}
+
         {activeTab === 'overview' && (
           <>
-            {/* 2x2 Metric Cards (Reference Image: 12 New Orders, 5 Pending, 3 Appointments, ₹2,850 Today's Sales) */}
+            {/* 2x2 Metric Cards (Strictly authentic database metrics) */}
             <section className="vaango-sk-metrics-grid" aria-label="Key Metrics">
               {/* New Orders - Red/Pink card */}
               <div
@@ -344,7 +355,7 @@ export const ShopkeeperDashboardPage: React.FC = () => {
                 tabIndex={0}
               >
                 <div className="vaango-sk-metric-card__value">
-                  {newOrdersCount || (todaysOrdersCount > 0 ? todaysOrdersCount : 12)}
+                  {newOrdersCount}
                 </div>
                 <div className="vaango-sk-metric-card__label">New Orders</div>
               </div>
@@ -357,7 +368,7 @@ export const ShopkeeperDashboardPage: React.FC = () => {
                 tabIndex={0}
               >
                 <div className="vaango-sk-metric-card__value">
-                  {pendingOrdersCount || 5}
+                  {pendingOrdersCount}
                 </div>
                 <div className="vaango-sk-metric-card__label">Pending</div>
               </div>
@@ -370,7 +381,7 @@ export const ShopkeeperDashboardPage: React.FC = () => {
                 tabIndex={0}
               >
                 <div className="vaango-sk-metric-card__value">
-                  {upcomingAppointmentsCount || 3}
+                  {upcomingAppointmentsCount}
                 </div>
                 <div className="vaango-sk-metric-card__label">Appointments</div>
               </div>
@@ -383,7 +394,7 @@ export const ShopkeeperDashboardPage: React.FC = () => {
                 tabIndex={0}
               >
                 <div className="vaango-sk-metric-card__value">
-                  ₹{todaysSalesAmount > 0 ? todaysSalesAmount.toLocaleString('en-IN') : '2,850'}
+                  ₹{todaysSalesAmount.toLocaleString('en-IN')}
                 </div>
                 <div className="vaango-sk-metric-card__label">Today's Sales</div>
               </div>
@@ -403,68 +414,78 @@ export const ShopkeeperDashboardPage: React.FC = () => {
               </div>
 
               <div className="vaango-sk-list">
-                {(orderRequests.length > 0 ? orderRequests.slice(0, 4) : [
-                  { id: '1', ref: 'ORD-1036', items: 2, total: 126, status: 'New', time: '2 mins ago', customer: 'Ravi' },
-                  { id: '2', ref: 'ORD-1035', items: 5, total: 540, status: 'Preparing', time: '12 mins ago', customer: 'Divya' },
-                  { id: '3', ref: 'ORD-1034', items: 3, total: 320, status: 'Ready', time: '25 mins ago', customer: 'Mani' },
-                ]).map((item: any) => {
-                  let refCode = item.reference_code || item.ref || `#ORD-${item.id.slice(0, 4).toUpperCase()}`;
-                  if (!refCode.startsWith('#')) refCode = `#${refCode}`;
+                {orderRequests.length === 0 ? (
+                  <div className="vaango-sk-empty-inline">
+                    <ShoppingBag size={28} className="vaango-sk-empty-inline__icon" />
+                    <p className="vaango-sk-empty-inline__text">No recent orders recorded.</p>
+                    <span className="vaango-sk-empty-inline__subtext">
+                      New customer orders will appear here automatically.
+                    </span>
+                  </div>
+                ) : (
+                  orderRequests.slice(0, 4).map((item: Request) => {
+                    let refCode = item.reference_code || `#ORD-${item.id.slice(0, 4).toUpperCase()}`;
+                    if (!refCode.startsWith('#')) refCode = `#${refCode}`;
 
-                  let itemCount = item.items || 1;
-                  let totalAmount = item.total_amount || item.total || 120;
-                  let status = item.current_state || item.status || 'New';
-                  let timeStr = item.created_at ? formatRelativeTime(item.created_at) : (item.time || '10 mins ago');
+                    let itemCount = 1;
+                    let totalAmount = Number(item.total_amount ?? item.total_estimate ?? 0);
+                    let status = item.current_state;
+                    let timeStr = item.created_at ? formatRelativeTime(item.created_at) : 'Just now';
+                    let customerDisplayName = 'Customer';
 
-                  if (item.notes) {
-                    try {
-                      const parsed = JSON.parse(item.notes);
-                      if (parsed.items && Array.isArray(parsed.items)) {
-                        itemCount = parsed.items.reduce((s: number, i: any) => s + (i.quantity || 1), 0);
-                        totalAmount = parsed.items.reduce((s: number, i: any) => s + (i.subtotal || (i.price * i.quantity) || 0), 0);
+                    if (item.notes) {
+                      try {
+                        const parsed = JSON.parse(item.notes);
+                        if (parsed.items && Array.isArray(parsed.items)) {
+                          itemCount = parsed.items.reduce((s: number, i: any) => s + (i.quantity || 1), 0);
+                          const itemsSum = parsed.items.reduce((s: number, i: any) => s + (i.subtotal || (i.price * i.quantity) || 0), 0);
+                          if (!totalAmount) totalAmount = itemsSum;
+                        }
+                        if (parsed.customer_name) customerDisplayName = parsed.customer_name;
+                      } catch {
+                        // ignore
                       }
-                    } catch {
-                      // ignore
                     }
-                  }
+                    if (item.customer_phone && customerDisplayName === 'Customer') {
+                      customerDisplayName = `Cust (${item.customer_phone.slice(-4)})`;
+                    }
 
-                  let statusVariant = 'new';
-                  if (['PREPARING', 'Preparing', 'ACCEPTED'].includes(status)) statusVariant = 'preparing';
-                  else if (['READY', 'Ready'].includes(status)) statusVariant = 'ready';
-                  else if (['COMPLETED', 'Completed'].includes(status)) statusVariant = 'completed';
+                    const initialLetter = customerDisplayName.charAt(0).toUpperCase();
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="vaango-sk-order-row"
-                      onClick={() => navigate(`/shopkeeper/requests`)}
-                      role="button"
-                      tabIndex={0}
-                    >
-                      <div className="vaango-sk-order-avatar">
-                        <img
-                          src={`https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=80&q=80`}
-                          alt="Customer"
-                          className="vaango-sk-order-avatar__img"
-                        />
-                      </div>
+                    let statusVariant = 'new';
+                    if (['PREPARING', 'ACCEPTED', 'IN_PROGRESS', 'CONFIRMED'].includes(status)) statusVariant = 'preparing';
+                    else if (['READY'].includes(status)) statusVariant = 'ready';
+                    else if (['COMPLETED'].includes(status)) statusVariant = 'completed';
 
-                      <div className="vaango-sk-order-info">
-                        <div className="vaango-sk-order-ref">{refCode}</div>
-                        <div className="vaango-sk-order-sub">
-                          {itemCount} {itemCount === 1 ? 'item' : 'items'} &middot; ₹{totalAmount}
+                    return (
+                      <div
+                        key={item.id}
+                        className="vaango-sk-order-row"
+                        onClick={() => navigate(`/shopkeeper/requests`)}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="vaango-sk-order-avatar">
+                          <span className="vaango-sk-order-avatar__initial">{initialLetter}</span>
+                        </div>
+
+                        <div className="vaango-sk-order-info">
+                          <div className="vaango-sk-order-ref">{refCode}</div>
+                          <div className="vaango-sk-order-sub">
+                            {itemCount} {itemCount === 1 ? 'item' : 'items'} &middot; ₹{totalAmount.toLocaleString('en-IN')}
+                          </div>
+                        </div>
+
+                        <div className="vaango-sk-order-end">
+                          <span className={`vaango-sk-status-pill vaango-sk-status-pill--${statusVariant}`}>
+                            {status === 'REQUESTED' ? 'New' : status}
+                          </span>
+                          <span className="vaango-sk-order-time">{timeStr}</span>
                         </div>
                       </div>
-
-                      <div className="vaango-sk-order-end">
-                        <span className={`vaango-sk-status-pill vaango-sk-status-pill--${statusVariant}`}>
-                          {status === 'REQUESTED' ? 'New' : status}
-                        </span>
-                        <span className="vaango-sk-order-time">{timeStr}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </section>
 
@@ -482,43 +503,74 @@ export const ShopkeeperDashboardPage: React.FC = () => {
               </div>
 
               <div className="vaango-sk-list">
-                {(appointmentRequests.length > 0 ? appointmentRequests.slice(0, 4) : [
-                  { id: 'a1', time: '09:00 AM', name: 'Ravi Kumar', service: 'General checkup', badge: 'Today' },
-                  { id: 'a2', time: '10:00 AM', name: 'Divya', service: 'Consultation', badge: 'Today' },
-                  { id: 'a3', time: '11:30 AM', name: 'Mani', service: 'Follow up', badge: 'Today' },
-                ]).map((appt: any) => {
-                  let timeDisplay = appt.time || '09:00 AM';
-                  let nameDisplay = appt.name || 'Customer';
-                  let serviceDisplay = appt.service || 'Appointment';
-
-                  if (appt.notes) {
-                    try {
-                      const parsed = JSON.parse(appt.notes);
-                      if (parsed.start_time) timeDisplay = parsed.start_time;
-                      if (parsed.customer_name) nameDisplay = parsed.customer_name;
-                      if (parsed.service_name) serviceDisplay = parsed.service_name;
-                    } catch {
-                      // ignore
-                    }
-                  }
-
-                  return (
-                    <div
-                      key={appt.id}
-                      className="vaango-sk-appt-row"
-                      onClick={() => navigate('/shopkeeper/requests?group=APPOINTMENT')}
-                      role="button"
-                      tabIndex={0}
-                    >
-                      <div className="vaango-sk-appt-time">{timeDisplay}</div>
-                      <div className="vaango-sk-appt-info">
-                        <div className="vaango-sk-appt-name">{nameDisplay}</div>
-                        <div className="vaango-sk-appt-service">{serviceDisplay}</div>
-                      </div>
-                      <div className="vaango-sk-appt-badge">Today</div>
+                {appointmentRequests.length === 0 ? (
+                  <div className="vaango-sk-empty-inline">
+                    <Calendar size={28} className="vaango-sk-empty-inline__icon" />
+                    <div>
+                      <p className="vaango-sk-empty-inline__title">No upcoming appointments</p>
+                      <p className="vaango-sk-empty-inline__desc">Bookings and consultations will appear here once scheduled.</p>
                     </div>
-                  );
-                })}
+                  </div>
+                ) : (
+                  appointmentRequests.slice(0, 4).map((appt: any) => {
+                    let timeDisplay = '—';
+                    let nameDisplay = appt.customer_name || 'Customer';
+                    let serviceDisplay = appt.service_name || 'Appointment';
+
+                    if (appt.scheduled_for) {
+                      try {
+                        timeDisplay = new Date(appt.scheduled_for).toLocaleTimeString('en-IN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        });
+                      } catch {
+                        // ignore
+                      }
+                    } else if (appt.created_at) {
+                      try {
+                        timeDisplay = new Date(appt.created_at).toLocaleTimeString('en-IN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        });
+                      } catch {
+                        // ignore
+                      }
+                    }
+
+                    if (appt.notes) {
+                      try {
+                        const parsed = JSON.parse(appt.notes);
+                        if (parsed.start_time) timeDisplay = parsed.start_time;
+                        if (parsed.customer_name) nameDisplay = parsed.customer_name;
+                        if (parsed.service_name) serviceDisplay = parsed.service_name;
+                      } catch {
+                        // ignore
+                      }
+                    }
+
+                    const apptDateStr = appt.scheduled_for
+                      ? getISTDateString(appt.scheduled_for)
+                      : (appt.created_at ? getISTDateString(appt.created_at) : '');
+                    const dateBadge = apptDateStr === todayIST ? 'Today' : (apptDateStr || 'Upcoming');
+
+                    return (
+                      <div
+                        key={appt.id}
+                        className="vaango-sk-appt-row"
+                        onClick={() => navigate('/shopkeeper/requests?group=APPOINTMENT')}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="vaango-sk-appt-time">{timeDisplay}</div>
+                        <div className="vaango-sk-appt-info">
+                          <div className="vaango-sk-appt-name">{nameDisplay}</div>
+                          <div className="vaango-sk-appt-service">{serviceDisplay}</div>
+                        </div>
+                        <div className="vaango-sk-appt-badge">{dateBadge}</div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </section>
 
@@ -572,15 +624,12 @@ export const ShopkeeperDashboardPage: React.FC = () => {
                 <ShoppingBag size={48} className="vaango-sk-empty-tab__icon" />
                 <p>No orders currently in pipeline.</p>
                 <Button
-                  variant="primary"
+                  variant="outline"
                   size="sm"
-                  onClick={() => {
-                    resetDemoData();
-                    loadDashboardData();
-                    success('Sample orders loaded!');
-                  }}
+                  onClick={loadDashboardData}
                 >
-                  Load Sample Orders
+                  <RefreshCw size={14} className="mr-1" />
+                  Refresh Orders
                 </Button>
               </div>
             ) : (
@@ -615,15 +664,12 @@ export const ShopkeeperDashboardPage: React.FC = () => {
                 <Calendar size={48} className="vaango-sk-empty-tab__icon" />
                 <p>No appointments booked for today.</p>
                 <Button
-                  variant="primary"
+                  variant="outline"
                   size="sm"
-                  onClick={() => {
-                    resetDemoData();
-                    loadDashboardData();
-                    success('Sample appointments loaded!');
-                  }}
+                  onClick={loadDashboardData}
                 >
-                  Load Demo Appointments
+                  <RefreshCw size={14} className="mr-1" />
+                  Refresh Bookings
                 </Button>
               </div>
             ) : (

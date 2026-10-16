@@ -122,8 +122,8 @@ export const getShopkeeperShop = async (ownerId: string): Promise<Shop | null> =
   // Pure offline / mock fallback
   const allShops = getStoredMockShops();
   let found = allShops.find((s) => s.owner_id === ownerId);
-  if (!found) {
-    // If demo shopkeeper is logged in, find first active live shop so dashboard is always testable
+  if (!found && ownerId === 's2222222-0000-0000-0000-000000000002') {
+    // Only the dedicated demo test account gets an active demo shop fallback
     found = allShops.find((s) => s.status === 'active' && s.is_live);
   }
   return found || null;
@@ -722,13 +722,11 @@ export const getShopRequests = async (shopId: string): Promise<Request[]> => {
     }
   }
 
-  // Mock mode: retrieve stored demo requests or auto-seed
+  // Mock mode: retrieve stored demo requests strictly isolated to target shop
   try {
     const allReqs = getStoredDemoRequests();
     const filtered = allReqs.filter((r) => r.shop_id === shopId);
-    if (filtered.length > 0) return sortRequestsChronologicalDesc(filtered);
-    // Fallback: return a subset of demo requests so test actions are always available
-    return sortRequestsChronologicalDesc(allReqs.slice(0, 3));
+    return sortRequestsChronologicalDesc(filtered);
   } catch (err) {
     console.error('Error reading mock requests:', err);
   }

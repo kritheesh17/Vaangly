@@ -598,6 +598,13 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
             </button>
             <button
               type="button"
+              className={`vaango-preset-btn ${preset === 'all' ? 'vaango-preset-btn--active' : ''}`}
+              onClick={() => handlePresetChange('all')}
+            >
+              All time
+            </button>
+            <button
+              type="button"
               className={`vaango-preset-btn ${preset === 'custom' ? 'vaango-preset-btn--active' : ''}`}
               onClick={() => handlePresetChange('custom')}
             >

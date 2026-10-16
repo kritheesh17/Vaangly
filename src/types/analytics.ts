@@ -112,7 +112,7 @@ export interface PaymentMethodMetrics {
   cancelled_count?: number; // cancelled / rejected requests
 }
 
-export type DateRangePreset = 'today' | '7d' | '30d' | 'this_month' | '3m' | '6m' | '1y' | 'custom';
+export type DateRangePreset = 'today' | '7d' | '30d' | 'this_month' | '3m' | '6m' | '1y' | 'all' | 'custom';
 
 export interface AnalyticsFilter {
   preset: DateRangePreset;

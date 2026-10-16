@@ -83,6 +83,10 @@ export const getPreviousPeriod = (
 ): { startDate: string; endDate: string } => {
   const { preset, startDate, endDate } = filter;
 
+  if (preset === 'all') {
+    return { startDate: '', endDate: '' };
+  }
+
   if (preset === 'this_month') {
     const [curYear, curMonth] = startDate.split('-').map(Number);
     const endDay = parseInt(endDate.split('-')[2], 10);
@@ -164,6 +168,9 @@ export const getDateRangeFromPreset = (
       break;
     case '1y':
       start.setFullYear(end.getFullYear() - 1);
+      break;
+    case 'all':
+      start = new Date(2020, 0, 1, 0, 0, 0, 0);
       break;
     default:
       start.setDate(end.getDate() - 29);
@@ -294,36 +301,54 @@ export const calculateShopAnalytics = async (
     getShopProductsList(shop.id),
   ]);
 
-  const { startDate, endDate } = filter;
+  let { startDate, endDate } = filter;
+  if (filter.preset === 'all') {
+    if (allRequests.length > 0) {
+      const earliest = allRequests.reduce((min, r) => {
+        const d = getISTDateString(r.created_at);
+        return d && d < min ? d : min;
+      }, getISTDateString(new Date()));
+      startDate = earliest;
+    } else if (shop.created_at) {
+      startDate = getISTDateString(shop.created_at);
+    } else {
+      startDate = getISTDateString(new Date());
+    }
+  }
 
   // Filter requests for current selected window using IST calendar dates
   const currentRequests = allRequests.filter((r) => {
     const dStr = getISTDateString(r.created_at);
+    if (filter.preset === 'all') {
+      return dStr <= endDate;
+    }
     return dStr >= startDate && dStr <= endDate;
   });
 
   // Calculate prior period for comparison
   const { startDate: prevStartDate, endDate: prevEndDate } = getPreviousPeriod(filter);
-  const previousRequests = allRequests.filter((r) => {
-    const dStr = getISTDateString(r.created_at);
-    return dStr >= prevStartDate && dStr <= prevEndDate;
-  });
+  const previousRequests = filter.preset === 'all' || !prevStartDate
+    ? []
+    : allRequests.filter((r) => {
+        const dStr = getISTDateString(r.created_at);
+        return dStr >= prevStartDate && dStr <= prevEndDate;
+      });
 
   // 1. Sales & Revenue Metrics
   const completedCurrent = currentRequests.filter((r) => r.current_state === 'COMPLETED');
   const completedPrevious = previousRequests.filter((r) => r.current_state === 'COMPLETED');
 
-  const totalSales = completedCurrent.reduce((sum, r) => sum + (r.total_estimate || 0), 0);
-  const previousPeriodSales = completedPrevious.reduce((sum, r) => sum + (r.total_estimate || 0), 0);
+  const totalSales = completedCurrent.reduce((sum, r) => sum + (Number(r.total_amount ?? r.total_estimate) || 0), 0);
+  const previousPeriodSales = completedPrevious.reduce((sum, r) => sum + (Number(r.total_amount ?? r.total_estimate) || 0), 0);
 
   // Revenue stream disaggregation (guaranteed to sum to totalSales without double-counting)
   const productSales = completedCurrent
     .filter((r) => r.workflow_group_code === 'ORDER')
-    .reduce((sum, r) => sum + (r.total_estimate || 0), 0);
+    .reduce((sum, r) => sum + (Number(r.total_amount ?? r.total_estimate) || 0), 0);
 
   const serviceAppointmentSales = completedCurrent
     .filter((r) => r.workflow_group_code === 'APPOINTMENT' || r.workflow_group_code === 'SERVICE')
-    .reduce((sum, r) => sum + (r.total_estimate || 0), 0);
+    .reduce((sum, r) => sum + (Number(r.total_amount ?? r.total_estimate) || 0), 0);
 
   const totalOrders = currentRequests.length;
   const completedOrders = completedCurrent.length;
@@ -333,7 +358,7 @@ export const calculateShopAnalytics = async (
 
   const grossOrderValue = currentRequests
     .filter((r) => r.current_state !== 'REJECTED' && r.current_state !== 'CANCELLED')
-    .reduce((sum, r) => sum + (r.total_estimate || 0), 0);
+    .reduce((sum, r) => sum + (Number(r.total_amount ?? r.total_estimate) || 0), 0);
 
   const averageOrderValue = completedOrders > 0 ? Math.round(totalSales / completedOrders) : 0;
 
@@ -377,7 +402,7 @@ export const calculateShopAnalytics = async (
   completedPrevious.forEach((r) => {
     const dStr = getISTDateString(r.created_at);
     const existing = prevDailyMap.get(dStr) || 0;
-    prevDailyMap.set(dStr, existing + (r.total_estimate || 0));
+    prevDailyMap.set(dStr, existing + (Number(r.total_amount ?? r.total_estimate) || 0));
   });
   const prevDailyValues = prevDaysList.map((dStr) => prevDailyMap.get(dStr) || 0);
   const hasPreviousPeriodData = previousPeriodSales > 0 || completedPrevious.length > 0;
@@ -395,7 +420,7 @@ export const calculateShopAnalytics = async (
     const dStr = getISTDateString(r.created_at);
     const existing = trendsMap.get(dStr);
     if (!existing) return;
-    const amt = r.total_estimate || 0;
+    const amt = Number(r.total_amount ?? r.total_estimate) || 0;
 
     existing.count += 1;
     if (r.current_state !== 'REJECTED') {
@@ -617,7 +642,7 @@ export const calculateShopAnalytics = async (
       hourBins[hour].order_count += 1;
       if (r.current_state === 'COMPLETED') {
         hourBins[hour].completed_count += 1;
-        hourBins[hour].revenue += r.total_estimate || 0;
+        hourBins[hour].revenue += Number(r.total_amount ?? r.total_estimate) || 0;
       }
     }
   });
@@ -651,7 +676,7 @@ export const calculateShopAnalytics = async (
           booked_value: 0,
         };
         entry.count += 1;
-        const estimate = Number(r.total_estimate) || 0;
+        const estimate = Number(r.total_amount ?? r.total_estimate) || 0;
         entry.booked_value += estimate;
         if (r.current_state === 'COMPLETED') {
           entry.completed_count += 1;
@@ -756,7 +781,7 @@ export const calculateShopAnalytics = async (
 
     if (isCompleted) {
       entry.completed_count += 1;
-      entry.settled_amount += r.total_estimate || 0;
+      entry.settled_amount += Number(r.total_amount ?? r.total_estimate) || 0;
       if (r.customer_paid || r.payment_status === 'PAYMENT_VERIFIED' || r.payment_status === 'paid') {
         entry.verified_count += 1;
       }
@@ -831,7 +856,7 @@ export const exportAnalyticsReportCsv = (shop: Shop, requests: Request[], filter
       `CUST-${req.customer_id.slice(-6).toUpperCase()}`,
       req.workflow_group_code,
       `"${itemNames.replace(/"/g, '""')}"`,
-      req.total_estimate || 0,
+      Number(req.total_amount ?? req.total_estimate) || 0,
       paymentStatus,
       req.current_state,
       req.scheduled_for || '-',

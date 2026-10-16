@@ -287,6 +287,8 @@ export interface Request {
   current_state: WorkflowStateCode;
   reference_code: string; // e.g. "ORD-9421", "APT-3312"
   total_estimate: number | null;
+  total_amount?: number | null;
+  subtotal?: number | null;
   customer_paid: boolean;
   payment_screenshot_url?: string | null;
   payment_method?: 'cash' | 'upi' | 'pay_at_shop' | 'online' | null;
