@@ -10,21 +10,52 @@ import { ErrorBoundary } from './components/layout/ErrorBoundary';
 import { AppShell } from './components/layout/AppShell';
 import { AdInterstitialScreen } from './components/layout/AdInterstitialScreen';
 
-import { HomePage } from './pages/HomePage';
-import { BrowseShopsPage } from './pages/BrowseShopsPage';
-import { ShopDetailPage } from './pages/ShopDetailPage';
-import { CartPage } from './pages/CartPage';
-import { RequestConfirmationPage } from './pages/RequestConfirmationPage';
-import { RequestDetailPage } from './pages/RequestDetailPage';
-import { OrdersPage } from './pages/OrdersPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { LoginPage } from './pages/auth/LoginPage';
-import { RegisterPage } from './pages/auth/RegisterPage';
-import { CompleteProfilePage } from './pages/auth/CompleteProfilePage';
-import { AuthCallbackPage } from './pages/auth/AuthCallbackPage';
-import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
-import { PermissionCenterPage } from './pages/PermissionCenterPage';
-import { NotFoundPage } from './pages/NotFoundPage';
+// Code-split Customer and Auth modules (lazy loaded on navigation)
+const HomePage = React.lazy(() =>
+  import('./pages/HomePage').then((m) => ({ default: m.HomePage }))
+);
+const BrowseShopsPage = React.lazy(() =>
+  import('./pages/BrowseShopsPage').then((m) => ({ default: m.BrowseShopsPage }))
+);
+const ShopDetailPage = React.lazy(() =>
+  import('./pages/ShopDetailPage').then((m) => ({ default: m.ShopDetailPage }))
+);
+const CartPage = React.lazy(() =>
+  import('./pages/CartPage').then((m) => ({ default: m.CartPage }))
+);
+const RequestConfirmationPage = React.lazy(() =>
+  import('./pages/RequestConfirmationPage').then((m) => ({ default: m.RequestConfirmationPage }))
+);
+const RequestDetailPage = React.lazy(() =>
+  import('./pages/RequestDetailPage').then((m) => ({ default: m.RequestDetailPage }))
+);
+const OrdersPage = React.lazy(() =>
+  import('./pages/OrdersPage').then((m) => ({ default: m.OrdersPage }))
+);
+const ProfilePage = React.lazy(() =>
+  import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage }))
+);
+const LoginPage = React.lazy(() =>
+  import('./pages/auth/LoginPage').then((m) => ({ default: m.LoginPage }))
+);
+const RegisterPage = React.lazy(() =>
+  import('./pages/auth/RegisterPage').then((m) => ({ default: m.RegisterPage }))
+);
+const CompleteProfilePage = React.lazy(() =>
+  import('./pages/auth/CompleteProfilePage').then((m) => ({ default: m.CompleteProfilePage }))
+);
+const AuthCallbackPage = React.lazy(() =>
+  import('./pages/auth/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage }))
+);
+const ResetPasswordPage = React.lazy(() =>
+  import('./pages/auth/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage }))
+);
+const PermissionCenterPage = React.lazy(() =>
+  import('./pages/PermissionCenterPage').then((m) => ({ default: m.PermissionCenterPage }))
+);
+const NotFoundPage = React.lazy(() =>
+  import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage }))
+);
 import { PermissionProvider } from './context/PermissionContext';
 import { PwaUpdateProvider } from './context/PwaUpdateContext';
 

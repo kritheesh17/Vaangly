@@ -8,8 +8,10 @@ import { MOCK_SHOP_TYPES } from '../data/mockData';
 import { searchLocationCatalog, fetchCustomerLocationCatalog, fetchNearbyShopCatalog, CustomerCatalogData } from '../lib/search';
 import { formatDistance } from '../lib/distance';
 import { ShopCard } from '../components/customer/ShopCard';
-import { CustomerMapView } from '../components/gis/CustomerMapView';
 import { OnDemandLocationModal } from '../components/permissions/OnDemandLocationModal';
+const CustomerMapView = React.lazy(() =>
+  import('../components/gis/CustomerMapView').then((m) => ({ default: m.CustomerMapView }))
+);
 import { Input } from '../components/ui/Input';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -50,6 +52,7 @@ export const BrowseShopsPage: React.FC = () => {
     shopTypes: MOCK_SHOP_TYPES,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
 
   // Request customer browser location with fallback to town mode on rejection
   const handleRequestNearMe = useCallback(async () => {
@@ -112,6 +115,7 @@ export const BrowseShopsPage: React.FC = () => {
   // Load authoritative live shops, products, and services for selected mode
   const loadCatalog = useCallback(async () => {
     setIsLoading(true);
+    setCatalogError(null);
     try {
       if (isNearMeMode && customerCoords) {
         const data = await fetchNearbyShopCatalog(customerCoords.lat, customerCoords.lng, radiusMeters);
@@ -120,12 +124,18 @@ export const BrowseShopsPage: React.FC = () => {
         const data = await fetchCustomerLocationCatalog(selectedLocation.id);
         setCatalogData(data);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load customer catalog:', err);
+      setCatalogError(
+        err?.message ||
+          (language === 'ta'
+            ? 'கடைகளை ஏற்ற முடியவில்லை. தயவுசெய்து உங்கள் இணைய இணைப்பைச் சரிபார்க்கவும்.'
+            : 'Unable to load shops right now. Please check your network connection.')
+      );
     } finally {
       setIsLoading(false);
     }
-  }, [isNearMeMode, customerCoords, radiusMeters, selectedLocation.id]);
+  }, [isNearMeMode, customerCoords, radiusMeters, selectedLocation.id, language]);
 
   useEffect(() => {
     void loadCatalog();
@@ -153,7 +163,7 @@ export const BrowseShopsPage: React.FC = () => {
     };
   }, [loadCatalog, isNearMeMode, selectedLocation.id]);
 
-  const allShopTypes = catalogData.shopTypes.length > 0 ? catalogData.shopTypes : MOCK_SHOP_TYPES;
+  const allShopTypes = catalogData.shopTypes.length > 0 ? catalogData.shopTypes : (!isSupabaseConfigured ? MOCK_SHOP_TYPES : []);
 
   // Resolve shop type for any shop (handles UUIDs from Supabase or code strings)
   const getShopCategory = useCallback(
@@ -457,7 +467,7 @@ export const BrowseShopsPage: React.FC = () => {
       )}
 
       {/* Loading Skeleton */}
-      {isLoading && catalogData.shops.length === 0 ? (
+      {isLoading && catalogData.shops.length === 0 && !catalogError ? (
         <div className="vaango-browse__grid" style={{ marginTop: '16px' }}>
           {[1, 2, 3, 4].map((n) => (
             <div key={n} style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
@@ -470,17 +480,36 @@ export const BrowseShopsPage: React.FC = () => {
             </div>
           ))}
         </div>
+      ) : catalogError ? (
+        /* Network / PostgREST Error State with Retry Action */
+        <div className="vaango-browse__empty" role="alert">
+          <EmptyState
+            icon={<AlertCircle size={44} style={{ color: 'var(--color-error)' }} />}
+            title={language === 'ta' ? 'கடைகளை ஏற்ற முடியவில்லை' : 'Unable to load shops'}
+            description={catalogError}
+            actionLabel={language === 'ta' ? 'மீண்டும் முயற்சிக்கவும்' : 'Retry'}
+            onAction={() => void loadCatalog()}
+          />
+        </div>
       ) : finalShops.length > 0 ? (
         viewMode === 'map' ? (
           /* Interactive GIS Map View */
           <div className="vaango-browse__map-wrap">
-            <CustomerMapView
-              shops={finalShops}
-              customerCoords={customerCoords}
-              radiusMeters={isNearMeMode ? radiusMeters : undefined}
-              selectedLocationName={selectedLocation.name}
-              onSwitchToList={() => setViewMode('list')}
-            />
+            <React.Suspense
+              fallback={
+                <div style={{ height: 420, borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+                  <Skeleton height={420} />
+                </div>
+              }
+            >
+              <CustomerMapView
+                shops={finalShops}
+                customerCoords={customerCoords}
+                radiusMeters={isNearMeMode ? radiusMeters : undefined}
+                selectedLocationName={selectedLocation.name}
+                onSwitchToList={() => setViewMode('list')}
+              />
+            </React.Suspense>
           </div>
         ) : (
           /* Shops Grid */
@@ -499,7 +528,7 @@ export const BrowseShopsPage: React.FC = () => {
           </div>
         )
       ) : (
-        /* Empty State */
+        /* Genuine Empty State */
         <div className="vaango-browse__empty">
           <EmptyState
             icon={<Store size={44} />}
@@ -538,10 +567,12 @@ export const BrowseShopsPage: React.FC = () => {
               }
             }}
             secondaryActionLabel={
-              isNearMeMode && radiusMeters < 10000
-                ? t('browseTown', { town: selectedLocation.name })
-                : !isNearMeMode
-                ? t('restoreSampleShops')
+              !isSupabaseConfigured
+                ? (isNearMeMode && radiusMeters < 10000
+                    ? t('browseTown', { town: selectedLocation.name })
+                    : !isNearMeMode
+                    ? t('restoreSampleShops')
+                    : undefined)
                 : undefined
             }
             onSecondaryAction={() => {

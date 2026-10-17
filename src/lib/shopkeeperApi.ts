@@ -323,11 +323,13 @@ export const getShopProductsList = async (shopId: string): Promise<ShopProduct[]
         .eq('shop_id', shopId)
         .order('created_at', { ascending: false });
 
-      if (!error && data) {
+      if (error) throw error;
+      if (data) {
         return data as ShopProduct[];
       }
     } catch (err) {
       console.error('Error fetching shop products from Supabase:', err);
+      throw err;
     }
   }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchCustomerLocationCatalog } from '../lib/search';
+import { isSupabaseConfigured } from '../lib/supabase';
 import {
   Calendar,
   Wrench,
@@ -29,12 +30,14 @@ import {
   Utensils,
   MoreHorizontal,
   X,
+  AlertCircle,
 } from 'lucide-react';
 import { useLocationContext } from '../context/LocationContext';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Shop, ShopProduct } from '../types/database';
+import { Skeleton } from '../components/ui/Skeleton';
 import './HomePage.css';
 
 export const HomePage: React.FC = () => {
@@ -401,22 +404,44 @@ export const HomePage: React.FC = () => {
 
   const [liveShops, setLiveShops] = useState<any[]>([]);
   const [liveShopTypes, setLiveShopTypes] = useState<any[]>([]);
+  const [isHomeLoading, setIsHomeLoading] = useState(true);
+  const [homeCatalogError, setHomeCatalogError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadHomeCatalog = useCallback(() => {
     let active = true;
-    fetchCustomerLocationCatalog(selectedLocation.id).then((catalog) => {
-      if (active && catalog.shops && catalog.shops.length > 0) {
-        setLiveShops(catalog.shops);
-        setLiveShopTypes(catalog.shopTypes);
-      } else if (active) {
+    setIsHomeLoading(true);
+    setHomeCatalogError(null);
+    fetchCustomerLocationCatalog(selectedLocation.id)
+      .then((catalog) => {
+        if (!active) return;
+        if (catalog.shops && catalog.shops.length > 0) {
+          setLiveShops(catalog.shops);
+          setLiveShopTypes(catalog.shopTypes);
+        } else {
+          setLiveShops([]);
+          setLiveShopTypes(catalog.shopTypes || []);
+        }
+        setIsHomeLoading(false);
+      })
+      .catch((err) => {
+        if (!active) return;
+        console.error('HomePage: Failed to fetch live customer catalog:', err);
+        setHomeCatalogError(
+          err?.message ||
+            (language === 'ta' ? 'கடைகளை ஏற்ற முடியவில்லை.' : 'Unable to load local businesses.')
+        );
         setLiveShops([]);
         setLiveShopTypes([]);
-      }
-    });
+        setIsHomeLoading(false);
+      });
     return () => {
       active = false;
     };
-  }, [selectedLocation.id]);
+  }, [selectedLocation.id, language]);
+
+  useEffect(() => {
+    return loadHomeCatalog();
+  }, [loadHomeCatalog]);
 
   const liveCards = useMemo(() => {
     if (!liveShops || liveShops.length === 0) return null;
@@ -441,7 +466,14 @@ export const HomePage: React.FC = () => {
     });
   }, [liveShops, liveShopTypes, selectedLocation.name, t]);
 
-  const displayedShops = liveCards || featuredShops;
+  const displayedShops = useMemo(() => {
+    if (isSupabaseConfigured) {
+      // In live Supabase mode: strictly real shops. Never substitute mock/demo shops.
+      return liveCards || [];
+    }
+    // In intentional local/demo mode without Supabase: preserve demo shops
+    return liveCards || featuredShops;
+  }, [liveCards, featuredShops]);
 
   const filteredShops = activeCategory === 'all'
     ? displayedShops
@@ -835,45 +867,102 @@ export const HomePage: React.FC = () => {
             </Link>
           </div>
 
-          <div className="vaango-home-horizontal-scroll">
-            {displayedShops.slice(0, 6).map((shop) => (
-              <Link
-                to={`/shop/${shop.id}`}
-                key={shop.id}
-                className="vaango-home-ref-shop-card"
+          {isHomeLoading && displayedShops.length === 0 && !homeCatalogError ? (
+            <div className="vaango-home-horizontal-scroll">
+              {[1, 2, 3].map((n) => (
+                <div key={n} style={{ minWidth: 260, borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+                  <Skeleton height={140} />
+                  <div style={{ padding: '12px' }}>
+                    <Skeleton height={18} width="70%" style={{ marginBottom: '6px' }} />
+                    <Skeleton height={14} width="50%" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : homeCatalogError ? (
+            <div
+              style={{
+                padding: '16px',
+                background: 'rgba(239, 68, 68, 0.08)',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+              }}
+              role="alert"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-error)' }}>
+                <AlertCircle size={18} />
+                <span style={{ fontSize: '0.9rem' }}>{homeCatalogError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => void loadHomeCatalog()}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-error)',
+                  background: 'transparent',
+                  color: 'var(--color-error)',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
               >
-                <div className="vaango-home-ref-shop-media">
-                  <img
-                    src={shop.image}
-                    alt={shop.name}
-                    loading="lazy"
-                    className="vaango-home-ref-shop-img"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src =
-                        'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&auto=format&fit=crop&q=80';
-                    }}
-                  />
-                </div>
-                <div className="vaango-home-ref-shop-body">
-                  <h3 className="vaango-home-ref-shop-name">{shop.name}</h3>
-                  <div className="vaango-home-ref-shop-rating">
-                    <Star size={13} fill="#F59E0B" color="#F59E0B" />
-                    <strong>{shop.rating}</strong>
-                    <span>({shop.reviewsCount || 120})</span>
+                {language === 'ta' ? 'மீண்டும் முயற்சிக்கவும்' : 'Retry'}
+              </button>
+            </div>
+          ) : displayedShops.length === 0 ? (
+            <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+              <p style={{ margin: 0 }}>
+                {language === 'ta'
+                  ? `${selectedLocation.name}-ல் இன்னும் கடைகள் பதிவு செய்யப்படவில்லை.`
+                  : `No active shops registered in ${selectedLocation.name} yet.`}
+              </p>
+            </div>
+          ) : (
+            <div className="vaango-home-horizontal-scroll">
+              {displayedShops.slice(0, 6).map((shop) => (
+                <Link
+                  to={`/shop/${shop.id}`}
+                  key={shop.id}
+                  className="vaango-home-ref-shop-card"
+                >
+                  <div className="vaango-home-ref-shop-media">
+                    <img
+                      src={shop.image}
+                      alt={shop.name}
+                      loading="lazy"
+                      className="vaango-home-ref-shop-img"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src =
+                          'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&auto=format&fit=crop&q=80';
+                      }}
+                    />
                   </div>
-                  <div className="vaango-home-ref-shop-meta">
-                    <span className="vaango-home-ref-shop-dist">
-                      <MapPin size={12} />
-                      0.8 km
-                    </span>
-                    <span className="vaango-home-ref-shop-status">
-                      {language === 'ta' ? 'திறந்துள்ளது' : 'Open'}
-                    </span>
+                  <div className="vaango-home-ref-shop-body">
+                    <h3 className="vaango-home-ref-shop-name">{shop.name}</h3>
+                    <div className="vaango-home-ref-shop-rating">
+                      <Star size={13} fill="#F59E0B" color="#F59E0B" />
+                      <strong>{shop.rating}</strong>
+                      <span>({shop.reviewsCount || 120})</span>
+                    </div>
+                    <div className="vaango-home-ref-shop-meta">
+                      <span className="vaango-home-ref-shop-dist">
+                        <MapPin size={12} />
+                        0.8 km
+                      </span>
+                      <span className="vaango-home-ref-shop-status">
+                        {language === 'ta' ? 'திறந்துள்ளது' : 'Open'}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -1025,45 +1114,103 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Business Cards Grid */}
-          <div className="vaangly-cards-grid">
-            {filteredShops.map((shop) => (
-              <div key={shop.id} className="vaangly-shop-card">
-                <div className="vaangly-shop-card__image-wrap">
-                  <img
-                    src={shop.image}
-                    alt={shop.name}
-                    loading="lazy"
-                    className="vaangly-shop-card__img"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src =
-                        'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&auto=format&fit=crop&q=80';
-                    }}
-                  />
-                  <span className="vaangly-shop-card__badge">{shop.badge}</span>
+          {isHomeLoading && displayedShops.length === 0 && !homeCatalogError ? (
+            <div className="vaangly-cards-grid">
+              {[1, 2, 3, 4].map((n) => (
+                <div key={n} style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+                  <Skeleton height={180} />
+                  <div style={{ padding: '16px' }}>
+                    <Skeleton height={20} width="60%" style={{ marginBottom: '8px' }} />
+                    <Skeleton height={14} width="80%" style={{ marginBottom: '12px' }} />
+                    <Skeleton height={14} width="40%" />
+                  </div>
                 </div>
-                <div className="vaangly-shop-card__body">
-                  <div className="vaangly-shop-card__top">
-                    <span className="vaangly-shop-card__category">{shop.category}</span>
-                    <div className="vaangly-shop-card__rating">
-                      <Star size={13} fill="#F59E0B" color="#F59E0B" />
-                      <span>{shop.rating}</span>
+              ))}
+            </div>
+          ) : homeCatalogError ? (
+            <div
+              style={{
+                padding: '24px 16px',
+                background: 'rgba(239, 68, 68, 0.08)',
+                borderRadius: 'var(--radius-md)',
+                textAlign: 'center',
+                margin: '16px 0',
+              }}
+              role="alert"
+            >
+              <AlertCircle size={32} style={{ color: 'var(--color-error)', margin: '0 auto 12px' }} />
+              <p style={{ color: 'var(--color-error)', fontWeight: 600, marginBottom: '16px' }}>
+                {homeCatalogError}
+              </p>
+              <button
+                type="button"
+                onClick={() => void loadHomeCatalog()}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: 'none',
+                  background: 'var(--color-primary)',
+                  color: '#fff',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {language === 'ta' ? 'மீண்டும் முயற்சிக்கவும்' : 'Retry'}
+              </button>
+            </div>
+          ) : filteredShops.length === 0 ? (
+            <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+              <p style={{ fontSize: '1rem', marginBottom: '8px' }}>
+                {language === 'ta'
+                  ? `${selectedLocation.name}-ல் தேர்ந்தெடுக்கப்பட்ட பிரிவில் கடைகள் எதுவும் இல்லை.`
+                  : `No businesses found in ${selectedLocation.name} for this category.`}
+              </p>
+              <Link to="/shops" style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'underline' }}>
+                {language === 'ta' ? 'அனைத்து வணிகங்களையும் காண்க' : 'Browse All Businesses'}
+              </Link>
+            </div>
+          ) : (
+            <div className="vaangly-cards-grid">
+              {filteredShops.map((shop) => (
+                <div key={shop.id} className="vaangly-shop-card">
+                  <div className="vaangly-shop-card__image-wrap">
+                    <img
+                      src={shop.image}
+                      alt={shop.name}
+                      loading="lazy"
+                      className="vaangly-shop-card__img"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src =
+                          'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&auto=format&fit=crop&q=80';
+                      }}
+                    />
+                    <span className="vaangly-shop-card__badge">{shop.badge}</span>
+                  </div>
+                  <div className="vaangly-shop-card__body">
+                    <div className="vaangly-shop-card__top">
+                      <span className="vaangly-shop-card__category">{shop.category}</span>
+                      <div className="vaangly-shop-card__rating">
+                        <Star size={13} fill="#F59E0B" color="#F59E0B" />
+                        <span>{shop.rating}</span>
+                      </div>
+                    </div>
+                    <h3 className="vaangly-shop-card__name">{shop.name}</h3>
+                    <p className="vaangly-shop-card__tagline">{shop.tagline}</p>
+                    <div className="vaangly-shop-card__footer">
+                      <span className="vaangly-shop-card__distance">
+                        <MapPin size={13} />
+                        {shop.distance}
+                      </span>
+                      <Link to={`/shop/${shop.id}`} className="vaangly-shop-card__btn">
+                        {t('viewShop')}
+                      </Link>
                     </div>
                   </div>
-                  <h3 className="vaangly-shop-card__name">{shop.name}</h3>
-                  <p className="vaangly-shop-card__tagline">{shop.tagline}</p>
-                  <div className="vaangly-shop-card__footer">
-                    <span className="vaangly-shop-card__distance">
-                      <MapPin size={13} />
-                      {shop.distance}
-                    </span>
-                    <Link to={`/shop/${shop.id}`} className="vaangly-shop-card__btn">
-                      {t('viewShop')}
-                    </Link>
-                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

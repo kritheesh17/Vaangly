@@ -150,21 +150,23 @@ export const fetchCustomerLocationCatalog = async (
         servicesData = (servRes.data as ShopService[]) || [];
       }
 
-      // If we found live shops in Supabase, return authoritative live database catalog
-      if (liveShops.length > 0) {
-        return {
-          shops: liveShops,
-          products: productsData,
-          services: servicesData,
-          shopTypes: loadedShopTypes,
-        };
-      }
+      // In live Supabase mode, return authoritative live database catalog.
+      // Genuine zero-results (liveShops.length === 0) must NEVER be replaced with fabricated mock shops.
+      return {
+        shops: liveShops,
+        products: productsData,
+        services: servicesData,
+        shopTypes: loadedShopTypes,
+      };
     } catch (err) {
       console.error('Failed to fetch customer catalog from Supabase:', err);
+      // In live Supabase mode, never silently substitute mock/demo shops on network or query failure.
+      // Re-throw so callers can render an explicit error state with retry action.
+      throw err;
     }
   }
 
-  // Fallback to local/mock demo data for this location
+  // Fallback to local/mock demo data ONLY when Supabase is not configured (!isSupabaseConfigured)
   const mockShops = getCustomerVisibleShops().filter((s) => s.location_id === locationId);
   const mockShopIds = mockShops.map((s) => s.id);
   const mockProducts = mockShopIds.flatMap((id) => getShopProducts(id)).filter((p) => !p.is_banned);
@@ -248,10 +250,12 @@ export const fetchNearbyShopCatalog = async (
       };
     } catch (err) {
       console.error('Failed to fetch nearby customer catalog from Supabase:', err);
+      // In live Supabase mode, never silently substitute mock/demo shops on failure.
+      throw err;
     }
   }
 
-  // Fallback to local/mock demo data using Haversine calculation for demo coordinates
+  // Fallback to local/mock demo data using Haversine calculation ONLY when !isSupabaseConfigured
   const visibleShops = getCustomerVisibleShops();
   const nearbyMockShops = visibleShops
     .filter((s) => s.gps_lat != null && s.gps_lng != null)
@@ -284,7 +288,11 @@ export const searchLocationCatalog = (
   shopTypeId?: string,
   catalogData?: CustomerCatalogData
 ): SearchResult => {
-  const visibleShops = catalogData ? catalogData.shops : getCustomerVisibleShops();
+  const visibleShops = catalogData
+    ? catalogData.shops
+    : isSupabaseConfigured
+    ? []
+    : getCustomerVisibleShops();
   const allShopTypes = catalogData?.shopTypes || MOCK_SHOP_TYPES;
 
   // Flexible shop type matching supporting UUIDs and code identifiers
@@ -333,6 +341,8 @@ export const searchLocationCatalog = (
     // Check products in shop (Group A)
     const products = catalogData
       ? catalogData.products.filter((p) => p.shop_id === shop.id)
+      : isSupabaseConfigured
+      ? []
       : getShopProducts(shop.id);
 
     for (const product of products) {
@@ -352,6 +362,8 @@ export const searchLocationCatalog = (
     // Check appointment / services in shop (Group B & Group C)
     const services = catalogData
       ? catalogData.services.filter((s) => s.shop_id === shop.id)
+      : isSupabaseConfigured
+      ? []
       : getShopServices(shop.id);
 
     for (const service of services) {

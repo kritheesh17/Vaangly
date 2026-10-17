@@ -15,6 +15,7 @@ import {
   CheckCircle,
   Star,
   Share2,
+  AlertCircle,
 } from 'lucide-react';
 import { MOCK_SHOPS, MOCK_SHOP_TYPES } from '../data/mockData';
 import { getShopProductsList } from '../lib/shopkeeperApi';
@@ -27,6 +28,7 @@ import { Input } from '../components/ui/Input';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Button } from '../components/ui/Button';
+import { Skeleton } from '../components/ui/Skeleton';
 import { ShopProduct } from '../types/database';
 import './ShopDetailPage.css';
 import { useLanguage } from '../context/LanguageContext';
@@ -56,7 +58,7 @@ const hasValidCoordinates = (lat: unknown, lng: unknown): boolean => {
 export const ShopDetailPage: React.FC = () => {
   const { shopId } = useParams<{ shopId: string }>();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const { success, error: toastError } = useToast();
 
@@ -80,38 +82,63 @@ export const ShopDetailPage: React.FC = () => {
   const [isSubmittingCake, setIsSubmittingCake] = useState(false);
   const [activeTab, setActiveTab] = useState<'products' | 'services' | 'about'>('products');
 
-  // Find shop (supports both mock data and Supabase live UUIDs)
+  // Find shop (supports intentional demo mode and Supabase live UUIDs)
   const [shop, setShop] = useState<any>(() => {
-    return MOCK_SHOPS.find((s) => s.id === shopId) || null;
+    if (!isSupabaseConfigured) {
+      return MOCK_SHOPS.find((s) => s.id === shopId) || null;
+    }
+    return null;
   });
+  const [isShopLoading, setIsShopLoading] = useState<boolean>(() => isSupabaseConfigured);
+  const [shopError, setShopError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    const local = MOCK_SHOPS.find((s) => s.id === shopId) || null;
-    if (local) {
+  const loadShop = useCallback(async () => {
+    if (!shopId) return;
+
+    if (!isSupabaseConfigured) {
+      const local = MOCK_SHOPS.find((s) => s.id === shopId) || null;
       setShop(local);
+      setIsShopLoading(false);
+      setShopError(null);
       return;
     }
-    if (isSupabaseConfigured && shopId) {
-      supabase.from('shops').select('*').eq('id', shopId).maybeSingle().then(({ data }) => {
-        if (active && data) {
-          setShop(data);
-        }
-      });
+
+    setIsShopLoading(true);
+    setShopError(null);
+    try {
+      const { data, error } = await supabase
+        .from('shops')
+        .select('*')
+        .eq('id', shopId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+      setShop(data || null);
+    } catch (err: any) {
+      console.error('[ShopDetailPage] Failed to load shop:', err);
+      setShopError(err?.message || 'Failed to load shop details.');
+      setShop(null);
+    } finally {
+      setIsShopLoading(false);
     }
-    return () => {
-      active = false;
-    };
   }, [shopId]);
+
+  useEffect(() => {
+    void loadShop();
+  }, [loadShop]);
 
   const [dbShopType, setDbShopType] = useState<any>(null);
 
   useEffect(() => {
     if (!shop?.shop_type_id) return;
-    const mock = MOCK_SHOP_TYPES.find((t) => t.id === shop.shop_type_id || t.code === shop.shop_type_id);
-    if (mock) {
-      setDbShopType(mock);
-      return;
+    if (!isSupabaseConfigured) {
+      const mock = MOCK_SHOP_TYPES.find((t) => t.id === shop.shop_type_id || t.code === shop.shop_type_id);
+      if (mock) {
+        setDbShopType(mock);
+        return;
+      }
     }
     if (isSupabaseConfigured) {
       supabase
@@ -125,16 +152,32 @@ export const ShopDetailPage: React.FC = () => {
     }
   }, [shop?.shop_type_id]);
 
-  const shopType = dbShopType || MOCK_SHOP_TYPES.find((t) => t.id === shop?.shop_type_id || t.code === shop?.shop_type_id) || null;
+  const shopType = dbShopType || (!isSupabaseConfigured ? MOCK_SHOP_TYPES.find((t) => t.id === shop?.shop_type_id || t.code === shop?.shop_type_id) : null) || null;
 
   const workflowGroup = shopType?.workflow_group_code || 'ORDER';
+
+  const [isProductsLoading, setIsProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
 
   const loadProducts = useCallback(async () => {
     if (!shopId || (workflowGroup !== 'ORDER' && workflowGroup !== 'SALES_SERVICE')) {
       setProducts([]);
       return;
     }
-    setProducts(await getShopProductsList(shopId));
+    setIsProductsLoading(true);
+    setProductsError(null);
+    try {
+      const prods = await getShopProductsList(shopId);
+      setProducts(prods);
+    } catch (err: any) {
+      console.error('[ShopDetailPage] Failed to load products:', err);
+      if (isSupabaseConfigured) {
+        setProductsError(err?.message || 'Failed to load products');
+        setProducts([]);
+      }
+    } finally {
+      setIsProductsLoading(false);
+    }
   }, [shopId, workflowGroup]);
 
   useEffect(() => {
@@ -197,6 +240,43 @@ export const ShopDetailPage: React.FC = () => {
       setActiveTab('products');
     }
   }, [workflowGroup]);
+
+  if (isShopLoading) {
+    return (
+      <div className="container" style={{ padding: '2rem 1rem', maxWidth: 1000, margin: '0 auto' }}>
+        <Skeleton style={{ height: 260, borderRadius: 16, marginBottom: '1.5rem' }} />
+        <Skeleton style={{ height: 32, width: '60%', marginBottom: '1rem' }} />
+        <Skeleton style={{ height: 20, width: '40%', marginBottom: '2rem' }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
+          <Skeleton style={{ height: 180, borderRadius: 12 }} />
+          <Skeleton style={{ height: 180, borderRadius: 12 }} />
+          <Skeleton style={{ height: 180, borderRadius: 12 }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (shopError) {
+    return (
+      <div className="container vaango-shop-detail__error" style={{ padding: '3rem 1rem', textAlign: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+          <AlertCircle size={48} style={{ color: '#ef4444' }} />
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>
+            {language === 'ta' ? 'கடையை ஏற்ற முடியவில்லை' : 'Unable to load shop'}
+          </h2>
+          <p style={{ color: 'var(--text-secondary, #64748b)', fontSize: '0.9rem' }}>{shopError}</p>
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+            <Button variant="primary" onClick={() => void loadShop()}>
+              {language === 'ta' ? 'மீண்டும் முயற்சிக்கவும்' : 'Retry'}
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/shops')}>
+              {t('browseAvailableShops')}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!shop) {
     return (
@@ -557,7 +637,24 @@ export const ShopDetailPage: React.FC = () => {
             </div>
 
             {/* 2-Column Product Cards Grid */}
-            {filteredProducts.length > 0 ? (
+            {isProductsLoading ? (
+              <div className="vaango-catalogue-grid">
+                <Skeleton style={{ height: 220, borderRadius: 12 }} />
+                <Skeleton style={{ height: 220, borderRadius: 12 }} />
+                <Skeleton style={{ height: 220, borderRadius: 12 }} />
+                <Skeleton style={{ height: 220, borderRadius: 12 }} />
+              </div>
+            ) : productsError ? (
+              <div className="vaango-catalogue-empty" style={{ padding: '2rem 1rem', textAlign: 'center' }}>
+                <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                  <AlertCircle size={36} style={{ color: '#ef4444' }} />
+                  <p style={{ color: 'var(--text-secondary, #64748b)', margin: 0 }}>{productsError}</p>
+                  <Button variant="outline" size="sm" onClick={() => void loadProducts()}>
+                    {language === 'ta' ? 'மீண்டும் முயற்சிக்கவும்' : 'Retry'}
+                  </Button>
+                </div>
+              </div>
+            ) : filteredProducts.length > 0 ? (
               <div className="vaango-catalogue-grid">
                 {filteredProducts.map((product) => {
                   const qty = getItemQuantity(product.id);

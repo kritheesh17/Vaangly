@@ -47,11 +47,13 @@ export const fetchShopServices = async (shopId: string): Promise<ShopService[]> 
         .eq('shop_id', shopId)
         .order('created_at', { ascending: true });
 
-      if (!error && data && data.length > 0) {
+      if (error) throw error;
+      if (data) {
         return data as ShopService[];
       }
     } catch (err) {
       console.error('Error fetching services from Supabase:', err);
+      throw err;
     }
   }
 
