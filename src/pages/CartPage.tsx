@@ -31,6 +31,8 @@ import {
   getAvailablePickupSlots,
   validateOrderPickupAt,
 } from '../lib/orderPickupUtils';
+import { ActionErrorBanner } from '../components/ui/ActionErrorBanner';
+import { scrollAndFocusError } from '../lib/errorUxUtils';
 import './CartPage.css';
 
 interface UpiPaymentPanelProps {
@@ -230,18 +232,30 @@ export const CartPage: React.FC = () => {
     const chosenFulfillment = shopFulfillments[shopId] || null;
 
     if (offersDineIn && !chosenFulfillment) {
-      setShopErrors((prev) => ({ ...prev, [shopId]: t('chooseParcelOrDineIn') }));
+      const err = t('chooseParcelOrDineIn');
+      setShopErrors((prev) => ({ ...prev, [shopId]: err }));
+      setTimeout(() => {
+        scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
+      }, 50);
       return;
     }
 
     const chosenPayment = shopPaymentMethods[shopId] || 'pay_at_shop';
     const paymentProofPath = paymentProofPaths[shopId] || null;
     if (chosenPayment === 'upi' && !isValidUpiQrUrl(group.shop.upi_qr_url)) {
-      setShopErrors((prev) => ({ ...prev, [shopId]: 'UPI payment is currently unavailable because this shop has not configured its UPI QR code.' }));
+      const err = 'UPI payment is currently unavailable because this shop has not configured its UPI QR code.';
+      setShopErrors((prev) => ({ ...prev, [shopId]: err }));
+      setTimeout(() => {
+        scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
+      }, 50);
       return;
     }
     if (chosenPayment === 'upi' && !paymentProofPath) {
-      setShopErrors((prev) => ({ ...prev, [shopId]: 'Add payment proof before placing a UPI order.' }));
+      const err = 'Add payment proof before placing a UPI order.';
+      setShopErrors((prev) => ({ ...prev, [shopId]: err }));
+      setTimeout(() => {
+        scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
+      }, 50);
       return;
     }
     const chosenNote = shopNotes[shopId] || '';
@@ -253,22 +267,34 @@ export const CartPage: React.FC = () => {
       const dates = getAvailablePickupDates(group.shop, group.shop.slot_config?.timeZone);
       const chosenDate = shopPickupDates[shopId] || (dates.length > 0 ? dates[0].dateStr : null);
       if (!chosenDate) {
-        setShopErrors((prev) => ({ ...prev, [shopId]: 'Please select a pickup date.' }));
+        const err = 'Please select a pickup date.';
+        setShopErrors((prev) => ({ ...prev, [shopId]: err }));
+        setTimeout(() => {
+          scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
+        }, 50);
         return;
       }
       const slots = getAvailablePickupSlots(group.shop, chosenDate, group.shop.slot_config?.timeZone);
       chosenPickupAt = shopPickupTimes[shopId] || (slots.length > 0 ? slots[0].isoTimestamp : null);
       if (!chosenPickupAt) {
+        const err = 'No pickup slots are available for the selected date. Please choose another date.';
         setShopErrors((prev) => ({
           ...prev,
-          [shopId]: 'No pickup slots are available for the selected date. Please choose another date.',
+          [shopId]: err,
         }));
+        setTimeout(() => {
+          scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
+        }, 50);
         return;
       }
 
       const validation = validateOrderPickupAt(group.shop, chosenPickupAt, group.shop.slot_config?.timeZone);
       if (!validation.valid) {
-        setShopErrors((prev) => ({ ...prev, [shopId]: validation.error || 'Invalid pickup time selected.' }));
+        const err = validation.error || 'Invalid pickup time selected.';
+        setShopErrors((prev) => ({ ...prev, [shopId]: err }));
+        setTimeout(() => {
+          scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
+        }, 50);
         return;
       }
     }
@@ -293,11 +319,17 @@ export const CartPage: React.FC = () => {
       } else {
         const errorMsg = result.error || t('genericError');
         setShopErrors((prev) => ({ ...prev, [shopId]: errorMsg }));
+        setTimeout(() => {
+          scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
+        }, 50);
         toastError(errorMsg);
       }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : t('genericError');
       setShopErrors((prev) => ({ ...prev, [shopId]: errorMsg }));
+      setTimeout(() => {
+        scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
+      }, 50);
       toastError(errorMsg);
     } finally {
       setSubmittingShopId(null);
@@ -439,13 +471,6 @@ export const CartPage: React.FC = () => {
                 </div>
               )}
 
-              {currentError && (
-                <div className="vaango-cart-error-alert" role="alert">
-                  <AlertCircle size={18} />
-                  <span>{currentError}</span>
-                </div>
-              )}
-
               {/* Items for this Shop */}
               <div className="vaango-cart-items-list" role="list">
                 {shopItems.map((item) => {
@@ -518,8 +543,27 @@ export const CartPage: React.FC = () => {
               {/* Preferences & Checkout Options */}
               <div className="vaango-cart-preferences">
                 {offersDineIn && (
-                  <div className="vaango-cart-pref-section vaango-cart-fulfillment-box">
-                    <span className="vaango-cart-opt-label">{t('chooseFulfillment')}</span>
+                  <div
+                    id={`fulfillment-section-${shopId}`}
+                    className={`vaango-cart-pref-section vaango-cart-fulfillment-box ${
+                      currentError &&
+                      (currentError === t('chooseParcelOrDineIn') ||
+                        currentError.toLowerCase().includes('dine-in') ||
+                        currentError.toLowerCase().includes('parcel') ||
+                        currentError.toLowerCase().includes('eat there'))
+                        ? 'vaango-cart-fulfillment-box--error'
+                        : ''
+                    }`}
+                  >
+                    <span className="vaango-cart-opt-label">
+                      {t('chooseFulfillment')}
+                      {currentError &&
+                        (currentError === t('chooseParcelOrDineIn') ||
+                          currentError.toLowerCase().includes('dine-in') ||
+                          currentError.toLowerCase().includes('parcel')) && (
+                          <span className="text-error font-bold ml-1">* Required</span>
+                        )}
+                    </span>
                     <div className="vaango-fulfillment-toggle" role="radiogroup">
                       {(['DINE_IN', 'TAKEAWAY'] as const).map((opt) => (
                         <button
@@ -528,9 +572,22 @@ export const CartPage: React.FC = () => {
                           role="radio"
                           aria-checked={currentFulfillment === opt}
                           className={currentFulfillment === opt ? 'active' : ''}
-                          onClick={() =>
-                            setShopFulfillments((prev) => ({ ...prev, [shopId]: opt }))
-                          }
+                          onClick={() => {
+                            setShopFulfillments((prev) => ({ ...prev, [shopId]: opt }));
+                            setShopErrors((prev) => {
+                              const copy = { ...prev };
+                              if (
+                                copy[shopId] &&
+                                (copy[shopId] === t('chooseParcelOrDineIn') ||
+                                  copy[shopId].toLowerCase().includes('dine-in') ||
+                                  copy[shopId].toLowerCase().includes('parcel') ||
+                                  copy[shopId].toLowerCase().includes('eat there'))
+                              ) {
+                                delete copy[shopId];
+                              }
+                              return copy;
+                            });
+                          }}
                         >
                           <span>{opt === 'TAKEAWAY' ? '📦 Parcel / Takeaway' : '🍽️ Dine-in'}</span>
                           <small>{opt === 'TAKEAWAY' ? 'I want to take it with me' : "I'm going to eat here"}</small>
@@ -628,6 +685,7 @@ export const CartPage: React.FC = () => {
                             onChange={(e) => {
                               const newDate = e.target.value;
                               setShopPickupDates((prev) => ({ ...prev, [shopId]: newDate }));
+                              setShopErrors((prev) => ({ ...prev, [shopId]: '' }));
                               const newSlots = getAvailablePickupSlots(shop, newDate, shop.slot_config?.timeZone);
                               if (newSlots.length > 0) {
                                 setShopPickupTimes((prev) => ({ ...prev, [shopId]: newSlots[0].isoTimestamp }));
@@ -655,6 +713,7 @@ export const CartPage: React.FC = () => {
                               value={currentPickupTime || availableSlots[0].isoTimestamp}
                               onChange={(e) => {
                                 setShopPickupTimes((prev) => ({ ...prev, [shopId]: e.target.value }));
+                                setShopErrors((prev) => ({ ...prev, [shopId]: '' }));
                               }}
                             >
                               {availableSlots.map((slot) => (
@@ -676,6 +735,7 @@ export const CartPage: React.FC = () => {
                                     const nextDate = availableDates.find((d) => d.dateStr !== currentPickupDate);
                                     if (nextDate) {
                                       setShopPickupDates((prev) => ({ ...prev, [shopId]: nextDate.dateStr }));
+                                      setShopErrors((prev) => ({ ...prev, [shopId]: '' }));
                                       const nextSlots = getAvailablePickupSlots(shop, nextDate.dateStr, shop.slot_config?.timeZone);
                                       if (nextSlots.length > 0) {
                                         setShopPickupTimes((prev) => ({ ...prev, [shopId]: nextSlots[0].isoTimestamp }));
@@ -721,6 +781,7 @@ export const CartPage: React.FC = () => {
                         void removePendingPaymentProof(paymentProofPaths[shopId] || null);
                         setPaymentProofPaths((prev) => ({ ...prev, [shopId]: null }));
                         setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'pay_at_shop' }));
+                        setShopErrors((prev) => ({ ...prev, [shopId]: '' }));
                       }}
                     >
                       <span className="vaango-cart-option-title">🏪 Pay at Shop</span>
@@ -732,9 +793,10 @@ export const CartPage: React.FC = () => {
                       aria-checked={currentPayment === 'upi'}
                       disabled={!isValidUpiQrUrl(shop.upi_qr_url)}
                       className={`vaango-cart-option-btn ${currentPayment === 'upi' ? 'active' : ''}`}
-                      onClick={() =>
-                        setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'upi' }))
-                      }
+                      onClick={() => {
+                        setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'upi' }));
+                        setShopErrors((prev) => ({ ...prev, [shopId]: '' }));
+                      }}
                     >
                       <span className="vaango-cart-option-title">📱 UPI / Online</span>
                       <small className="vaango-cart-option-desc">Pay via UPI QR and upload payment screenshot</small>
@@ -749,7 +811,10 @@ export const CartPage: React.FC = () => {
                       amount={finalTotal}
                       userId={user.id}
                       proofPath={paymentProofPaths[shopId] || null}
-                      onProofPathChange={(path) => setPaymentProofPaths((prev) => ({ ...prev, [shopId]: path }))}
+                      onProofPathChange={(path) => {
+                        setPaymentProofPaths((prev) => ({ ...prev, [shopId]: path }));
+                        if (path) setShopErrors((prev) => ({ ...prev, [shopId]: '' }));
+                      }}
                     />
                   )}
                 </div>
@@ -796,15 +861,53 @@ export const CartPage: React.FC = () => {
                     <strong>₹{finalTotal}</strong>
                   </div>
                 </div>
-                <Button
-                  variant="primary"
-                  size="lg"
-                  isLoading={isThisSubmitting}
-                  disabled={isSubmitting || isInvalidShopId}
-                  onClick={() => handleCheckoutShop(group)}
-                >
-                  Place Order with {shop.name} · ₹{finalTotal}
-                </Button>
+
+                <div className="vaango-cart-shop-action-zone">
+                  {currentError && (
+                    <ActionErrorBanner
+                      id={`cart-action-error-${shopId}`}
+                      message={currentError}
+                      variant={
+                        currentError.toLowerCase().includes('network') || currentError.toLowerCase().includes('internet')
+                          ? 'network'
+                          : 'error'
+                      }
+                      action={
+                        currentError === t('chooseParcelOrDineIn') ||
+                        currentError.toLowerCase().includes('dine-in') ||
+                        currentError.toLowerCase().includes('parcel')
+                          ? {
+                              label: 'Choose Option ↑',
+                              onClick: () => scrollAndFocusError(`fulfillment-section-${shopId}`, { block: 'center' }),
+                            }
+                          : currentError.toLowerCase().includes('payment proof')
+                          ? {
+                              label: 'Upload Proof ↑',
+                              onClick: () => scrollAndFocusError(`upi-panel-${shopId}`, { block: 'center' }),
+                            }
+                          : currentError.toLowerCase().includes('pickup')
+                          ? {
+                              label: 'Choose Pickup Time ↑',
+                              onClick: () => scrollAndFocusError(`pickup-section-${shopId}`, { block: 'center' }),
+                            }
+                          : {
+                              label: 'Try Again',
+                              onClick: () => void handleCheckoutShop(group),
+                            }
+                      }
+                      onDismiss={() => setShopErrors((prev) => ({ ...prev, [shopId]: '' }))}
+                    />
+                  )}
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    isLoading={isThisSubmitting}
+                    disabled={isSubmitting || isInvalidShopId}
+                    onClick={() => handleCheckoutShop(group)}
+                  >
+                    Place Order with {shop.name} · ₹{finalTotal}
+                  </Button>
+                </div>
               </div>
             </Card>
           );

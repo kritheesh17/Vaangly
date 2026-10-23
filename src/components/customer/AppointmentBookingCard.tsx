@@ -28,6 +28,9 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useToast } from '../../context/ToastContext';
+import { isValidIndianMobile } from '../../lib/phoneUtils';
+import { ActionErrorBanner } from '../ui/ActionErrorBanner';
+import { scrollAndFocusError, classifyError } from '../../lib/errorUxUtils';
 import './AppointmentBookingCard.css';
 
 interface AppointmentBookingCardProps {
@@ -110,6 +113,10 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
   }, [shop.id]);
 
   const [paymentMethod, setPaymentMethod] = useState<'pay_at_shop' | 'online'>('pay_at_shop');
+
+  useEffect(() => {
+    if (bookingError) setBookingError(null);
+  }, [paymentMethod]);
 
   // 2. Fetch slots whenever selectedDateStr or selectedServiceId changes
   useEffect(() => {
@@ -222,8 +229,23 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
       return;
     }
 
+    const reportBookingError = (msg: string, targetId?: string) => {
+      setBookingError(msg);
+      scrollAndFocusError(targetId || 'appointment-booking-action-error', { focus: true });
+    };
+
+    if (!customerName.trim()) {
+      reportBookingError('Please enter your name for the appointment.', 'customer-name');
+      return;
+    }
+
+    if (!customerPhone.trim() || !isValidIndianMobile(customerPhone.trim())) {
+      reportBookingError('Please enter a valid 10-digit Indian mobile number.', 'customer-phone');
+      return;
+    }
+
     if (paymentMethod === 'online' && !hasAuthoritativeUpi) {
-      setBookingError('Online payment is currently unavailable for this shop. Please choose Pay at Shop.');
+      reportBookingError('Online payment is currently unavailable for this shop. Please choose Pay at Shop.', 'appointment-booking-action-error');
       return;
     }
 
@@ -252,7 +274,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
         success(t('appointmentSuccessMsg'));
         navigate(`/requests/${res.request.id}`);
       } else {
-        setBookingError(res.error || t('genericError'));
+        reportBookingError(res.error || t('genericError'), 'appointment-booking-action-error');
         // Refresh slots immediately to show latest availability
         const updatedSlots = await fetchAppointmentSlots(shop.id, selectedDateStr, selectedServiceId);
         setSlots(updatedSlots);
@@ -260,7 +282,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : t('genericError');
-      setBookingError(message);
+      reportBookingError(message, 'appointment-booking-action-error');
       toastError(message);
     } finally {
       setIsSubmitting(false);
@@ -452,7 +474,10 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
               <Input
                 id="customer-name"
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
+                onChange={(e) => {
+                  setCustomerName(e.target.value);
+                  if (bookingError) setBookingError(null);
+                }}
                 placeholder={t('visitorNamePlaceholder')}
                 leftIcon={<User size={16} />}
               />
@@ -465,7 +490,10 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
               <Input
                 id="customer-phone"
                 value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
+                onChange={(e) => {
+                  setCustomerPhone(e.target.value);
+                  if (bookingError) setBookingError(null);
+                }}
                 placeholder={t('phoneTenDigits')}
                 leftIcon={<Phone size={16} />}
               />
@@ -478,7 +506,10 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
               <Input
                 id="customer-notes"
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(e) => {
+                  setNotes(e.target.value);
+                  if (bookingError) setBookingError(null);
+                }}
                 placeholder="e.g. General checkup"
                 leftIcon={<FileText size={16} />}
               />
@@ -624,6 +655,15 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                 <span>ℹ️ <strong>{t('note')}</strong> {t('appointmentReviewNotice')}</span>
               </div>
             </div>
+
+            {bookingError && (
+              <ActionErrorBanner
+                id="appointment-booking-action-error"
+                message={bookingError}
+                variant={classifyError(bookingError).category === 'network' ? 'network' : 'error'}
+                onDismiss={() => setBookingError(null)}
+              />
+            )}
 
             <Button
               variant="primary"

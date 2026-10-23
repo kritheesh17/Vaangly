@@ -22,6 +22,8 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { formatINR, formatPriceRangeINR } from '../../lib/currency';
 import { validateWorkingHoursAndBreaks } from '../../lib/appointmentValidation';
+import { ActionErrorBanner } from '../ui/ActionErrorBanner';
+import { scrollAndFocusError, classifyError } from '../../lib/errorUxUtils';
 import './ServiceFormModal.css';
 
 export type CatalogueItemType = 'appointment' | 'service';
@@ -206,13 +208,20 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
 
   if (!isOpen) return null;
 
+  const reportServiceError = (msg: string | null, targetId?: string) => {
+    setFormError(msg);
+    if (msg) {
+      scrollAndFocusError(targetId || 'service-form-action-error', { focus: true });
+    }
+  };
+
   // Validation functions
   const validateAppointmentStep = (currentStep: AppointmentStep): boolean => {
-    setFormError(null);
+    reportServiceError(null);
 
     if (currentStep === 'DETAILS') {
       if (!name.trim()) {
-        setFormError('Please enter an appointment or consultation name.');
+        reportServiceError('Please enter an appointment or consultation name.', 'appointment-name');
         return false;
       }
       return true;
@@ -222,18 +231,18 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
       if (priceType === 'fixed') {
         const p = parseFloat(basePrice);
         if (isNaN(p) || p <= 0) {
-          setFormError('Please enter a valid fixed price greater than ₹0.');
+          reportServiceError('Please enter a valid fixed price greater than ₹0.', 'pricing-base');
           return false;
         }
       } else {
         const minP = parseFloat(minPrice);
         const maxP = parseFloat(maxPrice);
         if (isNaN(minP) || minP <= 0 || isNaN(maxP) || maxP <= 0) {
-          setFormError('Both minimum and maximum price must be greater than ₹0.');
+          reportServiceError('Both minimum and maximum price must be greater than ₹0.', 'pricing-min');
           return false;
         }
         if (minP > maxP) {
-          setFormError('Maximum price must be greater than or equal to minimum price.');
+          reportServiceError('Maximum price must be greater than or equal to minimum price.', 'pricing-max');
           return false;
         }
       }
@@ -242,12 +251,12 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
 
     if (currentStep === 'SCHEDULE') {
       if (openDays.length === 0) {
-        setFormError('Please select at least one working day for appointment availability.');
+        reportServiceError('Please select at least one working day for appointment availability.', 'service-form-action-error');
         return false;
       }
       const scheduleValidation = validateWorkingHoursAndBreaks(workingPeriods, breaks);
       if (!scheduleValidation.valid) {
-        setFormError(scheduleValidation.error || 'Please correct the schedule times and breaks.');
+        reportServiceError(scheduleValidation.error || 'Please correct the schedule times and breaks.', 'service-form-action-error');
         return false;
       }
       return true;
@@ -255,11 +264,11 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
 
     if (currentStep === 'RULES') {
       if (!slotDuration || slotDuration <= 0) {
-        setFormError('Appointment duration must be greater than 0 minutes.');
+        reportServiceError('Appointment duration must be greater than 0 minutes.', 'service-form-action-error');
         return false;
       }
       if (!concurrentCapacity || concurrentCapacity < 1 || concurrentCapacity > 100) {
-        setFormError('Maximum appointments per slot must be between 1 and 100 clients.');
+        reportServiceError('Maximum appointments per slot must be between 1 and 100 clients.', 'service-form-action-error');
         return false;
       }
       return true;
@@ -269,11 +278,11 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
   };
 
   const validateServiceStep = (currentStep: ServiceStep): boolean => {
-    setFormError(null);
+    reportServiceError(null);
 
     if (currentStep === 'DETAILS') {
       if (!name.trim()) {
-        setFormError('Please enter a service name.');
+        reportServiceError('Please enter a service name.', 'service-name');
         return false;
       }
       return true;
@@ -283,18 +292,18 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
       if (priceType === 'fixed' || isStartingFrom) {
         const p = parseFloat(basePrice);
         if (isNaN(p) || p <= 0) {
-          setFormError('Please enter a valid price greater than ₹0.');
+          reportServiceError('Please enter a valid price greater than ₹0.', 'pricing-base');
           return false;
         }
       } else {
         const minP = parseFloat(minPrice);
         const maxP = parseFloat(maxPrice);
         if (isNaN(minP) || minP <= 0 || isNaN(maxP) || maxP <= 0) {
-          setFormError('Both minimum and maximum price must be greater than ₹0.');
+          reportServiceError('Both minimum and maximum price must be greater than ₹0.', 'pricing-min');
           return false;
         }
         if (minP > maxP) {
-          setFormError('Maximum price must be greater than or equal to minimum price.');
+          reportServiceError('Maximum price must be greater than or equal to minimum price.', 'pricing-max');
           return false;
         }
       }
@@ -386,7 +395,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
         if (res.success) {
           onClose();
         } else {
-          setFormError(res.error || "Couldn't save this appointment right now. Your entered information has been preserved. Please try again.");
+          reportServiceError(res.error || "Couldn't save this appointment right now. Your entered information has been preserved. Please try again.");
         }
       } else {
         // Service
@@ -409,12 +418,12 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
         if (res.success) {
           onClose();
         } else {
-          setFormError(res.error || "Couldn't save this service right now. Your entered information has been preserved. Please try again.");
+          reportServiceError(res.error || "Couldn't save this service right now. Your entered information has been preserved. Please try again.");
         }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Couldn't save right now. Please try again.";
-      setFormError(msg);
+      reportServiceError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -1694,6 +1703,17 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
         </div>
 
         {/* Modal Actions Footer */}
+        {formError && (
+          <div style={{ padding: '0 24px 12px' }}>
+            <ActionErrorBanner
+              id="service-form-action-error"
+              message={formError}
+              variant={classifyError(formError).category === 'network' ? 'network' : 'error'}
+              onDismiss={() => setFormError(null)}
+            />
+          </div>
+        )}
+
         <div className="vaango-guided-footer">
           <div>
             {!itemType ? (

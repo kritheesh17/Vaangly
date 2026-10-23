@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { User, Lock, Mail, Phone, AlertCircle, ArrowRight, ShieldCheck, CheckCircle2, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, Mail, Phone, ArrowRight, ShieldCheck, CheckCircle2, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { Card } from '../../components/ui/Card';
@@ -10,6 +10,8 @@ import { FormField } from '../../components/ui/FormField';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { isValidIndianMobile } from '../../lib/phoneUtils';
+import { ActionErrorBanner } from '../../components/ui/ActionErrorBanner';
+import { scrollAndFocusError, classifyError } from '../../lib/errorUxUtils';
 import './Auth.css';
 
 type AuthMode = 'signin' | 'signup' | 'forgot' | 'recovery';
@@ -151,6 +153,11 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const reportAuthError = (msg: string, targetId?: string) => {
+    setErrorMsg(msg);
+    scrollAndFocusError(targetId || 'auth-action-error', { focus: true });
+  };
+
   // Sign In submit
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,11 +166,11 @@ export const LoginPage: React.FC = () => {
     setUnconfirmedEmail(null);
 
     if (!email.trim()) {
-      setErrorMsg(t('enterEmailPrompt'));
+      reportAuthError(t('enterEmailPrompt'), 'signin-email');
       return;
     }
     if (!password) {
-      setErrorMsg(t('enterPasswordPrompt'));
+      reportAuthError(t('enterPasswordPrompt'), 'signin-password');
       return;
     }
 
@@ -175,13 +182,13 @@ export const LoginPage: React.FC = () => {
         setUnconfirmedEmail(null);
         navigate(from, { replace: true });
       } else {
-        setErrorMsg(result.error || t('genericError'));
+        reportAuthError(result.error || t('genericError'), 'signin-action-error');
         if (result.isEmailUnconfirmed) {
           setUnconfirmedEmail(email.trim().toLowerCase());
         }
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || t('genericError'));
+      reportAuthError(err?.message || t('genericError'), 'signin-action-error');
     } finally {
       setIsSubmitting(false);
     }
@@ -195,27 +202,27 @@ export const LoginPage: React.FC = () => {
     setUnconfirmedEmail(null);
 
     if (!fullName.trim()) {
-      setErrorMsg(t('enterNamePrompt'));
+      reportAuthError(t('enterNamePrompt'), 'signup-name');
       return;
     }
     if (!email.trim()) {
-      setErrorMsg(t('enterEmailPrompt'));
+      reportAuthError(t('enterEmailPrompt'), 'signup-email');
       return;
     }
     if (!password || password.length < 6) {
-      setErrorMsg(t('passwordMinHint'));
+      reportAuthError(t('passwordMinHint'), 'signup-password');
       return;
     }
     if (password !== confirmPassword) {
-      setErrorMsg(t('passwordMismatch'));
+      reportAuthError(t('passwordMismatch'), 'signup-confirm-password');
       return;
     }
     if (!phone.trim()) {
-      setErrorMsg(t('validPhonePrompt') || 'Please enter your 10-digit mobile number.');
+      reportAuthError(t('validPhonePrompt') || 'Please enter your 10-digit mobile number.', 'signup-phone');
       return;
     }
     if (!isValidIndianMobile(phone.trim())) {
-      setErrorMsg(t('validPhonePrompt') || 'Please enter a valid 10-digit Indian mobile number.');
+      reportAuthError(t('validPhonePrompt') || 'Please enter a valid 10-digit Indian mobile number.', 'signup-phone');
       return;
     }
 
@@ -237,10 +244,10 @@ export const LoginPage: React.FC = () => {
           navigate(from, { replace: true });
         }
       } else {
-        setErrorMsg(result.error || t('genericError'));
+        reportAuthError(result.error || t('genericError'), 'signup-action-error');
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || t('genericError'));
+      reportAuthError(err?.message || t('genericError'), 'signup-action-error');
     } finally {
       setIsSubmitting(false);
     }
@@ -253,7 +260,7 @@ export const LoginPage: React.FC = () => {
     setSuccessMsg(null);
 
     if (!email.trim()) {
-      setErrorMsg(t('enterEmailPrompt'));
+      reportAuthError(t('enterEmailPrompt'), 'forgot-email');
       return;
     }
 
@@ -263,10 +270,10 @@ export const LoginPage: React.FC = () => {
       if (result.success) {
         setSuccessMsg(t('verificationEmailSent'));
       } else {
-        setErrorMsg(result.error || t('genericError'));
+        reportAuthError(result.error || t('genericError'), 'forgot-action-error');
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || t('genericError'));
+      reportAuthError(err?.message || t('genericError'), 'forgot-action-error');
     } finally {
       setIsSubmitting(false);
     }
@@ -279,11 +286,11 @@ export const LoginPage: React.FC = () => {
     setSuccessMsg(null);
 
     if (!password || password.length < 6) {
-      setErrorMsg(t('passwordMinHint'));
+      reportAuthError(t('passwordMinHint'), 'recovery-password');
       return;
     }
     if (password !== confirmPassword) {
-      setErrorMsg(t('passwordMismatch'));
+      reportAuthError(t('passwordMismatch'), 'recovery-confirm-password');
       return;
     }
 
@@ -296,10 +303,10 @@ export const LoginPage: React.FC = () => {
           navigate(from, { replace: true });
         }, 1200);
       } else {
-        setErrorMsg(result.error || t('genericError'));
+        reportAuthError(result.error || t('genericError'), 'recovery-action-error');
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || t('genericError'));
+      reportAuthError(err?.message || t('genericError'), 'recovery-action-error');
     } finally {
       setIsSubmitting(false);
     }
@@ -392,14 +399,6 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
-        {/* Error Alert */}
-        {errorMsg && (
-          <div className="vaango-auth-error" role="alert">
-            <AlertCircle size={18} />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
         {/* Success Alert */}
         {successMsg && (
           <div className="vaango-auth-status-alert vaango-auth-status-alert--success" role="status">
@@ -476,7 +475,10 @@ export const LoginPage: React.FC = () => {
                 required
                 autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
                 placeholder="you@example.com"
                 leftIcon={<Mail size={18} />}
               />
@@ -489,7 +491,10 @@ export const LoginPage: React.FC = () => {
                 required
                 autoComplete="current-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
                 placeholder="••••••••"
                 leftIcon={<Lock size={18} />}
                 rightIcon={
@@ -526,6 +531,15 @@ export const LoginPage: React.FC = () => {
                 {t('forgotPasswordLink')}
               </button>
             </div>
+
+            {errorMsg && (
+              <ActionErrorBanner
+                id="signin-action-error"
+                message={errorMsg}
+                variant={classifyError(errorMsg).category === 'network' ? 'network' : 'error'}
+                onDismiss={() => setErrorMsg(null)}
+              />
+            )}
 
             <Button
               type="submit"
@@ -610,7 +624,10 @@ export const LoginPage: React.FC = () => {
                 required
                 autoComplete="name"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
                 placeholder="John Doe"
                 leftIcon={<User size={18} />}
               />
@@ -623,7 +640,10 @@ export const LoginPage: React.FC = () => {
                 required
                 autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
                 placeholder="you@example.com"
                 leftIcon={<Mail size={18} />}
               />
@@ -637,7 +657,10 @@ export const LoginPage: React.FC = () => {
                 required
                 autoComplete="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
                 placeholder="9876543210"
                 maxLength={15}
                 leftIcon={<Phone size={18} />}
@@ -651,7 +674,10 @@ export const LoginPage: React.FC = () => {
                 required
                 autoComplete="new-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
                 placeholder={t('passwordMinHint')}
                 leftIcon={<Lock size={18} />}
                 rightIcon={
@@ -675,7 +701,10 @@ export const LoginPage: React.FC = () => {
                 required
                 autoComplete="new-password"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
                 placeholder={t('confirmPasswordLabel')}
                 leftIcon={<Lock size={18} />}
                 rightIcon={
@@ -703,6 +732,15 @@ export const LoginPage: React.FC = () => {
                 }}
               />
             </div>
+
+            {errorMsg && (
+              <ActionErrorBanner
+                id="signup-action-error"
+                message={errorMsg}
+                variant={classifyError(errorMsg).category === 'network' ? 'network' : 'error'}
+                onDismiss={() => setErrorMsg(null)}
+              />
+            )}
 
             <Button
               type="submit"
@@ -787,11 +825,23 @@ export const LoginPage: React.FC = () => {
                 required
                 autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
                 placeholder="you@example.com"
                 leftIcon={<Mail size={18} />}
               />
             </FormField>
+
+            {errorMsg && (
+              <ActionErrorBanner
+                id="forgot-action-error"
+                message={errorMsg}
+                variant={classifyError(errorMsg).category === 'network' ? 'network' : 'error'}
+                onDismiss={() => setErrorMsg(null)}
+              />
+            )}
 
             <Button
               type="submit"
@@ -832,7 +882,10 @@ export const LoginPage: React.FC = () => {
                 required
                 autoComplete="new-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
                 placeholder={t('passwordMinHint')}
                 leftIcon={<Lock size={18} />}
                 rightIcon={
@@ -856,7 +909,10 @@ export const LoginPage: React.FC = () => {
                 required
                 autoComplete="new-password"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
                 placeholder={t('confirmPasswordLabel')}
                 leftIcon={<Lock size={18} />}
                 rightIcon={
@@ -884,6 +940,15 @@ export const LoginPage: React.FC = () => {
                 }}
               />
             </div>
+
+            {errorMsg && (
+              <ActionErrorBanner
+                id="recovery-action-error"
+                message={errorMsg}
+                variant={classifyError(errorMsg).category === 'network' ? 'network' : 'error'}
+                onDismiss={() => setErrorMsg(null)}
+              />
+            )}
 
             <Button
               type="submit"

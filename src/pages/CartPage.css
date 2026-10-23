@@ -642,3 +642,50 @@
   font-weight: var(--font-weight-extrabold);
   color: var(--brand-primary);
 }
+
+.vaango-cart-shop-action-zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .vaango-cart-shop-action-zone {
+    width: auto;
+    min-width: 320px;
+    max-width: 440px;
+    align-items: stretch;
+  }
+}
+
+.vaango-cart-fulfillment-box--error {
+  border: 2px solid var(--color-error, #dc2626) !important;
+  background-color: var(--color-error-bg, #fef2f2) !important;
+  border-radius: var(--radius-md, 8px);
+  padding: 12px;
+  animation: vaangoShake 0.3s ease;
+  scroll-margin-top: 80px;
+  scroll-margin-bottom: 90px;
+}
+
+.vaango-cart-fulfillment-box--error .vaango-cart-opt-label {
+  color: var(--color-error, #dc2626) !important;
+  font-weight: 700;
+}
+
+.vaango-cart-pref-section--error {
+  border: 1.5px solid var(--color-error, #dc2626) !important;
+  background-color: var(--color-error-bg, #fef2f2) !important;
+  border-radius: var(--radius-md, 8px);
+  padding: 12px;
+  scroll-margin-top: 80px;
+  scroll-margin-bottom: 90px;
+}
+
+@keyframes vaangoShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+

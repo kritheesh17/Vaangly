@@ -8,6 +8,8 @@ import { useAuth } from '../../context/AuthContext';
 import { classifyProductError } from '../../lib/productErrorHelper';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { ActionErrorBanner } from '../ui/ActionErrorBanner';
+import { scrollAndFocusError, classifyError } from '../../lib/errorUxUtils';
 import './ProductFormModal.css';
 
 export interface MasterProductTemplate {
@@ -93,11 +95,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorState, setErrorState] = useState<{ message: string; isRetryable: boolean } | null>(null);
 
-  const setError = (message: string | null, isRetryable = false) => {
+  const setError = (message: string | null, isRetryable = false, targetId?: string) => {
     if (!message) {
       setErrorState(null);
     } else {
       setErrorState({ message, isRetryable });
+      scrollAndFocusError(targetId || 'product-form-action-error', { focus: true });
     }
   };
 
@@ -184,8 +187,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault?.();
     setError(null);
 
     if (!name.trim()) {
@@ -670,6 +673,25 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           </div>
 
           {/* Form Actions */}
+          {errorState && (
+            <ActionErrorBanner
+              id="product-form-action-error"
+              message={errorState.message}
+              variant={classifyError(errorState.message).category === 'network' ? 'network' : 'error'}
+              action={
+                errorState.isRetryable
+                  ? {
+                      label: 'Try Again',
+                      onClick: () => {
+                        void handleSubmit();
+                      },
+                    }
+                  : undefined
+              }
+              onDismiss={() => setError(null)}
+            />
+          )}
+
           <div className="vaango-product-modal__actions">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               {t('cancelBtn')}

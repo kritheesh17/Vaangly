@@ -22,6 +22,8 @@ import { useAuth } from '../../context/AuthContext';
 import { MOCK_SHOP_TYPES } from '../../data/mockData';
 import { useLocationContext } from '../../context/LocationContext';
 import { isValidIndianMobile, normalizeIndianPhone } from '../../lib/phoneUtils';
+import { ActionErrorBanner } from '../../components/ui/ActionErrorBanner';
+import { scrollAndFocusError, classifyError } from '../../lib/errorUxUtils';
 import {
   submitShopApplication,
   getLatestApplication,
@@ -291,47 +293,54 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
     }
   }, [user]);
 
+  const reportStepError = (msg: string | null, targetId?: string) => {
+    setFormError(msg);
+    if (msg) {
+      scrollAndFocusError(targetId || 'onboarding-step1-action-error', { focus: true });
+    }
+  };
+
   const handleContinueToVerification = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     if (!shopName.trim()) {
-      setFormError('Shop name is required.');
+      reportStepError('Shop name is required.', 'app-shop-name');
       return;
     }
     if (!ownerName.trim()) {
-      setFormError('Owner / Proprietor name is required.');
+      reportStepError('Owner / Proprietor name is required.', 'app-owner-name');
       return;
     }
     if (!contactPhone.trim() || !isValidIndianMobile(contactPhone.trim())) {
-      setFormError('Please enter a valid 10-digit Indian contact phone number.');
+      reportStepError('Please enter a valid 10-digit Indian contact phone number.', 'app-phone');
       return;
     }
     if (!offersProducts && !offersServices && !offersAppointments) {
-      setFormError('Please select at least one offering for your business (Products, Services, or Appointments).');
+      reportStepError('Please select at least one offering for your business (Products, Services, or Appointments).', 'onboarding-step1-action-error');
       return;
     }
     if (isFoodBusiness && !hasDineIn && !hasTakeaway) {
-      setFormError('Food & Bakery businesses must offer at least one fulfillment option (Dine-in or Takeaway).');
+      reportStepError('Food & Bakery businesses must offer at least one fulfillment option (Dine-in or Takeaway).', 'onboarding-step1-action-error');
       return;
     }
     if (!shopTypeId) {
-      setFormError('Please select a shop category.');
+      reportStepError('Please select a shop category.', 'app-shop-category');
       return;
     }
     if (!area.trim()) {
-      setFormError('Area / Street / Locality is required.');
+      reportStepError('Area / Street / Locality is required.', 'app-area');
       return;
     }
     if (!taluk.trim()) {
-      setFormError('Taluk is required.');
+      reportStepError('Taluk is required.', 'app-taluk');
       return;
     }
     if (!district.trim()) {
-      setFormError('District is required.');
+      reportStepError('District is required.', 'app-district');
       return;
     }
     if (!pincode.trim() || !/^\d{6}$/.test(pincode.trim())) {
-      setFormError('Please enter a valid 6-digit Pincode.');
+      reportStepError('Please enter a valid 6-digit Pincode.', 'app-pincode');
       return;
     }
     setStep('verification');
@@ -342,19 +351,19 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
     e.preventDefault();
     setFormError(null);
     if (shopPhotos.length < 4 || shopPhotos.length > 10) {
-      setFormError('Please upload between 4 and 10 storefront photos (mandatory for business verification).');
+      reportStepError('Please upload between 4 and 10 storefront photos (mandatory for business verification).', 'app-photo');
       return;
     }
     if (!addressLine.trim()) {
-      setFormError('Shop address is required. Please detect it from GPS or enter it manually.');
+      reportStepError('Shop address is required. Please detect it from GPS or enter it manually.', 'app-address');
       return;
     }
     if (!idProofFile) {
-      setFormError('Government identity proof document is required.');
+      reportStepError('Government identity proof document is required.', 'app-id-proof');
       return;
     }
     if (upiId.trim() && (!upiQrFile || !upiQrFile.type.startsWith('image/') || upiQrFile.size === 0)) {
-      setFormError('UPI QR code is required to accept UPI payments.');
+      reportStepError('UPI QR code is required to accept UPI payments.', 'app-upi-qr');
       return;
     }
     setStep('review');
@@ -690,13 +699,13 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       } else {
         await cleanupAttemptUploads();
         const errMsg = res.error || "Couldn't submit your application right now. Your entered information has been preserved. Please try again.";
-        setFormError(errMsg);
+        reportStepError(errMsg, 'onboarding-step3-action-error');
         toastError(errMsg);
       }
     } catch (err: unknown) {
       await cleanupAttemptUploads();
       const classified = classifyApplicationError(err);
-      setFormError(classified.userMessage);
+      reportStepError(classified.userMessage, 'onboarding-step3-action-error');
       toastError(classified.userMessage);
     } finally {
       setIsSubmitting(false);
@@ -1206,6 +1215,15 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
               </div>
             </Card>
 
+            {formError && (
+              <ActionErrorBanner
+                id="onboarding-step1-action-error"
+                message={formError}
+                variant={classifyError(formError).category === 'network' ? 'network' : 'error'}
+                onDismiss={() => setFormError(null)}
+              />
+            )}
+
             <div className="vaango-onboarding__submit-bar" style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button
                 type="button"
@@ -1540,6 +1558,15 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
               </div>
             </Card>
 
+            {formError && (
+              <ActionErrorBanner
+                id="onboarding-step2-action-error"
+                message={formError}
+                variant={classifyError(formError).category === 'network' ? 'network' : 'error'}
+                onDismiss={() => setFormError(null)}
+              />
+            )}
+
             <div className="vaango-onboarding__submit-bar" style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
               <Button
                 type="button"
@@ -1685,25 +1712,12 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
             </Card>
 
             {formError && (
-              <div
-                className="vaango-form-error-alert"
-                role="alert"
-                style={{
-                  marginTop: 'var(--space-4)',
-                  marginBottom: 'var(--space-2)',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '10px',
-                }}
-              >
-                <AlertCircle size={20} className="flex-shrink-0" style={{ marginTop: '2px' }} />
-                <div>
-                  <strong style={{ display: 'block', fontSize: 'var(--font-size-sm)', marginBottom: '2px' }}>
-                    Action Required
-                  </strong>
-                  <span style={{ fontSize: 'var(--font-size-xs)', lineHeight: 1.4 }}>{formError}</span>
-                </div>
-              </div>
+              <ActionErrorBanner
+                id="onboarding-step3-action-error"
+                message={formError}
+                variant={classifyError(formError).category === 'network' ? 'network' : 'error'}
+                onDismiss={() => setFormError(null)}
+              />
             )}
 
             <div className="vaango-onboarding__submit-bar" style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>

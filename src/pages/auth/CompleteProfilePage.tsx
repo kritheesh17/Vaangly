@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { User, Phone, MapPin, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowRight, Info } from 'lucide-react';
+import { User, Phone, MapPin, Lock, Eye, EyeOff, CheckCircle2, ArrowRight, Info } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { Card } from '../../components/ui/Card';
@@ -9,6 +9,8 @@ import { Input } from '../../components/ui/Input';
 import { FormField } from '../../components/ui/FormField';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { isValidIndianMobile } from '../../lib/phoneUtils';
+import { ActionErrorBanner } from '../../components/ui/ActionErrorBanner';
+import { scrollAndFocusError, classifyError } from '../../lib/errorUxUtils';
 import './Auth.css';
 
 export const CompleteProfilePage: React.FC = () => {
@@ -30,6 +32,11 @@ export const CompleteProfilePage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const reportProfileError = (msg: string, targetId?: string) => {
+    setErrorMessage(msg);
+    scrollAndFocusError(targetId || 'complete-profile-action-error', { focus: true });
+  };
 
   // Sync initial state if user profile loads after render
   useEffect(() => {
@@ -62,23 +69,23 @@ export const CompleteProfilePage: React.FC = () => {
     const cleanAddress = address.trim();
 
     if (!cleanName) {
-      setErrorMessage(t('enterNamePrompt'));
+      reportProfileError(t('enterNamePrompt'), 'onboard-full-name');
       return;
     }
 
     if (!cleanPhone || !isValidIndianMobile(cleanPhone)) {
-      setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
+      reportProfileError('Please enter a valid 10-digit Indian mobile number.', 'onboard-phone');
       return;
     }
 
     if (!cleanAddress || cleanAddress.length < 5) {
-      setErrorMessage(t('fullAddressPrompt'));
+      reportProfileError(t('fullAddressPrompt'), 'onboard-address');
       return;
     }
 
     const cleanPassword = password.trim();
     if (cleanPassword.length > 0 && cleanPassword.length < 6) {
-      setErrorMessage('Password must be at least 6 characters long.');
+      reportProfileError('Password must be at least 6 characters long.', 'onboard-password');
       return;
     }
 
@@ -104,14 +111,14 @@ export const CompleteProfilePage: React.FC = () => {
         if (msg.includes('Failed to fetch') || msg.includes('network')) {
           msg = 'Unable to connect to server. Please check your internet connection and try again.';
         }
-        setErrorMessage(msg);
+        reportProfileError(msg, 'complete-profile-action-error');
       }
     } catch (err: any) {
       let msg = err?.message || t('genericError');
       if (msg.includes('Failed to fetch') || msg.includes('network') || msg.includes('NetworkError')) {
         msg = 'Unable to connect to server. Please check your internet connection and try again.';
       }
-      setErrorMessage(msg);
+      reportProfileError(msg, 'complete-profile-action-error');
     } finally {
       setIsSubmitting(false);
     }
@@ -157,13 +164,6 @@ export const CompleteProfilePage: React.FC = () => {
           </div>
         )}
 
-        {errorMessage && (
-          <div className="vaango-auth-status-alert vaango-auth-status-alert--error" role="alert">
-            <AlertCircle size={18} className="text-error" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="vaango-auth-form">
           <FormField
             id="onboard-full-name"
@@ -175,7 +175,10 @@ export const CompleteProfilePage: React.FC = () => {
               type="text"
               required
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={(e) => {
+                setFullName(e.target.value);
+                if (errorMessage) setErrorMessage(null);
+              }}
               placeholder="e.g. Ananya Raman"
               leftIcon={<User size={18} />}
               disabled={isSubmitting || isSuccess}
@@ -193,7 +196,10 @@ export const CompleteProfilePage: React.FC = () => {
               type="tel"
               required
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                if (errorMessage) setErrorMessage(null);
+              }}
               placeholder="+91 98765 43210"
               leftIcon={<Phone size={18} />}
               disabled={isSubmitting || isSuccess}
@@ -211,7 +217,10 @@ export const CompleteProfilePage: React.FC = () => {
               type="text"
               required
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                if (errorMessage) setErrorMessage(null);
+              }}
               placeholder="e.g. 14 Cutcherry Street, Town / Area"
               leftIcon={<MapPin size={18} />}
               disabled={isSubmitting || isSuccess}
@@ -227,7 +236,10 @@ export const CompleteProfilePage: React.FC = () => {
               id="onboard-password"
               type={showPassword ? 'text' : 'password'}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (errorMessage) setErrorMessage(null);
+              }}
               placeholder="Create account password"
               leftIcon={<Lock size={18} />}
               rightIcon={
@@ -253,6 +265,15 @@ export const CompleteProfilePage: React.FC = () => {
               />
             </div>
           </FormField>
+
+          {errorMessage && (
+            <ActionErrorBanner
+              id="complete-profile-action-error"
+              message={errorMessage}
+              variant={classifyError(errorMessage).category === 'network' ? 'network' : 'error'}
+              onDismiss={() => setErrorMessage(null)}
+            />
+          )}
 
           <Button
             type="submit"

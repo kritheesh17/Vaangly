@@ -6,6 +6,8 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { FormField } from '../../components/ui/FormField';
+import { ActionErrorBanner } from '../../components/ui/ActionErrorBanner';
+import { scrollAndFocusError, classifyError } from '../../lib/errorUxUtils';
 import './Auth.css';
 
 type RecoveryState = 'verifying' | 'ready' | 'success' | 'error';
@@ -135,21 +137,26 @@ export const ResetPasswordPage: React.FC = () => {
     };
   }, []);
 
+  const reportResetError = (msg: string, targetId?: string) => {
+    setValidationError(msg);
+    scrollAndFocusError(targetId || 'reset-password-action-error', { focus: true });
+  };
+
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
 
     // Validation
     if (!newPassword) {
-      setValidationError('Password is required.');
+      reportResetError('Password is required.', 'new-password');
       return;
     }
     if (newPassword.length < 6) {
-      setValidationError('Password must be at least 6 characters long.');
+      reportResetError('Password must be at least 6 characters long.', 'new-password');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setValidationError('Passwords do not match.');
+      reportResetError('Passwords do not match.', 'confirm-new-password');
       return;
     }
 
@@ -161,7 +168,7 @@ export const ResetPasswordPage: React.FC = () => {
         });
 
         if (error) {
-          setValidationError(error.message || 'Failed to update password.');
+          reportResetError(error.message || 'Failed to update password.', 'reset-password-action-error');
           setIsSubmitting(false);
           return;
         }
@@ -176,7 +183,7 @@ export const ResetPasswordPage: React.FC = () => {
 
       setState('success');
     } catch (err) {
-      setValidationError(err instanceof Error ? err.message : 'Failed to update password.');
+      reportResetError(err instanceof Error ? err.message : 'Failed to update password.', 'reset-password-action-error');
     } finally {
       setIsSubmitting(false);
     }
@@ -267,26 +274,6 @@ export const ResetPasswordPage: React.FC = () => {
         {/* 3. READY STATE (Update Password Form) */}
         {state === 'ready' && (
           <form onSubmit={handlePasswordUpdate} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            {validationError && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--space-2)',
-                  padding: 'var(--space-3)',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                  color: '#b91c1c',
-                  fontSize: '0.85rem',
-                }}
-                role="alert"
-              >
-                <AlertCircle size={18} style={{ flexShrink: 0 }} />
-                <span>{validationError}</span>
-              </div>
-            )}
-
             {/* New Password */}
             <FormField id="new-password" label="New Password" required error={validationError && !newPassword ? 'Password is required.' : undefined}>
               <div style={{ position: 'relative' }}>
@@ -367,6 +354,15 @@ export const ResetPasswordPage: React.FC = () => {
                 </button>
               </div>
             </FormField>
+
+            {validationError && (
+              <ActionErrorBanner
+                id="reset-password-action-error"
+                message={validationError}
+                variant={classifyError(validationError).category === 'network' ? 'network' : 'error'}
+                onDismiss={() => setValidationError(null)}
+              />
+            )}
 
             <Button
               type="submit"

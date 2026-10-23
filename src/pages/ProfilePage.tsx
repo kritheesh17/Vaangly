@@ -18,6 +18,8 @@ import { UserRole } from '../types/database';
 import { Language } from '../lib/i18n';
 import { useLanguage } from '../context/LanguageContext';
 import { isValidIndianMobile, formatPhoneDisplay } from '../lib/phoneUtils';
+import { ActionErrorBanner } from '../components/ui/ActionErrorBanner';
+import { scrollAndFocusError, classifyError } from '../lib/errorUxUtils';
 import './ProfilePage.css';
 
 export const ProfilePage: React.FC = () => {
@@ -81,10 +83,12 @@ export const ProfilePage: React.FC = () => {
     setContactFeedback(null);
     if (!contactName.trim()) {
       setContactFeedback({ type: 'error', message: 'Name cannot be empty.' });
+      scrollAndFocusError('profile-edit-name', { focus: true });
       return;
     }
     if (!contactPhone.trim() || !isValidIndianMobile(contactPhone.trim())) {
-      setContactFeedback({ type: 'error', message: 'Please enter a valid 10-digit Indian phone number.' });
+      setContactFeedback({ type: 'error', message: 'Please enter a valid 10-digit Indian mobile number.' });
+      scrollAndFocusError('profile-edit-phone', { focus: true });
       return;
     }
     setIsSavingContact(true);
@@ -99,9 +103,11 @@ export const ProfilePage: React.FC = () => {
         setIsEditingContact(false);
       } else {
         setContactFeedback({ type: 'error', message: res.error || 'Failed to save contact details.' });
+        scrollAndFocusError('profile-contact-action-error', { focus: true });
       }
     } catch (err: unknown) {
       setContactFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Error saving profile' });
+      scrollAndFocusError('profile-contact-action-error', { focus: true });
     } finally {
       setIsSavingContact(false);
     }
@@ -112,6 +118,7 @@ export const ProfilePage: React.FC = () => {
     setPasswordFeedback(null);
     if (!newPassword || newPassword.length < 6) {
       setPasswordFeedback({ type: 'error', message: 'Password must be at least 6 characters long.' });
+      scrollAndFocusError('profile-new-password', { focus: true });
       return;
     }
     setIsUpdatingPassword(true);
@@ -122,10 +129,12 @@ export const ProfilePage: React.FC = () => {
         setNewPassword('');
       } else {
         setPasswordFeedback({ type: 'error', message: res.error || 'Failed to update password.' });
+        scrollAndFocusError('profile-password-action-error', { focus: true });
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error updating password';
       setPasswordFeedback({ type: 'error', message: msg });
+      scrollAndFocusError('profile-password-action-error', { focus: true });
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -204,7 +213,7 @@ export const ProfilePage: React.FC = () => {
         </div>
 
         <Card variant="elevated" padding="lg" className="vaango-profile-card">
-          {contactFeedback && (
+          {contactFeedback && !isEditingContact && (
             <div
               style={{
                 display: 'flex',
@@ -231,7 +240,10 @@ export const ProfilePage: React.FC = () => {
                   type="text"
                   required
                   value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
+                  onChange={(e) => {
+                    setContactName(e.target.value);
+                    if (contactFeedback) setContactFeedback(null);
+                  }}
                   placeholder="Your Full Name"
                 />
               </FormField>
@@ -242,7 +254,10 @@ export const ProfilePage: React.FC = () => {
                   type="tel"
                   required
                   value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
+                  onChange={(e) => {
+                    setContactPhone(e.target.value);
+                    if (contactFeedback) setContactFeedback(null);
+                  }}
                   placeholder="9876543210"
                 />
               </FormField>
@@ -252,10 +267,22 @@ export const ProfilePage: React.FC = () => {
                   id="profile-edit-address"
                   type="text"
                   value={contactAddress}
-                  onChange={(e) => setContactAddress(e.target.value)}
+                  onChange={(e) => {
+                    setContactAddress(e.target.value);
+                    if (contactFeedback) setContactFeedback(null);
+                  }}
                   placeholder="House / Street / Landmark"
                 />
               </FormField>
+
+              {contactFeedback && contactFeedback.type === 'error' && (
+                <ActionErrorBanner
+                  id="profile-contact-action-error"
+                  message={contactFeedback.message}
+                  variant={classifyError(contactFeedback.message).category === 'network' ? 'network' : 'error'}
+                  onDismiss={() => setContactFeedback(null)}
+                />
+              )}
 
               <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
                 <Button type="submit" variant="primary" size="sm" isLoading={isSavingContact} leftIcon={<Save size={16} />}>
@@ -403,31 +430,15 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           <form onSubmit={handleUpdatePassword} style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            {passwordFeedback && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: 'var(--font-size-xs)',
-                  backgroundColor: passwordFeedback.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                  color: passwordFeedback.type === 'success' ? 'var(--color-success, #16a34a)' : 'var(--color-error, #dc2626)',
-                  border: `1px solid ${passwordFeedback.type === 'success' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
-                }}
-              >
-                {passwordFeedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-                <span>{passwordFeedback.message}</span>
-              </div>
-            )}
-
             <div>
               <Input
                 id="profile-new-password"
                 type={showPassword ? 'text' : 'password'}
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  if (passwordFeedback) setPasswordFeedback(null);
+                }}
                 placeholder="Enter new password (min 6 characters)"
                 leftIcon={<KeyRound size={18} />}
                 disabled={isUpdatingPassword}
@@ -443,6 +454,15 @@ export const ProfilePage: React.FC = () => {
                 disabled={isUpdatingPassword}
               />
             </div>
+
+            {passwordFeedback && (
+              <ActionErrorBanner
+                id="profile-password-action-error"
+                message={passwordFeedback.message}
+                variant={passwordFeedback.type === 'success' ? 'info' : classifyError(passwordFeedback.message).category === 'network' ? 'network' : 'error'}
+                onDismiss={() => setPasswordFeedback(null)}
+              />
+            )}
 
             <Button
               type="submit"

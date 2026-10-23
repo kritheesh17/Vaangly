@@ -31,6 +31,8 @@ import { Button } from '../../components/ui/Button';
 import { StorefrontMapPreview } from '../../components/gis/StorefrontMapPreview';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { ActionErrorBanner } from '../../components/ui/ActionErrorBanner';
+import { scrollAndFocusError } from '../../lib/errorUxUtils';
 import './AdminApplicationDetailPage.css';
 
 export const AdminApplicationDetailPage: React.FC = () => {
@@ -47,6 +49,7 @@ export const AdminApplicationDetailPage: React.FC = () => {
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [approvalNotes, setApprovalNotes] = useState('Storefront verified and identity approved.');
   const [isApproving, setIsApproving] = useState(false);
+  const [approveError, setApproveError] = useState<string | null>(null);
 
   // Rejection Modal State
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
@@ -94,18 +97,23 @@ export const AdminApplicationDetailPage: React.FC = () => {
   const handleApprove = async () => {
     if (!applicationId || !user) return;
     setIsApproving(true);
+    setApproveError(null);
     try {
       const res = await approveShopApplication(applicationId, user.id, approvalNotes);
-      setApproveModalOpen(false);
 
       if (res.success) {
+        setApproveModalOpen(false);
         success('Shop Application Approved! Shop is created with "Catalogue Incomplete" status.');
         loadDetail();
       } else {
-        toastError(res.error || 'Failed to approve application.');
+        const errorMsg = res.error || 'Failed to approve application.';
+        setApproveError(errorMsg);
+        toastError(errorMsg);
       }
     } catch (err: unknown) {
-      toastError(err instanceof Error ? err.message : 'Error approving application.');
+      const errorMsg = err instanceof Error ? err.message : 'Error approving application.';
+      setApproveError(errorMsg);
+      toastError(errorMsg);
     } finally {
       setIsApproving(false);
     }
@@ -115,19 +123,22 @@ export const AdminApplicationDetailPage: React.FC = () => {
     if (!applicationId || !user) return;
     if (!rejectionReason.trim()) {
       setRejectError('Please provide a mandatory reason for rejecting this application.');
+      scrollAndFocusError('rejection-reason');
       return;
     }
 
     setIsRejecting(true);
+    setRejectError(null);
     try {
       const res = await rejectShopApplication(applicationId, user.id, rejectionReason.trim());
 
       if (res.success) {
-        success('Application marked as Rejected with mandatory audit note.');
         setRejectModalOpen(false);
+        success('Application marked as Rejected with mandatory audit note.');
         loadDetail();
       } else {
-        setRejectError(res.error || 'Failed to reject application.');
+        const errorMsg = res.error || 'Failed to reject application.';
+        setRejectError(errorMsg);
       }
     } catch (err: unknown) {
       setRejectError(err instanceof Error ? err.message : 'Error rejecting application.');
@@ -224,7 +235,10 @@ export const AdminApplicationDetailPage: React.FC = () => {
             </Button>
             <Button
               variant="primary"
-              onClick={() => setApproveModalOpen(true)}
+              onClick={() => {
+                setApproveError(null);
+                setApproveModalOpen(true);
+              }}
               leftIcon={<CheckCircle2 size={16} />}
             >
               Approve Storefront
@@ -558,10 +572,21 @@ export const AdminApplicationDetailPage: React.FC = () => {
               id="approval-notes"
               className="vaango-input"
               value={approvalNotes}
-              onChange={(e) => setApprovalNotes(e.target.value)}
+              onChange={(e) => {
+                setApprovalNotes(e.target.value);
+                if (approveError) setApproveError(null);
+              }}
               placeholder="e.g. Identity and storefront verified."
             />
           </div>
+
+          {approveError && (
+            <ActionErrorBanner
+              message={approveError}
+              variant="error"
+              onDismiss={() => setApproveError(null)}
+            />
+          )}
 
           <div className="vaango-modal-actions">
             <Button variant="outline" onClick={() => setApproveModalOpen(false)}>
@@ -586,13 +611,6 @@ export const AdminApplicationDetailPage: React.FC = () => {
             Please state why this application cannot be approved. This reason will be recorded in the audit log and communicated to the merchant applicant.
           </p>
 
-          {rejectError && (
-            <div className="vaango-form-error-banner">
-              <AlertCircle size={16} />
-              <span>{rejectError}</span>
-            </div>
-          )}
-
           <div className="vaango-form-group">
             <label htmlFor="rejection-reason">Mandatory Rejection Reason *</label>
             <textarea
@@ -600,11 +618,22 @@ export const AdminApplicationDetailPage: React.FC = () => {
               className="vaango-input"
               rows={3}
               value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
+              onChange={(e) => {
+                setRejectionReason(e.target.value);
+                if (rejectError) setRejectError(null);
+              }}
               placeholder="e.g. Storefront photo was unclear and the uploaded trade identity document could not be verified."
               required
             />
           </div>
+
+          {rejectError && (
+            <ActionErrorBanner
+              message={rejectError}
+              variant="error"
+              onDismiss={() => setRejectError(null)}
+            />
+          )}
 
           <div className="vaango-modal-actions">
             <Button variant="outline" onClick={() => setRejectModalOpen(false)}>
