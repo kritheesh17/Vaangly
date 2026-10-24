@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   MapPin,
   Plus,
   Edit2,
-  AlertCircle,
   Store,
   ArrowLeft,
   Sparkles,
@@ -20,7 +19,12 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { ActionErrorBanner } from '../../components/ui/ActionErrorBanner';
+import { SearchFilterBar } from '../../components/common/SearchFilterBar';
+import { PaginationControls } from '../../components/common/PaginationControls';
+import { CopyableText } from '../../components/common/CopyableText';
 import { useLanguage } from '../../context/LanguageContext';
+import { useDebounce } from '../../hooks/useDebounce';
 import './AdminLocationsPage.css';
 
 export const AdminLocationsPage: React.FC = () => {
@@ -31,6 +35,15 @@ export const AdminLocationsPage: React.FC = () => {
 
   const [locations, setLocations] = useState<AdminLocationWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Search, Filter, Sort & Pagination State
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 250);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [launchFilter, setLaunchFilter] = useState<'all' | 'launch_only'>('all');
+  const [sortBy, setSortBy] = useState<'name_asc' | 'name_desc' | 'shops_desc' | 'recent'>('name_asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modal State: Add / Edit Location
   const [modalOpen, setModalOpen] = useState(false);
@@ -62,6 +75,65 @@ export const AdminLocationsPage: React.FC = () => {
   useEffect(() => {
     loadLocations();
   }, []);
+
+  // Filter and sort locations
+  const filteredLocations = useMemo(() => {
+    return locations.filter((loc) => {
+      // Status filter
+      if (statusFilter === 'active' && !loc.is_active) return false;
+      if (statusFilter === 'inactive' && loc.is_active) return false;
+
+      // Launch town filter
+      if (launchFilter === 'launch_only' && !loc.is_launch_town) return false;
+
+      // Keyword search over name, state, pincode, or ID
+      if (debouncedSearch.trim()) {
+        const q = debouncedSearch.toLowerCase().trim();
+        const matchName = loc.name.toLowerCase().includes(q);
+        const matchState = loc.state.toLowerCase().includes(q);
+        const matchPincode = loc.pincode.toLowerCase().includes(q);
+        const matchId = loc.id.toLowerCase().includes(q);
+        return matchName || matchState || matchPincode || matchId;
+      }
+
+      return true;
+    });
+  }, [locations, statusFilter, launchFilter, debouncedSearch]);
+
+  const sortedLocations = useMemo(() => {
+    const list = [...filteredLocations];
+    list.sort((a, b) => {
+      if (sortBy === 'name_asc') return a.name.localeCompare(b.name);
+      if (sortBy === 'name_desc') return b.name.localeCompare(a.name);
+      if (sortBy === 'shops_desc') return b.shop_count - a.shop_count;
+      if (sortBy === 'recent') {
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return timeB - timeA;
+      }
+      return 0;
+    });
+    return list;
+  }, [filteredLocations, sortBy]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, statusFilter, launchFilter, sortBy]);
+
+  const pagedLocations = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedLocations.slice(start, start + pageSize);
+  }, [sortedLocations, currentPage, pageSize]);
+
+  const isFiltered = Boolean(searchQuery.trim() || statusFilter !== 'all' || launchFilter !== 'all');
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setLaunchFilter('all');
+    setSortBy('name_asc');
+  };
 
   const handleOpenAdd = () => {
     setEditingLoc(null);
@@ -120,8 +192,9 @@ export const AdminLocationsPage: React.FC = () => {
         toastError(res.error || t('failedSaveLocation'));
       }
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : t('genericError'));
-      toastError(err instanceof Error ? err.message : t('genericError'));
+      const msg = err instanceof Error ? err.message : t('genericError');
+      setFormError(msg);
+      toastError(msg);
     } finally {
       setIsSaving(false);
     }
@@ -183,6 +256,51 @@ export const AdminLocationsPage: React.FC = () => {
         </Button>
       </div>
 
+      {/* Information Retrieval Bar */}
+      <SearchFilterBar
+        id="admin-locations-search"
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        placeholder="Search by hometown, state, PIN code, or ID..."
+        totalCount={locations.length}
+        filteredCount={filteredLocations.length}
+        isFiltered={isFiltered}
+        onResetFilters={handleResetFilters}
+      >
+        <select
+          className="vaango-admin-select"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as any)}
+          aria-label="Filter by discovery status"
+        >
+          <option value="all">Status: All</option>
+          <option value="active">Active Towns Only</option>
+          <option value="inactive">Deactivated</option>
+        </select>
+
+        <select
+          className="vaango-admin-select"
+          value={launchFilter}
+          onChange={(e) => setLaunchFilter(e.target.value as any)}
+          aria-label="Filter by launch tier"
+        >
+          <option value="all">Tier: All Locations</option>
+          <option value="launch_only">Flagship Launch Towns Only</option>
+        </select>
+
+        <select
+          className="vaango-admin-select"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as any)}
+          aria-label="Sort locations"
+        >
+          <option value="name_asc">Sort: Name (A – Z)</option>
+          <option value="name_desc">Sort: Name (Z – A)</option>
+          <option value="shops_desc">Sort: Most Shops</option>
+          <option value="recent">Sort: Recently Added</option>
+        </select>
+      </SearchFilterBar>
+
       {/* Locations Directory Table */}
       {isLoading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -190,108 +308,131 @@ export const AdminLocationsPage: React.FC = () => {
           <Skeleton height={60} />
           <Skeleton height={60} />
         </div>
-      ) : (
-        <Card variant="default" padding="none" className="vaango-admin-locs__table-card">
-          <div className="vaango-admin-locs__table-responsive">
-            <table className="vaango-admin-table" aria-label="Hometown locations list">
-              <thead>
-                <tr>
-                  <th>Location Name</th>
-                  <th>State</th>
-                  <th>PIN Code</th>
-                  <th>Associated Shops</th>
-                  <th>Launch Town</th>
-                  <th>Discovery Status</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {locations.map((loc) => (
-                  <tr key={loc.id} className={!loc.is_active ? 'vaango-admin-tr--inactive' : ''}>
-                    <td>
-                      <div className="vaango-admin-loc-name">
-                        <MapPin size={16} className="vaango-admin-loc-icon" />
-                        <strong>{loc.name}</strong>
-                      </div>
-                    </td>
-                    <td>{loc.state}</td>
-                    <td><code>{loc.pincode}</code></td>
-                    <td>
-                      <span className="vaango-admin-shop-count">
-                        <Store size={14} /> {loc.shop_count} shop{loc.shop_count !== 1 ? 's' : ''}
-                        <small>({loc.active_shop_count} live)</small>
-                      </span>
-                    </td>
-                    <td>
-                      {loc.is_launch_town ? (
-                        <Badge variant="primary" size="sm">
-                          <Sparkles size={11} style={{ marginRight: 4 }} /> Hometown #1
-                        </Badge>
-                      ) : (
-                        <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Expansion</span>
-                      )}
-                    </td>
-                    <td>
-                      {loc.is_active ? (
-                        <Badge variant="success" size="sm" withDot>
-                          Active
-                        </Badge>
-                      ) : (
-                        <Badge variant="neutral" size="sm">
-                          Deactivated
-                        </Badge>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div className="vaango-admin-actions-cell">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenEdit(loc)}
-                          title="Edit Location Details"
-                        >
-                          <Edit2 size={14} />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handlePromptToggle(loc)}
-                          className={loc.is_active ? 'vaango-btn--deactivate' : 'vaango-btn--reactivate'}
-                        >
-                          {loc.is_active ? 'Deactivate' : 'Activate'}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      ) : sortedLocations.length === 0 ? (
+        <Card variant="outlined" padding="lg" style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>
+          {isFiltered ? (
+            <div>
+              <p style={{ margin: '0 0 12px 0' }}>No locations found matching your search criteria.</p>
+              <Button variant="outline" size="sm" onClick={handleResetFilters}>
+                Clear Search & Filters
+              </Button>
+            </div>
+          ) : (
+            <p style={{ margin: 0 }}>No locations registered yet.</p>
+          )}
         </Card>
+      ) : (
+        <>
+          <Card variant="default" padding="none" className="vaango-admin-locs__table-card">
+            <div className="vaango-admin-locs__table-responsive">
+              <table className="vaango-admin-table" aria-label="Hometown locations list">
+                <thead>
+                  <tr>
+                    <th>Location Name</th>
+                    <th>Location ID</th>
+                    <th>State</th>
+                    <th>PIN Code</th>
+                    <th>Associated Shops</th>
+                    <th>Launch Town</th>
+                    <th>Discovery Status</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedLocations.map((loc) => (
+                    <tr key={loc.id} className={!loc.is_active ? 'vaango-admin-tr--inactive' : ''}>
+                      <td>
+                        <div className="vaango-admin-loc-name">
+                          <MapPin size={16} className="vaango-admin-loc-icon" />
+                          <strong>{loc.name}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        <CopyableText text={loc.id} truncate label="Copy Location UUID" />
+                      </td>
+                      <td>{loc.state}</td>
+                      <td><code>{loc.pincode}</code></td>
+                      <td>
+                        <span className="vaango-admin-shop-count">
+                          <Store size={14} /> {loc.shop_count} shop{loc.shop_count !== 1 ? 's' : ''}
+                          <small>({loc.active_shop_count} live)</small>
+                        </span>
+                      </td>
+                      <td>
+                        {loc.is_launch_town ? (
+                          <Badge variant="primary" size="sm">
+                            <Sparkles size={11} style={{ marginRight: 4 }} /> Hometown #1
+                          </Badge>
+                        ) : (
+                          <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Expansion</span>
+                        )}
+                      </td>
+                      <td>
+                        {loc.is_active ? (
+                          <Badge variant="success" size="sm" withDot>
+                            Active
+                          </Badge>
+                        ) : (
+                          <Badge variant="neutral" size="sm">
+                            Deactivated
+                          </Badge>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="vaango-admin-actions-cell">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenEdit(loc)}
+                            title="Edit Location Details"
+                          >
+                            <Edit2 size={14} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePromptToggle(loc)}
+                            className={loc.is_active ? 'vaango-btn--deactivate' : 'vaango-btn--reactivate'}
+                          >
+                            {loc.is_active ? 'Deactivate' : 'Activate'}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          <PaginationControls
+            currentPage={currentPage}
+            totalItems={sortedLocations.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+          />
+        </>
       )}
 
-      {/* Add / Edit Location Modal */}
+      {/* Add / Edit Location Modal with Proximity Error Banner & Preserved Inputs */}
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingLoc ? `Edit ${editingLoc.name}` : 'Register New Hometown Location'}
         maxWidth="md"
       >
-        <form onSubmit={handleSaveLocation} className="vaango-loc-form">
-          {formError && (
-            <div className="vaango-form-error-banner">
-              <AlertCircle size={16} />
-              <span>{formError}</span>
-            </div>
-          )}
-
+        <form onSubmit={handleSaveLocation} className="vaango-loc-form" noValidate>
           <div className="vaango-form-group">
             <label htmlFor="loc-name">Hometown / City Name *</label>
             <Input
               id="loc-name"
               placeholder="e.g. Sathyamangalam"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (formError) setFormError(null);
+              }}
               required
             />
           </div>
@@ -302,7 +443,10 @@ export const AdminLocationsPage: React.FC = () => {
               <Input
                 id="loc-state"
                 value={stateName}
-                onChange={(e) => setStateName(e.target.value)}
+                onChange={(e) => {
+                  setStateName(e.target.value);
+                  if (formError) setFormError(null);
+                }}
                 required
               />
             </div>
@@ -314,7 +458,10 @@ export const AdminLocationsPage: React.FC = () => {
                 placeholder="638402"
                 maxLength={6}
                 value={pincode}
-                onChange={(e) => setPincode(e.target.value)}
+                onChange={(e) => {
+                  setPincode(e.target.value);
+                  if (formError) setFormError(null);
+                }}
                 required
               />
             </div>
@@ -329,11 +476,32 @@ export const AdminLocationsPage: React.FC = () => {
             <span>Mark as Flagship Hometown Launch Zone</span>
           </label>
 
+          {/* Action-proximate error banner placed directly above submit action */}
+          {formError && (
+            <ActionErrorBanner
+              id="admin-location-form-error"
+              message={formError}
+              variant={
+                formError.toLowerCase().includes('network') || formError.toLowerCase().includes('fetch')
+                  ? 'network'
+                  : 'error'
+              }
+              action={{
+                label: 'Retry Save',
+                onClick: () => {
+                  const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
+                  void handleSaveLocation(syntheticEvent);
+                },
+              }}
+              onDismiss={() => setFormError(null)}
+            />
+          )}
+
           <div className="vaango-modal-actions">
             <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" isLoading={isSaving}>
+            <Button type="submit" variant="primary" isLoading={isSaving} id="btn-save-location">
               {editingLoc ? 'Save Changes' : 'Create Location'}
             </Button>
           </div>

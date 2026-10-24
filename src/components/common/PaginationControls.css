@@ -1,0 +1,111 @@
+.vaango-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  font-size: 0.88rem;
+  color: var(--color-text-muted, #64748b);
+  margin-top: 14px;
+}
+
+.vaango-pagination__range strong {
+  color: var(--color-text-main, #0f172a);
+}
+
+.vaango-pagination__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.vaango-pagination__size-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vaango-pagination__size-label {
+  font-size: 0.82rem;
+  color: var(--color-text-muted, #64748b);
+}
+
+.vaango-pagination__select {
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text-main, #0f172a);
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.vaango-pagination__buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vaango-pagination__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text-main, #0f172a);
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vaango-pagination__btn:hover:not(:disabled) {
+  background: var(--color-surface-hover, #f8fafc);
+  border-color: var(--color-primary, #059669);
+  color: var(--color-primary, #059669);
+}
+
+.vaango-pagination__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: var(--color-border, #e2e8f0);
+}
+
+.vaango-pagination__page-indicator {
+  font-size: 0.84rem;
+  padding: 0 4px;
+}
+
+.vaango-pagination__page-indicator strong {
+  color: var(--color-text-main, #0f172a);
+}
+
+@media (max-width: 600px) {
+  .vaango-pagination {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .vaango-pagination__range {
+    text-align: center;
+  }
+
+  .vaango-pagination__actions {
+    justify-content: space-between;
+  }
+
+  .vaango-pagination__btn-text {
+    display: none;
+  }
+}

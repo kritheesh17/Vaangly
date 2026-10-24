@@ -19,6 +19,7 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatPickupTime } from '../../lib/orderPickupUtils';
+import { CopyableText } from '../common/CopyableText';
 import './RequestCard.css';
 
 interface DecodedNotes {
@@ -141,7 +142,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
       {/* Header: Reference code, time, status */}
       <div className="vaango-shop-req-card__header">
         <div className="vaango-shop-req-card__ref-wrap">
-          <span className="vaango-shop-req-card__ref">{request.reference_code}</span>
+          <CopyableText text={request.reference_code} label="Order reference code" />
           <span className="vaango-shop-req-card__time">
             <Clock size={13} />
             {formattedTime()}

@@ -4,74 +4,26 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 describe('Vaango Focused UI Functionality & Regression Verification', () => {
-  const appShellContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/components/layout/AppShell.tsx'),
-    'utf-8'
-  );
-  const authContextContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/context/AuthContext.tsx'),
-    'utf-8'
-  );
-  const moreMenuModalContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/components/layout/MoreMenuModal.tsx'),
-    'utf-8'
-  );
-  const bottomNavContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/components/layout/BottomNav.tsx'),
-    'utf-8'
-  );
-  const homePageContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/pages/HomePage.tsx'),
-    'utf-8'
-  );
-  const homePageCss = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/pages/HomePage.css'),
-    'utf-8'
-  );
-  const gateContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/components/permissions/NotificationPermissionGate.tsx'),
-    'utf-8'
-  );
-  const shopDetailContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/pages/ShopDetailPage.tsx'),
-    'utf-8'
-  );
-  const shopCardContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/components/customer/ShopCard.tsx'),
-    'utf-8'
-  );
-  const productModalContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/components/customer/ProductDetailModal.tsx'),
-    'utf-8'
-  );
-  const shopkeeperProfileContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/pages/shopkeeper/ShopkeeperProfilePage.tsx'),
-    'utf-8'
-  );
-  const cartPageContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/pages/CartPage.tsx'),
-    'utf-8'
-  );
-  const requestDetailPageContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/pages/RequestDetailPage.tsx'),
-    'utf-8'
-  );
-  const serviceModalContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/components/shopkeeper/ServiceFormModal.tsx'),
-    'utf-8'
-  );
-  const scheduleConfigContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/components/shopkeeper/AppointmentScheduleConfig.tsx'),
-    'utf-8'
-  );
-  const appointmentApiContent = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/lib/appointmentServiceApi.ts'),
-    'utf-8'
-  );
-  const flexibleSlotsMigration = fs.readFileSync(
-    path.resolve(process.cwd(), 'supabase/migrations/20261002000067_flexible_appointment_slots.sql'),
-    'utf-8'
-  );
+  const readNormalized = (relPath: string) =>
+    fs.readFileSync(path.resolve(process.cwd(), relPath), 'utf-8').replace(/\r\n/g, '\n');
+
+  const appShellContent = readNormalized('src/components/layout/AppShell.tsx');
+  const authContextContent = readNormalized('src/context/AuthContext.tsx');
+  const moreMenuModalContent = readNormalized('src/components/layout/MoreMenuModal.tsx');
+  const bottomNavContent = readNormalized('src/components/layout/BottomNav.tsx');
+  const homePageContent = readNormalized('src/pages/HomePage.tsx');
+  const homePageCss = readNormalized('src/pages/HomePage.css');
+  const gateContent = readNormalized('src/components/permissions/NotificationPermissionGate.tsx');
+  const shopDetailContent = readNormalized('src/pages/ShopDetailPage.tsx');
+  const shopCardContent = readNormalized('src/components/customer/ShopCard.tsx');
+  const productModalContent = readNormalized('src/components/customer/ProductDetailModal.tsx');
+  const shopkeeperProfileContent = readNormalized('src/pages/shopkeeper/ShopkeeperProfilePage.tsx');
+  const cartPageContent = readNormalized('src/pages/CartPage.tsx');
+  const requestDetailPageContent = readNormalized('src/pages/RequestDetailPage.tsx');
+  const serviceModalContent = readNormalized('src/components/shopkeeper/ServiceFormModal.tsx');
+  const scheduleConfigContent = readNormalized('src/components/shopkeeper/AppointmentScheduleConfig.tsx');
+  const appointmentApiContent = readNormalized('src/lib/appointmentServiceApi.ts');
+  const flexibleSlotsMigration = readNormalized('supabase/migrations/20261002000067_flexible_appointment_slots.sql');
 
   // =========================================================================
   // ISSUE 1: Home Page Promotional Carousel

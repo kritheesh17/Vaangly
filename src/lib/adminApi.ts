@@ -54,24 +54,49 @@ export function extractErrorMessage(err: unknown, defaultMsg = 'An unexpected er
 // INITIAL SEED DATA HELPERS FOR OFFLINE / PREVIEW MODE
 // -------------------------------------------------------------
 
+const memoryStore: Record<string, string> = {};
+
+function safeGetStorage(key: string): string | null {
+  try {
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+      return window.localStorage.getItem(key);
+    }
+    return memoryStore[key] ?? null;
+  } catch {
+    return memoryStore[key] ?? null;
+  }
+}
+
+function safeSetStorage(key: string, value: string): void {
+  try {
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+      window.localStorage.setItem(key, value);
+      return;
+    }
+    memoryStore[key] = value;
+  } catch {
+    memoryStore[key] = value;
+  }
+}
+
 function getStoredLocations(): Location[] {
   try {
-    const raw = localStorage.getItem(ADMIN_LOCATIONS_KEY);
+    const raw = safeGetStorage(ADMIN_LOCATIONS_KEY);
     if (raw) return JSON.parse(raw);
   } catch (e) {
     console.error('Error reading admin locations:', e);
   }
-  localStorage.setItem(ADMIN_LOCATIONS_KEY, JSON.stringify(DEFAULT_LOCATIONS));
+  safeSetStorage(ADMIN_LOCATIONS_KEY, JSON.stringify(DEFAULT_LOCATIONS));
   return DEFAULT_LOCATIONS;
 }
 
 function saveStoredLocations(locs: Location[]) {
-  localStorage.setItem(ADMIN_LOCATIONS_KEY, JSON.stringify(locs));
+  safeSetStorage(ADMIN_LOCATIONS_KEY, JSON.stringify(locs));
 }
 
 function getStoredSubscriptions(): ShopSubscription[] {
   try {
-    const raw = localStorage.getItem(ADMIN_SUBSCRIPTIONS_KEY);
+    const raw = safeGetStorage(ADMIN_SUBSCRIPTIONS_KEY);
     if (raw) return JSON.parse(raw);
   } catch (e) {
     console.error('Error reading admin subscriptions:', e);
@@ -103,17 +128,17 @@ function getStoredSubscriptions(): ShopSubscription[] {
     };
   });
 
-  localStorage.setItem(ADMIN_SUBSCRIPTIONS_KEY, JSON.stringify(initial));
+  safeSetStorage(ADMIN_SUBSCRIPTIONS_KEY, JSON.stringify(initial));
   return initial;
 }
 
 function saveStoredSubscriptions(subs: ShopSubscription[]) {
-  localStorage.setItem(ADMIN_SUBSCRIPTIONS_KEY, JSON.stringify(subs));
+  safeSetStorage(ADMIN_SUBSCRIPTIONS_KEY, JSON.stringify(subs));
 }
 
 function getStoredPayments(): SubscriptionPayment[] {
   try {
-    const raw = localStorage.getItem(ADMIN_PAYMENTS_KEY);
+    const raw = safeGetStorage(ADMIN_PAYMENTS_KEY);
     if (raw) return JSON.parse(raw);
   } catch (e) {
     console.error('Error reading admin payments:', e);
@@ -122,12 +147,12 @@ function getStoredPayments(): SubscriptionPayment[] {
 }
 
 function saveStoredPayments(payments: SubscriptionPayment[]) {
-  localStorage.setItem(ADMIN_PAYMENTS_KEY, JSON.stringify(payments));
+  safeSetStorage(ADMIN_PAYMENTS_KEY, JSON.stringify(payments));
 }
 
 function getStoredAuditLogs(): AdminAuditLog[] {
   try {
-    const raw = localStorage.getItem(ADMIN_AUDIT_LOGS_KEY);
+    const raw = safeGetStorage(ADMIN_AUDIT_LOGS_KEY);
     if (raw) return JSON.parse(raw);
   } catch (e) {
     console.error('Error reading audit logs:', e);
@@ -136,7 +161,7 @@ function getStoredAuditLogs(): AdminAuditLog[] {
 }
 
 function saveStoredAuditLogs(logs: AdminAuditLog[]) {
-  localStorage.setItem(ADMIN_AUDIT_LOGS_KEY, JSON.stringify(logs));
+  safeSetStorage(ADMIN_AUDIT_LOGS_KEY, JSON.stringify(logs));
 }
 
 export async function logAdminAudit(
@@ -222,70 +247,149 @@ export async function saveLocation(
   locData: Partial<Location>,
   adminId: string
 ): Promise<{ success: boolean; location?: Location; error?: string }> {
-  if (!locData.name?.trim()) {
+  const trimmedName = locData.name?.trim();
+  const trimmedState = locData.state?.trim();
+  const trimmedPincode = locData.pincode?.trim();
+
+  if (!trimmedName) {
     return { success: false, error: 'Location hometown name is required.' };
   }
-  if (!locData.state?.trim()) {
+  if (!trimmedState) {
     return { success: false, error: 'State is required.' };
   }
-  if (!locData.pincode?.trim() || !/^\d{6}$/.test(locData.pincode.trim())) {
+  if (!trimmedPincode || !/^\d{6}$/.test(trimmedPincode)) {
     return { success: false, error: 'Valid 6-digit PIN code is required.' };
   }
 
   const isNew = !locData.id;
-  const locationId = locData.id || `loc-${Date.now()}`;
+
+  // Generate URL-friendly slug
+  const baseSlug = trimmedName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
+  if (isSupabaseConfigured) {
+    try {
+      if (isNew) {
+        // IMPORTANT: PostgreSQL public.locations.id is UUID DEFAULT uuid_generate_v4().
+        // Do NOT pass a non-UUID string like `loc-${Date.now()}` which causes PostgreSQL error 22P02.
+        // Omit id from insert payload so Supabase / Postgres defaults to a valid UUID.
+        const insertPayload: Record<string, any> = {
+          name: trimmedName,
+          state: trimmedState,
+          pincode: trimmedPincode,
+          is_active: locData.is_active !== undefined ? locData.is_active : true,
+          is_launch_town: locData.is_launch_town || false,
+        };
+        if (baseSlug) {
+          insertPayload.slug = baseSlug;
+        }
+
+        const { data, error } = await supabase
+          .from('locations')
+          .insert(insertPayload)
+          .select()
+          .single();
+
+        if (error) throw error;
+        await logAdminAudit(adminId, 'location_created', 'location', data.id, {
+          name: data.name,
+          pincode: data.pincode,
+          is_launch_town: data.is_launch_town,
+        });
+        return { success: true, location: data };
+      } else {
+        const updatePayload: Record<string, any> = {
+          name: trimmedName,
+          state: trimmedState,
+          pincode: trimmedPincode,
+          is_active: locData.is_active !== undefined ? locData.is_active : true,
+          is_launch_town: locData.is_launch_town || false,
+        };
+        if (baseSlug) {
+          updatePayload.slug = baseSlug;
+        }
+
+        const { data, error } = await supabase
+          .from('locations')
+          .update(updatePayload)
+          .eq('id', locData.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        await logAdminAudit(adminId, 'location_updated', 'location', data.id, {
+          name: data.name,
+          pincode: data.pincode,
+          is_launch_town: data.is_launch_town,
+        });
+        return { success: true, location: data };
+      }
+    } catch (err: any) {
+      let msg = 'Failed to save location in Supabase.';
+      if (err) {
+        if (typeof err.message === 'string' && err.message.trim()) {
+          msg = err.message;
+        } else if (typeof err.details === 'string' && err.details.trim()) {
+          msg = err.details;
+        } else if (err instanceof Error) {
+          msg = err.message;
+        }
+      }
+      // Check for common Postgres constraint errors
+      if (
+        msg.includes('ux_locations_slug') ||
+        msg.includes('duplicate key') ||
+        msg.toLowerCase().includes('already exists')
+      ) {
+        msg = `A location with the name "${trimmedName}" already exists. Please choose a distinct hometown name.`;
+      } else if (msg.includes('22P02') || msg.toLowerCase().includes('invalid input syntax for type uuid')) {
+        msg = 'Invalid location reference syntax. Please refresh and try again.';
+      } else if (msg.toLowerCase().includes('row-level security') || msg.toLowerCase().includes('permission denied')) {
+        msg = 'Administrator authorization required to modify platform operating locations.';
+      }
+      return { success: false, error: msg };
+    }
+  }
+
+  // Offline / Demo fallback
+  // Generate a valid UUID v4 for the demo store so client code expecting UUID format remains compatible
+  const fallbackId =
+    locData.id ||
+    (typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `00000000-0000-4000-8000-${Date.now().toString(16).padStart(12, '0')}`);
 
   const locationToSave: Location = {
-    id: locationId,
-    name: locData.name.trim(),
-    state: locData.state.trim(),
-    pincode: locData.pincode.trim(),
+    id: fallbackId,
+    name: trimmedName,
+    state: trimmedState,
+    pincode: trimmedPincode,
     is_active: locData.is_active !== undefined ? locData.is_active : true,
     is_launch_town: locData.is_launch_town || false,
     created_at: locData.created_at || new Date().toISOString(),
   };
 
-  if (isSupabaseConfigured) {
-    try {
-      if (isNew) {
-        const { data, error } = await supabase.from('locations').insert(locationToSave).select().single();
-        if (error) throw error;
-        await logAdminAudit(adminId, 'location_created', 'location', data.id, { name: data.name });
-        return { success: true, location: data };
-      } else {
-        const { data, error } = await supabase
-          .from('locations')
-          .update({
-            name: locationToSave.name,
-            state: locationToSave.state,
-            pincode: locationToSave.pincode,
-            is_active: locationToSave.is_active,
-            is_launch_town: locationToSave.is_launch_town,
-          })
-          .eq('id', locationId)
-          .select()
-          .single();
-        if (error) throw error;
-        await logAdminAudit(adminId, 'location_updated', 'location', data.id, { name: data.name });
-        return { success: true, location: data };
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to save location in Supabase.';
-      return { success: false, error: msg };
-    }
-  }
-
   const locs = getStoredLocations();
-  const existingIdx = locs.findIndex((l) => l.id === locationId);
+  const existingIdx = locs.findIndex((l) => l.id === locData.id);
 
   if (existingIdx >= 0) {
     locs[existingIdx] = locationToSave;
     saveStoredLocations(locs);
-    await logAdminAudit(adminId, 'location_updated', 'location', locationId, { name: locationToSave.name });
+    await logAdminAudit(adminId, 'location_updated', 'location', fallbackId, { name: locationToSave.name });
   } else {
+    // Check local duplicate
+    const isDuplicate = locs.some((l) => l.name.toLowerCase() === trimmedName.toLowerCase());
+    if (isDuplicate) {
+      return {
+        success: false,
+        error: `A location with the name "${trimmedName}" already exists. Please choose a distinct hometown name.`,
+      };
+    }
     locs.push(locationToSave);
     saveStoredLocations(locs);
-    await logAdminAudit(adminId, 'location_created', 'location', locationId, { name: locationToSave.name });
+    await logAdminAudit(adminId, 'location_created', 'location', fallbackId, { name: locationToSave.name });
   }
 
   return { success: true, location: locationToSave };
@@ -360,7 +464,7 @@ export async function fetchAdminApplications(
     }
   }
 
-  const raw = localStorage.getItem(DEMO_APPLICATIONS_KEY);
+  const raw = safeGetStorage(DEMO_APPLICATIONS_KEY);
   let list: ShopApplication[] = raw ? JSON.parse(raw) : [];
 
   // Seed sample applications if empty for demo testing
@@ -405,7 +509,7 @@ export async function fetchAdminApplications(
         updated_at: new Date(Date.now() - 3600000 * 24).toISOString(),
       },
     ];
-    localStorage.setItem(DEMO_APPLICATIONS_KEY, JSON.stringify(list));
+    safeSetStorage(DEMO_APPLICATIONS_KEY, JSON.stringify(list));
   }
 
   if (filters?.status && filters.status !== 'all') {
@@ -576,7 +680,7 @@ export async function approveShopApplication(
   app.reviewed_by = adminId;
   app.review_notes = note;
   app.updated_at = new Date().toISOString();
-  localStorage.setItem(DEMO_APPLICATIONS_KEY, JSON.stringify(apps));
+  safeSetStorage(DEMO_APPLICATIONS_KEY, JSON.stringify(apps));
 
   // Create Shop in mock store
   const allShops = getStoredMockShops();
@@ -712,7 +816,7 @@ export async function rejectShopApplication(
   apps[appIdx].reviewed_by = adminId;
   apps[appIdx].review_notes = reason;
   apps[appIdx].updated_at = new Date().toISOString();
-  localStorage.setItem(DEMO_APPLICATIONS_KEY, JSON.stringify(apps));
+  safeSetStorage(DEMO_APPLICATIONS_KEY, JSON.stringify(apps));
 
   await logAdminAudit(adminId, 'application_rejected', 'shop_application', applicationId, {
     rejection_reason: reason,
@@ -791,10 +895,12 @@ export async function fetchAdminShops(filters?: AdminShopFilterOptions): Promise
 
     if (filters?.searchQuery?.trim()) {
       const q = filters.searchQuery.toLowerCase();
+      const matchId = (shop.id || '').toLowerCase().includes(q);
       const matchName = shop.name.toLowerCase().includes(q);
       const matchPhone = shop.phone.toLowerCase().includes(q);
       const matchTagline = (shop.tagline || '').toLowerCase().includes(q);
-      if (!matchName && !matchPhone && !matchTagline) return false;
+      const matchOwner = (shop.owner?.full_name || '').toLowerCase().includes(q);
+      if (!matchId && !matchName && !matchPhone && !matchTagline && !matchOwner) return false;
     }
 
     return true;
@@ -1691,10 +1797,10 @@ export async function fetchOperationalMetrics(): Promise<OperationalMetrics> {
     }
   } else {
     try {
-      const rawReq = localStorage.getItem(DEMO_REQUESTS_KEY);
+      const rawReq = safeGetStorage(DEMO_REQUESTS_KEY);
       requests = rawReq ? JSON.parse(rawReq) : [];
-      // Also collect events from localStorage if stored
-      const rawEvents = localStorage.getItem('vaango_request_events');
+      // Also collect events from storage if stored
+      const rawEvents = safeGetStorage('vaango_request_events');
       events = rawEvents ? JSON.parse(rawEvents) : [];
     } catch {
       // ignore
@@ -1748,24 +1854,80 @@ export async function fetchOperationalMetrics(): Promise<OperationalMetrics> {
   };
 }
 
-export async function fetchAdminAuditLogsList(limit: number = 50): Promise<AdminAuditLog[]> {
+export interface AdminAuditFilterParams {
+  category?: string;
+  actionType?: string;
+  searchQuery?: string;
+  entityId?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AdminAuditLogsPageResult {
+  logs: AdminAuditLog[];
+  totalCount: number;
+}
+
+export async function fetchAdminAuditLogsPage(
+  params: AdminAuditFilterParams = {}
+): Promise<AdminAuditLogsPageResult> {
+  const limit = params.limit ?? 25;
+  const offset = params.offset ?? 0;
+  const category = params.category || 'all';
+  const actionType = params.actionType || 'all';
+  const searchQuery = (params.searchQuery || '').trim().toLowerCase();
+  const entityId = (params.entityId || '').trim().toLowerCase();
+
   if (isSupabaseConfigured) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('admin_audit_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
+        .select('*', { count: 'exact' });
+
+      // Category filter
+      if (category && category !== 'all') {
+        if (category === 'applications') query = query.eq('entity_type', 'shop_application');
+        else if (category === 'shops') query = query.eq('entity_type', 'shop');
+        else if (category === 'products') query = query.eq('entity_type', 'shop_product');
+        else if (category === 'locations') query = query.eq('entity_type', 'location');
+        else if (category === 'payments') query = query.in('entity_type', ['payment', 'subscription']);
+      }
+
+      // Action type filter
+      if (actionType && actionType !== 'all') {
+        query = query.eq('action_type', actionType);
+      }
+
+      // Exact or partial UUID / Entity ID filter
+      if (entityId) {
+        query = query.ilike('entity_id', `%${entityId}%`);
+      }
+
+      // Search across admin_name or action_type
+      if (searchQuery) {
+        query = query.or(
+          `admin_name.ilike.%${searchQuery}%,action_type.ilike.%${searchQuery}%,entity_id.ilike.%${searchQuery}%`
+        );
+      }
+
+      query = query.order('created_at', { ascending: false });
+      query = query.range(offset, offset + limit - 1);
+
+      const { data, count, error } = await query;
       if (error) throw error;
-      return data || [];
+
+      return {
+        logs: data || [],
+        totalCount: count ?? (data?.length || 0),
+      };
     } catch (err) {
-      console.error('Failed to fetch audit logs from Supabase:', err);
+      console.error('Failed to fetch filtered audit logs from Supabase:', err);
     }
   }
 
-  const logs = getStoredAuditLogs();
+  // Fallback to local / demo storage
+  let logs = getStoredAuditLogs();
   if (logs.length === 0) {
-    // Initial sample logs for demo review
     const samples: AdminAuditLog[] = [
       {
         id: 'audit-demo-1',
@@ -1787,10 +1949,87 @@ export async function fetchAdminAuditLogsList(limit: number = 50): Promise<Admin
         details: { name: 'Gobichettipalayam', pincode: '638452', is_launch_town: true },
         created_at: new Date(Date.now() - 3600000 * 72).toISOString(),
       },
+      {
+        id: 'audit-demo-3',
+        admin_id: 'a3333333-0000-0000-0000-000000000003',
+        admin_name: 'Platform Operations Admin',
+        action_type: 'shop_suspended',
+        entity_type: 'shop',
+        entity_id: 's1111111-1111-1111-1111-111111111111',
+        details: { shop_name: 'Demo Mart', reason: 'Non-compliant product images' },
+        created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
+      },
+      {
+        id: 'audit-demo-4',
+        admin_id: 'a3333333-0000-0000-0000-000000000003',
+        admin_name: 'Platform Operations Admin',
+        action_type: 'payment_recorded',
+        entity_type: 'payment',
+        entity_id: 'pay-monthly-001',
+        details: { amount: 300, reference_number: 'UPI-REF-98124', cycle: 'MONTHLY' },
+        created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
+      },
+      {
+        id: 'audit-demo-5',
+        admin_id: 'a3333333-0000-0000-0000-000000000003',
+        admin_name: 'Platform Operations Admin',
+        action_type: 'product_hidden',
+        entity_type: 'shop_product',
+        entity_id: 'p-prod-9921',
+        details: { product_name: 'Expired Stock Item', reason: 'Customer safety flag' },
+        created_at: new Date(Date.now() - 3600000 * 6).toISOString(),
+      },
     ];
     saveStoredAuditLogs(samples);
-    return samples;
+    logs = samples;
   }
 
-  return logs.slice(0, limit);
+  let filtered = [...logs];
+
+  // Category filter
+  if (category && category !== 'all') {
+    if (category === 'applications') filtered = filtered.filter((l) => l.entity_type === 'shop_application');
+    else if (category === 'shops') filtered = filtered.filter((l) => l.entity_type === 'shop');
+    else if (category === 'products') filtered = filtered.filter((l) => l.entity_type === 'shop_product');
+    else if (category === 'locations') filtered = filtered.filter((l) => l.entity_type === 'location');
+    else if (category === 'payments')
+      filtered = filtered.filter((l) => l.entity_type === 'payment' || l.entity_type === 'subscription');
+  }
+
+  // Action type filter
+  if (actionType && actionType !== 'all') {
+    filtered = filtered.filter((l) => l.action_type === actionType);
+  }
+
+  // Exact or partial UUID / Entity ID filter
+  if (entityId) {
+    filtered = filtered.filter((l) => l.entity_id?.toLowerCase().includes(entityId));
+  }
+
+  // Search across action, admin name, entity ID, or details
+  if (searchQuery) {
+    filtered = filtered.filter((l) => {
+      const matchAction = l.action_type.toLowerCase().includes(searchQuery);
+      const matchAdmin = (l.admin_name || '').toLowerCase().includes(searchQuery);
+      const matchEntity = (l.entity_id || '').toLowerCase().includes(searchQuery);
+      const matchDetails = JSON.stringify(l.details || {}).toLowerCase().includes(searchQuery);
+      return matchAction || matchAdmin || matchEntity || matchDetails;
+    });
+  }
+
+  // Sort descending by created_at
+  filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const totalCount = filtered.length;
+  const pagedLogs = filtered.slice(offset, offset + limit);
+
+  return {
+    logs: pagedLogs,
+    totalCount,
+  };
+}
+
+export async function fetchAdminAuditLogsList(limit: number = 50): Promise<AdminAuditLog[]> {
+  const result = await fetchAdminAuditLogsPage({ limit, offset: 0 });
+  return result.logs;
 }

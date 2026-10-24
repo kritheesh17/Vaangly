@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus,
-  Search,
   ArrowLeft,
   Edit2,
   Trash2,
@@ -17,6 +16,9 @@ import { useAuth } from '../../context/AuthContext';
 import { Shop, ShopProduct, ShopService, PriceType, ProductVariant, ProductAttributeGroup, SlotConfig } from '../../types/database';
 import { WorkflowGroupCode } from '../../types/workflow';
 import { getShopType } from '../../data/mockData';
+import { useDebounce } from '../../hooks/useDebounce';
+import { SearchFilterBar } from '../../components/common/SearchFilterBar';
+import { PaginationControls } from '../../components/common/PaginationControls';
 import {
   getShopkeeperShop,
   getShopProductsList,
@@ -45,7 +47,6 @@ import { createMasterProductProposal, checkMasterProductDuplicates } from '../..
 import { ServiceFormModal } from '../../components/shopkeeper/ServiceFormModal';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -68,6 +69,10 @@ export const ShopkeeperCataloguePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [stockFilter, setStockFilter] = useState<'all' | 'in_stock' | 'out_of_stock'>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'name_asc' | 'price_asc' | 'price_desc'>('newest');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+  const debouncedSearch = useDebounce(searchQuery, 250);
   const [searchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
   const [salesServiceTab, setSalesServiceTab] = useState<'products' | 'services'>(
@@ -79,6 +84,10 @@ export const ShopkeeperCataloguePage: React.FC = () => {
       setSalesServiceTab(urlTab);
     }
   }, [urlTab]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, stockFilter, sortBy, salesServiceTab]);
 
   // Master Catalogue Modal State
   const [masterModalOpen, setMasterModalOpen] = useState(false);
@@ -490,34 +499,69 @@ export const ShopkeeperCataloguePage: React.FC = () => {
     }
   };
 
-  // Filter products
-  const filteredProducts = products.filter((p) => {
-    if (stockFilter === 'in_stock' && !p.is_available) return false;
-    if (stockFilter === 'out_of_stock' && p.is_available) return false;
+  // Filter and sort products
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      if (stockFilter === 'in_stock' && !p.is_available) return false;
+      if (stockFilter === 'out_of_stock' && p.is_available) return false;
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchName = p.name.toLowerCase().includes(q);
-      const matchDesc = (p.description || '').toLowerCase().includes(q);
-      return matchName || matchDesc;
-    }
-    return true;
-  });
+      if (debouncedSearch.trim()) {
+        const q = debouncedSearch.toLowerCase();
+        const matchName = p.name.toLowerCase().includes(q);
+        const matchDesc = (p.description || '').toLowerCase().includes(q);
+        const matchUnit = (p.unit || '').toLowerCase().includes(q);
+        const matchVariants = (p.variants || []).some((v) =>
+          (v.label || '').toLowerCase().includes(q) || (v.sku || '').toLowerCase().includes(q)
+        );
+        return matchName || matchDesc || matchUnit || matchVariants;
+      }
+      return true;
+    });
+  }, [products, stockFilter, debouncedSearch]);
 
-  // Filter services
-  const filteredServices = services.filter((s) => {
-    if (stockFilter === 'in_stock' && !s.is_available) return false;
-    if (stockFilter === 'out_of_stock' && s.is_available) return false;
+  const sortedProducts = useMemo(() => {
+    return [...filteredProducts].sort((a, b) => {
+      if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '');
+      if (sortBy === 'price_asc') return (a.price || 0) - (b.price || 0);
+      if (sortBy === 'price_desc') return (b.price || 0) - (a.price || 0);
+      return (new Date(b.created_at || 0).getTime()) - (new Date(a.created_at || 0).getTime());
+    });
+  }, [filteredProducts, sortBy]);
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchName = s.name.toLowerCase().includes(q);
-      const matchDesc = (s.description || '').toLowerCase().includes(q);
-      const matchProvider = (s.provider_name || '').toLowerCase().includes(q);
-      return matchName || matchDesc || matchProvider;
-    }
-    return true;
-  });
+  const paginatedProducts = useMemo(() => {
+    return sortedProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  }, [sortedProducts, currentPage, pageSize]);
+
+  // Filter and sort services
+  const filteredServices = useMemo(() => {
+    return services.filter((s) => {
+      if (stockFilter === 'in_stock' && !s.is_available) return false;
+      if (stockFilter === 'out_of_stock' && s.is_available) return false;
+
+      if (debouncedSearch.trim()) {
+        const q = debouncedSearch.toLowerCase();
+        const matchName = s.name.toLowerCase().includes(q);
+        const matchDesc = (s.description || '').toLowerCase().includes(q);
+        const matchProvider = (s.provider_name || '').toLowerCase().includes(q);
+        const matchCategory = (s.service_category || '').toLowerCase().includes(q);
+        return matchName || matchDesc || matchProvider || matchCategory;
+      }
+      return true;
+    });
+  }, [services, stockFilter, debouncedSearch]);
+
+  const sortedServices = useMemo(() => {
+    return [...filteredServices].sort((a, b) => {
+      if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '');
+      if (sortBy === 'price_asc') return (a.base_price || a.min_price || 0) - (b.base_price || b.min_price || 0);
+      if (sortBy === 'price_desc') return (b.base_price || b.max_price || 0) - (a.base_price || a.max_price || 0);
+      return (new Date(b.created_at || 0).getTime()) - (new Date(a.created_at || 0).getTime());
+    });
+  }, [filteredServices, sortBy]);
+
+  const paginatedServices = useMemo(() => {
+    return sortedServices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  }, [sortedServices, currentPage, pageSize]);
 
   const isProductView =
     workflowGroup === 'ORDER' ||
@@ -694,46 +738,63 @@ export const ShopkeeperCataloguePage: React.FC = () => {
       )}
 
       {/* Search and Stock Filters */}
-      <div className="vaango-catalogue__toolbar">
-        <div className="vaango-catalogue__search">
-          <Input
-            type="search"
-            placeholder={
-              !isProductView
-                ? workflowGroup === 'APPOINTMENT'
-                  ? 'Search appointment services or doctors...'
-                  : 'Search services, repairs or alterations...'
-                : 'Search items in your catalogue...'
-            }
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            leftIcon={<Search size={18} />}
-          />
-        </div>
+      <div className="vaango-catalogue__toolbar-wrap mb-4">
+        <SearchFilterBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          placeholder={
+            !isProductView
+              ? workflowGroup === 'APPOINTMENT'
+                ? 'Search appointment services or doctors...'
+                : 'Search services, repairs or alterations...'
+              : 'Search items in your catalogue...'
+          }
+          totalCount={totalItemCount}
+          filteredCount={isProductView ? sortedProducts.length : sortedServices.length}
+          isFiltered={Boolean(searchQuery || stockFilter !== 'all' || sortBy !== 'newest')}
+          onResetFilters={() => {
+            setSearchQuery('');
+            setStockFilter('all');
+            setSortBy('newest');
+            setCurrentPage(1);
+          }}
+        >
+          <div className="vaango-catalogue__filters">
+            <button
+              type="button"
+              className={`vaango-stock-filter ${stockFilter === 'all' ? 'vaango-stock-filter--active' : ''}`}
+              onClick={() => setStockFilter('all')}
+            >
+              All ({totalItemCount})
+            </button>
+            <button
+              type="button"
+              className={`vaango-stock-filter ${stockFilter === 'in_stock' ? 'vaango-stock-filter--active' : ''}`}
+              onClick={() => setStockFilter('in_stock')}
+            >
+              Available ({inStockCount})
+            </button>
+            <button
+              type="button"
+              className={`vaango-stock-filter ${stockFilter === 'out_of_stock' ? 'vaango-stock-filter--active' : ''}`}
+              onClick={() => setStockFilter('out_of_stock')}
+            >
+              Unavailable ({outOfStockCount})
+            </button>
+          </div>
 
-        <div className="vaango-catalogue__filters">
-          <button
-            type="button"
-            className={`vaango-stock-filter ${stockFilter === 'all' ? 'vaango-stock-filter--active' : ''}`}
-            onClick={() => setStockFilter('all')}
+          <select
+            className="vaango-admin-select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            aria-label="Sort catalogue items"
           >
-            All ({totalItemCount})
-          </button>
-          <button
-            type="button"
-            className={`vaango-stock-filter ${stockFilter === 'in_stock' ? 'vaango-stock-filter--active' : ''}`}
-            onClick={() => setStockFilter('in_stock')}
-          >
-            Available ({inStockCount})
-          </button>
-          <button
-            type="button"
-            className={`vaango-stock-filter ${stockFilter === 'out_of_stock' ? 'vaango-stock-filter--active' : ''}`}
-            onClick={() => setStockFilter('out_of_stock')}
-          >
-            Unavailable ({outOfStockCount})
-          </button>
-        </div>
+            <option value="newest">Sort: Newest First</option>
+            <option value="name_asc">Sort: Name (A–Z)</option>
+            <option value="price_asc">Sort: Price (Low to High)</option>
+            <option value="price_desc">Sort: Price (High to Low)</option>
+          </select>
+        </SearchFilterBar>
       </div>
 
       {/* Content Stream: Services vs Products */}
@@ -746,7 +807,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
           </div>
         ) : !isProductView ? (
           /* GROUP B & C: SERVICES LIST */
-          filteredServices.length === 0 ? (
+          sortedServices.length === 0 ? (
             <EmptyState
               icon={workflowGroup === 'APPOINTMENT' ? <Calendar size={48} /> : <Wrench size={48} />}
               title={services.length === 0 ? 'No services listed yet' : 'No matching services'}
@@ -767,7 +828,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
             />
           ) : (
             <div className="vaango-catalogue__grid">
-              {filteredServices.map((srv) => (
+              {paginatedServices.map((srv) => (
                 <Card
                   key={srv.id}
                   variant="default"
@@ -862,7 +923,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
           )
         ) : (
           /* GROUP A: PRODUCT LIST */
-          filteredProducts.length === 0 ? (
+          sortedProducts.length === 0 ? (
             <EmptyState
               icon={<Package size={48} />}
               title={products.length === 0 ? 'Your catalogue is empty' : 'No matching products'}
@@ -889,7 +950,7 @@ export const ShopkeeperCataloguePage: React.FC = () => {
             />
           ) : (
             <div className="vaango-catalogue__grid">
-              {filteredProducts.map((prod) => (
+              {paginatedProducts.map((prod) => (
                 <Card
                   key={prod.id}
                   variant="default"
@@ -1045,6 +1106,19 @@ export const ShopkeeperCataloguePage: React.FC = () => {
             </div>
           )
         )}
+
+        {/* Reusable Pagination Standard */}
+        <PaginationControls
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={isProductView ? sortedProducts.length : sortedServices.length}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+          pageSizeOptions={[12, 24, 48]}
+        />
       </div>
 
       {/* Modal: Master Catalogue Discovery & Proposal */}

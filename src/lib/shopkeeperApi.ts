@@ -17,10 +17,35 @@ const DEMO_REQUESTS_KEY = 'vaango_demo_requests';
 const DEMO_REQUEST_EVENTS_KEY = 'vaango_demo_request_events';
 const DEMO_APPLICATIONS_KEY = 'vaango_demo_applications';
 
+const memoryStore: Record<string, string> = {};
+
+const safeGetItem = (key: string): string | null => {
+  try {
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+      return window.localStorage.getItem(key);
+    }
+    return memoryStore[key] ?? null;
+  } catch {
+    return memoryStore[key] ?? null;
+  }
+};
+
+const safeSetItem = (key: string, value: string): void => {
+  try {
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+      window.localStorage.setItem(key, value);
+      return;
+    }
+    memoryStore[key] = value;
+  } catch {
+    memoryStore[key] = value;
+  }
+};
+
 // Helper to retrieve local mock shops
 export const getStoredMockShops = (): Shop[] => {
   try {
-    const raw = localStorage.getItem(DEMO_SHOPS_KEY);
+    const raw = safeGetItem(DEMO_SHOPS_KEY);
     if (raw) {
       const parsed: Shop[] = JSON.parse(raw);
       const map = new Map<string, Shop>();
@@ -36,7 +61,7 @@ export const getStoredMockShops = (): Shop[] => {
 
 export const saveMockShops = (shops: Shop[]) => {
   try {
-    localStorage.setItem(DEMO_SHOPS_KEY, JSON.stringify(shops));
+    safeSetItem(DEMO_SHOPS_KEY, JSON.stringify(shops));
   } catch (err) {
     console.error('Error saving mock shops:', err);
   }

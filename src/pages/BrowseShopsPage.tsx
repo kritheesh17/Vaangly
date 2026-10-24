@@ -492,7 +492,31 @@ export const BrowseShopsPage: React.FC = () => {
           />
         </div>
       ) : finalShops.length > 0 ? (
-        viewMode === 'map' ? (
+        <>
+          {searchQuery.trim() && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '8px 0 12px 0', fontSize: '0.88rem' }}>
+              <span style={{ color: 'var(--color-text-secondary)' }}>
+                Showing <strong>{finalShops.length}</strong> {finalShops.length === 1 ? 'shop' : 'shops'} matching "{searchQuery}"
+              </span>
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-primary)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  textDecoration: 'underline',
+                  padding: '2px 6px',
+                }}
+              >
+                Clear Search
+              </button>
+            </div>
+          )}
+          {viewMode === 'map' ? (
           /* Interactive GIS Map View */
           <div className="vaango-browse__map-wrap">
             <React.Suspense
@@ -526,7 +550,8 @@ export const BrowseShopsPage: React.FC = () => {
               );
             })}
           </div>
-        )
+        )}
+      </>
       ) : (
         /* Genuine Empty State */
         <div className="vaango-browse__empty">

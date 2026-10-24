@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Clock,
@@ -6,7 +6,6 @@ import {
   Receipt,
   Store,
   Info,
-  AlertCircle,
 } from 'lucide-react';
 import {
   fetchAdminSubscriptions,
@@ -26,6 +25,10 @@ import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useLanguage } from '../../context/LanguageContext';
+import { SearchFilterBar } from '../../components/common/SearchFilterBar';
+import { PaginationControls } from '../../components/common/PaginationControls';
+import { CopyableText } from '../../components/common/CopyableText';
+import { ActionErrorBanner } from '../../components/ui/ActionErrorBanner';
 import './AdminSubscriptionsPage.css';
 
 export const AdminSubscriptionsPage: React.FC = () => {
@@ -40,8 +43,14 @@ export const AdminSubscriptionsPage: React.FC = () => {
   const [payments, setPayments] = useState<SubscriptionPayment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Status Filter
+  // Status Filter & Search & Sort
   const statusFilter = (searchParams.get('status') || 'all') as SubscriptionStatus | 'all';
+  const searchQuery = searchParams.get('q') || '';
+  const sortBy = searchParams.get('sort') || 'amount_due_desc';
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modal State: Record Manual Payment
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -83,14 +92,76 @@ export const AdminSubscriptionsPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    setCurrentPage(1);
   }, [statusFilter]);
 
-  const handleFilterChange = (st: string) => {
+  const updateParam = (key: string, val: string) => {
     const params = new URLSearchParams(searchParams);
-    if (st === 'all') params.delete('status');
-    else params.set('status', st);
+    if (val === 'all' || !val) params.delete(key);
+    else params.set(key, val);
     setSearchParams(params);
+    setCurrentPage(1);
   };
+
+  const handleResetFilters = () => {
+    const params = new URLSearchParams();
+    setSearchParams(params);
+    setCurrentPage(1);
+  };
+
+  // Keyword search & composite filtering
+  const filteredSubscriptions = useMemo(() => {
+    return subscriptions.filter((sub) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      const shop = sub.shop || shops.find((s) => s.id === sub.shop_id) || null;
+      const shopName = (shop?.name || '').toLowerCase();
+      const ownerName = (shop?.owner?.full_name || '').toLowerCase();
+      const catName = (shop?.shop_type?.name || '').toLowerCase();
+      const subId = (sub.id || '').toLowerCase();
+      const shopId = (sub.shop_id || '').toLowerCase();
+      const hasMatchingPayment = payments.some(
+        (p) => p.subscription_id === sub.id && (p.payment_reference || '').toLowerCase().includes(q)
+      );
+
+      return (
+        shopName.includes(q) ||
+        ownerName.includes(q) ||
+        catName.includes(q) ||
+        subId.includes(q) ||
+        shopId.includes(q) ||
+        hasMatchingPayment
+      );
+    });
+  }, [subscriptions, shops, payments, searchQuery]);
+
+  // Sorting
+  const sortedSubscriptions = useMemo(() => {
+    return [...filteredSubscriptions].sort((a, b) => {
+      const shopA = a.shop || shops.find((s) => s.id === a.shop_id);
+      const shopB = b.shop || shops.find((s) => s.id === b.shop_id);
+
+      if (sortBy === 'amount_due_desc') {
+        return (b.amount_due || 0) - (a.amount_due || 0);
+      }
+      if (sortBy === 'amount_due_asc') {
+        return (a.amount_due || 0) - (b.amount_due || 0);
+      }
+      if (sortBy === 'name_asc') {
+        return (shopA?.name || '').localeCompare(shopB?.name || '');
+      }
+      if (sortBy === 'last_payment_desc') {
+        return (new Date(b.last_payment_date || 0).getTime()) - (new Date(a.last_payment_date || 0).getTime());
+      }
+      return 0;
+    });
+  }, [filteredSubscriptions, shops, sortBy]);
+
+  const totalSubs = sortedSubscriptions.length;
+  const paginatedSubscriptions = sortedSubscriptions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   const handleOpenRecordPayment = (sub: ShopSubscription, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -118,8 +189,8 @@ export const AdminSubscriptionsPage: React.FC = () => {
     }
   };
 
-  const handleSubmitPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitPayment = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!selectedSub || !user) return;
     setRecordError(null);
 
@@ -200,7 +271,7 @@ export const AdminSubscriptionsPage: React.FC = () => {
           <p>
             • <strong>60-Day Free Trial:</strong> Starts on the shop's actual <em>Go-Live date</em> (Day 0), not approval date.
             <br />
-            • <strong>Flat Daily Rate:</strong> Enforced cap $\le$ ₹20/day. Weekly (₹10/day $\times$ 7 = ₹70) or Monthly (₹10/day $\times$ 30 = ₹300).
+            • <strong>Flat Daily Rate:</strong> Enforced cap ≤ ₹20/day. Weekly (₹10/day × 7 = ₹70) or Monthly (₹10/day × 30 = ₹300).
             <br />
             • <strong>Zero Platform Payment Cuts:</strong> Vaango does not automatically debit merchant accounts. The platform owner manually records verified UPI receipts.
             <br />
@@ -209,45 +280,67 @@ export const AdminSubscriptionsPage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Filter Tabs */}
+      {/* Search and Filters Bar */}
       <div className="vaango-admin-subs__filter-bar">
-        <div className="vaango-admin-tabs" role="tablist" aria-label="Filter subscriptions by status">
-          <button
-            type="button"
-            className={`vaango-admin-tab ${statusFilter === 'all' ? 'vaango-admin-tab--active' : ''}`}
-            onClick={() => handleFilterChange('all')}
+        <SearchFilterBar
+          searchQuery={searchQuery}
+          onSearchChange={(val) => updateParam('q', val)}
+          placeholder="Search by shop name, owner, category, sub ID, or UPI ref..."
+          totalCount={subscriptions.length}
+          filteredCount={totalSubs}
+          isFiltered={Boolean(searchQuery || statusFilter !== 'all' || sortBy !== 'amount_due_desc')}
+          onResetFilters={handleResetFilters}
+        >
+          <div className="vaango-admin-tabs" role="tablist" aria-label="Filter subscriptions by status">
+            <button
+              type="button"
+              className={`vaango-admin-tab ${statusFilter === 'all' ? 'vaango-admin-tab--active' : ''}`}
+              onClick={() => updateParam('status', 'all')}
+            >
+              All ({subscriptions.length})
+            </button>
+            <button
+              type="button"
+              className={`vaango-admin-tab ${statusFilter === 'TRIAL' ? 'vaango-admin-tab--active' : ''}`}
+              onClick={() => updateParam('status', 'TRIAL')}
+            >
+              Trial
+            </button>
+            <button
+              type="button"
+              className={`vaango-admin-tab ${statusFilter === 'ACTIVE' ? 'vaango-admin-tab--active' : ''}`}
+              onClick={() => updateParam('status', 'ACTIVE')}
+            >
+              Active
+            </button>
+            <button
+              type="button"
+              className={`vaango-admin-tab ${statusFilter === 'OVERDUE' ? 'vaango-admin-tab--active' : ''}`}
+              onClick={() => updateParam('status', 'OVERDUE')}
+            >
+              Overdue
+            </button>
+            <button
+              type="button"
+              className={`vaango-admin-tab ${statusFilter === 'SUSPENDED' ? 'vaango-admin-tab--active' : ''}`}
+              onClick={() => updateParam('status', 'SUSPENDED')}
+            >
+              Suspended
+            </button>
+          </div>
+
+          <select
+            className="vaango-admin-select"
+            value={sortBy}
+            onChange={(e) => updateParam('sort', e.target.value)}
+            aria-label="Sort subscriptions"
           >
-            All ({subscriptions.length})
-          </button>
-          <button
-            type="button"
-            className={`vaango-admin-tab ${statusFilter === 'TRIAL' ? 'vaango-admin-tab--active' : ''}`}
-            onClick={() => handleFilterChange('TRIAL')}
-          >
-            In Free Trial
-          </button>
-          <button
-            type="button"
-            className={`vaango-admin-tab ${statusFilter === 'ACTIVE' ? 'vaango-admin-tab--active' : ''}`}
-            onClick={() => handleFilterChange('ACTIVE')}
-          >
-            Active / Paid
-          </button>
-          <button
-            type="button"
-            className={`vaango-admin-tab ${statusFilter === 'OVERDUE' ? 'vaango-admin-tab--active' : ''}`}
-            onClick={() => handleFilterChange('OVERDUE')}
-          >
-            Overdue
-          </button>
-          <button
-            type="button"
-            className={`vaango-admin-tab ${statusFilter === 'SUSPENDED' ? 'vaango-admin-tab--active' : ''}`}
-            onClick={() => handleFilterChange('SUSPENDED')}
-          >
-            Suspended
-          </button>
-        </div>
+            <option value="amount_due_desc">Sort: Amount Due (High–Low)</option>
+            <option value="amount_due_asc">Sort: Amount Due (Low–High)</option>
+            <option value="name_asc">Sort: Shop Name (A–Z)</option>
+            <option value="last_payment_desc">Sort: Last Payment Date</option>
+          </select>
+        </SearchFilterBar>
       </div>
 
       {/* Subscriptions Ledger Table */}
@@ -257,182 +350,200 @@ export const AdminSubscriptionsPage: React.FC = () => {
           <Skeleton height={60} />
           <Skeleton height={60} />
         </div>
-      ) : subscriptions.length === 0 ? (
+      ) : paginatedSubscriptions.length === 0 ? (
         <Card variant="outlined" padding="lg" style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>
-          No shop subscriptions match this filter.
+          {searchQuery || statusFilter !== 'all'
+            ? 'No subscriptions match your search or filter criteria. Try resetting.'
+            : 'No shop subscriptions match this filter.'}
         </Card>
       ) : (
-        <Card variant="default" padding="none" className="vaango-admin-subs__table-card">
-          <div className="vaango-admin-subs__table-responsive">
-            <table className="vaango-admin-table" aria-label="Shopkeeper subscriptions table">
-              <thead>
-                <tr>
-                  <th>Shopfront</th>
-                  <th>Subscription Status</th>
-                  <th>Trial Remaining</th>
-                  <th>Daily Rate</th>
-                  <th>Billing Cycle</th>
-                  <th>Amount Due</th>
-                  <th>Last Payment</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {subscriptions.map((sub) => {
-                  const shop = sub.shop || shops.find((s) => s.id === sub.shop_id) || null;
-                  const trialInfo = calculateTrialWindow(sub.go_live_date);
-                  const shopName = shop?.name || sub.shop_id;
-                  const ownerName = shop?.owner?.full_name;
-                  const categoryName = shop?.shop_type?.name;
-                  const targetShop = shop || ({ id: sub.shop_id, name: shopName } as Shop);
+        <>
+          <Card variant="default" padding="none" className="vaango-admin-subs__table-card">
+            <div className="vaango-admin-subs__table-responsive">
+              <table className="vaango-admin-table" aria-label="Shopkeeper subscriptions table">
+                <thead>
+                  <tr>
+                    <th>Shopfront</th>
+                    <th>Subscription Status</th>
+                    <th>Trial Remaining</th>
+                    <th>Daily Rate</th>
+                    <th>Billing Cycle</th>
+                    <th>Amount Due</th>
+                    <th>Last Payment</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedSubscriptions.map((sub) => {
+                    const shop = sub.shop || shops.find((s) => s.id === sub.shop_id) || null;
+                    const trialInfo = calculateTrialWindow(sub.go_live_date);
+                    const shopName = shop?.name || sub.shop_id;
+                    const ownerName = shop?.owner?.full_name;
+                    const categoryName = shop?.shop_type?.name;
+                    const targetShop = shop || ({ id: sub.shop_id, name: shopName } as Shop);
 
-                  return (
-                    <tr
-                      key={sub.id}
-                      className="vaango-admin-table__row--clickable"
-                      onClick={() => navigate(`/admin/shops/${sub.shop_id}`)}
-                      title={`Inspect shop details for ${shopName}`}
-                    >
-                      <td>
-                        <div className="vaango-sub-shop-cell">
-                          <div className="vaango-sub-shop-avatar">
-                            {shop?.photo_url ? (
-                              <img src={shop.photo_url} alt={shopName} className="vaango-sub-shop-img" />
-                            ) : (
-                              <Store size={18} className="vaango-sub-shop-icon" />
-                            )}
+                    return (
+                      <tr
+                        key={sub.id}
+                        className="vaango-admin-table__row--clickable"
+                        onClick={() => navigate(`/admin/shops/${sub.shop_id}`)}
+                        title={`Inspect shop details for ${shopName}`}
+                      >
+                        <td>
+                          <div className="vaango-sub-shop-cell">
+                            <div className="vaango-sub-shop-avatar">
+                              {shop?.photo_url ? (
+                                <img src={shop.photo_url} alt={shopName} className="vaango-sub-shop-img" />
+                              ) : (
+                                <Store size={18} className="vaango-sub-shop-icon" />
+                              )}
+                            </div>
+                            <div className="vaango-sub-shop-info">
+                              <button
+                                type="button"
+                                className="vaango-sub-shop-name-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/admin/shops/${sub.shop_id}`);
+                                }}
+                                title={`Inspect shop details for ${shopName}`}
+                              >
+                                {shopName}
+                              </button>
+                              <div className="vaango-sub-shop-secondary">
+                                {ownerName && <span className="vaango-sub-shop-owner">{ownerName}</span>}
+                                {ownerName && categoryName && <span className="vaango-sub-shop-sep">•</span>}
+                                {categoryName && <span className="vaango-sub-shop-cat">{categoryName}</span>}
+                                {!ownerName && !categoryName && shop?.tagline && (
+                                  <span className="vaango-sub-shop-tagline">{shop.tagline}</span>
+                                )}
+                              </div>
+                              <div style={{ marginTop: '2px' }} onClick={(e) => e.stopPropagation()}>
+                                <CopyableText text={sub.id} label="Sub ID" truncate={true} />
+                              </div>
+                              <div className="vaango-sub-shop-status-row">
+                                {shop?.is_live ? (
+                                  <span className="vaango-live-indicator vaango-live-indicator--active">
+                                    <span className="vaango-indicator-dot vaango-indicator-dot--active" /> Live
+                                  </span>
+                                ) : (
+                                  <span className="vaango-live-indicator vaango-live-indicator--inactive">
+                                    <span className="vaango-indicator-dot vaango-indicator-dot--inactive" /> Inactive
+                                  </span>
+                                )}
+                                {shop?.status === 'verified' && (
+                                  <span className="vaango-verified-pill">Verified</span>
+                                )}
+                                {shop?.status === 'suspended' && (
+                                  <span className="vaango-suspended-pill">Suspended</span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div className="vaango-sub-shop-info">
-                            <button
-                              type="button"
-                              className="vaango-sub-shop-name-btn"
+                        </td>
+                        <td>
+                          <Badge
+                            variant={
+                              sub.status === 'ACTIVE'
+                                ? 'success'
+                                : sub.status === 'OVERDUE'
+                                ? 'error'
+                                : sub.status === 'SUSPENDED'
+                                ? 'neutral'
+                                : 'primary'
+                            }
+                            size="sm"
+                            withDot
+                          >
+                            {sub.status}
+                          </Badge>
+                        </td>
+                        <td>
+                          {sub.status === 'TRIAL' ? (
+                            <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
+                              <Clock size={12} style={{ marginRight: 4 }} />
+                              {trialInfo.daysRemaining} days left
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
+                              Trial concluded
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <strong>₹{sub.daily_rate}/day</strong>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                            Cap: ₹20/day
+                          </div>
+                        </td>
+                        <td>
+                          <Badge variant="neutral" size="sm">
+                            {sub.billing_cycle}
+                          </Badge>
+                        </td>
+                        <td>
+                          {sub.amount_due > 0 ? (
+                            <strong style={{ color: 'var(--color-error)' }}>₹{sub.amount_due}</strong>
+                          ) : (
+                            <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>₹0 (Cleared)</span>
+                          )}
+                        </td>
+                        <td>
+                          {sub.last_payment_date ? (
+                            <span style={{ fontSize: '0.85rem' }}>
+                              {new Date(sub.last_payment_date).toLocaleDateString('en-IN', {
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>None</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div className="vaango-admin-actions-cell" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`/admin/shops/${sub.shop_id}`);
+                                handleViewHistory(targetShop, e);
                               }}
-                              title={`Inspect shop details for ${shopName}`}
+                              title="Payment Receipt History"
                             >
-                              {shopName}
-                            </button>
-                            <div className="vaango-sub-shop-secondary">
-                              {ownerName && <span className="vaango-sub-shop-owner">{ownerName}</span>}
-                              {ownerName && categoryName && <span className="vaango-sub-shop-sep">•</span>}
-                              {categoryName && <span className="vaango-sub-shop-cat">{categoryName}</span>}
-                              {!ownerName && !categoryName && shop?.tagline && (
-                                <span className="vaango-sub-shop-tagline">{shop.tagline}</span>
-                              )}
-                            </div>
-                            <div className="vaango-sub-shop-status-row">
-                              {shop?.is_live ? (
-                                <span className="vaango-live-indicator vaango-live-indicator--active">
-                                  <span className="vaango-indicator-dot vaango-indicator-dot--active" /> Live
-                                </span>
-                              ) : (
-                                <span className="vaango-live-indicator vaango-live-indicator--inactive">
-                                  <span className="vaango-indicator-dot vaango-indicator-dot--inactive" /> Inactive
-                                </span>
-                              )}
-                              {shop?.status === 'verified' && (
-                                <span className="vaango-verified-pill">Verified</span>
-                              )}
-                              {shop?.status === 'suspended' && (
-                                <span className="vaango-suspended-pill">Suspended</span>
-                              )}
-                            </div>
+                              <Receipt size={14} />
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenRecordPayment(sub, e);
+                              }}
+                            >
+                              Record UPI
+                            </Button>
                           </div>
-                        </div>
-                      </td>
-                      <td>
-                        <Badge
-                          variant={
-                            sub.status === 'ACTIVE'
-                              ? 'success'
-                              : sub.status === 'OVERDUE'
-                              ? 'error'
-                              : sub.status === 'SUSPENDED'
-                              ? 'neutral'
-                              : 'primary'
-                          }
-                          size="sm"
-                          withDot
-                        >
-                          {sub.status}
-                        </Badge>
-                      </td>
-                      <td>
-                        {sub.status === 'TRIAL' ? (
-                          <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
-                            <Clock size={12} style={{ marginRight: 4 }} />
-                            {trialInfo.daysRemaining} days left
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
-                            Trial concluded
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <strong>₹{sub.daily_rate}/day</strong>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                          Cap: ₹20/day
-                        </div>
-                      </td>
-                      <td>
-                        <Badge variant="neutral" size="sm">
-                          {sub.billing_cycle}
-                        </Badge>
-                      </td>
-                      <td>
-                        {sub.amount_due > 0 ? (
-                          <strong style={{ color: 'var(--color-error)' }}>₹{sub.amount_due}</strong>
-                        ) : (
-                          <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>₹0 (Cleared)</span>
-                        )}
-                      </td>
-                      <td>
-                        {sub.last_payment_date ? (
-                          <span style={{ fontSize: '0.85rem' }}>
-                            {new Date(sub.last_payment_date).toLocaleDateString('en-IN', {
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>None</span>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div className="vaango-admin-actions-cell" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewHistory(targetShop, e);
-                            }}
-                            title="Payment Receipt History"
-                          >
-                            <Receipt size={14} />
-                          </Button>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenRecordPayment(sub, e);
-                            }}
-                          >
-                            Record UPI
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          <PaginationControls
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalItems={totalSubs}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+          />
+        </>
       )}
 
       {/* Record Manual Payment Modal */}
@@ -443,13 +554,6 @@ export const AdminSubscriptionsPage: React.FC = () => {
         maxWidth="md"
       >
         <form onSubmit={handleSubmitPayment} className="vaango-loc-form">
-          {recordError && (
-            <div className="vaango-form-error-banner">
-              <AlertCircle size={16} />
-              <span>{recordError}</span>
-            </div>
-          )}
-
           <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
             Record an offline / UPI payment received from the merchant into the platform bank account. This advances the shop to <strong>ACTIVE</strong> status and records an audit receipt.
           </p>
@@ -526,6 +630,14 @@ export const AdminSubscriptionsPage: React.FC = () => {
             />
           </div>
 
+          {recordError && (
+            <ActionErrorBanner
+              message={recordError}
+              action={{ label: 'Try again', onClick: () => handleSubmitPayment() }}
+              onDismiss={() => setRecordError(null)}
+            />
+          )}
+
           <div className="vaango-modal-actions">
             <Button type="button" variant="outline" onClick={() => setPaymentModalOpen(false)}>
               Cancel
@@ -554,8 +666,9 @@ export const AdminSubscriptionsPage: React.FC = () => {
               <div key={p.id} className="vaango-receipt-row">
                 <div>
                   <strong>₹{p.amount_paid}</strong> ({p.billing_cycle})
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                    Ref: <code>{p.payment_reference}</code>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <span>Ref:</span>
+                    <CopyableText text={p.payment_reference} label="UPI Ref" />
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                     Period: {p.period_start} to {p.period_end}
