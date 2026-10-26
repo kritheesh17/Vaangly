@@ -785,28 +785,34 @@ ALTER TABLE public.customer_moderation ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customer_cancellation_events ENABLE ROW LEVEL SECURITY;
 
 -- Settings: Public read; admin manage
+DROP POLICY IF EXISTS "Public read cancellation policy settings" ON public.cancellation_policy_settings;
 CREATE POLICY "Public read cancellation policy settings"
   ON public.cancellation_policy_settings
   FOR SELECT USING (TRUE);
 
+DROP POLICY IF EXISTS "Admins manage cancellation policy settings" ON public.cancellation_policy_settings;
 CREATE POLICY "Admins manage cancellation policy settings"
   ON public.cancellation_policy_settings
   FOR ALL USING (public.is_admin());
 
 -- Customer Moderation: Customers read own status; Admins manage all; Shopkeepers cannot read unrelated customers
+DROP POLICY IF EXISTS "Customers read own moderation status" ON public.customer_moderation;
 CREATE POLICY "Customers read own moderation status"
   ON public.customer_moderation
   FOR SELECT USING (auth.uid() = customer_id);
 
+DROP POLICY IF EXISTS "Admins read and manage all customer moderation" ON public.customer_moderation;
 CREATE POLICY "Admins read and manage all customer moderation"
   ON public.customer_moderation
   FOR ALL USING (public.is_admin());
 
 -- Cancellation Events: Customer reads own events; Shop owner reads shop events; Admins read all
+DROP POLICY IF EXISTS "Customers read own cancellation events" ON public.customer_cancellation_events;
 CREATE POLICY "Customers read own cancellation events"
   ON public.customer_cancellation_events
   FOR SELECT USING (auth.uid() = customer_id);
 
+DROP POLICY IF EXISTS "Shop owners read shop cancellation events" ON public.customer_cancellation_events;
 CREATE POLICY "Shop owners read shop cancellation events"
   ON public.customer_cancellation_events
   FOR SELECT USING (
@@ -816,6 +822,7 @@ CREATE POLICY "Shop owners read shop cancellation events"
     )
   );
 
+DROP POLICY IF EXISTS "Admins read all cancellation events" ON public.customer_cancellation_events;
 CREATE POLICY "Admins read all cancellation events"
   ON public.customer_cancellation_events
   FOR SELECT USING (public.is_admin());
