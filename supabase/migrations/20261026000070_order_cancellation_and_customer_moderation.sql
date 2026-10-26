@@ -95,7 +95,7 @@ CREATE INDEX IF NOT EXISTS idx_customer_moderation_flagged
 
 -- 4. CUSTOMER CANCELLATION EVENTS (Audit trail for qualifying cancellation abuse monitoring)
 CREATE TABLE IF NOT EXISTS public.customer_cancellation_events (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   request_id UUID NOT NULL REFERENCES public.requests(id) ON DELETE CASCADE,
   shop_id UUID NOT NULL REFERENCES public.shops(id) ON DELETE CASCADE,
