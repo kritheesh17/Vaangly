@@ -14,7 +14,6 @@ import {
   saveStoredCancellationEvents,
   saveStoredModerationRecords,
   getStoredCancellationEvents,
-  getStoredModerationRecords,
 } from '../lib/orderCancellationApi';
 import { Request } from '../types/database';
 
@@ -90,7 +89,7 @@ describe('Order Cancellation, Customer Warnings & Abuse Prevention Engine', () =
       customer_name: 'Test Customer',
       customer_phone: '9876543210',
       notes: JSON.stringify({ shop_name: 'Test Bakery' }),
-    } as Request;
+    } as unknown as Request;
   };
 
   const seedRequests = (requests: Request[]) => {
@@ -359,7 +358,7 @@ describe('Order Cancellation, Customer Warnings & Abuse Prevention Engine', () =
       previous_state: 'PREPARING',
       preparation_started: true,
       actor_id: customerIdA,
-      actorRole: 'customer' as const,
+      actor_role: 'customer' as const,
       reason: 'Ordered by mistake',
       is_qualifying: true,
       created_at: new Date().toISOString(),
@@ -403,7 +402,7 @@ describe('Order Cancellation, Customer Warnings & Abuse Prevention Engine', () =
         previous_state: 'PREPARING',
         preparation_started: true,
         actor_id: customerIdA,
-        actorRole: 'customer' as const,
+        actor_role: 'customer' as const,
         reason: 'Ordered by mistake',
         is_qualifying: true,
         created_at: new Date().toISOString(),
@@ -417,7 +416,7 @@ describe('Order Cancellation, Customer Warnings & Abuse Prevention Engine', () =
         previous_state: 'ACCEPTED',
         preparation_started: true,
         actor_id: customerIdA,
-        actorRole: 'customer' as const,
+        actor_role: 'customer' as const,
         reason: 'Delivery or pickup delay',
         is_qualifying: true,
         created_at: new Date().toISOString(),
@@ -584,7 +583,7 @@ describe('Order Cancellation, Customer Warnings & Abuse Prevention Engine', () =
     const paidReq = createMockRequest({
       current_state: 'REQUESTED',
       payment_method: 'upi',
-      payment_status: 'PAID',
+      payment_status: 'paid',
       payment_amount: 350,
       total_estimate: 350,
     });
