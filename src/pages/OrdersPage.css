@@ -221,6 +221,32 @@
   cursor: pointer;
 }
 
+.vaango-order-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #FEE2E2;
+  border: 1px solid #FECACA;
+  border-radius: 9999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #B91C1C;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vaango-order-cancel-btn:hover {
+  background: #FCA5A5;
+  color: #7F1D1D;
+}
+
+.vaango-order-status-badge--cancel-pending {
+  background-color: #FEF3C7;
+  color: #B45309;
+  border: 1px dashed #F59E0B;
+}
+
 .vaango-orders-empty {
   padding: 32px 0;
 }

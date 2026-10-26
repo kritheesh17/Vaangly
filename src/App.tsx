@@ -110,6 +110,9 @@ const AdminMasterCataloguePage = React.lazy(() =>
 const AdminAuditPage = React.lazy(() =>
   import('./pages/admin/AdminAuditPage').then((m) => ({ default: m.AdminAuditPage }))
 );
+const AdminCustomerModerationPage = React.lazy(() =>
+  import('./pages/admin/AdminCustomerModerationPage').then((m) => ({ default: m.AdminCustomerModerationPage }))
+);
 const DesignSystemShowcasePage = React.lazy(() =>
   import('./pages/DesignSystemShowcasePage').then((m) => ({ default: m.DesignSystemShowcasePage }))
 );
@@ -264,6 +267,7 @@ export const App: React.FC = () => {
                             <Route path="catalogue" element={<AdminMasterCataloguePage />} />
                             <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
                             <Route path="audit" element={<AdminAuditPage />} />
+                            <Route path="moderation" element={<AdminCustomerModerationPage />} />
                           </Route>
 
                           {/* Public Design System Showcase & Dev Diagnostics */}

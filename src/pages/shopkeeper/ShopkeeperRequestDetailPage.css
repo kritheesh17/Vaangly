@@ -675,4 +675,104 @@
   font-style: italic;
 }
 
+/* Shopkeeper Cancellation Review Banner */
+.vaango-cancellation-review-banner {
+  background: var(--color-surface, #ffffff);
+  border: 2px solid var(--color-warning, #f59e0b);
+  border-radius: var(--radius-lg, 12px);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+[data-theme='dark'] .vaango-cancellation-review-banner,
+.dark .vaango-cancellation-review-banner {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.vaango-cancellation-review-banner__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vaango-cancellation-review-banner__header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.vaango-cancellation-review-banner__header p {
+  margin: 2px 0 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.vaango-cancellation-review-banner__body {
+  background: var(--color-surface-hover, #f8fafc);
+  border-radius: var(--radius-md, 8px);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.875rem;
+}
+
+[data-theme='dark'] .vaango-cancellation-review-banner__body,
+.dark .vaango-cancellation-review-banner__body {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.vaango-cancellation-meta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.vaango-cancellation-meta-row .label {
+  font-weight: 600;
+  color: var(--color-text-secondary, #64748b);
+  min-width: 90px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.vaango-cancellation-meta-row .value {
+  color: var(--color-text-primary, #0f172a);
+}
+
+.vaango-cancellation-review-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.vaango-cancellation-declined-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-surface-hover, #f1f5f9);
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  color: var(--color-text-secondary, #475569);
+  font-size: 0.85rem;
+}
+
+[data-theme='dark'] .vaango-cancellation-declined-alert,
+.dark .vaango-cancellation-declined-alert {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+}
+
 

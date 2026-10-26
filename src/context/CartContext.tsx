@@ -8,6 +8,7 @@ import { notifyOrderLifecycle } from '../lib/notificationApi';
 import { validateOrderPickupAt } from '../lib/orderPickupUtils';
 import { cleanPaymentProofPath } from '../lib/paymentProof';
 import { variantIsAvailable } from '../lib/productVariants';
+import { fetchCustomerModeration } from '../lib/orderCancellationApi';
 
 export interface CartItem {
   product: ShopProduct;
@@ -312,6 +313,26 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (!user) {
       return { success: false, error: 'Please sign in to complete your request.' };
+    }
+
+    // Customer abuse / moderation check
+    try {
+      const moderation = await fetchCustomerModeration(user.id);
+      if (moderation?.is_suspended) {
+        const isExpired = moderation.suspension_expires_at && new Date(moderation.suspension_expires_at).getTime() < Date.now();
+        if (!isExpired) {
+          const reasonText = moderation.suspension_reason ? `: "${moderation.suspension_reason}"` : '.';
+          const untilText = moderation.suspension_expires_at
+            ? ` until ${new Date(moderation.suspension_expires_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}`
+            : '';
+          return {
+            success: false,
+            error: `Your ordering privileges have been temporarily suspended${untilText}${reasonText} Please contact support if you believe this is an error.`,
+          };
+        }
+      }
+    } catch {
+      // Non-blocking fallback if check fails
     }
 
     const customerPhone = user.phone ? (normalizeIndianPhone(user.phone) || user.phone) : null;

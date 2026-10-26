@@ -23,6 +23,7 @@ import { Request, RequestEvent } from '../../types/database';
 import { WorkflowStateCode, WorkflowGroupCode } from '../../types/workflow';
 import { markRequestCustomerPaid, recordPayAtShopRefund, rejectRequestPayment, transitionRequestState } from '../../lib/shopkeeperApi';
 import { confirmServicePrice } from '../../lib/appointmentServiceApi';
+import { respondToCancellationRequest } from '../../lib/orderCancellationApi';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { resolvePaymentProofUrl } from '../../lib/paymentProof';
 import { Card } from '../../components/ui/Card';
@@ -98,6 +99,10 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [priceInput, setPriceInput] = useState('');
   const [nextStateAfterPrice, setNextStateAfterPrice] = useState<WorkflowStateCode | null>(null);
+
+  // Customer Cancellation Review
+  const [isRejectCancelModalOpen, setIsRejectCancelModalOpen] = useState(false);
+  const [rejectCancelReason, setRejectCancelReason] = useState('');
 
   const groupCode: WorkflowGroupCode = (request?.workflow_group_code || 'ORDER') as WorkflowGroupCode;
 
@@ -345,6 +350,66 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
       setNextStateAfterPrice(null);
     } catch (err: unknown) {
       toastError(err instanceof Error ? err.message : t('genericError'));
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  // Handle Shopkeeper Cancellation Actions
+  const handleApproveCancellation = async () => {
+    if (!request || !user) return;
+    if (!window.confirm(`Are you sure you want to approve cancellation for Order #${request.reference_code}? This action cannot be undone.`)) {
+      return;
+    }
+    setIsActionLoading(true);
+    try {
+      const res = await respondToCancellationRequest({
+        requestId: request.id,
+        action: 'approve',
+        actorId: user.id,
+        actorRole: 'shopkeeper',
+      });
+      if (res.success && res.request) {
+        setRequest(res.request);
+        success(`Order #${request.reference_code} has been cancelled.`);
+        await loadRequestAndHistory();
+      } else {
+        toastError(res.error || 'Failed to approve cancellation.');
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : 'Error approving cancellation.');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleDeclineCancellation = async () => {
+    if (!request || !user) return;
+    const cleanReason = rejectCancelReason.trim();
+    if (!cleanReason) {
+      toastError('Please provide a reason for declining the cancellation request.');
+      return;
+    }
+    setIsActionLoading(true);
+    try {
+      const res = await respondToCancellationRequest({
+        requestId: request.id,
+        action: 'reject',
+        rejectionReason: cleanReason,
+        actorId: user.id,
+        actorRole: 'shopkeeper',
+      });
+      if (res.success && res.request) {
+        setRequest(res.request);
+        success('Cancellation request declined. Order fulfillment continues.');
+        setIsRejectCancelModalOpen(false);
+        setRejectCancelReason('');
+        await loadRequestAndHistory();
+      } else {
+        toastError(res.error || 'Failed to decline cancellation request.');
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : 'Error declining cancellation.');
     } finally {
       setIsActionLoading(false);
     }
@@ -710,6 +775,79 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
           <span>All Requests</span>
         </button>
       </div>
+
+      {/* Pending Customer Cancellation Review Banner */}
+      {request.cancellation_request_status === 'pending' && (
+        <div className="vaango-cancellation-review-banner">
+          <div className="vaango-cancellation-review-banner__header">
+            <AlertTriangle size={24} className="text-warning shrink-0" />
+            <div>
+              <h3>Customer Requested Order Cancellation</h3>
+              <p>
+                The customer has requested to cancel this order while it was {request.current_state.toLowerCase()}. Please review and respond promptly.
+              </p>
+            </div>
+          </div>
+          <div className="vaango-cancellation-review-banner__body">
+            <div className="vaango-cancellation-meta-row">
+              <span className="label">Reason:</span>
+              <span className="value font-semibold">{request.cancellation_reason || 'Not specified'}</span>
+            </div>
+            {request.cancellation_explanation && (
+              <div className="vaango-cancellation-meta-row">
+                <span className="label">Note:</span>
+                <span className="value italic">&ldquo;{request.cancellation_explanation}&rdquo;</span>
+              </div>
+            )}
+            {request.cancellation_requested_at && (
+              <div className="vaango-cancellation-meta-row">
+                <span className="label">Requested:</span>
+                <span className="value">
+                  {new Date(request.cancellation_requested_at).toLocaleDateString([], {
+                    month: 'short',
+                    day: 'numeric',
+                  })}{' '}
+                  at{' '}
+                  {new Date(request.cancellation_requested_at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="vaango-cancellation-review-banner__actions">
+            <Button
+              variant="danger"
+              size="md"
+              isLoading={isActionLoading}
+              onClick={() => void handleApproveCancellation()}
+              leftIcon={<CheckCircle size={16} />}
+            >
+              Approve Cancellation
+            </Button>
+            <Button
+              variant="outline"
+              size="md"
+              disabled={isActionLoading}
+              onClick={() => setIsRejectCancelModalOpen(true)}
+              leftIcon={<XCircle size={16} />}
+            >
+              Decline Request
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Cancellation Request Previously Declined */}
+      {request.cancellation_request_status === 'rejected' && (
+        <div className="vaango-cancellation-declined-alert">
+          <XCircle size={18} className="text-secondary shrink-0" />
+          <div>
+            <span>Customer cancellation request was declined{request.cancellation_rejected_reason ? `: "${request.cancellation_rejected_reason}"` : '.'} Active fulfillment continues.</span>
+          </div>
+        </div>
+      )}
 
       {/* Header Info Card */}
       <Card variant="default" padding="lg" className="vaango-req-header-card">
@@ -1329,7 +1467,15 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
           {['REJECTED', 'CANCELLED'].includes(request.current_state) && (
             <div className="vaango-req-action-card__terminal vaango-req-action-card__terminal--error">
               <XCircle size={22} className="text-error" />
-              <span>This request was {request.current_state.toLowerCase()}.</span>
+              <div>
+                <div>This request was {request.current_state.toLowerCase()}.</div>
+                {request.current_state === 'CANCELLED' && request.cancellation_reason && (
+                  <div className="text-xs text-muted mt-1 font-normal">
+                    Reason: <strong>{request.cancellation_reason}</strong>
+                    {request.cancellation_actor_role && ` (by ${request.cancellation_actor_role})`}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -1739,6 +1885,55 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
               onClick={() => void handleConfirmRejectPayment()}
             >
               Confirm Rejection
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Decline Customer Cancellation Request Modal */}
+      <Modal
+        isOpen={isRejectCancelModalOpen}
+        onClose={() => {
+          setIsRejectCancelModalOpen(false);
+          setRejectCancelReason('');
+        }}
+        title="Decline Customer Cancellation"
+        description="Explain to the customer why this order cannot be cancelled (e.g. items are already cooked or being packed)."
+        maxWidth="sm"
+      >
+        <div className="space-y-4 pt-2">
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1.5">
+              Decline Reason *
+            </label>
+            <textarea
+              value={rejectCancelReason}
+              onChange={(e) => setRejectCancelReason(e.target.value)}
+              placeholder="e.g. Items are already prepared and ready for pickup."
+              rows={3}
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => {
+                setIsRejectCancelModalOpen(false);
+                setRejectCancelReason('');
+              }}
+              disabled={isActionLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              isLoading={isActionLoading}
+              disabled={!rejectCancelReason.trim()}
+              onClick={() => void handleDeclineCancellation()}
+            >
+              Confirm Decline
             </Button>
           </div>
         </div>

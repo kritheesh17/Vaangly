@@ -18,14 +18,13 @@ import {
 import { Request } from '../types/database';
 import { WorkflowStateCode, WorkflowGroupCode } from '../types/workflow';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { cancelCustomerRequest, confirmAppointmentOnlinePayment } from '../lib/appointmentServiceApi';
+import { confirmAppointmentOnlinePayment } from '../lib/appointmentServiceApi';
 import { notifyOrderLifecycle } from '../lib/notificationApi';
 import { RequestTimeline } from '../components/customer/RequestTimeline';
+import { OrderCancellationModal } from '../components/customer/OrderCancellationModal';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { Modal } from '../components/ui/Modal';
-import { Input } from '../components/ui/Input';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { RatingModal } from '../components/customer/RatingModal';
@@ -82,8 +81,6 @@ export const RequestDetailPage: React.FC = () => {
   const [request, setRequest] = useState<Request | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
-  const [isCancelling, setIsCancelling] = useState(false);
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null);
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
@@ -193,25 +190,6 @@ export const RequestDetailPage: React.FC = () => {
     }
   };
 
-  const handleCustomerCancel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!request || !user) return;
-    setIsCancelling(true);
-    try {
-      const res = await cancelCustomerRequest(request.id, user.id, cancelReason);
-      if (res.success && res.request) {
-        setRequest(res.request);
-        setCancelModalOpen(false);
-        success(t('requestCancelledSuccess'));
-      } else {
-        toastError(res.error || t('cancelRequestFailed'));
-      }
-    } catch (err: any) {
-      toastError(err?.message || t('cancelRequestFailed'));
-    } finally {
-      setIsCancelling(false);
-    }
-  };
 
   const notifyStateChange = useCallback(
     (newState: WorkflowStateCode, group: WorkflowGroupCode) => {
@@ -953,15 +931,54 @@ export const RequestDetailPage: React.FC = () => {
         </Card>
       )}
 
-      {/* Customer Cancellation Option (Only available while request is pre-fulfillment) */}
-      {['REQUESTED', 'ACCEPTED', 'CONFIRMED'].includes(request.current_state) && (
+      {/* Pending Cancellation Request Banner */}
+      {request.cancellation_request_status === 'pending' && (
+        <Card variant="outlined" padding="md" style={{ marginBottom: 'var(--space-4)', backgroundColor: 'var(--color-warning-subtle, #fffbeb)', borderColor: 'var(--color-warning-border, #fef3c7)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <Clock size={20} className="text-warning" style={{ flexShrink: 0, marginTop: 2 }} />
+            <div>
+              <strong style={{ display: 'block', fontSize: '0.95rem', color: '#92400e' }}>
+                Cancellation Request Pending Review
+              </strong>
+              <span style={{ fontSize: '0.85rem', color: '#78350f' }}>
+                You requested cancellation for this order{request.cancellation_reason ? ` (Reason: ${request.cancellation_reason})` : ''}. The shopkeeper has been notified and will review your request shortly.
+              </span>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Declined Cancellation Notice Banner */}
+      {request.cancellation_request_status === 'rejected' && request.current_state !== 'CANCELLED' && (
+        <Card variant="outlined" padding="md" style={{ marginBottom: 'var(--space-4)', backgroundColor: 'var(--color-surface-subtle, #f8fafc)', borderColor: 'var(--color-border, #e2e8f0)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <AlertTriangle size={20} className="text-muted" style={{ flexShrink: 0, marginTop: 2 }} />
+            <div>
+              <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
+                Cancellation Request Declined
+              </strong>
+              <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                The shopkeeper declined your cancellation request{request.cancellation_rejected_reason ? `: "${request.cancellation_rejected_reason}"` : ''}. Your order remains active and is being fulfilled.
+              </span>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Customer Cancellation Option */}
+      {['REQUESTED', 'ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY', 'DELAYED'].includes(request.current_state) &&
+        request.cancellation_request_status !== 'pending' && (
         <Card variant="outlined" padding="md" style={{ marginBottom: 'var(--space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--color-text)' }}>
-              {t('needToCancelQuestion')}
+              {request.current_state === 'REQUESTED' ? 'Need to cancel this order?' : 'Need to request cancellation?'}
             </strong>
             <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-              {t('safeCancelNotice')}
+              {request.current_state === 'REQUESTED'
+                ? 'This order has not been accepted yet and can be cancelled directly.'
+                : request.current_state === 'READY'
+                ? 'This order is marked ready. Cancellation requires shopkeeper confirmation.'
+                : 'The shopkeeper will be notified to review and approve or decline your request.'}
             </span>
           </div>
           <Button
@@ -970,54 +987,20 @@ export const RequestDetailPage: React.FC = () => {
             onClick={() => setCancelModalOpen(true)}
             leftIcon={<XCircle size={16} />}
           >
-            {t('cancelRequestBtn')}
+            {request.current_state === 'REQUESTED' ? 'Cancel Order' : 'Request Cancellation'}
           </Button>
         </Card>
       )}
 
-      {/* Cancel Confirmation Modal */}
-      <Modal
-        isOpen={cancelModalOpen}
-        onClose={() => setCancelModalOpen(false)}
-        title={t('cancelRequestBtn')}
-        maxWidth="sm"
-      >
-        <form onSubmit={handleCustomerCancel}>
-          <p style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>
-            {t('cancelModalPrompt', { refCode: request.reference_code })}
-            {groupCode === 'APPOINTMENT' && ` ${t('cancelModalAptNotice')}`}
-          </p>
-
-          <div style={{ marginBottom: 16 }}>
-            <label htmlFor="cancel-reason" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6 }}>
-              {t('cancelReasonLabel')}
-            </label>
-            <Input
-              id="cancel-reason"
-              placeholder={t('cancelReasonPlaceholder')}
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-            />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setCancelModalOpen(false)}
-            >
-              {t('keepRequestBtn')}
-            </Button>
-            <Button
-              type="submit"
-              variant="danger"
-              isLoading={isCancelling}
-            >
-              {t('confirmCancellationBtn')}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Order Cancellation Modal */}
+      {cancelModalOpen && (
+        <OrderCancellationModal
+          request={request}
+          isOpen={cancelModalOpen}
+          onClose={() => setCancelModalOpen(false)}
+          onSuccess={(updated) => setRequest(updated)}
+        />
+      )}
 
       {/* State Simulator Tool */}
       <Card variant="sunken" padding="md" className="vaango-simulator-panel">

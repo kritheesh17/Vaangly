@@ -1,0 +1,151 @@
+.vaango-cancel-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 1rem);
+}
+
+.vaango-cancel-order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3, 0.75rem);
+  background: var(--color-surface-subtle, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-lg, 12px);
+}
+
+.vaango-cancel-order-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.vaango-cancel-order-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.vaango-cancel-order-ref {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.vaango-cancel-order-shop {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #475569);
+}
+
+.vaango-cancel-notice-box {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3, 0.75rem);
+  padding: var(--space-3, 0.75rem);
+  border-radius: var(--radius-md, 8px);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.vaango-cancel-notice--direct {
+  background: var(--color-info-subtle, #f0fdf4);
+  border: 1px solid var(--color-info-border, #bbf7d0);
+  color: #166534;
+}
+
+.vaango-cancel-notice--request {
+  background: var(--color-warning-subtle, #fffbeb);
+  border: 1px solid var(--color-warning-border, #fef3c7);
+  color: #92400e;
+}
+
+.vaango-cancel-notice-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.vaango-cancel-error-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+  padding: var(--space-3, 0.75rem);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  border-radius: var(--radius-md, 8px);
+  font-size: 0.875rem;
+}
+
+.vaango-cancel-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 0.5rem);
+}
+
+.vaango-cancel-section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.vaango-cancel-reasons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vaango-cancel-reason-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--color-surface, #ffffff);
+  border: 1.5px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--color-text-primary, #0f172a);
+  transition: all 0.15s ease;
+}
+
+.vaango-cancel-reason-item:hover {
+  border-color: var(--color-primary-light, #93c5fd);
+  background: var(--color-surface-hover, #f8fafc);
+}
+
+.vaango-cancel-reason-item--selected {
+  border-color: var(--color-primary, #2563eb);
+  background: #eff6ff;
+  font-weight: 500;
+}
+
+.vaango-cancel-reason-item input[type='radio'] {
+  accent-color: var(--color-primary, #2563eb);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.vaango-cancel-courtesy-note {
+  color: var(--color-text-muted, #64748b);
+  line-height: 1.35;
+  padding: 0 4px;
+}
+
+.vaango-cancel-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: var(--space-3, 0.75rem);
+  border-top: 1px solid var(--color-border, #e2e8f0);
+}
+
+@media (max-width: 640px) {
+  .vaango-cancel-modal-actions {
+    flex-direction: column-reverse;
+  }
+  .vaango-cancel-modal-actions button {
+    width: 100%;
+  }
+}

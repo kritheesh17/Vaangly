@@ -280,6 +280,12 @@ export interface OrderLifecycleNotificationParams {
     | 'OUT_FOR_DELIVERY'
     | 'ORDER_COMPLETED'
     | 'ORDER_CANCELLED'
+    | 'CANCELLATION_REQUESTED'
+    | 'CANCELLATION_APPROVED'
+    | 'CANCELLATION_REJECTED'
+    | 'CUSTOMER_WARNING'
+    | 'CUSTOMER_SUSPENDED'
+    | 'SHOPKEEPER_ABUSE_ALERT'
     | 'REFUND_COMPLETED';
   requestId: string;
   referenceCode: string;
@@ -441,6 +447,47 @@ export const notifyOrderLifecycle = async (
       type = 'REFUND_EVENT';
       title = 'Refund Completed';
       message = `Refund of ₹${refundAmount ?? 0} for order #${referenceCode} has been completed via ${refundMethod || 'original method'}.`;
+      break;
+
+    case 'CANCELLATION_REQUESTED':
+      type = 'CANCELLATION_REQUESTED';
+      title = 'Cancellation Requested';
+      message = `Customer requested cancellation for order #${referenceCode}.${reason ? ` Reason: ${reason}` : ''}`;
+      break;
+
+    case 'CANCELLATION_APPROVED':
+      type = 'CANCELLATION_APPROVED';
+      title = 'Cancellation Request Approved';
+      message = `Your cancellation request for order #${referenceCode} has been approved by ${shopName}.`;
+      break;
+
+    case 'CANCELLATION_REJECTED':
+      type = 'CANCELLATION_REJECTED';
+      title = 'Cancellation Request Declined';
+      message = `Your cancellation request for order #${referenceCode} was declined by ${shopName}.${reason ? ` Reason: ${reason}` : ''}`;
+      break;
+
+    case 'CUSTOMER_WARNING':
+      type = 'CUSTOMER_WARNING';
+      title = reason === 'reminder' ? 'Order Cancellation Reminder' : 'Order Cancellation Notice';
+      message =
+        reason === 'reminder'
+          ? 'Please cancel orders only when necessary. Cancelling after a shop starts preparing your order may cause inconvenience to the shopkeeper.'
+          : "We've noticed repeated order cancellations on your account. Continued cancellations after orders are accepted may temporarily restrict your ability to place new orders. Please review your orders carefully before confirming.";
+      break;
+
+    case 'CUSTOMER_SUSPENDED':
+      type = 'CUSTOMER_SUSPENDED';
+      title = 'Ordering Privileges Suspended';
+      message = reason
+        ? `Your ordering privileges have been temporarily suspended. Reason: ${reason}. Please contact support for assistance.`
+        : 'Your ordering privileges have been temporarily suspended. Please contact support for assistance.';
+      break;
+
+    case 'SHOPKEEPER_ABUSE_ALERT':
+      type = 'SHOPKEEPER_ABUSE_ALERT';
+      title = 'Repeated Cancellation Pattern';
+      message = `Notice: The customer for order #${referenceCode} has a history of repeated order cancellations.`;
       break;
 
     default:

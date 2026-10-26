@@ -314,8 +314,64 @@ export interface Request {
   notes: string | null;
   scheduled_for: string | null;
   pickup_at?: string | null;
+  cancellation_requested?: boolean;
+  cancellation_request_status?: 'none' | 'pending' | 'approved' | 'rejected' | null;
+  cancellation_reason?: string | null;
+  cancellation_explanation?: string | null;
+  cancellation_requested_at?: string | null;
+  cancellation_rejected_reason?: string | null;
+  cancellation_rejected_at?: string | null;
+  cancelled_by?: string | null;
+  cancelled_at?: string | null;
+  cancellation_actor_role?: 'customer' | 'shopkeeper' | 'admin' | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface CustomerCancellationEvent {
+  id: string;
+  customer_id: string;
+  request_id: string;
+  shop_id: string;
+  order_reference: string;
+  previous_state: string;
+  preparation_started: boolean;
+  actor_id: string;
+  actor_role: 'customer' | 'shopkeeper' | 'admin';
+  reason: string;
+  explanation?: string | null;
+  is_qualifying: boolean;
+  created_at: string;
+}
+
+export interface CustomerModeration {
+  customer_id: string;
+  is_suspended: boolean;
+  suspension_reason?: string | null;
+  suspended_at?: string | null;
+  suspension_expires_at?: string | null;
+  suspended_by?: string | null;
+  flagged_for_review: boolean;
+  flagged_at?: string | null;
+  flag_reason?: string | null;
+  warning_count: number;
+  last_warning_at?: string | null;
+  last_warning_level?: 'reminder' | 'formal_warning' | null;
+  admin_notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  profile?: Profile | null;
+}
+
+export interface CancellationPolicySettings {
+  id: string;
+  window_days: number;
+  first_warning_threshold: number;
+  second_warning_threshold: number;
+  review_threshold: number;
+  exclude_unaccepted_orders: boolean;
+  updated_at: string;
+  updated_by?: string | null;
 }
 
 export interface RequestEvent {

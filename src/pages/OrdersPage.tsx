@@ -16,6 +16,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { RatingModal } from '../components/customer/RatingModal';
+import { OrderCancellationModal } from '../components/customer/OrderCancellationModal';
 import { getStoredDemoRequests } from '../lib/demoData';
 import { useDebounce } from '../hooks/useDebounce';
 import { SearchFilterBar } from '../components/common/SearchFilterBar';
@@ -56,6 +57,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ defaultGroupFilter = 'AL
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [groupFilter, setGroupFilter] = useState<GroupFilter>(defaultGroupFilter);
   const [ratingModalRequest, setRatingModalRequest] = useState<Request | null>(null);
+  const [cancellationModalRequest, setCancellationModalRequest] = useState<Request | null>(null);
 
   // Search & Pagination
   const [searchQuery, setSearchQuery] = useState('');
@@ -361,7 +363,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ defaultGroupFilter = 'AL
                     </div>
                   </div>
 
-                  {/* Right Status Badge */}
+                  {/* Right Status Badge & Actions */}
                   <div className="vaango-order-item-card__status-col">
                     <span className={`vaango-order-status-badge vaango-order-status-badge--${req.current_state.toLowerCase()}`}>
                       {req.current_state === 'REQUESTED'
@@ -376,6 +378,24 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ defaultGroupFilter = 'AL
                         ? 'Completed'
                         : req.current_state}
                     </span>
+                    {req.cancellation_request_status === 'pending' && (
+                      <span className="vaango-order-status-badge vaango-order-status-badge--cancel-pending">
+                        Cancel Pending
+                      </span>
+                    )}
+                    {['REQUESTED', 'ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY', 'DELAYED'].includes(req.current_state) &&
+                      req.cancellation_request_status !== 'pending' && (
+                      <button
+                        type="button"
+                        className="vaango-order-cancel-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCancellationModalRequest(req);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    )}
                     {req.current_state === 'COMPLETED' && (
                       <button
                         type="button"
@@ -449,6 +469,16 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ defaultGroupFilter = 'AL
           request={ratingModalRequest}
           isOpen={Boolean(ratingModalRequest)}
           onClose={() => setRatingModalRequest(null)}
+          onSuccess={() => fetchRequests()}
+        />
+      )}
+
+      {/* Customer Order Cancellation Modal */}
+      {cancellationModalRequest && (
+        <OrderCancellationModal
+          request={cancellationModalRequest}
+          isOpen={Boolean(cancellationModalRequest)}
+          onClose={() => setCancellationModalRequest(null)}
           onSuccess={() => fetchRequests()}
         />
       )}
