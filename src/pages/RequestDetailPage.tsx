@@ -579,6 +579,120 @@ export const RequestDetailPage: React.FC = () => {
           </div>
         )}
 
+        {/* Top Order Action & Cancellation Card */}
+        {request.current_state === 'REQUESTED' && (
+          <div className="vaango-detail-top-action-card vaango-detail-top-action-card--requested" role="region" aria-label="Order action">
+            <div className="vaango-detail-top-action-card__info">
+              <div className="vaango-detail-top-action-card__header-row">
+                <span className="vaango-pulse-dot" aria-hidden="true" />
+                <strong className="vaango-detail-top-action-card__title">Awaiting Shop Acceptance</strong>
+              </div>
+              <p className="vaango-detail-top-action-card__desc">
+                {groupCode === 'APPOINTMENT'
+                  ? 'Your appointment request is awaiting shop confirmation. You can cancel directly if your plans change.'
+                  : 'The shop has not accepted this order yet. You can cancel immediately with no penalty.'}
+              </p>
+            </div>
+            <div className="vaango-detail-top-action-card__actions">
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => setCancelModalOpen(true)}
+                leftIcon={<XCircle size={16} />}
+                className="vaango-top-cancel-btn"
+              >
+                Cancel {groupCode === 'APPOINTMENT' ? 'Appointment' : 'Order'}
+              </Button>
+              {shopPhone && shopPhone !== '—' && (
+                <a
+                  href={`tel:${shopPhone}`}
+                  className="vaango-detail-call-btn"
+                  title="Call shopkeeper directly"
+                >
+                  <Phone size={14} />
+                  <span>Call Shop</span>
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {request.current_state === 'CANCELLED' && (
+          <div className="vaango-detail-top-action-card vaango-detail-top-action-card--cancelled" role="status">
+            <div className="vaango-detail-top-action-card__info">
+              <div className="vaango-detail-top-action-card__header-row">
+                <XCircle size={18} className="text-danger" />
+                <strong className="vaango-detail-top-action-card__title">
+                  {groupCode === 'APPOINTMENT' ? 'Appointment Cancelled' : 'Order Cancelled'}
+                </strong>
+              </div>
+              <p className="vaango-detail-top-action-card__desc">
+                {request.cancellation_reason
+                  ? `Reason: ${request.cancellation_reason}`
+                  : 'This order was cancelled.'}
+              </p>
+              {Boolean(request.refund_status && request.refund_status !== 'not_required') && (
+                <div className="vaango-refund-status-tag">
+                  <span>Refund Status: <strong>{String(request.refund_status).toUpperCase()}</strong></span>
+                  {request.refund_amount ? ` (₹${request.refund_amount})` : ''}
+                </div>
+              )}
+            </div>
+            {shopPhone && shopPhone !== '—' && (
+              <div className="vaango-detail-top-action-card__actions">
+                <a
+                  href={`tel:${shopPhone}`}
+                  className="vaango-detail-call-btn"
+                  title="Call shopkeeper directly"
+                >
+                  <Phone size={14} />
+                  <span>Call Shop</span>
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
+        {['ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY', 'DELAYED'].includes(request.current_state) && (
+          <div className="vaango-detail-top-action-card vaango-detail-top-action-card--active" role="region" aria-label="Order action">
+            <div className="vaango-detail-top-action-card__info">
+              <strong className="vaango-detail-top-action-card__title">
+                {request.current_state === 'READY'
+                  ? 'Order Ready for Pickup'
+                  : request.current_state === 'PREPARING'
+                  ? 'Shop is Preparing Your Order'
+                  : request.current_state === 'CONFIRMED'
+                  ? 'Appointment Confirmed'
+                  : 'Order In Progress'}
+              </strong>
+              <p className="vaango-detail-top-action-card__desc">
+                Need help or wish to modify? Contact the shopkeeper directly.
+              </p>
+            </div>
+            <div className="vaango-detail-top-action-card__actions">
+              {shopPhone && shopPhone !== '—' && (
+                <a
+                  href={`tel:${shopPhone}`}
+                  className="vaango-detail-call-btn"
+                  title="Call shopkeeper directly"
+                >
+                  <Phone size={14} />
+                  <span>Call Shop</span>
+                </a>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCancelModalOpen(true)}
+                leftIcon={<XCircle size={15} />}
+                className="vaango-top-cancel-outline-btn"
+              >
+                Cancel Order
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="vaango-request-shop-info">
           <div className="vaango-shop-row">
             <Store size={18} className="vaango-shop-row__icon" />
@@ -965,32 +1079,7 @@ export const RequestDetailPage: React.FC = () => {
         </Card>
       )}
 
-      {/* Customer Cancellation Option */}
-      {['REQUESTED', 'ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY', 'DELAYED'].includes(request.current_state) &&
-        request.cancellation_request_status !== 'pending' && (
-        <Card variant="outlined" padding="md" style={{ marginBottom: 'var(--space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--color-text)' }}>
-              {request.current_state === 'REQUESTED' ? 'Need to cancel this order?' : 'Need to request cancellation?'}
-            </strong>
-            <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-              {request.current_state === 'REQUESTED'
-                ? 'This order has not been accepted yet and can be cancelled directly.'
-                : request.current_state === 'READY'
-                ? 'This order is marked ready. Cancellation requires shopkeeper confirmation.'
-                : 'The shopkeeper will be notified to review and approve or decline your request.'}
-            </span>
-          </div>
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => setCancelModalOpen(true)}
-            leftIcon={<XCircle size={16} />}
-          >
-            {request.current_state === 'REQUESTED' ? 'Cancel Order' : 'Request Cancellation'}
-          </Button>
-        </Card>
-      )}
+      {/* Primary cancellation and contact actions are prominently placed at the top and in the sticky bar */}
 
       {/* Order Cancellation Modal */}
       {cancelModalOpen && (
@@ -1141,6 +1230,41 @@ export const RequestDetailPage: React.FC = () => {
           )}
         </div>
       </Card>
+
+      {/* Mobile Sticky Action Bar */}
+      {['REQUESTED', 'ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY', 'DELAYED'].includes(request.current_state) && (
+        <div className="vaango-detail-sticky-bar" role="region" aria-label="Quick order actions">
+          <div className="vaango-detail-sticky-bar__content">
+            <div className="vaango-detail-sticky-bar__state">
+              <span className="vaango-detail-sticky-bar__label">Status</span>
+              <strong className="vaango-detail-sticky-bar__value">
+                {(t as any)(`status_${request.current_state}`) || request.current_state}
+              </strong>
+            </div>
+            <div className="vaango-detail-sticky-bar__actions">
+              {shopPhone && shopPhone !== '—' && (
+                <a
+                  href={`tel:${shopPhone}`}
+                  className="vaango-sticky-call-btn"
+                  aria-label="Call shop"
+                >
+                  <Phone size={15} />
+                  <span>Call</span>
+                </a>
+              )}
+              <Button
+                variant={request.current_state === 'REQUESTED' ? 'danger' : 'outline'}
+                size="sm"
+                onClick={() => setCancelModalOpen(true)}
+                leftIcon={<XCircle size={15} />}
+                className="vaango-sticky-cancel-btn"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

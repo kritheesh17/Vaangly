@@ -54,7 +54,7 @@
   color: #166534;
 }
 
-.vaango-cancel-notice--request {
+.vaango-cancel-notice--ineligible {
   background: var(--color-warning-subtle, #fffbeb);
   border: 1px solid var(--color-warning-border, #fef3c7);
   color: #92400e;
@@ -133,6 +133,67 @@
   padding: 0 4px;
 }
 
+.vaango-cancel-ineligible-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vaango-cancel-contact-shop-card {
+  padding: 14px;
+  background: var(--color-surface-subtle, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vaango-cancel-contact-shop-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.vaango-cancel-contact-desc {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #475569);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.vaango-cancel-contact-detail {
+  font-size: 0.85rem;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.vaango-cancel-contact-actions {
+  margin-top: 6px;
+}
+
+.vaango-cancel-call-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background-color: var(--color-primary, #1b4d3e);
+  color: #ffffff !important;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: var(--radius-md, 8px);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+  min-height: 44px;
+}
+
+.vaango-cancel-call-btn:hover {
+  opacity: 0.92;
+}
+
 .vaango-cancel-modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -146,6 +207,9 @@
     flex-direction: column-reverse;
   }
   .vaango-cancel-modal-actions button {
+    width: 100%;
+  }
+  .vaango-cancel-call-btn {
     width: 100%;
   }
 }

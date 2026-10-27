@@ -1088,3 +1088,85 @@
   color: #FCA5A5;
 }
 
+/* Actionable Alert Banner */
+.vaango-sk-action-alert {
+  margin: 0 16px 16px;
+  padding: 14px 16px;
+  background-color: #FEF2F2;
+  border: 1.5px solid #FEE2E2;
+  border-radius: var(--radius-lg, 12px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.vaango-sk-action-alert--warning {
+  background-color: #FFFBEB;
+  border-color: #FEF3C7;
+}
+
+[data-theme='dark'] .vaango-sk-action-alert,
+.dark .vaango-sk-action-alert {
+  background-color: rgba(220, 38, 38, 0.15);
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+[data-theme='dark'] .vaango-sk-action-alert--warning,
+.dark .vaango-sk-action-alert--warning {
+  background-color: rgba(217, 119, 6, 0.15);
+  border-color: rgba(217, 119, 6, 0.35);
+}
+
+.vaango-sk-action-alert__content {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 220px;
+}
+
+.vaango-sk-action-alert__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: #DC2626;
+  margin-top: 5px;
+  flex-shrink: 0;
+  animation: pulseSubtle 1.8s infinite ease-in-out;
+}
+
+.vaango-sk-action-alert__dot--warning {
+  background-color: #D97706;
+}
+
+.vaango-sk-action-alert__title {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+[data-theme='dark'] .vaango-sk-action-alert__title,
+.dark .vaango-sk-action-alert__title {
+  color: #F9FAFB;
+}
+
+.vaango-sk-action-alert__subtitle {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: #4B5563;
+  line-height: 1.4;
+}
+
+[data-theme='dark'] .vaango-sk-action-alert__subtitle,
+.dark .vaango-sk-action-alert__subtitle {
+  color: #D1D5DB;
+}
+
+.vaango-sk-action-alert__btn {
+  font-weight: 600;
+  white-space: nowrap;
+}
+

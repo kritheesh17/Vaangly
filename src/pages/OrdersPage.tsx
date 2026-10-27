@@ -376,6 +376,8 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ defaultGroupFilter = 'AL
                         ? 'Confirmed'
                         : req.current_state === 'COMPLETED'
                         ? 'Completed'
+                        : req.current_state === 'CANCELLED'
+                        ? 'Cancelled'
                         : req.current_state}
                     </span>
                     {req.cancellation_request_status === 'pending' && (
@@ -383,32 +385,52 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ defaultGroupFilter = 'AL
                         Cancel Pending
                       </span>
                     )}
-                    {['REQUESTED', 'ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY', 'DELAYED'].includes(req.current_state) &&
-                      req.cancellation_request_status !== 'pending' && (
+
+                    <div className="vaango-order-item-card__btn-group">
+                      {/* Cancel Order: Only visible when order is genuinely eligible for immediate cancellation */}
+                      {((reqGroup === 'APPOINTMENT' && ['REQUESTED', 'ACCEPTED', 'CONFIRMED'].includes(req.current_state)) ||
+                        (reqGroup !== 'APPOINTMENT' && req.current_state === 'REQUESTED')) &&
+                        req.cancellation_request_status !== 'pending' && (
+                        <button
+                          type="button"
+                          className="vaango-order-cancel-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCancellationModalRequest(req);
+                          }}
+                          aria-label={`Cancel ${reqGroup === 'APPOINTMENT' ? 'appointment' : 'order'} ${refCode}`}
+                        >
+                          Cancel
+                        </button>
+                      )}
+
+                      {/* View Details Button */}
                       <button
                         type="button"
-                        className="vaango-order-cancel-btn"
+                        className="vaango-order-view-btn"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setCancellationModalRequest(req);
+                          navigate(`/request/${req.id}`);
                         }}
+                        aria-label={`View details for ${refCode}`}
                       >
-                        Cancel
+                        View Order
                       </button>
-                    )}
-                    {req.current_state === 'COMPLETED' && (
-                      <button
-                        type="button"
-                        className="vaango-order-rate-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRatingModalRequest(req);
-                        }}
-                      >
-                        <Star size={11} fill="#EAB308" color="#EAB308" />
-                        <span>Rate</span>
-                      </button>
-                    )}
+
+                      {req.current_state === 'COMPLETED' && (
+                        <button
+                          type="button"
+                          className="vaango-order-rate-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRatingModalRequest(req);
+                          }}
+                        >
+                          <Star size={11} fill="#EAB308" color="#EAB308" />
+                          <span>Rate</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

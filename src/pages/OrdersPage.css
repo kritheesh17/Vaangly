@@ -221,6 +221,36 @@
   cursor: pointer;
 }
 
+.vaango-order-item-card__btn-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.vaango-order-view-btn {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-surface, #FFFFFF);
+  border: 1px solid var(--color-border, #CBD5E1);
+  border-radius: 9999px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #334155);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 26px;
+}
+
+.vaango-order-view-btn:hover {
+  background: var(--color-surface-hover, #F1F5F9);
+  border-color: var(--color-primary-light, #94A3B8);
+  color: var(--color-primary, #0F172A);
+}
+
 .vaango-order-cancel-btn {
   display: inline-flex;
   align-items: center;
@@ -228,12 +258,13 @@
   background: #FEE2E2;
   border: 1px solid #FECACA;
   border-radius: 9999px;
-  padding: 2px 8px;
-  font-size: 11px;
+  padding: 3px 10px;
+  font-size: 11.5px;
   font-weight: 700;
   color: #B91C1C;
   cursor: pointer;
   transition: all 0.15s ease;
+  min-height: 26px;
 }
 
 .vaango-order-cancel-btn:hover {

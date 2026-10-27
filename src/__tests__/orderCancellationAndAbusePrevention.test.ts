@@ -206,6 +206,53 @@ describe('Order Cancellation, Customer Warnings & Abuse Prevention Engine', () =
     assert.match(result.error || '', /terminal state|already cancelled|cannot be cancelled/i);
   });
 
+  // 5a. Customer cannot directly cancel an order once accepted or in preparation
+  it('5a. Customer cannot directly cancel an order in PREPARING or ACCEPTED state', async () => {
+    const req = createMockRequest({ current_state: 'PREPARING' });
+    seedRequests([req]);
+
+    const result = await cancelOrderDirectly({
+      requestId: req.id,
+      customerId: customerIdA,
+      reason: 'No longer needed',
+    });
+
+    assert.strictEqual(result.success, false);
+    assert.match(
+      result.error || '',
+      /cannot be cancelled directly\. Please contact the shop/i
+    );
+  });
+
+  // 5b. Repeated clicks do not create duplicate cancellation events or double execution
+  it('5b. Repeated cancellation calls are idempotent and do not duplicate events', async () => {
+    const req = createMockRequest({ current_state: 'REQUESTED' });
+    seedRequests([req]);
+
+    // First click
+    const result1 = await cancelOrderDirectly({
+      requestId: req.id,
+      customerId: customerIdA,
+      reason: 'Accidental order',
+    });
+    assert.strictEqual(result1.success, true);
+    assert.strictEqual(result1.request?.current_state, 'CANCELLED');
+
+    // Second click (repeated click simulation)
+    const result2 = await cancelOrderDirectly({
+      requestId: req.id,
+      customerId: customerIdA,
+      reason: 'Accidental order',
+    });
+    assert.strictEqual(result2.success, false);
+    assert.match(result2.error || '', /terminal state|already cancelled/i);
+
+    // Verify cancellation events store contains exactly 1 event for this request
+    const events = getStoredCancellationEvents();
+    const matchingEvents = events.filter((e) => e.request_id === req.id);
+    assert.strictEqual(matchingEvents.length, 1);
+  });
+
   // 6. A customer cannot cancel another customer's order
   it('6. A customer cannot cancel another customer order', async () => {
     const req = createMockRequest({ customer_id: customerIdA, current_state: 'REQUESTED' });

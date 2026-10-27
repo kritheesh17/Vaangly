@@ -241,6 +241,11 @@ export const ShopkeeperDashboardPage: React.FC = () => {
   // 1. New Orders: Real incoming orders strictly in REQUESTED state
   const newOrdersCount = orderRequests.filter((r) => r.current_state === 'REQUESTED').length;
 
+  // Pending cancellation requests awaiting shopkeeper review
+  const pendingCancellationsCount = requests.filter(
+    (r) => r.cancellation_request_status === 'pending'
+  ).length;
+
   // 2. Pending: Real orders currently in prep/fulfillment pipeline (ACCEPTED, PREPARING, IN_PROGRESS, READY, CONFIRMED)
   // Non-overlapping with New Orders (REQUESTED) to avoid double counting
   const pendingOrdersCount = orderRequests.filter((r) =>
@@ -345,6 +350,56 @@ export const ShopkeeperDashboardPage: React.FC = () => {
 
         {activeTab === 'overview' && (
           <>
+            {/* Actionable Incoming Orders Alert Banner */}
+            {newOrdersCount > 0 && (
+              <div className="vaango-sk-action-alert" role="alert">
+                <div className="vaango-sk-action-alert__content">
+                  <span className="vaango-sk-action-alert__dot" />
+                  <div>
+                    <strong className="vaango-sk-action-alert__title">
+                      {newOrdersCount} New {newOrdersCount === 1 ? 'Order' : 'Orders'} Awaiting Acceptance
+                    </strong>
+                    <p className="vaango-sk-action-alert__subtitle">
+                      Review and accept immediately to start customer fulfillment.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setActiveTab('orders')}
+                  className="vaango-sk-action-alert__btn"
+                >
+                  View Orders ({newOrdersCount})
+                </Button>
+              </div>
+            )}
+
+            {/* Actionable Cancellation Requests Alert Banner */}
+            {pendingCancellationsCount > 0 && (
+              <div className="vaango-sk-action-alert vaango-sk-action-alert--warning" role="alert">
+                <div className="vaango-sk-action-alert__content">
+                  <span className="vaango-sk-action-alert__dot vaango-sk-action-alert__dot--warning" />
+                  <div>
+                    <strong className="vaango-sk-action-alert__title">
+                      {pendingCancellationsCount} Cancellation {pendingCancellationsCount === 1 ? 'Request' : 'Requests'} Pending
+                    </strong>
+                    <p className="vaango-sk-action-alert__subtitle">
+                      Customers requested order cancellations. Review and approve or decline.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setActiveTab('orders')}
+                  className="vaango-sk-action-alert__btn"
+                >
+                  Review Requests ({pendingCancellationsCount})
+                </Button>
+              </div>
+            )}
+
             {/* 2x2 Metric Cards (Strictly authentic database metrics) */}
             <section className="vaango-sk-metrics-grid" aria-label="Key Metrics">
               {/* New Orders - Red/Pink card */}

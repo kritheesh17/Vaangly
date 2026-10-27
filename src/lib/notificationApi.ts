@@ -438,7 +438,7 @@ export const notifyOrderLifecycle = async (
         message = `Order #${referenceCode} was cancelled by the customer.${reason ? ` Reason: ${reason}` : ''}`;
       } else {
         message = reason
-          ? `Your order #${referenceCode} was cancelled by ${shopName}. Reason: ${reason}`
+          ? `Your order #${referenceCode} has been cancelled. Reason: ${reason}`
           : `Your order #${referenceCode} has been cancelled.`;
       }
       break;

@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   BarChart3,
   ExternalLink,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   fetchOperationalMetrics,
@@ -24,6 +25,7 @@ import {
   fetchSubscriptionPayments,
   DEMO_REQUESTS_KEY,
 } from '../../lib/adminApi';
+import { fetchAllModeratedCustomers } from '../../lib/orderCancellationApi';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { getISTDateString, getCalendarDaysList } from '../../lib/analyticsApi';
 import {
@@ -66,6 +68,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [payments, setPayments] = useState<SubscriptionPayment[]>([]);
   const [requests, setRequests] = useState<Request[]>([]);
   const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>([]);
+  const [flaggedModerationCount, setFlaggedModerationCount] = useState<number>(0);
 
   // UI & Filter State
   const [period, setPeriod] = useState<ReportingPeriod>('30d');
@@ -80,13 +83,14 @@ export const AdminDashboardPage: React.FC = () => {
   // -------------------------------------------------------------
   const loadDashboardData = useCallback(async () => {
     try {
-      // 1. Fetch metrics, shops, apps, payments, audit logs in parallel
-      const [metricsData, shopsData, appsData, paymentsData, logsData] = await Promise.all([
+      // 1. Fetch metrics, shops, apps, payments, audit logs, and customer moderation in parallel
+      const [metricsData, shopsData, appsData, paymentsData, logsData, modCustomers] = await Promise.all([
         fetchOperationalMetrics(),
         fetchAdminShops(),
         fetchAdminApplications(),
         fetchSubscriptionPayments(),
         fetchAdminAuditLogsList(8),
+        fetchAllModeratedCustomers().catch(() => []),
       ]);
 
       setMetrics(metricsData);
@@ -94,6 +98,8 @@ export const AdminDashboardPage: React.FC = () => {
       setApplications(appsData);
       setPayments(paymentsData);
       setAuditLogs(logsData);
+      const flaggedCount = (modCustomers || []).filter((c) => c.flagged_for_review).length;
+      setFlaggedModerationCount(flaggedCount);
 
       // 2. Fetch requests (with fallback to demo storage)
       let reqList: Request[] = [];
@@ -615,7 +621,7 @@ export const AdminDashboardPage: React.FC = () => {
       {/* --------------------------------------------------------- */}
       {/* 2. OPERATIONAL ACTION BANNER (Conditional) */}
       {/* --------------------------------------------------------- */}
-      {metrics && (metrics.pendingApplications > 0 || metrics.overdueSubscriptions > 0) && (
+      {metrics && (metrics.pendingApplications > 0 || metrics.overdueSubscriptions > 0 || flaggedModerationCount > 0) && (
         <div className="vaango-admin-alert-banner" role="alert">
           <div className="vaango-admin-alert-banner__content">
             <AlertTriangle size={20} className="vaango-admin-alert-banner__icon" />
@@ -625,7 +631,9 @@ export const AdminDashboardPage: React.FC = () => {
                 {metrics.pendingApplications > 0 &&
                   `${metrics.pendingApplications} merchant application(s) awaiting KYC and storefront verification. `}
                 {metrics.overdueSubscriptions > 0 &&
-                  `${metrics.overdueSubscriptions} merchant subscription(s) overdue for manual UPI renewal.`}
+                  `${metrics.overdueSubscriptions} merchant subscription(s) overdue for manual UPI renewal. `}
+                {flaggedModerationCount > 0 &&
+                  `${flaggedModerationCount} customer account(s) flagged for order cancellation abuse review.`}
               </p>
             </div>
           </div>
@@ -638,6 +646,16 @@ export const AdminDashboardPage: React.FC = () => {
               >
                 <span>Review Applications</span>
                 <NotificationBadge count={pendingAppsUnread} size="sm" />
+              </Button>
+            )}
+            {flaggedModerationCount > 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate('/admin/moderation')}
+              >
+                <span>Review Abuse Flags</span>
+                <NotificationBadge count={flaggedModerationCount} size="sm" />
               </Button>
             )}
             {metrics.overdueSubscriptions > 0 && (
@@ -1119,6 +1137,23 @@ export const AdminDashboardPage: React.FC = () => {
               <strong>Shop Directory</strong>
               <span>Monitor readiness, suspend or reactivate</span>
             </div>
+            <ExternalLink size={13} className="vaango-admin-shortcut-arrow" />
+          </div>
+
+          <div
+            className="vaango-admin-shortcut-chip"
+            onClick={() => navigate('/admin/moderation')}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="vaango-admin-shortcut-icon">
+              <ShieldAlert size={16} />
+            </div>
+            <div className="vaango-admin-shortcut-text">
+              <strong>Customer Moderation</strong>
+              <span>Review cancellation abuse & manage warnings</span>
+            </div>
+            {flaggedModerationCount > 0 && <NotificationBadge count={flaggedModerationCount} size="sm" />}
             <ExternalLink size={13} className="vaango-admin-shortcut-arrow" />
           </div>
         </div>

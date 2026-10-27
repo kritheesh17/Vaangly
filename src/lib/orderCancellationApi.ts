@@ -177,6 +177,7 @@ export async function cancelOrderDirectly(
         recipientRole: 'customer',
         shopId: updatedReq.shop_id,
         shopName,
+        reason,
       });
 
       // Handle abuse warnings if applicable
@@ -233,7 +234,7 @@ export async function cancelOrderDirectly(
     if (actorRole === 'customer' && currentReq.current_state !== 'REQUESTED') {
       return {
         success: false,
-        error: 'Orders already accepted or in preparation require a cancellation request to the shopkeeper.',
+        error: 'Orders already accepted or in preparation cannot be cancelled directly. Please contact the shop.',
       };
     }
 

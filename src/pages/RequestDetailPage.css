@@ -426,3 +426,199 @@
   color: var(--color-success, #10b981);
 }
 
+/* Prominent Top Action Card */
+.vaango-detail-top-action-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4, 16px);
+  padding: 14px 16px;
+  border-radius: var(--radius-lg, 12px);
+  margin-top: var(--space-2, 8px);
+  flex-wrap: wrap;
+}
+
+.vaango-detail-top-action-card--requested {
+  background-color: rgba(239, 68, 68, 0.05);
+  border: 1.5px solid rgba(239, 68, 68, 0.25);
+}
+
+.vaango-detail-top-action-card--cancelled {
+  background-color: var(--color-surface-hover, #f8fafc);
+  border: 1.5px solid var(--color-border, #e2e8f0);
+}
+
+.vaango-detail-top-action-card--active {
+  background-color: var(--color-surface-hover, #f8fafc);
+  border: 1.5px solid var(--color-border, #e2e8f0);
+}
+
+.vaango-detail-top-action-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 220px;
+}
+
+.vaango-detail-top-action-card__header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vaango-pulse-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: var(--color-error, #ef4444);
+  display: inline-block;
+  animation: pulseSubtle 1.8s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+.vaango-detail-top-action-card__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #0f172a);
+}
+
+.vaango-detail-top-action-card__desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #475569);
+  line-height: 1.45;
+}
+
+.vaango-refund-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--brand-primary, #2563eb);
+}
+
+.vaango-detail-top-action-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.vaango-detail-call-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-md, 8px);
+  border: 1.5px solid var(--brand-primary, #2563eb);
+  color: var(--brand-primary, #2563eb);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  background-color: transparent;
+  transition: all 0.2s ease;
+}
+
+.vaango-detail-call-btn:hover {
+  background-color: var(--brand-primary-light, rgba(37, 99, 235, 0.08));
+}
+
+.vaango-top-cancel-btn {
+  font-weight: 600;
+}
+
+.vaango-top-cancel-outline-btn {
+  border-color: var(--color-border, #cbd5e1);
+  color: var(--color-text-secondary, #64748b);
+}
+
+/* Mobile Sticky Action Bar */
+.vaango-detail-sticky-bar {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .vaango-request-detail {
+    padding-bottom: 80px;
+  }
+
+  .vaango-detail-sticky-bar {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    background: var(--color-surface, #ffffff);
+    border-top: 1px solid var(--color-border, #e2e8f0);
+    padding: 10px 16px;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  [data-theme='dark'] .vaango-detail-sticky-bar,
+  .dark .vaango-detail-sticky-bar {
+    background: var(--color-surface, #1e293b);
+    border-top-color: var(--color-border, #334155);
+  }
+
+  .vaango-detail-sticky-bar__content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  .vaango-detail-sticky-bar__state {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .vaango-detail-sticky-bar__label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--color-text-muted, #64748b);
+    letter-spacing: 0.04em;
+  }
+
+  .vaango-detail-sticky-bar__value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text-primary, #0f172a);
+  }
+
+  .vaango-detail-sticky-bar__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .vaango-sticky-call-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: var(--radius-md, 8px);
+    border: 1.5px solid var(--brand-primary, #2563eb);
+    color: var(--brand-primary, #2563eb);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+    background-color: transparent;
+  }
+
+  .vaango-sticky-cancel-btn {
+    height: 34px;
+  }
+}
+
