@@ -183,4 +183,34 @@ describe('Mobile Responsive Layout & Viewport Safeguards', () => {
       'Header preserves desktop navigation bar'
     );
   });
+
+  // Test 27: Order detail sticky action bar mobile docking & safe clearance
+  it('27. Order detail sticky action bar docks above bottom nav without overlap and respects safe areas', () => {
+    const detailCss = readCss('src/pages/RequestDetailPage.css');
+
+    // Desktop: hidden
+    assert.ok(
+      detailCss.includes('.vaango-detail-sticky-bar {\n  display: none;\n}') ||
+      detailCss.includes('.vaango-detail-sticky-bar { display: none; }') ||
+      detailCss.includes('.vaango-detail-sticky-bar {\r\n  display: none;\r\n}'),
+      'Sticky action bar is hidden by default on desktop'
+    );
+
+    // Mobile: docked above bottom nav
+    assert.ok(
+      detailCss.includes('bottom: calc(var(--bottom-nav-height, 64px) + env(safe-area-inset-bottom, 0px))'),
+      'Sticky bar docks above bottom nav factoring in safe-area insets'
+    );
+    assert.ok(
+      detailCss.includes('z-index: 85'),
+      'Sticky bar has z-index: 85, layering cleanly above page content and below modal'
+    );
+
+    // Mobile content padding clearance
+    assert.ok(
+      detailCss.includes('padding-bottom: calc(var(--bottom-nav-height, 64px) + 78px + env(safe-area-inset-bottom, 0px))'),
+      'Order detail content has safe bottom padding for both bottom nav and sticky bar'
+    );
+  });
 });
+

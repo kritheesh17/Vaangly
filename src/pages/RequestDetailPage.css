@@ -545,16 +545,18 @@
 
 @media (max-width: 640px) {
   .vaango-request-detail {
-    padding-bottom: 80px;
+    /* Safe clearance for both BottomNav (~64px + safe area) and sticky action bar (~54px) */
+    padding-bottom: calc(var(--bottom-nav-height, 64px) + 78px + env(safe-area-inset-bottom, 0px));
   }
 
   .vaango-detail-sticky-bar {
     display: block;
     position: fixed;
-    bottom: 0;
+    /* Dock safely above global BottomNav (64px) and respect safe area insets */
+    bottom: calc(var(--bottom-nav-height, 64px) + env(safe-area-inset-bottom, 0px));
     left: 0;
     right: 0;
-    z-index: 40;
+    z-index: 85;
     background: var(--color-surface, #ffffff);
     border-top: 1px solid var(--color-border, #e2e8f0);
     padding: 10px 16px;
@@ -606,7 +608,8 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    height: 34px;
+    height: 36px;
+    min-height: 36px;
     padding: 0 12px;
     border-radius: var(--radius-md, 8px);
     border: 1.5px solid var(--brand-primary, #2563eb);
@@ -618,7 +621,8 @@
   }
 
   .vaango-sticky-cancel-btn {
-    height: 34px;
+    height: 36px;
+    min-height: 36px;
   }
 }
 
