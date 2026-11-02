@@ -18,12 +18,74 @@ if (email && publicKey && privateKey) {
   }
 }
 
+function sanitizeDestinationUrl(rawUrl?: string | null): { valid: boolean; url: string; error?: string } {
+  if (!rawUrl || typeof rawUrl !== 'string') {
+    return { valid: true, url: '/' };
+  }
+  const trimmed = rawUrl.trim();
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('//') ||
+    trimmed.startsWith('/\\') ||
+    trimmed.includes('\\') ||
+    trimmed.toLowerCase().startsWith('javascript:') ||
+    /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)
+  ) {
+    return {
+      valid: false,
+      url: '/',
+      error: 'External redirect URLs are forbidden in push notifications',
+    };
+  }
+  const validPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return { valid: true, url: validPath };
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
+    // 1. Bearer JWT Inspection & Verification (SEC-01)
+    const authHeader = request.headers.get('Authorization') || request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    let senderUserId: string | null = null;
+    let senderRole: string = 'customer';
+    const isServiceRoleCaller = token === serviceRoleKey;
+
+    if (!isServiceRoleCaller) {
+      const { data: userData, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !userData?.user) {
+        return new Response(JSON.stringify({ error: 'Invalid or expired authentication token' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      senderUserId = userData.user.id;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', senderUserId)
+        .maybeSingle();
+
+      senderRole = profile?.role || 'customer';
+    }
+
     const { user_id, title, body, url, origin, tag } = await request.json();
     if (!user_id) {
       return new Response(JSON.stringify({ error: 'user_id is required' }), {
@@ -32,6 +94,98 @@ Deno.serve(async (request) => {
       });
     }
 
+    // 2. Sender Authorization and Relationship Check (SEC-01)
+    if (!isServiceRoleCaller && senderUserId) {
+      const isTargetSelf = senderUserId === user_id;
+      const isAdmin = senderRole === 'admin';
+
+      // Prevent system/admin impersonation by non-admin senders when notifying other users
+      if (!isAdmin && !isTargetSelf && title) {
+        const SYSTEM_IMPERSONATION_REGEX = /\b(admin|administrator|system\s+alert|security\s+alert|account\s+suspended|password\s+reset|official\s+support)\b/i;
+        if (SYSTEM_IMPERSONATION_REGEX.test(title)) {
+          return new Response(
+            JSON.stringify({ error: 'Forbidden: non-administrative senders cannot impersonate system or administrative notifications' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      if (!isAdmin && !isTargetSelf) {
+        let hasRelationship = false;
+
+        if (senderRole === 'shopkeeper') {
+          // Shopkeeper sending to customer: verify customer has request with shopkeeper's shop
+          const { data: senderShops } = await supabase
+            .from('shops')
+            .select('id')
+            .eq('owner_id', senderUserId);
+
+          if (senderShops && senderShops.length > 0) {
+            const shopIds = senderShops.map((s: { id: string }) => s.id);
+            const { data: req } = await supabase
+              .from('requests')
+              .select('id')
+              .in('shop_id', shopIds)
+              .eq('customer_id', user_id)
+              .limit(1);
+
+            if (req && req.length > 0) {
+              hasRelationship = true;
+            }
+          }
+
+          if (!hasRelationship) {
+            return new Response(
+              JSON.stringify({ error: 'Forbidden: recipient is not an active customer of your shop' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        } else if (senderRole === 'customer') {
+          // Customer sending to shopkeeper: verify customer has request with target's shop
+          const { data: targetShops } = await supabase
+            .from('shops')
+            .select('id')
+            .eq('owner_id', user_id);
+
+          if (targetShops && targetShops.length > 0) {
+            const shopIds = targetShops.map((s: { id: string }) => s.id);
+            const { data: req } = await supabase
+              .from('requests')
+              .select('id')
+              .in('shop_id', shopIds)
+              .eq('customer_id', senderUserId)
+              .limit(1);
+
+            if (req && req.length > 0) {
+              hasRelationship = true;
+            }
+          }
+
+          if (!hasRelationship) {
+            return new Response(
+              JSON.stringify({ error: 'Forbidden: customers cannot send unsolicited notifications to arbitrary users' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        } else {
+          return new Response(JSON.stringify({ error: 'Forbidden' }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+    }
+
+    // 3. URL Destination Sanitization: disallow external phishing URLs (SEC-01)
+    const urlValidation = sanitizeDestinationUrl(url);
+    if (!urlValidation.valid) {
+      return new Response(
+        JSON.stringify({ error: urlValidation.error || 'External redirect URLs are forbidden in push notifications' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const safeUrl = urlValidation.url;
+
     if (!publicKey || !privateKey) {
       return new Response(
         JSON.stringify({ error: 'VAPID credentials not configured in Supabase Edge environment' }),
@@ -39,21 +193,17 @@ Deno.serve(async (request) => {
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
     const { data: record, error } = await supabase
       .from('push_subscriptions')
       .select('subscription, platform, endpoint')
       .eq('user_id', user_id)
       .maybeSingle();
 
+    // 4. User Enumeration Prevention: Return consistent non-404 response
     if (error || !record?.subscription) {
       return new Response(
-        JSON.stringify({ error: 'No subscription found for user', user_id }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, sent: 0, message: 'No active push subscriptions for recipient' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -94,7 +244,7 @@ Deno.serve(async (request) => {
           JSON.stringify({
             title: title || 'Vaangly',
             body: body || 'You have a new update.',
-            url: url || '/',
+            url: safeUrl,
             tag: notificationTag,
           }),
           {
@@ -159,4 +309,3 @@ Deno.serve(async (request) => {
     );
   }
 });
-

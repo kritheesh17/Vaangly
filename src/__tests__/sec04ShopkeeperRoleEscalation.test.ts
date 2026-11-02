@@ -33,6 +33,10 @@ describe('SEC-04: Shopkeeper Role Escalation & Account Lifecycle Protection', ()
     process.cwd(),
     'supabase/migrations/20261003000068_shop_free_delivery_threshold.sql'
   );
+  const migration71Path = path.resolve(
+    process.cwd(),
+    'supabase/migrations/20261102000071_harden_appointment_booking_and_roles.sql'
+  );
 
   it('1. Database Migration Audit: Confirms presence of vulnerable role IN (customer, shopkeeper)', () => {
     assert.ok(fs.existsSync(migration08Path));
@@ -61,6 +65,15 @@ describe('SEC-04: Shopkeeper Role Escalation & Account Lifecycle Protection', ()
       true,
       'CORRECT CONTROL CONFIRMED: prevent_profile_role_escalation trigger guards UPDATE on profiles'
     );
+  });
+
+  it('2b. Remediation Verification: Confirms Migration 71 enforces customer role and reinforces guards', () => {
+    assert.ok(fs.existsSync(migration71Path), 'Migration 71 file exists');
+    const source71 = fs.readFileSync(migration71Path, 'utf-8');
+
+    assert.ok(source71.includes("'customer',"), 'Migration 71 explicitly assigns customer role');
+    assert.ok(!source71.includes("NEW.raw_user_meta_data->>'role' IN ('customer', 'shopkeeper')"), 'Migration 71 rejects raw metadata role');
+    assert.ok(source71.includes('prevent_profile_role_escalation'), 'Migration 71 re-asserts prevent_profile_role_escalation');
   });
 
   // --------------------------------------------------------------------------
@@ -221,3 +234,4 @@ describe('SEC-04: Shopkeeper Role Escalation & Account Lifecycle Protection', ()
     assert.strictEqual(adminAttempt.allowed, true);
   });
 });
+

@@ -23,33 +23,29 @@ describe('SEC-01: Push Notification Edge Function Authorization & Guard Tests', 
     'supabase/functions/send-push-notification/index.ts'
   );
 
-  it('1. Current Implementation Inspection: Exposes unauthenticated CORS and lacks JWT verification', () => {
+  it('1. Remediation Verification: Enforces Authorization header inspection and JWT verification', () => {
     assert.ok(fs.existsSync(edgeFunctionPath), 'Edge function file exists');
     const source = fs.readFileSync(edgeFunctionPath, 'utf-8');
 
-    // Demonstrates current vulnerable pattern in source
-    const hasWildcardCors = source.includes("'Access-Control-Allow-Origin': '*'");
     const hasAuthHeaderCheck = source.includes("request.headers.get('Authorization')") ||
       source.includes("request.headers.get('authorization')");
     const hasJwtVerification = source.includes('auth.getUser');
 
-    assert.strictEqual(hasWildcardCors, true, 'VULNERABILITY CONFIRMED: Edge function uses wildcard CORS');
-    assert.strictEqual(hasAuthHeaderCheck, false, 'VULNERABILITY CONFIRMED: No Authorization header inspection in current code');
-    assert.strictEqual(hasJwtVerification, false, 'VULNERABILITY CONFIRMED: No JWT verification in current code');
+    assert.strictEqual(hasAuthHeaderCheck, true, 'REMEDIATION VERIFIED: Authorization header inspection is enforced');
+    assert.strictEqual(hasJwtVerification, true, 'REMEDIATION VERIFIED: auth.getUser JWT verification is enforced');
   });
 
-  it('2. Current Implementation Inspection: Leaks user existence via specific 404 response', () => {
+  it('2. Remediation Verification: Eliminates user enumeration 404 status leak', () => {
     const source = fs.readFileSync(edgeFunctionPath, 'utf-8');
-    // Current vulnerable code: returns status 404 with user_id echoing existence state
     const hasEnumerationLeak = source.includes('No subscription found for user') &&
       source.includes('status: 404');
-    assert.strictEqual(hasEnumerationLeak, true, 'VULNERABILITY CONFIRMED: Returns 404 echoing user_id to unauthenticated callers');
+    assert.strictEqual(hasEnumerationLeak, false, 'REMEDIATION VERIFIED: 404 status leak eliminated; non-enumerating 200 response returned');
   });
 
-  it('3. Current Implementation Inspection: Does not sanitize destination URL against external phishing', () => {
+  it('3. Remediation Verification: Enforces destination URL sanitization against external phishing', () => {
     const source = fs.readFileSync(edgeFunctionPath, 'utf-8');
-    const hasUrlSanitization = source.includes('new URL') || source.includes('startsWith') || source.includes('sanitize');
-    assert.strictEqual(hasUrlSanitization, false, 'VULNERABILITY CONFIRMED: No destination URL sanitization against external phishing');
+    const hasUrlSanitization = source.includes('sanitizeDestinationUrl') && source.includes('startsWith');
+    assert.strictEqual(hasUrlSanitization, true, 'REMEDIATION VERIFIED: Destination URL sanitization is active against external phishing');
   });
 
   // --------------------------------------------------------------------------
@@ -105,22 +101,30 @@ describe('SEC-01: Push Notification Edge Function Authorization & Guard Tests', 
         // permitted
       } else if (sender.id === targetUserId) {
         // Self-notification (e.g. permission testing or system alert to self)
-      } else if (sender.role === 'shopkeeper') {
-        // Shopkeeper notifying customer: must share an active order/request
-        const isCustomerOfShop = context.orderRelationship?.shopOwnerId === sender.id &&
-          context.orderRelationship?.customerId === targetUserId;
-        if (!isCustomerOfShop) {
-          return { allowed: false, statusCode: 403, error: 'Forbidden: recipient is not an active customer of your shop' };
-        }
-      } else if (sender.role === 'customer') {
-        // Customer notifying shopkeeper: must share an active order/request
-        const isShopOwnerOfOrder = context.orderRelationship?.customerId === sender.id &&
-          context.orderRelationship?.shopOwnerId === targetUserId;
-        if (!isShopOwnerOfOrder) {
-          return { allowed: false, statusCode: 403, error: 'Forbidden: customers cannot send unsolicited notifications to arbitrary users' };
-        }
       } else {
-        return { allowed: false, statusCode: 403, error: 'Forbidden' };
+        // Disallow non-admin senders from impersonating system / administrative warnings
+        const SYSTEM_IMPERSONATION_REGEX = /\b(admin|administrator|system\s+alert|security\s+alert|account\s+suspended|password\s+reset|official\s+support)\b/i;
+        if (payload.title && SYSTEM_IMPERSONATION_REGEX.test(payload.title)) {
+          return { allowed: false, statusCode: 403, error: 'Forbidden: non-administrative senders cannot impersonate system or administrative notifications' };
+        }
+
+        if (sender.role === 'shopkeeper') {
+          // Shopkeeper notifying customer: must share an active order/request
+          const isCustomerOfShop = context.orderRelationship?.shopOwnerId === sender.id &&
+            context.orderRelationship?.customerId === targetUserId;
+          if (!isCustomerOfShop) {
+            return { allowed: false, statusCode: 403, error: 'Forbidden: recipient is not an active customer of your shop' };
+          }
+        } else if (sender.role === 'customer') {
+          // Customer notifying shopkeeper: must share an active order/request
+          const isShopOwnerOfOrder = context.orderRelationship?.customerId === sender.id &&
+            context.orderRelationship?.shopOwnerId === targetUserId;
+          if (!isShopOwnerOfOrder) {
+            return { allowed: false, statusCode: 403, error: 'Forbidden: customers cannot send unsolicited notifications to arbitrary users' };
+          }
+        } else {
+          return { allowed: false, statusCode: 403, error: 'Forbidden' };
+        }
       }
     }
 
@@ -238,4 +242,37 @@ describe('SEC-01: Push Notification Edge Function Authorization & Guard Tests', 
     assert.strictEqual(res.statusCode, 200);
     assert.strictEqual(res.sanitizedUrl, '/profile');
   });
+
+  it('10. Security Contract: Non-admin senders attempting system/admin message impersonation are rejected with HTTP 403', () => {
+    const maliciousTitles = [
+      'Vaangly Admin Alert: Action Required',
+      'System Alert: Suspended Account',
+      'Security Alert: Unauthorized Login',
+      'Official Support: Password Reset',
+    ];
+
+    for (const title of maliciousTitles) {
+      const res = evaluatePushSecurityGate(
+        {
+          user_id: 'customer-uuid-001',
+          title,
+          body: 'Click here immediately',
+          url: '/orders',
+        },
+        {
+          authHeader: 'Bearer shopkeeper-token',
+          senderUser: { id: 'shopowner-uuid-001', role: 'shopkeeper' },
+          orderRelationship: {
+            orderId: 'req-1234',
+            customerId: 'customer-uuid-001',
+            shopOwnerId: 'shopowner-uuid-001',
+          },
+        }
+      );
+      assert.strictEqual(res.allowed, false, `Must reject system impersonation title: "${title}"`);
+      assert.strictEqual(res.statusCode, 403);
+      assert.ok(res.error?.includes('cannot impersonate system'));
+    }
+  });
 });
+

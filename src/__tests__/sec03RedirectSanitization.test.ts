@@ -15,47 +15,7 @@ import path from 'node:path';
  * to hijack post-login / OAuth navigation and conduct credential harvesting.
  */
 
-/**
- * Security Reference Specification:
- * Canonical redirect sanitization function that will be implemented in the remediation phase.
- */
-export function sanitizeRedirectUrl(rawUrl: string | null | undefined, fallback = '/'): string {
-  if (!rawUrl || typeof rawUrl !== 'string') {
-    return fallback;
-  }
-
-  const trimmed = rawUrl.trim();
-  if (!trimmed) {
-    return fallback;
-  }
-
-  // 1. Strictly forbid leading double slash (protocol-relative URLs)
-  if (trimmed.startsWith('//')) {
-    return fallback;
-  }
-
-  // 2. Strictly forbid backslashes (CVE-2025-68470 bypasses, /\evil.com, /\\evil.com, etc.)
-  if (trimmed.includes('\\')) {
-    return fallback;
-  }
-
-  // 3. Forbid any URI scheme (http:, https:, javascript:, data:, vbscript:)
-  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
-    return fallback;
-  }
-
-  // 4. Must start with a single slash
-  if (!trimmed.startsWith('/')) {
-    return fallback;
-  }
-
-  // 5. Reject control characters or newlines
-  if (/[\x00-\x1F\x7F]/.test(trimmed)) {
-    return fallback;
-  }
-
-  return trimmed;
-}
+import { sanitizeRedirectUrl } from '../lib/authUtils';
 
 describe('SEC-03: Redirect Sanitization & Post-Auth Phishing Prevention', () => {
   const authCallbackPath = path.resolve(
@@ -67,43 +27,41 @@ describe('SEC-03: Redirect Sanitization & Post-Auth Phishing Prevention', () => 
     'src/pages/auth/LoginPage.tsx'
   );
 
-  it('1. Current Implementation Inspection: Confirms absence of redirect sanitization in AuthCallbackPage', () => {
+  it('1. Remediation Verification: Confirms presence of redirect sanitization in AuthCallbackPage', () => {
     assert.ok(fs.existsSync(authCallbackPath));
     const source = fs.readFileSync(authCallbackPath, 'utf-8');
 
-    // Currently takes query.get('redirect') directly into navigate(...)
-    const hasUnsanitizedNavigate = source.includes('const queryRedirect = query.get(\'redirect\');') &&
-      source.includes('navigate(pendingRedirect, { replace: true });');
-    const hasSanitizerCall = source.includes('sanitizeRedirect');
+    const hasSanitizerCall = source.includes('sanitizeRedirectUrl');
+    const hasSanitizedAssignment = source.includes('const pendingRedirect = sanitizeRedirectUrl(');
 
     assert.strictEqual(
-      hasUnsanitizedNavigate,
+      hasSanitizerCall,
       true,
-      'VULNERABILITY CONFIRMED: AuthCallbackPage navigates directly to unvalidated pendingRedirect'
+      'REMEDIATION VERIFIED: sanitizeRedirectUrl is imported in AuthCallbackPage'
     );
     assert.strictEqual(
-      hasSanitizerCall,
-      false,
-      'VULNERABILITY CONFIRMED: No sanitizer currently invoked on pendingRedirect'
+      hasSanitizedAssignment,
+      true,
+      'REMEDIATION VERIFIED: pendingRedirect is sanitized before navigation'
     );
   });
 
-  it('2. Current Implementation Inspection: Confirms raw redirect parameter persistence in LoginPage', () => {
+  it('2. Remediation Verification: Confirms redirect parameter sanitization in LoginPage', () => {
     assert.ok(fs.existsSync(loginPagePath));
     const source = fs.readFileSync(loginPagePath, 'utf-8');
 
-    const hasRawStorage = source.includes("localStorage.setItem('vaangly_auth_redirect', from);");
-    const hasSanitizerCall = source.includes('sanitizeRedirect');
+    const hasSanitizerCall = source.includes('sanitizeRedirectUrl');
+    const hasSanitizedFrom = source.includes('const from = sanitizeRedirectUrl(');
 
     assert.strictEqual(
-      hasRawStorage,
+      hasSanitizerCall,
       true,
-      'VULNERABILITY CONFIRMED: LoginPage stores unvalidated redirect in localStorage'
+      'REMEDIATION VERIFIED: sanitizeRedirectUrl is imported in LoginPage'
     );
     assert.strictEqual(
-      hasSanitizerCall,
-      false,
-      'VULNERABILITY CONFIRMED: LoginPage lacks sanitizer before persistence'
+      hasSanitizedFrom,
+      true,
+      'REMEDIATION VERIFIED: "from" destination is sanitized before persistence and navigation'
     );
   });
 
@@ -223,4 +181,64 @@ describe('SEC-03: Redirect Sanitization & Post-Auth Phishing Prevention', () => 
     assert.strictEqual(sanitizeRedirectUrl('   '), '/');
     assert.strictEqual(sanitizeRedirectUrl(null, '/login'), '/login');
   });
+
+  it('9. Security Contract: Encoded separators and double-encoded bypasses are rejected', () => {
+    const encodedBypasses = [
+      '%2f%2fevil.com',
+      '%2F%2Fevil.com',
+      '/%5cevil.com',
+      '/%5Cevil.com',
+      '%252f%252fevil.com',
+      '/path%2f%2fevil.com',
+    ];
+
+    for (const url of encodedBypasses) {
+      const sanitized = sanitizeRedirectUrl(url);
+      assert.strictEqual(
+        sanitized,
+        '/',
+        `Encoded bypass attempt must be rejected: "${url}"`
+      );
+    }
+
+    // Encoded safe path that doesn't bypass internal scope
+    assert.strictEqual(sanitizeRedirectUrl('%2forders'), '/orders');
+  });
+
+  it('10. Security Contract: Control characters, newlines, tabs, and malformed URI sequences are rejected', () => {
+    const malformedOrInjected = [
+      '/\x00evil.com',
+      '/\x1fevil.com',
+      '/\x7fevil.com',
+      '/orders\nhttps://evil.com',
+      '/orders\r\nSet-Cookie:evil=1',
+      '/test\tevil',
+      '/%zz',
+      '/%E0%A4%A',
+    ];
+
+    for (const url of malformedOrInjected) {
+      const sanitized = sanitizeRedirectUrl(url);
+      assert.strictEqual(
+        sanitized,
+        '/',
+        `Control character or malformed URI must be rejected: "${url}"`
+      );
+    }
+  });
+
+  it('11. Security Contract: Redirects are sanitized both when stored in LoginPage and when consumed in AuthCallbackPage', () => {
+    const loginSource = fs.readFileSync(loginPagePath, 'utf-8');
+    const callbackSource = fs.readFileSync(authCallbackPath, 'utf-8');
+
+    // LoginPage sanitizes before storing in sessionStorage and localStorage
+    assert.ok(loginSource.includes('const from = sanitizeRedirectUrl('), 'LoginPage sanitizes from destination on parse');
+    assert.ok(loginSource.includes("sessionStorage.setItem('vaangly_auth_redirect', from);"), 'LoginPage persists sanitized from in sessionStorage');
+    assert.ok(loginSource.includes("localStorage.setItem('vaangly_auth_redirect', from);"), 'LoginPage persists sanitized from in localStorage');
+
+    // AuthCallbackPage sanitizes when consuming before navigate()
+    assert.ok(callbackSource.includes('const pendingRedirect = sanitizeRedirectUrl('), 'AuthCallbackPage sanitizes before consumption');
+    assert.ok(callbackSource.includes('navigate(pendingRedirect, { replace: true });'), 'AuthCallbackPage only navigates to sanitized pendingRedirect');
+  });
 });
+

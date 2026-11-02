@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { isValidIndianMobile, normalizeIndianPhone } from '../../lib/phoneUtils';
 import type { Profile } from '../../types/database';
+import { sanitizeRedirectUrl } from '../../lib/authUtils';
 import './Auth.css';
 
 type CallbackState = 'loading' | 'success' | 'error';
@@ -244,7 +245,7 @@ export const AuthCallbackPage: React.FC = () => {
         const queryRedirect = query.get('redirect');
         const sessionRedirect = sessionStorage.getItem('vaangly_auth_redirect');
         const localRedirect = localStorage.getItem('vaangly_auth_redirect');
-        const pendingRedirect = queryRedirect || sessionRedirect || localRedirect;
+        const pendingRedirect = sanitizeRedirectUrl(queryRedirect || sessionRedirect || localRedirect, '');
 
         if (sessionRedirect) sessionStorage.removeItem('vaangly_auth_redirect');
         if (localRedirect) localStorage.removeItem('vaangly_auth_redirect');

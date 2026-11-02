@@ -26,7 +26,7 @@ describe('SEC-05: HTTP Security Headers & Content Security Policy Specification'
   const vercelJsonPath = path.resolve(process.cwd(), 'vercel.json');
   const indexHtmlPath = path.resolve(process.cwd(), 'index.html');
 
-  it('1. Current Configuration Audit: Confirms absence of security headers in current vercel.json', () => {
+  it('1. Remediation Verification: Confirms presence of all required security headers in vercel.json', () => {
     assert.ok(fs.existsSync(vercelJsonPath), 'vercel.json must exist');
     const vercelConfig = JSON.parse(fs.readFileSync(vercelJsonPath, 'utf-8'));
 
@@ -48,12 +48,12 @@ describe('SEC-05: HTTP Security Headers & Content Security Policy Specification'
     const hasReferrerPolicy = headerKeys.includes('referrer-policy');
     const hasPermissionsPolicy = headerKeys.includes('permissions-policy');
 
-    assert.strictEqual(hasCsp, false, 'VULNERABILITY CONFIRMED: Missing Content-Security-Policy header');
-    assert.strictEqual(hasFrameOptions, false, 'VULNERABILITY CONFIRMED: Missing X-Frame-Options (Clickjacking vulnerability)');
-    assert.strictEqual(hasContentTypeOptions, false, 'VULNERABILITY CONFIRMED: Missing X-Content-Type-Options: nosniff');
-    assert.strictEqual(hasHsts, false, 'VULNERABILITY CONFIRMED: Missing Strict-Transport-Security (HSTS)');
-    assert.strictEqual(hasReferrerPolicy, false, 'VULNERABILITY CONFIRMED: Missing Referrer-Policy');
-    assert.strictEqual(hasPermissionsPolicy, false, 'VULNERABILITY CONFIRMED: Missing Permissions-Policy');
+    assert.strictEqual(hasCsp, true, 'REMEDIATION VERIFIED: Content-Security-Policy header configured');
+    assert.strictEqual(hasFrameOptions, true, 'REMEDIATION VERIFIED: X-Frame-Options configured');
+    assert.strictEqual(hasContentTypeOptions, true, 'REMEDIATION VERIFIED: X-Content-Type-Options configured');
+    assert.strictEqual(hasHsts, true, 'REMEDIATION VERIFIED: Strict-Transport-Security (HSTS) configured');
+    assert.strictEqual(hasReferrerPolicy, true, 'REMEDIATION VERIFIED: Referrer-Policy configured');
+    assert.strictEqual(hasPermissionsPolicy, true, 'REMEDIATION VERIFIED: Permissions-Policy configured');
   });
 
   it('2. External Integration Inventory: Audits legitimate external resources required in index.html', () => {
@@ -93,7 +93,7 @@ describe('SEC-05: HTTP Security Headers & Content Security Policy Specification'
       { key: 'X-Frame-Options', value: 'DENY' },
       { key: 'X-Content-Type-Options', value: 'nosniff' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-      { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+      { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
       { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
       {
         key: 'Content-Security-Policy',
@@ -245,3 +245,4 @@ describe('SEC-05: HTTP Security Headers & Content Security Policy Specification'
     assert.ok(hsts.includes('includeSubDomains'), 'HSTS must includeSubDomains');
   });
 });
+

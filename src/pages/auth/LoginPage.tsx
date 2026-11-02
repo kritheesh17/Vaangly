@@ -12,6 +12,7 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { isValidIndianMobile } from '../../lib/phoneUtils';
 import { ActionErrorBanner } from '../../components/ui/ActionErrorBanner';
 import { scrollAndFocusError, classifyError } from '../../lib/errorUxUtils';
+import { sanitizeRedirectUrl } from '../../lib/authUtils';
 import './Auth.css';
 
 type AuthMode = 'signin' | 'signup' | 'forgot' | 'recovery';
@@ -35,7 +36,9 @@ export const LoginPage: React.FC = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const redirectParam = searchParams.get('redirect');
-  const from = redirectParam || (location.state as { from?: { pathname?: string; search?: string } })?.from?.pathname || '/';
+  const from = sanitizeRedirectUrl(
+    redirectParam || (location.state as { from?: { pathname?: string; search?: string } })?.from?.pathname || '/'
+  );
 
   // Mode state: signin | signup | forgot | recovery
   const initialMode = (searchParams.get('mode') as AuthMode) || 'signin';

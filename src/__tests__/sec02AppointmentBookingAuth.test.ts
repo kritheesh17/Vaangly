@@ -24,6 +24,10 @@ describe('SEC-02: Appointment Booking RPC Authorization & Capacity Guard', () =>
     process.cwd(),
     'supabase/migrations/20261002000058_cast_appointment_scheduled_for.sql'
   );
+  const migration71Path = path.resolve(
+    process.cwd(),
+    'supabase/migrations/20261102000071_harden_appointment_booking_and_roles.sql'
+  );
 
   it('1. Database Migration Audit: Confirms presence of vulnerable COALESCE(auth.uid(), p_customer_id)', () => {
     assert.ok(fs.existsSync(migration58Path), 'Migration 58 file exists');
@@ -56,6 +60,19 @@ describe('SEC-02: Appointment Booking RPC Authorization & Capacity Guard', () =>
       false,
       'VULNERABILITY CONFIRMED: Migration 58 lacks REVOKE EXECUTE on book_appointment_with_token'
     );
+  });
+
+  it('2b. Remediation Verification: Confirms migration 71 revokes anon and enforces auth checks', () => {
+    assert.ok(fs.existsSync(migration71Path), 'Migration 71 file exists');
+    const source71 = fs.readFileSync(migration71Path, 'utf-8');
+
+    assert.ok(source71.includes('REVOKE ALL ON FUNCTION public.book_appointment_with_token'), 'Migration 71 revokes from PUBLIC');
+    assert.ok(source71.includes('FROM anon;'), 'Migration 71 revokes from anon');
+    assert.ok(source71.includes('GRANT EXECUTE ON FUNCTION public.book_appointment_with_token'), 'Migration 71 grants execute');
+    assert.ok(source71.includes('TO authenticated;'), 'Migration 71 grants to authenticated');
+    assert.ok(source71.includes('TO service_role;'), 'Migration 71 grants to service_role');
+    assert.ok(source71.includes('p_customer_id <> auth.uid()'), 'Migration 71 rejects customer impersonation');
+    assert.ok(!source71.includes('COALESCE(auth.uid(), p_customer_id)'), 'Migration 71 removes vulnerable COALESCE fallback');
   });
 
   // --------------------------------------------------------------------------
@@ -425,3 +442,4 @@ describe('SEC-02: Appointment Booking RPC Authorization & Capacity Guard', () =>
     assert.strictEqual(bookings.length, 2, 'Total bookings strictly bounded by capacity');
   });
 });
+
