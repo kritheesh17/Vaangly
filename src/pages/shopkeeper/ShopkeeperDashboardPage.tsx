@@ -22,6 +22,7 @@ import { getISTDateString } from '../../lib/analyticsApi';
 import { fetchShopServices } from '../../lib/appointmentServiceApi';
 import { useToast } from '../../context/ToastContext';
 import { RequestCard } from '../../components/shopkeeper/RequestCard';
+import { ShopkeeperPushNotificationPrompt } from '../../components/shopkeeper/ShopkeeperPushNotificationPrompt';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { resetDemoData } from '../../lib/demoData';
@@ -336,6 +337,9 @@ export const ShopkeeperDashboardPage: React.FC = () => {
 
       {/* Main Tab Content */}
       <main className="vaango-sk-content">
+        {/* Instant Background Order Push Notification Prompt */}
+        <ShopkeeperPushNotificationPrompt variant="banner" />
+
         {loadError && (
           <div className="vaango-sk-error-banner" role="alert">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

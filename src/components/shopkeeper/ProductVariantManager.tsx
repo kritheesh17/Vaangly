@@ -164,7 +164,7 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
       id,
       label: `Option ${variants.length + 1}`,
       price: basePrice > 0 ? basePrice : 0,
-      stock_quantity: 1,
+      stock_quantity: null,
       is_available: true,
       in_stock: true,
       sku: null,

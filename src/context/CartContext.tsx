@@ -9,6 +9,7 @@ import { validateOrderPickupAt } from '../lib/orderPickupUtils';
 import { cleanPaymentProofPath } from '../lib/paymentProof';
 import { variantIsAvailable } from '../lib/productVariants';
 import { fetchCustomerModeration } from '../lib/orderCancellationApi';
+import { getStoredMockShops, getStoredMockProducts } from '../lib/shopkeeperApi';
 
 export interface CartItem {
   product: ShopProduct;
@@ -18,6 +19,17 @@ export interface CartItem {
   shop: Shop;
   selectedVariant?: ProductVariant | null;
 }
+
+export const matchesCartItem = (
+  item: CartItem,
+  productId: string,
+  variantId?: string | null
+): boolean => {
+  if (item.product.id !== productId) return false;
+  const itemVarId = item.selectedVariant?.id ?? null;
+  const targetVarId = variantId ?? null;
+  return itemVarId === targetVarId;
+};
 
 export const getEffectiveQuantity = (item: CartItem): number =>
   item.product.offer_type === 'bogo' ? item.quantity * 2 : item.quantity;
@@ -38,9 +50,19 @@ interface CartContextType {
   setOrderNotes: (notes: string) => void;
   fulfillmentType: 'DINE_IN' | 'TAKEAWAY' | null;
   setFulfillmentType: (type: 'DINE_IN' | 'TAKEAWAY' | null) => void;
-  addItem: (product: ShopProduct, shop: Shop, variant?: ProductVariant | null) => { success: boolean; requiresClear?: boolean; error?: string };
+  addItem: (
+    product: ShopProduct,
+    shop: Shop,
+    variant?: ProductVariant | null,
+    quantityToAdd?: number
+  ) => { success: boolean; requiresClear?: boolean; error?: string };
   removeItem: (productId: string, variantId?: string | null) => void;
-  updateQuantity: (productId: string, quantity: number, variantId?: string | null) => void;
+  updateQuantity: (
+    productId: string,
+    quantity: number,
+    variantId?: string | null
+  ) => { success: boolean; maxStock?: number; error?: string };
+  syncCartShops: () => Promise<void>;
   clearCart: () => void;
   clearShopItems: (shopId: string) => void;
   shopGroups: ShopCartGroup[];
@@ -124,6 +146,75 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [items, activeShop, fulfillmentType]);
 
+  const syncCartShops = React.useCallback(async () => {
+    setItems((prev) => {
+      if (prev.length === 0) return prev;
+      const shopIds = Array.from(new Set(prev.map((i) => i.shopId || i.shop.id))).filter((id) => isValidUuid(id));
+      if (shopIds.length === 0) return prev;
+
+      (async () => {
+        try {
+          if (isSupabaseConfigured) {
+            const { data: dbShops, error } = await supabase
+              .from('shops')
+              .select('id, name, owner_id, status, is_live, upi_id, upi_qr_url, delivery_available, delivery_fee, free_delivery_above, address_line, phone, photo_url, slot_config')
+              .in('id', shopIds);
+
+            if (!error && dbShops && dbShops.length > 0) {
+              const shopMap = new Map(dbShops.map((s) => [s.id, s as Shop]));
+              setItems((current) =>
+                current.map((item) => {
+                  const sId = item.shopId || item.shop.id;
+                  const fresh = shopMap.get(sId);
+                  if (fresh) {
+                    return { ...item, shop: { ...item.shop, ...fresh } };
+                  }
+                  return item;
+                })
+              );
+            }
+          } else {
+            const storedMockShops = getStoredMockShops();
+            const shopMap = new Map(storedMockShops.map((s) => [s.id, s]));
+            setItems((current) =>
+              current.map((item) => {
+                const sId = item.shopId || item.shop.id;
+                const fresh = shopMap.get(sId);
+                if (fresh) {
+                  return { ...item, shop: { ...item.shop, ...fresh } };
+                }
+                return item;
+              })
+            );
+          }
+        } catch (err) {
+          console.warn('Failed to sync shop details in cart:', err);
+        }
+      })();
+
+      return prev;
+    });
+  }, []);
+
+  useEffect(() => {
+    syncCartShops();
+  }, [syncCartShops]);
+
+  useEffect(() => {
+    const handleShopChanged = () => {
+      syncCartShops();
+    };
+    const handleFocus = () => {
+      syncCartShops();
+    };
+    window.addEventListener('vaango-shops-changed', handleShopChanged);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('vaango-shops-changed', handleShopChanged);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [syncCartShops]);
+
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = items.reduce((sum, item) => {
     const unitPrice = item.selectedVariant?.price ?? item.product.price;
@@ -156,15 +247,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [items]);
 
   const getItemQuantity = (productId: string, variantId?: string | null): number => {
-    const found = items.find(
-      (i) =>
-        i.product.id === productId &&
-        (!variantId || i.selectedVariant?.id === variantId)
-    );
-    return found ? found.quantity : 0;
+    if (variantId !== undefined) {
+      const found = items.find((i) => matchesCartItem(i, productId, variantId));
+      return found ? found.quantity : 0;
+    }
+    return items
+      .filter((i) => i.product.id === productId)
+      .reduce((sum, i) => sum + i.quantity, 0);
   };
 
-  const addItem = (product: ShopProduct, shop: Shop, variant?: ProductVariant | null) => {
+  const addItem = (
+    product: ShopProduct,
+    shop: Shop,
+    variant?: ProductVariant | null,
+    quantityToAdd: number = 1
+  ): { success: boolean; requiresClear?: boolean; error?: string } => {
+    const qtyToAdd = Math.max(1, quantityToAdd);
+
     // Validate UUID safety for shop and product
     if (!isValidUuid(shop.id) || !isValidUuid(product.id)) {
       return {
@@ -187,7 +286,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       if (variant.stock_quantity != null) {
         const currentVariantQty = getItemQuantity(product.id, variant.id);
-        if (currentVariantQty + 1 > variant.stock_quantity) {
+        if (currentVariantQty + qtyToAdd > variant.stock_quantity) {
           return {
             success: false,
             error: `Only ${variant.stock_quantity} available in stock for ${variant.label || 'this option'}.`,
@@ -195,8 +294,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } else if (product.track_inventory && product.stock_quantity != null) {
-      const currentProdQty = getItemQuantity(product.id);
-      if (currentProdQty + 1 > product.stock_quantity) {
+      const currentProdQty = getItemQuantity(product.id, null);
+      if (currentProdQty + qtyToAdd > product.stock_quantity) {
         return {
           success: false,
           error: `Only ${product.stock_quantity} available in stock for this product.`,
@@ -208,14 +307,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const existingIndex = prev.findIndex(
         (i) =>
           i.product.id === product.id &&
-          i.shopId === shop.id &&
-          ((!variant && !i.selectedVariant) || i.selectedVariant?.id === variant?.id)
+          (i.shopId === shop.id || i.shop.id === shop.id) &&
+          matchesCartItem(i, product.id, variant?.id ?? null)
       );
 
       if (existingIndex > -1) {
         const updated = [...prev];
-        updated[existingIndex].quantity += 1;
-        updated[existingIndex].billed_quantity += 1;
+        updated[existingIndex].quantity += qtyToAdd;
+        updated[existingIndex].billed_quantity += qtyToAdd;
         return updated;
       }
 
@@ -223,8 +322,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...prev,
         {
           product,
-          quantity: 1,
-          billed_quantity: 1,
+          quantity: qtyToAdd,
+          billed_quantity: qtyToAdd,
           shopId: shop.id,
           shop,
           selectedVariant: variant || null,
@@ -235,44 +334,69 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
-  const updateQuantity = (productId: string, quantity: number, variantId?: string | null) => {
+  const updateQuantity = (
+    productId: string,
+    quantity: number,
+    variantId?: string | null
+  ): { success: boolean; maxStock?: number; error?: string } => {
     if (quantity <= 0) {
       removeItem(productId, variantId);
-      return;
+      return { success: true };
     }
+
+    const targetItem = items.find((i) => matchesCartItem(i, productId, variantId));
+    if (!targetItem) {
+      return { success: false, error: 'Item not found in cart.' };
+    }
+
+    let maxStock = 99;
+    if (targetItem.selectedVariant && targetItem.selectedVariant.stock_quantity != null) {
+      maxStock = Math.max(0, targetItem.selectedVariant.stock_quantity);
+    } else if (targetItem.product.track_inventory && targetItem.product.stock_quantity != null) {
+      maxStock = Math.max(0, targetItem.product.stock_quantity);
+    }
+
+    if (maxStock <= 0) {
+      return {
+        success: false,
+        maxStock: 0,
+        error: 'This item is currently out of stock.',
+      };
+    }
+
+    if (quantity > maxStock) {
+      setItems((prev) =>
+        prev.map((i) => {
+          if (matchesCartItem(i, productId, variantId)) {
+            return { ...i, quantity: maxStock, billed_quantity: maxStock };
+          }
+          return i;
+        })
+      );
+      return {
+        success: false,
+        maxStock,
+        error: `Only ${maxStock} units available in stock.`,
+      };
+    }
+
+    const nextQuantity = Math.min(maxStock, Math.min(99, Math.max(1, quantity)));
 
     setItems((prev) =>
       prev.map((i) => {
-        if (
-          i.product.id === productId &&
-          (!variantId || i.selectedVariant?.id === variantId)
-        ) {
-          let maxStock = 99;
-          if (i.selectedVariant && i.selectedVariant.stock_quantity != null) {
-            maxStock = Math.max(0, i.selectedVariant.stock_quantity);
-          } else if (i.product.track_inventory && i.product.stock_quantity != null) {
-            maxStock = Math.max(0, i.product.stock_quantity);
-          }
-          if (maxStock <= 0) {
-            return i;
-          }
-          const nextQuantity = Math.min(maxStock, Math.min(99, Math.max(1, quantity)));
+        if (matchesCartItem(i, productId, variantId)) {
           return { ...i, quantity: nextQuantity, billed_quantity: nextQuantity };
         }
         return i;
       })
     );
+
+    return { success: true, maxStock };
   };
 
   const removeItem = (productId: string, variantId?: string | null) => {
     setItems((prev) =>
-      prev.filter(
-        (i) =>
-          !(
-            i.product.id === productId &&
-            (!variantId || i.selectedVariant?.id === variantId)
-          )
-      )
+      prev.filter((i) => !matchesCartItem(i, productId, variantId))
     );
   };
 
@@ -397,58 +521,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsSubmitting(true);
 
     try {
-      const itemsTotal = shopItems.reduce((sum, item) => {
-        const unitPrice = item.selectedVariant?.price ?? item.product.price;
-        return sum + unitPrice * item.billed_quantity;
-      }, 0);
-
-      let deliveryCharge = 0;
-      if (chosenFulfillment === 'delivery' && targetShop.delivery_available) {
-        const fee = Number(targetShop.delivery_fee) || 0;
-        const freeAbove = targetShop.free_delivery_above != null ? Number(targetShop.free_delivery_above) : null;
-        if (freeAbove != null && freeAbove > 0 && itemsTotal >= freeAbove) {
-          deliveryCharge = 0;
-        } else {
-          deliveryCharge = fee;
-        }
-      }
-
-      const serverCalculatedTotal = itemsTotal + deliveryCharge;
-
-      const referenceCode = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
-      const requestPayload = {
-        items: shopItems.map((i) => {
-          const unitPrice = i.selectedVariant?.price ?? i.product.price;
-          return {
-            product_id: i.product.id,
-            name: i.product.name,
-            price: unitPrice,
-            unit: i.selectedVariant ? i.selectedVariant.label : i.product.unit,
-            quantity: i.quantity,
-            billed_quantity: i.billed_quantity,
-            effective_quantity: getEffectiveQuantity(i),
-            delivered_quantity: getEffectiveQuantity(i),
-            offer_type: i.product.offer_type,
-            subtotal: unitPrice * i.billed_quantity,
-            variant_id: i.selectedVariant?.id || null,
-            variant_label: i.selectedVariant?.label || null,
-            variant_price: i.selectedVariant?.price || null,
-            variant_attributes: i.selectedVariant?.attributes || {},
-          };
-        }),
-        notes: (shopNotes || orderNotes || '').trim() || null,
-        customer_name: user.full_name || user.email || 'Customer',
-        customer_phone: customerPhone,
-        shop_name: targetShop.name,
-        shop_address: targetShop.address_line,
-        shop_phone: targetShop.phone,
-        shop_upi_id: targetShop.upi_id,
-        shop_upi_qr_url: targetShop.upi_qr_url || null,
-        fulfillment_type: chosenFulfillment,
-        payment_method: paymentMethod,
-        pickup_at: pickupAt || null,
-      };
-
       let createdRequest: Request;
 
       if (isSupabaseConfigured) {
@@ -467,10 +539,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
 
-        // Verify that target shop exists in database before inserting request
+        // 1. Authoritative shop check directly from Supabase
         const { data: dbShop, error: shopCheckErr } = await supabase
           .from('shops')
-          .select('id, owner_id, status, is_live')
+          .select('id, name, owner_id, status, is_live, upi_id, upi_qr_url, delivery_available, delivery_fee, free_delivery_above, address_line, phone')
           .eq('id', targetShop.id)
           .maybeSingle();
 
@@ -487,6 +559,145 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             error: 'This shopfront is currently paused or not accepting new orders.',
           };
         }
+
+        // 2. Authoritative UPI QR code validation for UPI payments
+        if (paymentMethod === 'upi') {
+          const rawQr = dbShop.upi_qr_url ? dbShop.upi_qr_url.trim() : '';
+          const isValidQr =
+            Boolean(rawQr) &&
+            !rawQr.toLowerCase().includes('your-project-id') &&
+            /^(https?:\/\/|data:image\/)/i.test(rawQr);
+
+          if (!isValidQr) {
+            return {
+              success: false,
+              error: 'UPI payment is unavailable because this shop has not configured its UPI QR code.',
+            };
+          }
+        }
+
+        // 3. Live backend inventory & availability verification
+        const productIds = Array.from(new Set(shopItems.map((i) => i.product.id)));
+        const { data: dbProducts, error: prodCheckErr } = await supabase
+          .from('shops_products')
+          .select('id, name, is_available, is_banned, has_variants, variants, track_inventory, stock_quantity')
+          .in('id', productIds);
+
+        if (prodCheckErr || !dbProducts) {
+          return {
+            success: false,
+            error: 'Failed to verify current stock and availability with the shop.',
+          };
+        }
+
+        const prodMap = new Map(dbProducts.map((p) => [p.id, p]));
+
+        for (const cartItem of shopItems) {
+          const dbProd = prodMap.get(cartItem.product.id);
+          if (!dbProd) {
+            return {
+              success: false,
+              error: `"${cartItem.product.name}" is no longer available in this shop.`,
+            };
+          }
+
+          if (dbProd.is_banned) {
+            return {
+              success: false,
+              error: `"${dbProd.name}" is no longer available.`,
+            };
+          }
+
+          if (!dbProd.is_available) {
+            return {
+              success: false,
+              error: `"${dbProd.name}" is currently marked out of stock.`,
+            };
+          }
+
+          if (cartItem.selectedVariant) {
+            const dbVariants: ProductVariant[] = dbProd.variants || [];
+            const dbVar = dbVariants.find((v) => v.id === cartItem.selectedVariant?.id);
+            if (!dbVar) {
+              return {
+                success: false,
+                error: `Selected option for "${dbProd.name}" is no longer offered.`,
+              };
+            }
+            if (!variantIsAvailable(dbVar)) {
+              return {
+                success: false,
+                error: `Option "${dbVar.label || 'selected'}" for "${dbProd.name}" is currently out of stock.`,
+              };
+            }
+            if (dbVar.stock_quantity != null && dbVar.stock_quantity < cartItem.quantity) {
+              return {
+                success: false,
+                error: `Only ${dbVar.stock_quantity} available for "${dbVar.label || 'option'}" (${dbProd.name}), but you have ${cartItem.quantity} in cart.`,
+              };
+            }
+          } else if (dbProd.track_inventory && dbProd.stock_quantity != null) {
+            if (dbProd.stock_quantity < cartItem.quantity) {
+              return {
+                success: false,
+                error: `Only ${dbProd.stock_quantity} available in stock for "${dbProd.name}", but you have ${cartItem.quantity} in cart.`,
+              };
+            }
+          }
+        }
+
+        // Calculate authoritative totals with live shop settings
+        const itemsTotal = shopItems.reduce((sum, item) => {
+          const unitPrice = item.selectedVariant?.price ?? item.product.price;
+          return sum + unitPrice * item.billed_quantity;
+        }, 0);
+
+        let deliveryCharge = 0;
+        if (chosenFulfillment === 'delivery' && dbShop.delivery_available) {
+          const fee = Number(dbShop.delivery_fee) || 0;
+          const freeAbove = dbShop.free_delivery_above != null ? Number(dbShop.free_delivery_above) : null;
+          if (freeAbove != null && freeAbove > 0 && itemsTotal >= freeAbove) {
+            deliveryCharge = 0;
+          } else {
+            deliveryCharge = fee;
+          }
+        }
+
+        const serverCalculatedTotal = itemsTotal + deliveryCharge;
+        const referenceCode = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        const requestPayload = {
+          items: shopItems.map((i) => {
+            const unitPrice = i.selectedVariant?.price ?? i.product.price;
+            return {
+              product_id: i.product.id,
+              name: i.product.name,
+              price: unitPrice,
+              unit: i.selectedVariant ? i.selectedVariant.label : i.product.unit,
+              quantity: i.quantity,
+              billed_quantity: i.billed_quantity,
+              effective_quantity: getEffectiveQuantity(i),
+              delivered_quantity: getEffectiveQuantity(i),
+              offer_type: i.product.offer_type,
+              subtotal: unitPrice * i.billed_quantity,
+              variant_id: i.selectedVariant?.id || null,
+              variant_label: i.selectedVariant?.label || null,
+              variant_price: i.selectedVariant?.price || null,
+              variant_attributes: i.selectedVariant?.attributes || {},
+            };
+          }),
+          notes: (shopNotes || orderNotes || '').trim() || null,
+          customer_name: user.full_name || user.email || 'Customer',
+          customer_phone: customerPhone,
+          shop_name: dbShop.name || targetShop.name,
+          shop_address: dbShop.address_line || targetShop.address_line,
+          shop_phone: dbShop.phone || targetShop.phone,
+          shop_upi_id: dbShop.upi_id || targetShop.upi_id || null,
+          shop_upi_qr_url: dbShop.upi_qr_url || null,
+          fulfillment_type: chosenFulfillment,
+          payment_method: paymentMethod,
+          pickup_at: pickupAt || null,
+        };
 
         const sanitizedPaymentProofPath =
           paymentMethod === 'upi' && paymentProofPath
@@ -573,6 +784,101 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('[Cart] Failed to dispatch customer order notification:', custNotifErr);
         }
       } else {
+        // Mock fallback mode: authoritative shop & inventory check
+        const storedShops = getStoredMockShops();
+        const liveShop = storedShops.find((s) => s.id === targetShop.id) || targetShop;
+
+        if (paymentMethod === 'upi') {
+          const rawQr = liveShop.upi_qr_url ? liveShop.upi_qr_url.trim() : '';
+          const isValidQr =
+            Boolean(rawQr) &&
+            !rawQr.toLowerCase().includes('your-project-id') &&
+            /^(https?:\/\/|data:image\/)/i.test(rawQr);
+
+          if (!isValidQr) {
+            return {
+              success: false,
+              error: 'UPI payment is unavailable because this shop has not configured its UPI QR code.',
+            };
+          }
+        }
+
+        const mockProds = getStoredMockProducts(targetShop.id);
+        if (mockProds && mockProds.length > 0) {
+          const prodMap = new Map(mockProds.map((p) => [p.id, p]));
+          for (const cartItem of shopItems) {
+            const mProd = prodMap.get(cartItem.product.id);
+            if (mProd) {
+              if (!mProd.is_available) {
+                return { success: false, error: `"${mProd.name}" is currently marked out of stock.` };
+              }
+              if (cartItem.selectedVariant) {
+                const mVar = (mProd.variants || []).find((v) => v.id === cartItem.selectedVariant?.id);
+                if (mVar && !variantIsAvailable(mVar)) {
+                  return { success: false, error: `Option "${mVar.label || 'selected'}" for "${mProd.name}" is currently out of stock.` };
+                }
+                if (mVar && mVar.stock_quantity != null && mVar.stock_quantity < cartItem.quantity) {
+                  return { success: false, error: `Only ${mVar.stock_quantity} available for "${mVar.label || 'option'}" (${mProd.name}), but you have ${cartItem.quantity} in cart.` };
+                }
+              } else if (mProd.track_inventory && mProd.stock_quantity != null && mProd.stock_quantity < cartItem.quantity) {
+                return { success: false, error: `Only ${mProd.stock_quantity} available in stock for "${mProd.name}", but you have ${cartItem.quantity} in cart.` };
+              }
+            }
+          }
+        }
+
+        const itemsTotal = shopItems.reduce((sum, item) => {
+          const unitPrice = item.selectedVariant?.price ?? item.product.price;
+          return sum + unitPrice * item.billed_quantity;
+        }, 0);
+
+        let deliveryCharge = 0;
+        if (chosenFulfillment === 'delivery' && liveShop.delivery_available) {
+          const fee = Number(liveShop.delivery_fee) || 0;
+          const freeAbove = liveShop.free_delivery_above != null ? Number(liveShop.free_delivery_above) : null;
+          if (freeAbove != null && freeAbove > 0 && itemsTotal >= freeAbove) {
+            deliveryCharge = 0;
+          } else {
+            deliveryCharge = fee;
+          }
+        }
+
+        const serverCalculatedTotal = itemsTotal + deliveryCharge;
+        const referenceCode = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        const requestPayload = {
+          items: shopItems.map((i) => {
+            const unitPrice = i.selectedVariant?.price ?? i.product.price;
+            return {
+              product_id: i.product.id,
+              name: i.product.name,
+              price: unitPrice,
+              unit: i.selectedVariant ? i.selectedVariant.label : i.product.unit,
+              quantity: i.quantity,
+              billed_quantity: i.billed_quantity,
+              effective_quantity: getEffectiveQuantity(i),
+              delivered_quantity: getEffectiveQuantity(i),
+              offer_type: i.product.offer_type,
+              subtotal: unitPrice * i.billed_quantity,
+              variant_id: i.selectedVariant?.id || null,
+              variant_label: i.selectedVariant?.label || null,
+              variant_price: i.selectedVariant?.price || null,
+              variant_attributes: i.selectedVariant?.attributes || {},
+            };
+          }),
+          notes: (shopNotes || orderNotes || '').trim() || null,
+          customer_name: user.full_name || user.email || 'Customer',
+          customer_phone: customerPhone,
+          shop_name: liveShop.name,
+          shop_address: liveShop.address_line,
+          shop_phone: liveShop.phone,
+          shop_upi_id: liveShop.upi_id,
+          shop_upi_qr_url: liveShop.upi_qr_url || null,
+          fulfillment_type: chosenFulfillment,
+          payment_method: paymentMethod,
+          pickup_at: pickupAt || null,
+        };
+
         const sanitizedDemoProofPath =
           paymentMethod === 'upi' && paymentProofPath
             ? cleanPaymentProofPath(paymentProofPath) || null
@@ -674,6 +980,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addItem,
         removeItem,
         updateQuantity,
+        syncCartShops,
         clearCart,
         clearShopItems,
         shopGroups,

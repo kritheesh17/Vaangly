@@ -1,5 +1,5 @@
 // Vaangly PWA Service Worker — Versioned Cache & Reliable Background Updates
-const VAANGLY_CACHE_VERSION = 'vaangly-cache-v1.0.0';
+const VAANGLY_CACHE_VERSION = 'vaangly-cache-v1.0.1';
 const CACHE_NAME = VAANGLY_CACHE_VERSION;
 const OFFLINE_URL = '/';
 
@@ -99,7 +99,8 @@ self.addEventListener('push', (event) => {
     badge: '/icons/icon-192.png',
     tag: tag,
     renotify: true,
-    vibrate: [200, 100, 200],
+    requireInteraction: true,
+    vibrate: [300, 100, 300, 100, 300],
     data: {
       url: data.url || '/',
       timestamp: Date.now(),

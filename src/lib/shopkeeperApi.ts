@@ -184,6 +184,13 @@ export const updateShopProfile = async (
         .single();
 
       if (error) throw error;
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('vaango-shops-changed', {
+            detail: { shopId, shop: data as Shop },
+          })
+        );
+      }
       return { success: true, shop: data as Shop };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to update shop profile.';
@@ -205,6 +212,14 @@ export const updateShopProfile = async (
   };
   allShops[index] = updated;
   saveMockShops(allShops);
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('vaango-shops-changed', {
+        detail: { shopId, shop: updated },
+      })
+    );
+  }
 
   return { success: true, shop: updated };
 };

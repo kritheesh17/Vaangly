@@ -19,7 +19,7 @@ export interface ProductCardProps {
   quantityInCart: number;
   shop?: any;
   getVariantQuantity?: (variantId?: string | null) => number;
-  onAdd: (product?: ShopProduct, variant?: ProductVariant | null) => void;
+  onAdd: (product?: ShopProduct, variant?: ProductVariant | null, quantity?: number) => void;
   onIncrease: (variant?: ProductVariant | null) => void;
   onDecrease: (variant?: ProductVariant | null) => void;
 }
@@ -257,9 +257,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         shop={shop}
         currentCartQty={quantityInCart}
         onAddToCart={(prod, variant, qty) => {
-          for (let i = 0; i < (qty || 1); i++) {
-            onAdd(prod, variant);
-          }
+          onAdd(prod, variant, qty || 1);
         }}
       />
     </>

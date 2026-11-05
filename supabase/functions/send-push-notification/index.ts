@@ -86,7 +86,7 @@ Deno.serve(async (request) => {
       senderRole = profile?.role || 'customer';
     }
 
-    const { user_id, title, body, url, origin, tag } = await request.json();
+    const { user_id, title, body, url, origin, tag, is_test } = await request.json();
     if (!user_id) {
       return new Response(JSON.stringify({ error: 'user_id is required' }), {
         status: 400,
@@ -216,15 +216,52 @@ Deno.serve(async (request) => {
       }
     }
 
-    // Determine target subscriptions based on requested origin
-    // This cleanly separates localhost from production endpoints
+    // Collect all valid target device endpoints for this user across all their devices
     const targets: any[] = [];
-    if (origin && subData.subscriptionsByOrigin?.[origin]) {
-      targets.push(subData.subscriptionsByOrigin[origin]);
-    } else if (subData.subscriptionsByOrigin && Object.keys(subData.subscriptionsByOrigin).length > 0) {
-      targets.push(...Object.values(subData.subscriptionsByOrigin));
-    } else {
-      targets.push(subData);
+    const seenEndpoints = new Set<string>();
+
+    const addTarget = (target: any) => {
+      if (target && typeof target === 'object' && typeof target.endpoint === 'string' && target.endpoint.startsWith('http')) {
+        if (!seenEndpoints.has(target.endpoint)) {
+          seenEndpoints.add(target.endpoint);
+          targets.push(target);
+        }
+      }
+    };
+
+    // 1. Array of device subscriptions (preferred multi-device storage)
+    if (Array.isArray(subData.endpoints)) {
+      for (const ep of subData.endpoints) {
+        addTarget(ep);
+      }
+    }
+
+    // 2. Map of subscriptions by endpoint (alternative multi-device storage)
+    if (subData.subscriptionsByEndpoint && typeof subData.subscriptionsByEndpoint === 'object') {
+      for (const ep of Object.values(subData.subscriptionsByEndpoint)) {
+        addTarget(ep);
+      }
+    }
+
+    // 3. Subscriptions by origin (legacy compatibility fallback)
+    if (subData.subscriptionsByOrigin && typeof subData.subscriptionsByOrigin === 'object') {
+      for (const ep of Object.values(subData.subscriptionsByOrigin)) {
+        addTarget(ep);
+      }
+    }
+
+    // 4. Fallback to single top-level endpoint/keys
+    if (targets.length === 0 && subData.endpoint) {
+      addTarget(subData);
+    }
+
+    // For test pushes where caller explicitly tests a single origin, filter if requested
+    let deliveryTargets = targets;
+    if (is_test && origin) {
+      const originMatches = targets.filter((t) => t.origin === origin);
+      if (originMatches.length > 0) {
+        deliveryTargets = originMatches;
+      }
     }
 
     let sentCount = 0;
@@ -233,7 +270,7 @@ Deno.serve(async (request) => {
 
     const notificationTag = tag || `vaangly-${Date.now()}`;
 
-    for (const target of targets) {
+    for (const target of deliveryTargets) {
       if (!target || !target.endpoint) continue;
       try {
         await webpush.sendNotification(
@@ -265,25 +302,44 @@ Deno.serve(async (request) => {
       }
     }
 
-    // Safely prune dead/expired endpoints from push_subscriptions
+    // Safely prune dead/expired endpoints from push_subscriptions across all storage formats
     if (deadEndpoints.length > 0) {
       try {
-        if (subData?.subscriptionsByOrigin) {
+        let hasRemaining = false;
+
+        // Prune from endpoints array
+        if (Array.isArray(subData?.endpoints)) {
+          subData.endpoints = subData.endpoints.filter((e: any) => !deadEndpoints.includes(e.endpoint));
+          if (subData.endpoints.length > 0) hasRemaining = true;
+        }
+
+        // Prune from subscriptionsByEndpoint map
+        if (subData?.subscriptionsByEndpoint && typeof subData.subscriptionsByEndpoint === 'object') {
+          for (const [k, v] of Object.entries(subData.subscriptionsByEndpoint as Record<string, any>)) {
+            if (v?.endpoint && deadEndpoints.includes(v.endpoint)) {
+              delete subData.subscriptionsByEndpoint[k];
+            }
+          }
+          if (Object.keys(subData.subscriptionsByEndpoint).length > 0) hasRemaining = true;
+        }
+
+        // Prune from subscriptionsByOrigin
+        if (subData?.subscriptionsByOrigin && typeof subData.subscriptionsByOrigin === 'object') {
           for (const [orig, sub] of Object.entries(subData.subscriptionsByOrigin as Record<string, any>)) {
             if (sub?.endpoint && deadEndpoints.includes(sub.endpoint)) {
               delete subData.subscriptionsByOrigin[orig];
             }
           }
-          const remainingOrigins = Object.keys(subData.subscriptionsByOrigin);
-          if (remainingOrigins.length > 0) {
-            await supabase
-              .from('push_subscriptions')
-              .update({ subscription: subData, updated_at: new Date().toISOString() })
-              .eq('user_id', user_id);
-          } else {
-            await supabase.from('push_subscriptions').delete().eq('user_id', user_id);
-          }
-        } else if (deadEndpoints.includes(record.endpoint)) {
+          if (Object.keys(subData.subscriptionsByOrigin).length > 0) hasRemaining = true;
+        }
+
+        if (hasRemaining) {
+          const nextActive = subData.endpoints?.[0]?.endpoint || Object.values(subData.subscriptionsByOrigin || {})[0]?.endpoint || null;
+          await supabase
+            .from('push_subscriptions')
+            .update({ endpoint: nextActive, subscription: subData, updated_at: new Date().toISOString() })
+            .eq('user_id', user_id);
+        } else {
           await supabase.from('push_subscriptions').delete().eq('user_id', user_id);
         }
       } catch (cleanErr) {

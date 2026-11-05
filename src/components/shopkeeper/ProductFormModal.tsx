@@ -499,7 +499,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       label: 'Standard',
                       attributes: {},
                       price: parseFloat(price) || 0,
-                      stock_quantity: 1,
+                      stock_quantity: null,
                       is_available: true,
                       in_stock: true,
                       sku: null,

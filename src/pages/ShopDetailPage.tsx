@@ -292,11 +292,17 @@ export const ShopDetailPage: React.FC = () => {
     );
   }
 
-  const handleAddProduct = (product: ShopProduct, variant?: import('../types/database').ProductVariant | null) => {
-    const result = addItem(product, shop, variant);
+  const handleAddProduct = (
+    product: ShopProduct,
+    variant?: import('../types/database').ProductVariant | null,
+    quantity: number = 1
+  ) => {
+    const result = addItem(product, shop, variant, quantity);
     if (result.requiresClear) {
       setPendingProduct(product);
       setConflictModalOpen(true);
+    } else if (!result.success && result.error) {
+      toastError(result.error);
     }
   };
 
@@ -373,7 +379,7 @@ export const ShopDetailPage: React.FC = () => {
             userId: shop.owner_id,
             title: notifTitle,
             body: notifBody,
-            url: '/shopkeeper/requests',
+            url: `/shopkeeper/requests/${data.id}`,
           });
         } catch (pushErr) {
           console.warn('[ShopDetail] Failed to send business push:', pushErr);
@@ -665,9 +671,18 @@ export const ShopDetailPage: React.FC = () => {
                       shop={shop}
                       quantityInCart={qty}
                       getVariantQuantity={(variantId) => getItemQuantity(product.id, variantId)}
-                      onAdd={(p, variant) => handleAddProduct(p || product, variant)}
-                      onIncrease={(variant) => updateQuantity(product.id, getItemQuantity(product.id, variant?.id) + 1, variant?.id)}
-                      onDecrease={(variant) => updateQuantity(product.id, getItemQuantity(product.id, variant?.id) - 1, variant?.id)}
+                      onAdd={(p, variant, qty) => handleAddProduct(p || product, variant, qty || 1)}
+                      onIncrease={(variant) => {
+                        const current = getItemQuantity(product.id, variant?.id);
+                        const res = updateQuantity(product.id, current + 1, variant?.id);
+                        if (res && !res.success && res.error) {
+                          toastError(res.error);
+                        }
+                      }}
+                      onDecrease={(variant) => {
+                        const current = getItemQuantity(product.id, variant?.id);
+                        updateQuantity(product.id, current - 1, variant?.id);
+                      }}
                     />
                   );
                 })}

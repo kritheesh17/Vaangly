@@ -12,6 +12,7 @@ import { getShopType } from '../../data/mockData';
 import { getShopkeeperShop, getShopRequests, transitionRequestState } from '../../lib/shopkeeperApi';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { RequestCard } from '../../components/shopkeeper/RequestCard';
+import { ShopkeeperPushNotificationPrompt } from '../../components/shopkeeper/ShopkeeperPushNotificationPrompt';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Textarea } from '../../components/ui/Textarea';
@@ -331,6 +332,9 @@ export const ShopkeeperRequestsPage: React.FC = () => {
             <span>Refresh</span>
           </button>
         </div>
+
+        {/* Real-time Order Alert Status Banner */}
+        <ShopkeeperPushNotificationPrompt variant="banner" />
 
         {/* Search & Composite Filters */}
         <div className="vaango-shop-reqs__search-wrap mb-3">

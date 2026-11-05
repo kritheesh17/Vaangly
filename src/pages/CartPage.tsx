@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -174,7 +174,12 @@ export const CartPage: React.FC = () => {
     clearShopItems,
     submitShopRequest,
     isSubmitting,
+    syncCartShops,
   } = useCart();
+
+  useEffect(() => {
+    syncCartShops();
+  }, [syncCartShops]);
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [submittingShopId, setSubmittingShopId] = useState<string | null>(null);
@@ -243,13 +248,20 @@ export const CartPage: React.FC = () => {
 
     const chosenPayment = shopPaymentMethods[shopId] || 'pay_at_shop';
     const paymentProofPath = paymentProofPaths[shopId] || null;
-    if (chosenPayment === 'upi' && !isValidUpiQrUrl(group.shop.upi_qr_url)) {
-      const err = 'UPI payment is currently unavailable because this shop has not configured its UPI QR code.';
-      setShopErrors((prev) => ({ ...prev, [shopId]: err }));
-      setTimeout(() => {
-        scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
-      }, 50);
-      return;
+    if (chosenPayment === 'upi') {
+      let activeShopRecord = group.shop;
+      if (!isValidUpiQrUrl(activeShopRecord.upi_qr_url)) {
+        await syncCartShops();
+        activeShopRecord = shopGroups.find((g) => g.shop.id === shopId)?.shop || group.shop;
+      }
+      if (!isValidUpiQrUrl(activeShopRecord.upi_qr_url)) {
+        const err = 'UPI payment is currently unavailable because this shop has not configured its UPI QR code.';
+        setShopErrors((prev) => ({ ...prev, [shopId]: err }));
+        setTimeout(() => {
+          scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
+        }, 50);
+        return;
+      }
     }
     if (chosenPayment === 'upi' && !paymentProofPath) {
       const err = 'Add payment proof before placing a UPI order.';
@@ -519,7 +531,12 @@ export const CartPage: React.FC = () => {
                           <button
                             type="button"
                             className="vaango-qty-btn"
-                            onClick={() => updateQuantity(product.id, quantity + 1, selectedVariant?.id)}
+                            onClick={() => {
+                              const res = updateQuantity(product.id, quantity + 1, selectedVariant?.id);
+                              if (res && !res.success && res.error) {
+                                toastError(res.error);
+                              }
+                            }}
                             aria-label={t('increaseQty')}
                           >
                             <Plus size={14} />
@@ -793,6 +810,7 @@ export const CartPage: React.FC = () => {
                       role="radio"
                       aria-checked={currentPayment === 'upi'}
                       disabled={!isValidUpiQrUrl(shop.upi_qr_url)}
+                      title={!isValidUpiQrUrl(shop.upi_qr_url) ? 'UPI payment unavailable: This shop has not configured its UPI QR code' : 'Pay with UPI QR code'}
                       className={`vaango-cart-option-btn ${currentPayment === 'upi' ? 'active' : ''}`}
                       onClick={() => {
                         setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'upi' }));
