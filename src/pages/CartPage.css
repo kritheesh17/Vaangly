@@ -177,8 +177,58 @@
   border-top: 1px solid var(--color-border-subtle);
 }
 
+/* Quantity Controls */
+.vaango-qty-control {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--brand-primary-light, rgba(10, 123, 131, 0.08));
+  border: 1.5px solid var(--brand-primary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  height: 44px;
+}
+
 .vaango-qty-control--sm {
-  height: 38px;
+  height: 40px;
+}
+
+.vaango-qty-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 100%;
+  color: var(--brand-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0 8px;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.vaango-qty-btn:hover:not(:disabled) {
+  background-color: rgba(10, 123, 131, 0.15);
+}
+
+.vaango-qty-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.vaango-qty-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.vaango-qty-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-base);
+  color: var(--brand-primary);
+  user-select: none;
 }
 
 .vaango-cart-item__remove {

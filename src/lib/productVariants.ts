@@ -171,7 +171,7 @@ export const generateVariantCombinations = (
       label: Object.values(attrs).join(' / '),
       attributes: attrs,
       price: defaultPrice > 0 ? defaultPrice : 0,
-      stock_quantity: 1,
+      stock_quantity: null,
       is_available: true,
       in_stock: true,
       sku: null,
