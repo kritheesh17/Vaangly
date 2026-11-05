@@ -299,6 +299,46 @@ export const bookAppointmentRequest = async (
         .eq('id', res.request_id)
         .single();
 
+      // Notify shopkeeper and customer of appointment booking
+      try {
+        const { data: shopRecord } = await supabase
+          .from('shops')
+          .select('owner_id, name')
+          .eq('id', shopId)
+          .maybeSingle();
+
+        const shopOwnerId = shopRecord?.owner_id;
+        const sName = shopRecord?.name || 'the shop';
+
+        if (shopOwnerId) {
+          void notifyOrderLifecycle({
+            event: 'ORDER_PLACED',
+            requestId: res.request_id,
+            referenceCode: res.reference_code,
+            recipientId: shopOwnerId,
+            recipientRole: 'shopkeeper',
+            shopId,
+            shopName: sName,
+            customerName,
+            totalEstimate: res.price,
+          });
+        }
+
+        void notifyOrderLifecycle({
+          event: 'ORDER_PLACED',
+          requestId: res.request_id,
+          referenceCode: res.reference_code,
+          recipientId: customerId,
+          recipientRole: 'customer',
+          shopId,
+          shopName: sName,
+          customerName,
+          totalEstimate: res.price,
+        });
+      } catch (notifErr) {
+        console.warn('[Appointment] Failed to dispatch appointment notifications:', notifErr);
+      }
+
       return {
         success: true,
         request: (reqData as Request) || {
@@ -503,6 +543,45 @@ export const submitServiceRequest = async (
         actor_role: 'customer',
         notes: `Customer requested service: ${service.name} (${service.price_type === 'range' ? `Est ₹${service.min_price}–₹${service.max_price}` : `₹${service.base_price}`})`,
       });
+
+      // Notify shopkeeper and customer of service request
+      try {
+        const { data: shopRecord } = await supabase
+          .from('shops')
+          .select('owner_id, name')
+          .eq('id', shopId)
+          .maybeSingle();
+
+        const shopOwnerId = shopRecord?.owner_id;
+
+        if (shopOwnerId) {
+          void notifyOrderLifecycle({
+            event: 'ORDER_PLACED',
+            requestId: reqData.id,
+            referenceCode: reqData.reference_code,
+            recipientId: shopOwnerId,
+            recipientRole: 'shopkeeper',
+            shopId,
+            shopName,
+            customerName,
+            totalEstimate: initialEstimate,
+          });
+        }
+
+        void notifyOrderLifecycle({
+          event: 'ORDER_PLACED',
+          requestId: reqData.id,
+          referenceCode: reqData.reference_code,
+          recipientId: customerId,
+          recipientRole: 'customer',
+          shopId,
+          shopName,
+          customerName,
+          totalEstimate: initialEstimate,
+        });
+      } catch (notifErr) {
+        console.warn('[Service] Failed to dispatch service request notifications:', notifErr);
+      }
 
       return { success: true, request: reqData as Request };
     } catch (err: unknown) {

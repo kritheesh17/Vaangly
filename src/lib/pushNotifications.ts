@@ -11,6 +11,19 @@ export interface TestPushResult {
   message: string;
 }
 
+export interface StoredDeviceSubscription {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  platform: 'web' | 'android' | 'ios' | 'localhost';
+  origin: string;
+  userAgent?: string;
+  created_at?: string;
+  updated_at: string;
+}
+
 export interface NotificationDiagnosticsData {
   environment: 'Localhost' | 'Production';
   origin: string;
@@ -68,6 +81,7 @@ export async function getNotificationDiagnostics(): Promise<NotificationDiagnost
   let pushSupported = false;
   let pushSubscription: NotificationDiagnosticsData['pushSubscription'] = 'not subscribed';
   let maskedEndpoint = 'None (Not Subscribed)';
+  let activeEndpoint: string | null = null;
   let backendRegistration: NotificationDiagnosticsData['backendRegistration'] = 'not_registered';
 
   if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
@@ -83,6 +97,7 @@ export async function getNotificationDiagnostics(): Promise<NotificationDiagnost
           const sub = await registration.pushManager.getSubscription();
           if (sub) {
             pushSubscription = 'subscribed';
+            activeEndpoint = sub.endpoint;
             maskedEndpoint = maskEndpoint(sub.endpoint);
           }
         }
@@ -115,8 +130,12 @@ export async function getNotificationDiagnostics(): Promise<NotificationDiagnost
             try { subJson = JSON.parse(subJson); } catch {}
           }
 
-          // Check if subscription exists for this specific origin or globally
-          if (subJson?.subscriptionsByOrigin?.[origin] || subJson?.endpoint) {
+          // Check if subscription exists for this specific endpoint, origin, or globally
+          const hasEndpointMatch =
+            (activeEndpoint && Array.isArray(subJson?.endpoints) && subJson.endpoints.some((e: any) => e.endpoint === activeEndpoint)) ||
+            (activeEndpoint && record?.endpoint === activeEndpoint);
+
+          if (hasEndpointMatch || subJson?.subscriptionsByOrigin?.[origin] || subJson?.endpoint) {
             backendRegistration = 'registered';
           } else {
             backendRegistration = 'not_registered';
@@ -203,50 +222,114 @@ export async function registerPushSubscription(): Promise<boolean> {
         const origin = getCurrentOrigin();
         const isLocal = isLocalhostEnvironment();
         const rawJson = subscription.toJSON();
+        const nowIso = new Date().toISOString();
 
-        // 1. Fetch existing subscription row to preserve other environments (e.g. production vs localhost)
+        // Detect device platform
+        let platform: 'android' | 'ios' | 'web' | 'localhost' = isLocal ? 'localhost' : 'web';
+        if (typeof navigator !== 'undefined' && navigator.userAgent) {
+          const ua = navigator.userAgent.toLowerCase();
+          if (/android/i.test(ua)) platform = 'android';
+          else if (/iphone|ipad|ipod/i.test(ua)) platform = 'ios';
+        }
+
+        // 1. Fetch existing subscription row to preserve all devices across all environments
         const { data: existingRow } = await supabase
           .from('push_subscriptions')
           .select('subscription, platform, endpoint')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        let existingSubsByOrigin: Record<string, unknown> = {};
+        let parsed: any = null;
         if (existingRow?.subscription) {
-          let parsed = existingRow.subscription;
+          parsed = existingRow.subscription;
           if (typeof parsed === 'string') {
             try { parsed = JSON.parse(parsed); } catch {}
           }
-          if (parsed && typeof parsed === 'object') {
-            if (parsed.subscriptionsByOrigin) {
-              existingSubsByOrigin = { ...parsed.subscriptionsByOrigin };
+        }
+
+        let existingSubsByOrigin: Record<string, any> = {};
+        let endpoints: StoredDeviceSubscription[] = [];
+
+        if (parsed && typeof parsed === 'object') {
+          if (Array.isArray(parsed.endpoints)) {
+            endpoints = [...parsed.endpoints];
+          }
+          if (parsed.subscriptionsByOrigin) {
+            existingSubsByOrigin = { ...parsed.subscriptionsByOrigin };
+          }
+          // Seed endpoints list from legacy storage if empty
+          if (endpoints.length === 0) {
+            if (parsed.subscriptionsByOrigin && Object.keys(parsed.subscriptionsByOrigin).length > 0) {
+              for (const [orig, s] of Object.entries(parsed.subscriptionsByOrigin as Record<string, any>)) {
+                if (s?.endpoint) {
+                  endpoints.push({
+                    endpoint: s.endpoint,
+                    keys: s.keys || {},
+                    platform: s.platform || (orig.includes('localhost') ? 'localhost' : 'web'),
+                    origin: orig,
+                    updated_at: s.updated_at || nowIso,
+                  });
+                }
+              }
             } else if (parsed.endpoint) {
-              const legacyOrigin = parsed.origin || (existingRow.platform === 'localhost' ? 'http://localhost' : 'https://vaangly.vercel.app');
-              existingSubsByOrigin[legacyOrigin] = {
+              const legacyOrigin = parsed.origin || (existingRow?.platform === 'localhost' ? 'http://localhost' : 'https://vaangly.vercel.app');
+              endpoints.push({
                 endpoint: parsed.endpoint,
-                keys: parsed.keys,
-                platform: existingRow.platform || 'web',
+                keys: parsed.keys || {},
+                platform: (existingRow?.platform as any) || 'web',
                 origin: legacyOrigin,
-                updated_at: new Date().toISOString(),
-              };
+                updated_at: nowIso,
+              });
             }
           }
         }
 
-        // 2. Add or update current origin's subscription
+        const currentDeviceSub: StoredDeviceSubscription = {
+          endpoint: subscription.endpoint,
+          keys: {
+            p256dh: rawJson.keys?.p256dh || '',
+            auth: rawJson.keys?.auth || '',
+          },
+          platform,
+          origin,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 150) : undefined,
+          created_at: nowIso,
+          updated_at: nowIso,
+        };
+
+        // 2. Add or update current device endpoint in endpoints list (preserving all other devices!)
+        const existingIdx = endpoints.findIndex((e) => e.endpoint === subscription.endpoint);
+        if (existingIdx >= 0) {
+          endpoints[existingIdx] = {
+            ...endpoints[existingIdx],
+            ...currentDeviceSub,
+            created_at: endpoints[existingIdx].created_at || nowIso,
+            updated_at: nowIso,
+          };
+        } else {
+          // Keep up to 10 most recent device endpoints per user
+          if (endpoints.length >= 10) {
+            endpoints.sort((a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime());
+            endpoints.shift();
+          }
+          endpoints.push(currentDeviceSub);
+        }
+
+        // 3. Maintain subscriptionsByOrigin for legacy compatibility
         existingSubsByOrigin[origin] = {
           endpoint: subscription.endpoint,
           keys: rawJson.keys,
-          platform: isLocal ? 'localhost' : 'web',
+          platform,
           origin,
-          updated_at: new Date().toISOString(),
+          updated_at: nowIso,
         };
 
         const subscriptionPayload = {
           ...rawJson,
           origin,
           environment: isLocal ? 'localhost' : 'production',
-          platform: isLocal ? 'localhost' : 'web',
+          platform,
+          endpoints,
           subscriptionsByOrigin: existingSubsByOrigin,
         };
 
@@ -254,10 +337,10 @@ export async function registerPushSubscription(): Promise<boolean> {
           {
             user_id: user.id,
             endpoint: subscription.endpoint,
-            platform: isLocal ? 'localhost' : 'web',
+            platform,
             subscription: subscriptionPayload,
-            last_seen_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            last_seen_at: nowIso,
+            updated_at: nowIso,
           },
           { onConflict: 'user_id' }
         );
@@ -276,14 +359,15 @@ export async function registerPushSubscription(): Promise<boolean> {
 }
 
 /**
- * Safely unregisters push subscription for the current origin without destroying
- * other environments' subscriptions for this user.
+ * Safely unregisters push subscription for the current device without destroying
+ * other devices or environments registered for this user.
  */
 export async function unregisterPushSubscription(): Promise<void> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
   try {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
+    const currentEndpoint = subscription?.endpoint;
     if (subscription) {
       await subscription.unsubscribe();
     }
@@ -306,14 +390,36 @@ export async function unregisterPushSubscription(): Promise<void> {
           if (typeof parsed === 'string') {
             try { parsed = JSON.parse(parsed); } catch {}
           }
-          if (parsed?.subscriptionsByOrigin) {
-            delete parsed.subscriptionsByOrigin[origin];
-            const remainingOrigins = Object.keys(parsed.subscriptionsByOrigin);
-            if (remainingOrigins.length > 0) {
-              // Update with remaining environments
+
+          if (parsed && typeof parsed === 'object') {
+            // Remove current device endpoint from endpoints list
+            if (Array.isArray(parsed.endpoints) && currentEndpoint) {
+              parsed.endpoints = parsed.endpoints.filter((e: any) => e.endpoint !== currentEndpoint);
+            }
+
+            // Remove from subscriptionsByOrigin if referencing this endpoint or origin
+            if (parsed.subscriptionsByOrigin) {
+              if (currentEndpoint) {
+                for (const [orig, s] of Object.entries(parsed.subscriptionsByOrigin as Record<string, any>)) {
+                  if (s?.endpoint === currentEndpoint) {
+                    delete parsed.subscriptionsByOrigin[orig];
+                  }
+                }
+              } else {
+                delete parsed.subscriptionsByOrigin[origin];
+              }
+            }
+
+            const remainingEndpoints = Array.isArray(parsed.endpoints) ? parsed.endpoints.length : 0;
+            const remainingOrigins = parsed.subscriptionsByOrigin ? Object.keys(parsed.subscriptionsByOrigin).length : 0;
+
+            if (remainingEndpoints > 0 || remainingOrigins > 0) {
+              // Pick next remaining active endpoint as top-level endpoint
+              const nextActive = parsed.endpoints?.[0]?.endpoint || (Object.values(parsed.subscriptionsByOrigin || {})[0] as any)?.endpoint;
               await supabase
                 .from('push_subscriptions')
                 .update({
+                  endpoint: nextActive || null,
                   subscription: parsed,
                   updated_at: new Date().toISOString(),
                 })
@@ -322,7 +428,7 @@ export async function unregisterPushSubscription(): Promise<void> {
             }
           }
         }
-        // If no other environments remain, delete row
+        // If no other devices remain, delete row
         await supabase.from('push_subscriptions').delete().eq('user_id', user.id);
       }
     }
@@ -431,6 +537,7 @@ export async function sendCloudEdgePushNotification(userId?: string): Promise<{ 
         body: `Live Web Push received on ${origin} via Supabase Edge Function! ✨`,
         url: '/permissions',
         origin,
+        is_test: true,
       },
     });
 
@@ -519,6 +626,7 @@ export async function sendBusinessPushNotification({
         body,
         url,
         ...(activeOrigin ? { origin: activeOrigin } : {}),
+        is_test: false,
         ...(tag ? { tag } : {}),
       },
     });

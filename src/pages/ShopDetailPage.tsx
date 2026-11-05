@@ -373,7 +373,7 @@ export const ShopDetailPage: React.FC = () => {
             userId: shop.owner_id,
             title: notifTitle,
             body: notifBody,
-            url: '/shopkeeper/requests',
+            url: `/shopkeeper/requests/${data.id}`,
           });
         } catch (pushErr) {
           console.warn('[ShopDetail] Failed to send business push:', pushErr);

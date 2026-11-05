@@ -35,6 +35,7 @@ import { Switch } from '../../components/ui/Switch';
 import { CreditCard, Info } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { AppointmentScheduleConfig } from '../../components/shopkeeper/AppointmentScheduleConfig';
+import { ShopkeeperPushNotificationPrompt } from '../../components/shopkeeper/ShopkeeperPushNotificationPrompt';
 import './ShopkeeperProfilePage.css';
 
 const readFileAsDataUrl = (file: File): Promise<string> => new Promise((resolve, reject) => {
@@ -745,6 +746,11 @@ export const ShopkeeperProfilePage: React.FC = () => {
           </p>
         )}
       </Card>
+
+      {/* Order Notifications & Alert Settings */}
+      <div className="mt-6">
+        <ShopkeeperPushNotificationPrompt variant="card" showDismiss={false} />
+      </div>
 
       {/* Security & Password */}
       <Card variant="default" padding="lg" className="vaango-settings-card mt-6">
