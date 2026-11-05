@@ -164,7 +164,51 @@ export function classifyApplicationError(err: unknown): ClassifiedApplicationErr
     };
   }
 
-  // 2. Network / Connectivity Failure
+  // 2. Unsupported File Formats & MIME Type Errors
+  if (
+    combined.includes('unsupported format') ||
+    combined.includes('mime type') ||
+    combined.includes('mime_type_not_allowed') ||
+    combined.includes('invalid file format')
+  ) {
+    return {
+      userMessage: 'Invalid file format. Please upload JPG, PNG, or WebP images (or PDF for documents).',
+      isRetryable: false,
+      category: 'validation',
+    };
+  }
+
+  // 3. Storage Upload Errors (Check before generic network timeout)
+  if (
+    combined.includes('storage') ||
+    combined.includes('bucket') ||
+    combined.includes('unable to upload') ||
+    combined.includes('upload timed out') ||
+    combined.includes('shop-photos') ||
+    combined.includes('shop-documents')
+  ) {
+    if (combined.includes('payload too large') || combined.includes('too large') || combined.includes('size limit') || combined.includes('exceeds the')) {
+      return {
+        userMessage: 'That file is too large. Please upload a smaller file.',
+        isRetryable: true,
+        category: 'storage',
+      };
+    }
+    if (combined.includes('upload timed out')) {
+      return {
+        userMessage: 'Photo upload timed out on your cellular connection. Please check your signal and try again.',
+        isRetryable: true,
+        category: 'storage',
+      };
+    }
+    return {
+      userMessage: "Couldn't upload your storefront photos or documents. Please check your internet connection and try again.",
+      isRetryable: true,
+      category: 'storage',
+    };
+  }
+
+  // 4. Network / Connectivity Failure
   if (
     combined.includes('failed to fetch') ||
     combined.includes('networkerror') ||
@@ -178,29 +222,6 @@ export function classifyApplicationError(err: unknown): ClassifiedApplicationErr
       userMessage: "We couldn't connect to Vaangly. Check your internet connection and try again.",
       isRetryable: true,
       category: 'network',
-    };
-  }
-
-  // 3. Storage Upload Errors
-  if (
-    combined.includes('storage') ||
-    combined.includes('bucket') ||
-    combined.includes('unable to upload') ||
-    combined.includes('upload timed out') ||
-    combined.includes('shop-photos') ||
-    combined.includes('shop-documents')
-  ) {
-    if (combined.includes('payload too large') || combined.includes('too large') || combined.includes('size limit')) {
-      return {
-        userMessage: 'That file is too large. Please upload a smaller file.',
-        isRetryable: true,
-        category: 'storage',
-      };
-    }
-    return {
-      userMessage: "Couldn't upload your storefront photos or documents. Please check your internet connection and try again.",
-      isRetryable: true,
-      category: 'storage',
     };
   }
 

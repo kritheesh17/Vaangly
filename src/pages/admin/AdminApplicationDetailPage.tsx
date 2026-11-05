@@ -320,6 +320,12 @@ export const AdminApplicationDetailPage: React.FC = () => {
                   {location?.name || 'Hometown Zone'} ({location?.pincode})
                 </span>
               </div>
+              {application.address_line && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <span className="vaango-field-label">Complete Shop Physical Address</span>
+                  <span className="vaango-field-value" style={{ fontWeight: 600 }}>{application.address_line}</span>
+                </div>
+              )}
               {application.area && (
                 <div>
                   <span className="vaango-field-label">Area / Locality</span>
@@ -509,9 +515,16 @@ export const AdminApplicationDetailPage: React.FC = () => {
           </Card>
 
           <Card variant="default" padding="lg" className="vaango-app-detail__section-card">
-            <h2 className="vaango-app-detail__sec-heading">
-              <Navigation size={18} /> Live Device GPS Coordinates
-            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <h2 className="vaango-app-detail__sec-heading" style={{ margin: 0 }}>
+                <Navigation size={18} /> Storefront Location Verification
+              </h2>
+              {application.gps_lat && application.gps_lng ? (
+                <Badge variant="success">GPS Verified</Badge>
+              ) : (
+                <Badge variant="warning">Manual Address Verification</Badge>
+              )}
+            </div>
             {application.gps_lat && application.gps_lng ? (
               <div className="vaango-app-detail__gps-box">
                 <div className="vaango-gps-coords">
@@ -534,9 +547,12 @@ export const AdminApplicationDetailPage: React.FC = () => {
                 </a>
               </div>
             ) : (
-              <div className="vaango-app-detail__no-photo">
-                <MapPin size={24} />
-                <span>GPS coordinates not captured</span>
+              <div className="vaango-app-detail__no-photo" style={{ padding: '16px', textAlign: 'center' }}>
+                <MapPin size={24} style={{ marginBottom: '6px' }} />
+                <span style={{ fontWeight: 600 }}>GPS coordinates not captured at submission</span>
+                <p style={{ margin: '6px 0 0', fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
+                  Applicant submitted with complete physical address. Please verify physical storefront address and Google Maps profile manually before approval.
+                </p>
               </div>
             )}
           </Card>

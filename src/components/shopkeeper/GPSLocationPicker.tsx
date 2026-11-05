@@ -58,6 +58,10 @@ export const GPSLocationPicker: React.FC<GPSLocationPickerProps> = ({
   const [address, setAddress] = useState<string | null>(initialAddress || null);
   const [geocodingNotice, setGeocodingNotice] = useState<string | null>(null);
 
+  const isInAppBrowser =
+    typeof navigator !== 'undefined' &&
+    /Instagram|FBAN|FBAV|Line/i.test(navigator.userAgent || '');
+
   const handleMapAdjusted = (lat: number, lng: number, detectedAddr: string | null) => {
     setIsAdjustingOnMap(false);
     const finalAccuracy = coords?.accuracy ?? 10;
@@ -222,8 +226,9 @@ export const GPSLocationPicker: React.FC<GPSLocationPickerProps> = ({
     // ----------------------------------------------------
     if (!navigator.geolocation) {
       setErrorDetails({
+        code: 'UNSUPPORTED',
         title: 'Geolocation Not Supported',
-        message: 'Your browser or device does not support the Geolocation API. Please enter your shop address manually.',
+        message: 'Your browser or device does not support the Geolocation API. Please enter your shop address manually below.',
         canRetry: false,
       });
       return;
@@ -379,6 +384,19 @@ export const GPSLocationPicker: React.FC<GPSLocationPickerProps> = ({
       </div>
 
       <div className="vaango-gps-picker__body">
+        {/* In-app browser informational banner */}
+        {isInAppBrowser && !coords && (
+          <div className="vaango-gps-picker__inapp-notice" role="note">
+            <div className="vaango-gps-picker__inapp-header">
+              <Compass size={15} />
+              <span>In-App Browser Detected</span>
+            </div>
+            <p className="vaango-gps-picker__inapp-desc">
+              In-app browsers (such as Instagram or Facebook) often restrict device GPS. You can enter your physical address manually below, or tap the menu (•••) and select <strong>Open in Chrome / Browser</strong> for live GPS detection.
+            </p>
+          </div>
+        )}
+
         {/* In-progress state indicator */}
         {isLocating && (
           <div className="vaango-gps-picker__in-progress" role="status">
@@ -473,16 +491,30 @@ export const GPSLocationPicker: React.FC<GPSLocationPickerProps> = ({
         {/* Prompt button state when no coords */}
         {!isLocating && !coords && (
           <div className="vaango-gps-picker__prompt">
-            <Button
-              type="button"
-              variant="primary"
-              disabled={disabled || isLocating}
-              onClick={handleCaptureLocation}
-              isLoading={isLocating}
-              leftIcon={<MapPin size={18} />}
-            >
-              Detect Live Location
-            </Button>
+            <div className="vaango-gps-picker__prompt-buttons">
+              <Button
+                type="button"
+                variant="primary"
+                disabled={disabled || isLocating}
+                onClick={handleCaptureLocation}
+                isLoading={isLocating}
+                leftIcon={<MapPin size={18} />}
+              >
+                Detect Live Location
+              </Button>
+
+              {onManualFallback && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={disabled || isLocating}
+                  onClick={onManualFallback}
+                  leftIcon={<MapPin size={16} />}
+                >
+                  Enter Address Manually
+                </Button>
+              )}
+            </div>
 
             {!window.isSecureContext && (
               <span className="vaango-gps-picker__secure-hint">

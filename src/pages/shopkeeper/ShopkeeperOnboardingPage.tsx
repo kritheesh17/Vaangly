@@ -17,6 +17,7 @@ import {
   FileText,
   Check,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { MOCK_SHOP_TYPES } from '../../data/mockData';
@@ -42,6 +43,7 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { compressImage } from '../../lib/imageCompressor';
 import { isValidUpiQrUrl } from '../../lib/upi';
 import { classifyApplicationError } from '../../lib/productErrorHelper';
+import { detectFileMimeType, executeUploadQueue } from '../../lib/fileUploadUtils';
 import './ShopkeeperOnboardingPage.css';
 
 export interface BusinessCategoryOption {
@@ -282,6 +284,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [addressLine, setAddressLine] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
 
@@ -467,14 +470,25 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
     setShopPhotos((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
-  const uploadFile = async (bucket: string, path: string, file: File): Promise<string> => {
+  const uploadFile = async (
+    bucket: string,
+    path: string,
+    file: File,
+    allowPdf = false
+  ): Promise<string> => {
+    // 1. Detect and normalize MIME type from magic bytes
+    const mimeResult = await detectFileMimeType(file, { allowPdf });
+    if (!mimeResult.isValid) {
+      throw new Error(mimeResult.error || `Unsupported file format for ${file.name}`);
+    }
+
     if (!isSupabaseConfigured) {
       // In offline/demo mode, convert images to compact Base64 data URLs so admin review can preview them
       return new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onload = () => {
           const result = reader.result as string;
-          if (file.type.startsWith('image/')) {
+          if (file.type.startsWith('image/') || mimeResult.mimeType.startsWith('image/')) {
             const img = new Image();
             img.onload = () => {
               const canvas = document.createElement('canvas');
@@ -510,23 +524,23 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       });
     }
 
-    const isPdf = file.name.toLowerCase().endsWith('.pdf');
+    const isPdf = mimeResult.mimeType === 'application/pdf';
     let fileToUpload = file;
-    if (!isPdf && file.type.startsWith('image/')) {
+    if (!isPdf && mimeResult.mimeType.startsWith('image/')) {
       fileToUpload = await compressImage(file, {
         maxDimension: 1000,
         quality: 0.75,
         maxFileSizeMB: 10,
       });
     }
-    const mimeType = fileToUpload.type || (bucket === 'shop-documents' && isPdf ? 'application/pdf' : 'image/jpeg');
 
     const uploadPromise = supabase.storage.from(bucket).upload(path, fileToUpload, {
       upsert: true,
-      contentType: mimeType,
+      contentType: mimeResult.mimeType,
     });
+    // Mobile-appropriate timeout: 45 seconds per file
     const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
-      setTimeout(() => resolve({ data: null, error: { message: `Upload timed out for ${file.name}` } }), 15000)
+      setTimeout(() => resolve({ data: null, error: { message: `Upload timed out for ${file.name}` } }), 45000)
     );
 
     const uploadResult = await Promise.race([uploadPromise, timeoutPromise]);
@@ -573,10 +587,23 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       setFormError('Please enter a valid 10-digit Indian contact phone number.');
       return;
     }
-    if (!gpsCoords) {
-      setFormError('Please capture your storefront live GPS coordinates.');
+
+    // Validate Location: Either valid live GPS coordinates OR complete physical shop address
+    const hasValidGps =
+      gpsCoords != null &&
+      typeof gpsCoords.lat === 'number' &&
+      typeof gpsCoords.lng === 'number' &&
+      !isNaN(gpsCoords.lat) &&
+      !isNaN(gpsCoords.lng) &&
+      (gpsCoords.lat !== 0 || gpsCoords.lng !== 0);
+
+    const hasValidAddress = Boolean(addressLine && addressLine.trim().length >= 5);
+
+    if (!hasValidGps && !hasValidAddress) {
+      setFormError('Please capture your storefront live GPS coordinates or enter your complete physical shop address.');
       return;
     }
+
     if (shopPhotos.length < 4 || shopPhotos.length > 10) {
       setFormError('Please upload between 4 and 10 storefront photos.');
       return;
@@ -590,8 +617,30 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       return;
     }
 
+    // Pre-validate file formats before starting uploads
+    for (const photo of shopPhotos) {
+      const check = await detectFileMimeType(photo, { allowPdf: false });
+      if (!check.isValid) {
+        setFormError(check.error || `Unsupported file format for ${photo.name}`);
+        return;
+      }
+    }
+    const idCheck = await detectFileMimeType(idProofFile, { allowPdf: true });
+    if (!idCheck.isValid) {
+      setFormError(idCheck.error || 'Identity proof document must be a JPG, PNG, WebP, or PDF.');
+      return;
+    }
+    if (upiQrFile) {
+      const qrCheck = await detectFileMimeType(upiQrFile, { allowPdf: false });
+      if (!qrCheck.isValid) {
+        setFormError(qrCheck.error || 'UPI QR code must be a JPG, PNG, or WebP image.');
+        return;
+      }
+    }
+
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setUploadProgress('Preparing upload...');
 
     // Track objects uploaded strictly during this attempt for safe cleanup if submission fails
     const attemptUploadedPhotoPaths: string[] = [];
@@ -622,7 +671,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         activeUserId = authData.user.id;
       }
 
-      // Fast concurrent upload of storefront photos, ID document, and UPI QR
+      // Queue-based upload (max 2 parallel uploads with transient retries)
       const now = Date.now();
       const idExt = idProofFile.name.toLowerCase().endsWith('.pdf') ? 'pdf' : (idProofFile.name.split('.').pop()?.toLowerCase() || 'jpg');
       const plannedPhotoPaths = shopPhotos.map((file, i) => {
@@ -634,31 +683,88 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         ? `${activeUserId}/upi-qr/upi_qr_${now}.${upiQrFile.name.split('.').pop()?.toLowerCase() || 'jpg'}`
         : null;
 
-      const [photoUrls, idProofPath, upiQrUrl] = await Promise.all([
-        Promise.all(
-          shopPhotos.map(async (file, i) => {
-            const path = plannedPhotoPaths[i];
-            const url = await uploadFile('shop-photos', path, file);
-            attemptUploadedPhotoPaths.push(path);
-            return url;
-          })
-        ),
-        (async () => {
-          const res = await uploadFile('shop-documents', plannedIdProofPath, idProofFile);
-          attemptUploadedDocPaths.push(plannedIdProofPath);
-          return res;
-        })(),
-        upiQrFile && plannedUpiQrPath
-          ? (async () => {
-              const res = await uploadFile('shop-photos', plannedUpiQrPath, upiQrFile);
-              attemptUploadedPhotoPaths.push(plannedUpiQrPath);
-              return res;
-            })()
-          : Promise.resolve(null),
-      ]);
-      if (upiId.trim() && !isValidUpiQrUrl(upiQrUrl)) {
+      interface QueuedUploadItem {
+        bucket: string;
+        path: string;
+        file: File;
+        isDoc?: boolean;
+        type: 'photo' | 'id_proof' | 'upi_qr';
+        index?: number;
+      }
+
+      const uploadQueueItems: QueuedUploadItem[] = [
+        ...shopPhotos.map((file, i) => ({
+          bucket: 'shop-photos',
+          path: plannedPhotoPaths[i],
+          file,
+          isDoc: false,
+          type: 'photo' as const,
+          index: i,
+        })),
+        {
+          bucket: 'shop-documents',
+          path: plannedIdProofPath,
+          file: idProofFile,
+          isDoc: true,
+          type: 'id_proof' as const,
+        },
+      ];
+
+      if (upiQrFile && plannedUpiQrPath) {
+        uploadQueueItems.push({
+          bucket: 'shop-photos',
+          path: plannedUpiQrPath,
+          file: upiQrFile,
+          isDoc: false,
+          type: 'upi_qr' as const,
+        });
+      }
+
+      const photoUrls: string[] = new Array(shopPhotos.length);
+      let idProofPathResult = '';
+      let upiQrUrlResult: string | null = null;
+
+      await executeUploadQueue(
+        uploadQueueItems,
+        async (item) => {
+          setUploadProgress(
+            item.type === 'photo'
+              ? `Uploading photo ${(item.index ?? 0) + 1} of ${shopPhotos.length}...`
+              : item.type === 'id_proof'
+              ? 'Uploading identity proof document...'
+              : 'Uploading UPI QR code...'
+          );
+          const url = await uploadFile(item.bucket, item.path, item.file, item.isDoc);
+          if (item.bucket === 'shop-photos') {
+            attemptUploadedPhotoPaths.push(item.path);
+          } else {
+            attemptUploadedDocPaths.push(item.path);
+          }
+
+          if (item.type === 'photo' && item.index !== undefined) {
+            photoUrls[item.index] = url;
+          } else if (item.type === 'id_proof') {
+            idProofPathResult = url;
+          } else if (item.type === 'upi_qr') {
+            upiQrUrlResult = url;
+          }
+          return url;
+        },
+        {
+          concurrency: 2,
+          maxRetries: 2,
+          initialBackoffMs: 800,
+          onProgress: (completed, total) => {
+            setUploadProgress(`Uploaded ${completed} of ${total} files...`);
+          },
+        }
+      );
+
+      if (upiId.trim() && !isValidUpiQrUrl(upiQrUrlResult)) {
         throw new Error('UPI QR code is required to accept UPI payments.');
       }
+
+      setUploadProgress('Finalizing application...');
 
       const res = await submitShopApplication({
         applicant_id: activeUserId,
@@ -672,10 +778,10 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
         photo_url: photoUrls[0] || null,
         photo_urls: photoUrls,
         upi_id: upiId.trim() || null,
-        upi_qr_url: upiQrUrl,
-        id_proof_url: idProofPath,
-        gps_lat: gpsCoords?.lat ?? null,
-        gps_lng: gpsCoords?.lng ?? null,
+        upi_qr_url: upiQrUrlResult,
+        id_proof_url: idProofPathResult,
+        gps_lat: hasValidGps ? gpsCoords.lat : null,
+        gps_lng: hasValidGps ? gpsCoords.lng : null,
         google_maps_url: googleMapsUrl.trim() || null,
         area: area.trim(),
         district: district.trim(),
@@ -709,6 +815,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
       toastError(classified.userMessage);
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -1718,6 +1825,28 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                 variant={classifyError(formError).category === 'network' ? 'network' : 'error'}
                 onDismiss={() => setFormError(null)}
               />
+            )}
+
+            {isSubmitting && uploadProgress && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '10px 14px',
+                  background: 'rgba(230, 81, 0, 0.08)',
+                  border: '1px solid rgba(230, 81, 0, 0.25)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '13px',
+                  color: 'var(--color-primary)',
+                  fontWeight: 600,
+                  marginBottom: '12px',
+                }}
+                role="status"
+              >
+                <RefreshCw size={16} className="vaango-spin" />
+                <span>{uploadProgress}</span>
+              </div>
             )}
 
             <div className="vaango-onboarding__submit-bar" style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
