@@ -2,13 +2,14 @@
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background-color: rgba(15, 24, 40, 0.65);
-  backdrop-filter: blur(4px);
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   padding: 0;
-  animation: fadeIn 200ms ease-out;
+  animation: fadeIn 180ms ease-out;
 }
 
 @media (min-width: 640px) {
@@ -19,14 +20,14 @@
 }
 
 .vaango-modal-content {
-  background-color: var(--color-surface-elevated);
-  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
   width: 100%;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-elevated);
-  animation: slideUp 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 20px 40px -8px rgba(15, 23, 42, 0.16), 0 8px 16px -4px rgba(15, 23, 42, 0.08);
+  animation: slideUp 220ms cubic-bezier(0.16, 1, 0.3, 1);
   border-top-left-radius: var(--radius-xl);
   border-top-right-radius: var(--radius-xl);
   border-bottom-left-radius: 0;
@@ -70,7 +71,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: var(--space-5) var(--space-6);
+  padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--color-border-subtle);
   gap: var(--space-3);
 }
@@ -82,9 +83,10 @@
 }
 
 .vaango-modal-title {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
+  letter-spacing: -0.01em;
 }
 
 .vaango-modal-desc {
@@ -93,7 +95,7 @@
 }
 
 .vaango-modal-body {
-  padding: var(--space-6);
+  padding: var(--space-5);
   overflow-y: auto;
   flex: 1;
 }
@@ -103,9 +105,9 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-3);
-  padding: var(--space-4) var(--space-6);
+  padding: var(--space-3) var(--space-5);
   border-top: 1px solid var(--color-border-subtle);
-  background-color: var(--color-surface-sunken);
+  background-color: var(--color-bg);
   border-bottom-left-radius: inherit;
   border-bottom-right-radius: inherit;
 }

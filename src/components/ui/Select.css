@@ -7,44 +7,62 @@
 
 .vaango-select {
   width: 100%;
-  min-height: var(--min-touch-target);
+  min-height: var(--input-height-md, 44px);
   padding: 0 var(--space-8) 0 var(--space-4);
   background-color: var(--color-surface);
   color: var(--color-text-primary);
-  border: 1.5px solid var(--color-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   font-family: inherit;
   appearance: none;
   cursor: pointer;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
 }
 
 .vaango-select:hover:not(:disabled) {
-  border-color: var(--color-text-muted);
+  border-color: var(--color-border-hover, #CBD5E1);
 }
 
 .vaango-select:focus {
   outline: none;
   border-color: var(--brand-primary);
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 0 0 3px rgba(27, 77, 62, 0.14);
+}
+
+[data-theme='dark'] .vaango-select:focus,
+.dark .vaango-select:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.25);
 }
 
 .vaango-select:disabled {
   background-color: var(--color-disabled-bg);
   color: var(--color-disabled-text);
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .vaango-select-arrow {
   position: absolute;
-  right: var(--space-4);
+  right: var(--space-3);
   pointer-events: none;
   color: var(--color-text-muted);
   display: flex;
   align-items: center;
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.vaango-select:focus + .vaango-select-arrow {
+  color: var(--brand-primary);
+  transform: translateY(1px);
 }
 
 .vaango-select-wrapper--error .vaango-select {
   border-color: var(--color-error);
+}
+
+.vaango-select-wrapper--error .vaango-select:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
 }

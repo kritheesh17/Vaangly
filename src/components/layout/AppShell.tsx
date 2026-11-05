@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -32,7 +32,6 @@ export const AppShell: React.FC = () => {
       return false;
     }
   });
-  const [isSmallAdminViewport, setIsSmallAdminViewport] = useState(false);
 
   const handleDismissGate = () => {
     try {
@@ -51,14 +50,6 @@ export const AppShell: React.FC = () => {
     !location.pathname.startsWith('/request-confirmation') &&
     !location.pathname.startsWith('/shopkeeper') &&
     !location.pathname.startsWith('/admin');
-
-  useEffect(() => {
-    if (!location.pathname.startsWith('/admin')) return;
-    const updateViewport = () => setIsSmallAdminViewport(window.innerWidth < 768);
-    updateViewport();
-    window.addEventListener('resize', updateViewport);
-    return () => window.removeEventListener('resize', updateViewport);
-  }, [location.pathname]);
 
   // Global Customer Profile Gate:
   // If an authenticated customer has an incomplete profile, prevent access to normal customer routes
@@ -112,11 +103,6 @@ export const AppShell: React.FC = () => {
         id="main-content"
         className={`vaango-main-content ${isCartBarVisible ? 'vaango-main-content--with-cart' : ''}`}
       >
-        {isSmallAdminViewport && (
-          <div className="vaango-admin-size-notice" role="status">
-            The admin panel is designed for larger screens; use a tablet or desktop for the best experience
-          </div>
-        )}
         <Outlet />
       </main>
 

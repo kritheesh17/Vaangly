@@ -1,16 +1,18 @@
 .vaango-card {
   background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   color: var(--color-text-primary);
-  transition: all var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
   overflow: hidden;
   position: relative;
+  box-shadow: var(--shadow-card);
 }
 
 /* Variants */
 .vaango-card--default {
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-card);
+  border-color: var(--color-border-subtle);
 }
 
 .vaango-card--elevated {
@@ -27,7 +29,7 @@
 
 .vaango-card--outlined {
   box-shadow: none;
-  border: 1.5px solid var(--color-border);
+  border: 1px solid var(--color-border);
 }
 
 /* Interactive Hover */
@@ -38,7 +40,12 @@
 .vaango-card--interactive:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
-  border-color: var(--brand-primary);
+  border-color: rgba(27, 77, 62, 0.28);
+}
+
+[data-theme='dark'] .vaango-card--interactive:hover,
+.dark .vaango-card--interactive:hover {
+  border-color: rgba(52, 211, 153, 0.35);
 }
 
 /* Paddings */
@@ -51,9 +58,9 @@
 }
 
 .vaango-card--padding-md {
-  padding: var(--space-5);
+  padding: var(--space-4);
 }
 
 .vaango-card--padding-lg {
-  padding: var(--space-8);
+  padding: var(--space-6);
 }

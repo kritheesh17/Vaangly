@@ -12,7 +12,10 @@
   z-index: 100;
   height: var(--header-height, 64px);
   background-color: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border-subtle, var(--color-border));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   transition: background-color var(--transition-normal), border-color var(--transition-normal);
   width: 100%;
 }
@@ -56,12 +59,12 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--brand-primary, #15803d);
+  background: var(--brand-primary, #1B4D3E);
   color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(21, 128, 61, 0.25);
+  box-shadow: 0 2px 6px rgba(27, 77, 62, 0.25);
   flex-shrink: 0;
 }
 
@@ -103,7 +106,7 @@
 }
 
 .vaango-header__location-sub-btn:hover {
-  color: var(--brand-primary, #15803d);
+  color: var(--brand-primary, #1B4D3E);
 }
 
 .vaango-header__location-chevron {

@@ -1,5 +1,5 @@
 .vaango-shop-reqs {
-  padding-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
   padding-bottom: 90px;
   display: flex;
   flex-direction: column;
@@ -15,15 +15,20 @@
 .vaango-back-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   background: none;
   border: none;
   color: var(--color-primary);
   font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  padding: 0;
+  padding: 4px 0;
   width: fit-content;
+  transition: opacity var(--transition-fast);
+}
+
+.vaango-back-btn:hover {
+  opacity: 0.8;
 }
 
 .vaango-shop-reqs__title-row {
@@ -36,6 +41,7 @@
 .vaango-shop-reqs__title {
   font-size: var(--font-size-2xl);
   font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--color-text-primary);
   margin: 0;
 }
@@ -43,7 +49,7 @@
 .vaango-shop-reqs__subtitle {
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-  margin: 2px 0 0 0;
+  margin: 4px 0 0 0;
 }
 
 .vaango-refresh-btn {
@@ -51,26 +57,32 @@
   align-items: center;
   gap: 6px;
   background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-subtle);
   color: var(--color-text-secondary);
-  padding: 6px 12px;
-  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
   font-weight: 600;
   cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
 }
 
 .vaango-refresh-btn:hover {
   background-color: var(--color-surface-hover);
   color: var(--color-text-primary);
+  border-color: var(--color-border);
 }
 
 .vaango-shop-reqs__tabs {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: 6px;
   overflow-x: auto;
-  padding-bottom: 4px;
+  padding: 4px;
+  background-color: var(--color-surface-hover);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-subtle);
   scrollbar-width: none;
 }
 
@@ -79,27 +91,35 @@
 }
 
 .vaango-req-tab {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: transparent;
+  border: 1px solid transparent;
   color: var(--color-text-secondary);
   padding: 6px 14px;
   border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: var(--transition-fast);
+  transition: all var(--transition-fast);
 }
 
 .vaango-req-tab:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
 }
 
 .vaango-req-tab--active {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
-  color: white !important;
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(27, 77, 62, 0.25);
+}
+
+.vaango-req-tab--active span {
+  color: #ffffff !important;
 }
 
 .vaango-shop-reqs__list {

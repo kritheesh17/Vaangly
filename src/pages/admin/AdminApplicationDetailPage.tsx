@@ -572,21 +572,64 @@ export const AdminApplicationDetailPage: React.FC = () => {
       <Modal
         isOpen={approveModalOpen}
         onClose={() => setApproveModalOpen(false)}
-        title="Approve Shop Application?"
+        title="Approve Shop Application"
+        description={`Confirm storefront verification and merchant onboarding for ${application.shop_name}`}
         maxWidth="md"
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <p style={{ margin: 0, color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
-            Approving <strong>{application.shop_name}</strong> will create a new shop record in <strong>Active</strong> status.
-            <br /><br />
-            <strong>Important Product Rule:</strong> The shop will be initialized with <code>is_live = false</code> (<strong>Approved — Catalogue Incomplete</strong>). It will remain invisible to customers until the shopkeeper adds their catalogue items/services and turns the shop live. A 60-day trial subscription will be initialized.
-          </p>
+        <div className="vaango-approval-dialog">
+          {/* Shop Highlight Banner */}
+          <div className="vaango-approval-dialog__shop-banner">
+            <div className="vaango-approval-dialog__icon-wrap">
+              <Store size={22} />
+            </div>
+            <div>
+              <h3 className="vaango-approval-dialog__shop-title">{application.shop_name}</h3>
+              <p className="vaango-approval-dialog__shop-sub">
+                Applicant: <strong>{application.owner_name || 'Store Merchant'}</strong> · {application.contact_phone}
+              </p>
+            </div>
+          </div>
 
-          <div className="vaango-form-group">
-            <label htmlFor="approval-notes">Approval Notes (Optional)</label>
+          {/* Structured Approval Consequences */}
+          <div className="vaango-approval-dialog__consequences">
+            <h4 className="vaango-approval-dialog__section-title">Approval Consequences</h4>
+            <div className="vaango-approval-dialog__card-grid">
+              <div className="vaango-approval-dialog__card">
+                <div className="vaango-approval-dialog__card-dot vaango-approval-dialog__card-dot--success" />
+                <div>
+                  <strong>Active Storefront Record</strong>
+                  <p>A new verified shop record is provisioned in the system under Active status.</p>
+                </div>
+              </div>
+
+              <div className="vaango-approval-dialog__card">
+                <div className="vaango-approval-dialog__card-dot vaango-approval-dialog__card-dot--warning" />
+                <div>
+                  <strong>Catalogue Incomplete (Hidden)</strong>
+                  <p>
+                    Initialized with <code>is_live = false</code>. Storefront stays invisible to customers until the shopkeeper adds products and turns it live.
+                  </p>
+                </div>
+              </div>
+
+              <div className="vaango-approval-dialog__card">
+                <div className="vaango-approval-dialog__card-dot vaango-approval-dialog__card-dot--primary" />
+                <div>
+                  <strong>60-Day Free Trial Subscription</strong>
+                  <p>A complimentary 60-day trial subscription will be activated automatically for the shop.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Approval Notes Input */}
+          <div className="vaango-approval-dialog__notes-wrap">
+            <label htmlFor="approval-notes" className="vaango-approval-dialog__label">
+              Approval Notes <span className="vaango-approval-dialog__optional">(Optional audit record)</span>
+            </label>
             <input
               id="approval-notes"
-              className="vaango-input"
+              className="vaango-approval-dialog__input"
               value={approvalNotes}
               onChange={(e) => {
                 setApprovalNotes(e.target.value);
@@ -604,11 +647,22 @@ export const AdminApplicationDetailPage: React.FC = () => {
             />
           )}
 
-          <div className="vaango-modal-actions">
-            <Button variant="outline" onClick={() => setApproveModalOpen(false)}>
+          {/* Actions */}
+          <div className="vaango-approval-dialog__actions">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setApproveModalOpen(false)}
+              disabled={isApproving}
+            >
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleApprove} isLoading={isApproving}>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={handleApprove}
+              isLoading={isApproving}
+            >
               Confirm Approval
             </Button>
           </div>

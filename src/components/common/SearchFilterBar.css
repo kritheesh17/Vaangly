@@ -1,18 +1,19 @@
 .vaango-retrieval-bar {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: 12px;
-  padding: 12px 14px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  gap: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .vaango-retrieval-bar__top {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--space-3);
   align-items: center;
 }
 
@@ -26,56 +27,85 @@
 
 .vaango-retrieval-bar__search-icon {
   position: absolute;
-  left: 12px;
-  color: var(--color-text-muted, #94a3b8);
+  left: 14px;
+  color: var(--color-text-muted);
   pointer-events: none;
 }
 
 .vaango-retrieval-bar__input {
   width: 100%;
-  height: 40px;
-  padding: 0 36px 0 38px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border, #cbd5e1);
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text-main, #0f172a);
-  font-size: 0.92rem;
-  transition: all 0.15s ease;
+  height: var(--input-height-md, 44px);
+  padding: 0 38px 0 42px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  transition: all var(--transition-fast);
   outline: none;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 .vaango-retrieval-bar__input:focus {
-  border-color: var(--color-primary, #059669);
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+  background: var(--color-surface);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(27, 77, 62, 0.12);
+}
+
+[data-theme='dark'] .vaango-retrieval-bar__input:focus,
+.dark .vaango-retrieval-bar__input:focus {
+  background: var(--color-surface);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.22);
 }
 
 .vaango-retrieval-bar__clear-btn {
   position: absolute;
-  right: 10px;
+  right: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  background: var(--color-surface-hover, #f1f5f9);
+  width: 24px;
+  height: 24px;
+  background: var(--color-surface-hover);
   border: none;
-  border-radius: 50%;
-  color: var(--color-text-muted, #64748b);
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
   cursor: pointer;
   padding: 0;
-  transition: all 0.15s ease;
+  transition: all var(--transition-fast);
 }
 
 .vaango-retrieval-bar__clear-btn:hover {
-  background: var(--color-border, #e2e8f0);
-  color: var(--color-text-main, #0f172a);
+  background: var(--color-border);
+  color: var(--color-text-primary);
 }
 
 .vaango-retrieval-bar__filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: center;
+}
+
+.vaango-retrieval-bar__filters select,
+.vaango-retrieval-bar__filters .vaango-select {
+  height: var(--input-height-md, 44px);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  padding: 0 var(--space-7) 0 var(--space-3);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  transition: all var(--transition-fast);
+}
+
+.vaango-retrieval-bar__filters select:focus,
+.vaango-retrieval-bar__filters .vaango-select:focus {
+  background-color: var(--color-surface);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(27, 77, 62, 0.12);
 }
 
 .vaango-retrieval-bar__summary {
@@ -83,35 +113,50 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  font-size: 0.82rem;
-  color: var(--color-text-muted, #64748b);
-  padding-top: 4px;
-  border-top: 1px dashed var(--color-border, #f1f5f9);
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-subtle);
 }
 
 .vaango-retrieval-bar__count strong {
-  color: var(--color-text-main, #0f172a);
+  color: var(--color-text-primary);
+  font-weight: 600;
 }
 
 .vaango-retrieval-bar__reset-btn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: transparent;
-  border: 1px dashed var(--color-border, #cbd5e1);
-  color: var(--color-primary, #059669);
-  font-size: 0.8rem;
-  font-weight: 500;
-  padding: 3px 8px;
-  border-radius: 6px;
+  background: var(--brand-primary-light);
+  border: 1px solid rgba(27, 77, 62, 0.15);
+  color: var(--brand-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--transition-fast);
 }
 
 .vaango-retrieval-bar__reset-btn:hover {
-  background: rgba(5, 150, 105, 0.08);
-  border-color: var(--color-primary, #059669);
+  background: var(--brand-primary);
+  color: #ffffff;
+  border-color: var(--brand-primary);
+}
+
+[data-theme='dark'] .vaango-retrieval-bar__reset-btn,
+.dark .vaango-retrieval-bar__reset-btn {
+  background: rgba(52, 211, 153, 0.15);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #34D399;
+}
+
+[data-theme='dark'] .vaango-retrieval-bar__reset-btn:hover,
+.dark .vaango-retrieval-bar__reset-btn:hover {
+  background: #34D399;
+  color: #0F1828;
 }
 
 @media (max-width: 640px) {
@@ -120,6 +165,7 @@
   }
 
   .vaango-retrieval-bar__filters select,
+  .vaango-retrieval-bar__filters .vaango-select,
   .vaango-retrieval-bar__filters button {
     flex: 1 1 calc(50% - 4px);
   }

@@ -210,54 +210,44 @@ export const RequestCard: React.FC<RequestCardProps> = ({
         </div>
       ) : (
         <div className="vaango-shop-req-card__items-preview">
-          <div className="vaango-shop-req-card__items-count">
-            <ShoppingBag size={14} />
-            <span>
-              {itemCount === 1 ? t('itemCount') : t('itemsCount', { count: itemCount })}
-            </span>
-          </div>
-          <div className="vaango-shop-req-card__items-list">
-            {items.slice(0, 3).map((it, idx) => (
-              <span key={idx} className="vaango-shop-req-card__item-pill">
-                {it.quantity}x {it.name}
-                {it.variant_label ? ` (${it.variant_label})` : ''}
-              </span>
-            ))}
-            {items.length > 3 && (
-              <span className="vaango-shop-req-card__item-more">{t('moreItems', { count: items.length - 3 })}</span>
-            )}
-          </div>
-          {request.fulfillment_type && (
-            <strong className="text-sm text-primary mt-2">
-              Order Type: {['DINE_IN', 'dine_in'].includes(request.fulfillment_type) ? '🍽️ Dine-in' : '📦 Parcel / Takeaway'}
-            </strong>
-          )}
-          {groupCode === 'ORDER' && (
-            <div
-              className="vaango-shop-req-card__pickup-badge"
-              style={{
-                marginTop: 6,
-                padding: '4px 10px',
-                borderRadius: 6,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-                backgroundColor: (request.pickup_at || decoded.pickup_at) ? 'var(--brand-primary-light, #eff6ff)' : 'var(--color-surface-hover, #f3f4f6)',
-                color: (request.pickup_at || decoded.pickup_at) ? 'var(--brand-primary, #2563eb)' : 'var(--color-text-secondary, #4b5563)',
-                border: (request.pickup_at || decoded.pickup_at) ? '1px solid var(--brand-primary-light, #bfdbfe)' : '1px solid var(--color-border, #e5e7eb)',
-              }}
-            >
-              <Clock size={13} />
+          <div className="vaango-shop-req-card__items-main">
+            <div className="vaango-shop-req-card__items-count">
+              <ShoppingBag size={14} />
               <span>
-                <strong>Pickup:</strong>{' '}
-                {(request.pickup_at || decoded.pickup_at)
-                  ? formatPickupTime(request.pickup_at || decoded.pickup_at)
-                  : 'ASAP'}
+                {itemCount === 1 ? t('itemCount') : t('itemsCount', { count: itemCount })}
               </span>
             </div>
-          )}
+            <div className="vaango-shop-req-card__items-list">
+              {items.slice(0, 3).map((it, idx) => (
+                <span key={idx} className="vaango-shop-req-card__item-pill">
+                  {it.quantity}x {it.name}
+                  {it.variant_label ? ` (${it.variant_label})` : ''}
+                </span>
+              ))}
+              {items.length > 3 && (
+                <span className="vaango-shop-req-card__item-more">{t('moreItems', { count: items.length - 3 })}</span>
+              )}
+            </div>
+          </div>
+
+          <div className="vaango-shop-req-card__order-meta-row">
+            {request.fulfillment_type && (
+              <span className="vaango-shop-req-card__fulfillment-tag">
+                {['DINE_IN', 'dine_in'].includes(request.fulfillment_type) ? '🍽️ Dine-in' : '📦 Takeaway'}
+              </span>
+            )}
+            {groupCode === 'ORDER' && (
+              <span className="vaango-shop-req-card__pickup-tag">
+                <Clock size={12} />
+                <span>
+                  <strong>Pickup:</strong>{' '}
+                  {(request.pickup_at || decoded.pickup_at)
+                    ? formatPickupTime(request.pickup_at || decoded.pickup_at)
+                    : 'ASAP'}
+                </span>
+              </span>
+            )}
+          </div>
         </div>
       )}
 

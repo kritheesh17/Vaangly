@@ -26,8 +26,8 @@
   gap: 0.35rem;
   padding: 0.2rem 0.6rem;
   border-radius: 9999px;
-  background: rgba(99, 102, 241, 0.1);
-  color: #4f46e5;
+  background: var(--color-primary-light, rgba(27, 77, 62, 0.1));
+  color: var(--color-primary);
   font-size: 0.75rem;
   font-weight: 600;
   margin-bottom: 0.35rem;
@@ -70,7 +70,7 @@
   gap: 1rem;
   padding: 1rem 1.75rem;
   border-bottom: 1px solid var(--border-color, #e5e7eb);
-  background: #ffffff;
+  background: var(--color-surface, #ffffff);
 }
 
 .vaango-master-modal__search-wrapper {
@@ -90,16 +90,16 @@
 .vaango-master-modal__search-input {
   width: 100%;
   padding: 0.65rem 2.25rem 0.65rem 2.5rem;
-  border: 1px solid var(--border-color, #d1d5db);
-  border-radius: 8px;
+  border: 1px solid var(--color-border-subtle, #d1d5db);
+  border-radius: var(--radius-md, 8px);
   font-size: 0.9rem;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .vaango-master-modal__search-input:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(27, 77, 62, 0.15);
 }
 
 .vaango-master-modal__clear-btn {

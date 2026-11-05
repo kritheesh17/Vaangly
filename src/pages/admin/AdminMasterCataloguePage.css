@@ -18,8 +18,8 @@
   gap: 0.35rem;
   padding: 0.2rem 0.6rem;
   border-radius: 9999px;
-  background: rgba(99, 102, 241, 0.1);
-  color: #4f46e5;
+  background: var(--color-primary-light, rgba(27, 77, 62, 0.1));
+  color: var(--color-primary);
   font-size: 0.75rem;
   font-weight: 600;
   margin-bottom: 0.35rem;
@@ -173,7 +173,8 @@
 }
 
 .vaango-admin-search-input:focus {
-  border-color: #6366f1;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(27, 77, 62, 0.12);
 }
 
 .vaango-admin-select-group {
@@ -183,10 +184,10 @@
 
 .vaango-admin-select {
   padding: 0.6rem 2rem 0.6rem 0.85rem;
-  border: 1px solid var(--border-color, #d1d5db);
-  border-radius: 8px;
+  border: 1px solid var(--color-border-subtle, #d1d5db);
+  border-radius: var(--radius-md, 8px);
   font-size: 0.875rem;
-  background-color: #ffffff;
+  background-color: var(--color-surface, #ffffff);
   color: var(--text-primary, #111827);
   outline: none;
   cursor: pointer;
@@ -195,9 +196,10 @@
 /* Table */
 .vaango-admin-table-container {
   overflow-x: auto;
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 12px;
-  background: #ffffff;
+  border: 1px solid var(--color-border-subtle, #e5e7eb);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-surface, #ffffff);
+  box-shadow: var(--shadow-card);
 }
 
 .vaango-admin-table {

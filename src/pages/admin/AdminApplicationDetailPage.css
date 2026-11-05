@@ -366,3 +366,172 @@
   border-radius: var(--radius-sm);
   margin-top: 8px;
 }
+
+/* Modernized Approval Dialog Styles */
+.vaango-approval-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.vaango-approval-dialog__shop-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--brand-primary-light);
+  border: 1px solid rgba(27, 77, 62, 0.14);
+  border-radius: var(--radius-md);
+}
+
+.vaango-approval-dialog__icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-full);
+  background: var(--brand-primary);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vaango-approval-dialog__shop-title {
+  margin: 0 0 2px 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.vaango-approval-dialog__shop-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.vaango-approval-dialog__consequences {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.vaango-approval-dialog__section-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.vaango-approval-dialog__card-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.vaango-approval-dialog__card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.vaango-approval-dialog__card strong {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--color-text-primary);
+  margin-bottom: 2px;
+}
+
+.vaango-approval-dialog__card p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.vaango-approval-dialog__card-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.vaango-approval-dialog__card-dot--success {
+  background-color: var(--color-success);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+}
+
+.vaango-approval-dialog__card-dot--warning {
+  background-color: var(--color-warning);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2);
+}
+
+.vaango-approval-dialog__card-dot--primary {
+  background-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(27, 77, 62, 0.2);
+}
+
+.vaango-approval-dialog__notes-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.vaango-approval-dialog__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.vaango-approval-dialog__optional {
+  font-weight: normal;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.vaango-approval-dialog__input {
+  width: 100%;
+  height: var(--input-height-md, 44px);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.vaango-approval-dialog__input:focus {
+  background: var(--color-surface);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(27, 77, 62, 0.12);
+  outline: none;
+}
+
+.vaango-approval-dialog__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+[data-theme='dark'] .vaango-approval-dialog__shop-banner,
+.dark .vaango-approval-dialog__shop-banner {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.25);
+}
+
+[data-theme='dark'] .vaango-approval-dialog__card,
+.dark .vaango-approval-dialog__card {
+  background: var(--color-surface-elevated);
+  border-color: var(--color-border);
+}

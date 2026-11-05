@@ -6,10 +6,12 @@
   z-index: 90;
   height: calc(var(--bottom-nav-height, 64px) + env(safe-area-inset-bottom, 0px));
   background-color: var(--color-surface);
-  border-top: 1px solid var(--color-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--color-border-subtle, var(--color-border));
   padding-bottom: env(safe-area-inset-bottom, 0px);
   box-sizing: border-box;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
   transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 

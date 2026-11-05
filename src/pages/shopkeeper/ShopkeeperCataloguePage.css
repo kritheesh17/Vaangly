@@ -38,9 +38,11 @@
   align-items: center;
   gap: var(--spacing-md);
   padding: var(--spacing-md);
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, transparent 100%);
-  border: 1.5px solid var(--color-warning);
-  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, var(--color-surface) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-left: 4px solid var(--color-warning);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .vaango-alert-icon {
@@ -74,30 +76,42 @@
 .vaango-catalogue__filters {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px;
+  background-color: var(--color-surface-hover);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-subtle);
+  scrollbar-width: none;
+}
+
+.vaango-catalogue__filters::-webkit-scrollbar {
+  display: none;
 }
 
 .vaango-stock-filter {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background-color: transparent;
+  border: 1px solid transparent;
   color: var(--color-text-secondary);
   padding: 6px 14px;
   border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  transition: var(--transition-fast);
+  white-space: nowrap;
+  transition: all var(--transition-fast);
 }
 
 .vaango-stock-filter:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
 }
 
 .vaango-stock-filter--active {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
-  color: white !important;
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(27, 77, 62, 0.25);
 }
 
 .vaango-catalogue__grid {
@@ -224,22 +238,25 @@
   align-items: center;
   gap: 4px;
   background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-subtle);
   color: var(--color-text-secondary);
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-xs);
   cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
 .vaango-icon-btn:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
+  background-color: var(--color-surface-hover);
 }
 
 .vaango-icon-btn--delete:hover {
   border-color: var(--color-error);
   color: var(--color-error);
+  background-color: rgba(239, 68, 68, 0.05);
 }
 
 @media (max-width: 600px) {
@@ -253,6 +270,6 @@
     align-items: center;
     justify-content: space-between;
     padding-top: var(--spacing-xs);
-    border-top: 1px solid var(--color-border);
+    border-top: 1px solid var(--color-border-subtle);
   }
 }
