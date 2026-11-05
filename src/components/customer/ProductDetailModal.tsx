@@ -1,13 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShopProduct, ProductVariant } from '../../types/database';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { ChevronLeft, ChevronRight, Plus, Minus, PackageX, Star, MapPin, Truck, ShoppingCart, Store } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Minus,
+  PackageX,
+  Star,
+  MapPin,
+  Truck,
+  ShoppingCart,
+  Store,
+  Check,
+  ChevronDown,
+} from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../../context/ToastContext';
 import { useCart } from '../../context/CartContext';
 import './ProductDetailModal.css';
-import { findVariantForSelections, optionIsReachable, variantAttributeGroups, variantIsAvailable, variantLabel } from '../../lib/productVariants';
+import {
+  findVariantForSelections,
+  optionIsReachable,
+  variantAttributeGroups,
+  variantIsAvailable,
+  variantLabel,
+  formatCleanVariantLabel,
+  isVisualAttribute,
+  isMeasurementAttribute,
+} from '../../lib/productVariants';
 
 interface ProductDetailModalProps {
   isOpen: boolean;
@@ -38,7 +60,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const currentShop = propShop || activeShop;
 
   // Reset state when product changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (product) {
       setActiveImageIndex(0);
       setImageError({});
@@ -56,7 +78,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   if (!product) return null;
 
-  // Gather all unique valid images
+  // Gather all unique valid images (including variant-specific photos)
   const allImages: string[] = [];
   if (product.image_urls && product.image_urls.length > 0) {
     product.image_urls.forEach((url) => {
@@ -68,6 +90,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   if (product.image_url && !allImages.includes(product.image_url) && !product.image_url.startsWith('blob:')) {
     allImages.push(product.image_url);
   }
+  if (product.variants && product.variants.length > 0) {
+    product.variants.forEach((v) => {
+      if (v.image_url && !allImages.includes(v.image_url) && !v.image_url.startsWith('blob:')) {
+        allImages.push(v.image_url);
+      }
+    });
+  }
 
   const variantGroups = variantAttributeGroups(product.variants || []);
   const hasAttributeVariants = Object.keys(variantGroups).length > 0;
@@ -77,11 +106,34 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         ? findVariantForSelections(product.variants || [], selectedAttributes)
         : selectedVariant)
     : null;
+
+  // Auto-switch gallery photo when the selected variant has a specific photo
+  useEffect(() => {
+    if (resolvedVariant?.image_url && allImages.length > 0) {
+      const idx = allImages.indexOf(resolvedVariant.image_url);
+      if (idx !== -1) {
+        setActiveImageIndex(idx);
+      }
+    }
+  }, [resolvedVariant?.image_url]);
+
   const effectivePrice = resolvedVariant ? resolvedVariant.price : product.price;
-  const effectiveUnit = resolvedVariant ? variantLabel(resolvedVariant) : product.unit;
+  const effectiveUnit = resolvedVariant ? formatCleanVariantLabel(resolvedVariant) : product.unit;
   const selectedStock = resolvedVariant?.stock_quantity ?? product.stock_quantity;
-  const isOutOfStock = !product.is_available || (hasVariants && resolvedVariant !== null && !variantIsAvailable(resolvedVariant));
+  const isOutOfStock =
+    !product.is_available ||
+    (hasVariants && resolvedVariant !== null && !variantIsAvailable(resolvedVariant)) ||
+    (product.track_inventory && product.stock_quantity != null && product.stock_quantity <= 0);
+
+  const isSelectionIncomplete = hasVariants && !resolvedVariant;
   const originalPrice = Math.round(effectivePrice * 1.25);
+
+  // Clamp quantity if stock constraint applies
+  useEffect(() => {
+    if (selectedStock != null && selectedStock > 0 && quantity > selectedStock) {
+      setQuantity(selectedStock);
+    }
+  }, [selectedStock, quantity]);
 
   const handlePrevImage = () => {
     setActiveImageIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
@@ -91,18 +143,53 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     setActiveImageIndex((prev) => (prev === allImages.length - 1 ? 0 : prev + 1));
   };
 
+  const getOptionThumbnail = (attrName: string, optVal: string): string | null => {
+    if (!product.variants) return null;
+    const match = product.variants.find(
+      (v) => v.attributes && v.attributes[attrName] === optVal && v.image_url
+    );
+    return match?.image_url || null;
+  };
+
+  const getOptionPrice = (attrName: string, optVal: string): number | null => {
+    if (!product.variants) return null;
+    const matchingVariant = product.variants.find((v) => {
+      const attrs = v.attributes || {};
+      if (attrs[attrName] !== optVal) return false;
+      return Object.entries(selectedAttributes).every(
+        ([k, val]) => k === attrName || attrs[k] === val
+      );
+    });
+    if (matchingVariant) return matchingVariant.price;
+    const anyVariant = product.variants.find((v) => v.attributes && v.attributes[attrName] === optVal);
+    return anyVariant ? anyVariant.price : null;
+  };
+
+  const handleAttributeSelect = (attrName: string, optVal: string) => {
+    const nextSelections = { ...selectedAttributes, [attrName]: optVal };
+    setSelectedAttributes(nextSelections);
+
+    if (product.variants) {
+      const resulting = findVariantForSelections(product.variants, nextSelections);
+      const targetImage = resulting?.image_url || getOptionThumbnail(attrName, optVal);
+      if (targetImage && allImages.includes(targetImage)) {
+        setActiveImageIndex(allImages.indexOf(targetImage));
+      }
+    }
+  };
+
   const handleAdd = () => {
-    if (hasVariants && !resolvedVariant) {
-      warning('Please select an option.');
+    if (isSelectionIncomplete) {
+      warning('Please choose an available product option.');
       return;
     }
-    if (!product.is_available || (resolvedVariant && !variantIsAvailable(resolvedVariant))) {
-      toastError('Product is currently out of stock');
+    if (isOutOfStock) {
+      toastError('This item or option is currently out of stock.');
       return;
     }
 
     const productToAdd = resolvedVariant
-      ? { ...product, price: resolvedVariant.price, unit: variantLabel(resolvedVariant) }
+      ? { ...product, price: resolvedVariant.price, unit: formatCleanVariantLabel(resolvedVariant) }
       : product;
 
     try {
@@ -178,10 +265,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         {/* Product Details Header */}
         <div className="vaango-prod-modal__info">
           <div className="vaango-prod-modal__header">
-            <h2 className="vaango-prod-modal__title">{product.name} {effectiveUnit ? `(${effectiveUnit})` : ''}</h2>
+            <h2 className="vaango-prod-modal__title">
+              {product.name} {effectiveUnit ? `(${effectiveUnit})` : ''}
+            </h2>
           </div>
 
-          {/* Price & Rating Row (Reference Image 4) */}
+          {/* Price & Rating Row */}
           <div className="vaango-prod-modal__price-row">
             <div className="vaango-prod-modal__price-group">
               <span className="vaango-prod-modal__price">₹{effectivePrice}</span>
@@ -200,58 +289,144 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <p className="vaango-prod-modal__desc">{product.description}</p>
           )}
 
-          {/* Available Options (Reference Image 4) */}
-          {product.has_variants && product.variants && product.variants.length > 0 && (
+          {/* Available Options (Flipkart-Inspired Variant Selector) */}
+          {hasVariants && (
             <div className="vaango-prod-modal__section">
-              <h4 className="vaango-prod-modal__section-title">Available Options</h4>
+              <div className="vaango-prod-modal__section-header">
+                <h4 className="vaango-prod-modal__section-title">Select Options</h4>
+                {resolvedVariant && (
+                  <span className="vaango-prod-modal__selected-pill">
+                    {formatCleanVariantLabel(resolvedVariant)}
+                  </span>
+                )}
+              </div>
+
               <div className="vaango-prod-modal__options-grid" role="group" aria-label="Product options">
                 {hasAttributeVariants ? (
-                  Object.entries(variantGroups).map(([attributeName, options]) => (
-                    <div key={attributeName} className="vaango-prod-modal__attribute-group">
-                      <span className="vaango-prod-modal__attr-label">{attributeName}:</span>
-                      <div className="vaango-prod-modal__attr-chips">
-                        {options.map((option) => {
-                          const reachable = optionIsReachable(product.variants || [], selectedAttributes, attributeName, option);
-                          return (
-                            <button
-                              key={option}
-                              type="button"
-                              disabled={!reachable}
-                              className={`vaango-prod-modal__option-chip ${selectedAttributes[attributeName] === option ? 'vaango-prod-modal__option-chip--active' : ''}`}
-                              onClick={() => setSelectedAttributes((current) => ({ ...current, [attributeName]: option }))}
-                            >
-                              {option}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  product.variants.map((v) => {
-                    const isSelected = selectedVariant?.id === v.id;
-                    const isVarAvail = variantIsAvailable(v);
+                  Object.entries(variantGroups).map(([attributeName, options]) => {
+                    const isVisual = isVisualAttribute(attributeName);
+                    const isMeasurement = isMeasurementAttribute(attributeName);
+                    const isLongList = options.length > 6;
+
                     return (
-                      <button
-                        key={v.id}
-                        type="button"
-                        className={`vaango-prod-modal__option-chip ${isSelected ? 'vaango-prod-modal__option-chip--active' : ''} ${!isVarAvail ? 'opacity-60' : ''}`}
-                        onClick={() => setSelectedVariant(v)}
-                      >
-                        <span className="vaango-prod-modal__option-name">{variantLabel(v)}</span>
-                        <span className="vaango-prod-modal__option-price">
-                          ₹{v.price}
-                          {!isVarAvail ? ' · Out of Stock' : ''}
-                        </span>
-                      </button>
+                      <div key={attributeName} className="vaango-prod-modal__attribute-group">
+                        <div className="vaango-prod-modal__attr-header">
+                          <span className="vaango-prod-modal__attr-label">{attributeName}:</span>
+                          <span className="vaango-prod-modal__attr-current">
+                            {selectedAttributes[attributeName] || 'Choose'}
+                          </span>
+                        </div>
+
+                        {isLongList ? (
+                          <div className="vaango-prod-modal__select-wrap">
+                            <select
+                              className="vaango-prod-modal__select"
+                              value={selectedAttributes[attributeName] || ''}
+                              onChange={(e) => handleAttributeSelect(attributeName, e.target.value)}
+                              aria-label={`Select ${attributeName}`}
+                            >
+                              <option value="" disabled>Select {attributeName}</option>
+                              {options.map((option) => {
+                                const reachable = optionIsReachable(product.variants || [], selectedAttributes, attributeName, option);
+                                return (
+                                  <option key={option} value={option} disabled={!reachable}>
+                                    {option} {!reachable ? '(Out of stock)' : ''}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                            <ChevronDown size={16} className="vaango-prod-modal__select-icon" />
+                          </div>
+                        ) : isVisual ? (
+                          <div className="vaango-prod-modal__swatch-row">
+                            {options.map((option) => {
+                              const reachable = optionIsReachable(product.variants || [], selectedAttributes, attributeName, option);
+                              const isSelected = selectedAttributes[attributeName] === option;
+                              const thumbnail = getOptionThumbnail(attributeName, option);
+
+                              return (
+                                <button
+                                  key={option}
+                                  type="button"
+                                  disabled={!reachable}
+                                  className={`vaango-prod-modal__swatch-btn ${isSelected ? 'vaango-prod-modal__swatch-btn--active' : ''} ${!reachable ? 'vaango-prod-modal__chip--disabled' : ''}`}
+                                  onClick={() => handleAttributeSelect(attributeName, option)}
+                                  title={`${attributeName}: ${option}`}
+                                >
+                                  {thumbnail ? (
+                                    <span className="vaango-prod-modal__swatch-img-box">
+                                      <img src={thumbnail} alt={option} />
+                                    </span>
+                                  ) : (
+                                    <span className="vaango-prod-modal__swatch-color-fallback">
+                                      {option.slice(0, 2).toUpperCase()}
+                                    </span>
+                                  )}
+                                  <span className="vaango-prod-modal__swatch-name">{option}</span>
+                                  {isSelected && <Check size={12} className="vaango-prod-modal__swatch-check" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="vaango-prod-modal__pill-row">
+                            {options.map((option) => {
+                              const reachable = optionIsReachable(product.variants || [], selectedAttributes, attributeName, option);
+                              const isSelected = selectedAttributes[attributeName] === option;
+                              const optPrice = getOptionPrice(attributeName, option);
+
+                              return (
+                                <button
+                                  key={option}
+                                  type="button"
+                                  disabled={!reachable}
+                                  className={`vaango-prod-modal__pill-btn ${isSelected ? 'vaango-prod-modal__pill-btn--active' : ''} ${!reachable ? 'vaango-prod-modal__chip--disabled' : ''}`}
+                                  onClick={() => handleAttributeSelect(attributeName, option)}
+                                >
+                                  <span className="vaango-prod-modal__pill-val">{option}</span>
+                                  {isMeasurement && optPrice != null && (
+                                    <span className="vaango-prod-modal__pill-price">₹{optPrice}</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     );
                   })
+                ) : (
+                  /* Legacy or Single List of Variants */
+                  <div className="vaango-prod-modal__pill-row">
+                    {(product.variants || []).map((v) => {
+                      const isSelected = selectedVariant?.id === v.id;
+                      const isVarAvail = variantIsAvailable(v);
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          disabled={!isVarAvail}
+                          className={`vaango-prod-modal__pill-btn ${isSelected ? 'vaango-prod-modal__pill-btn--active' : ''} ${!isVarAvail ? 'vaango-prod-modal__chip--disabled' : ''}`}
+                          onClick={() => {
+                            setSelectedVariant(v);
+                            if (v.image_url && allImages.includes(v.image_url)) {
+                              setActiveImageIndex(allImages.indexOf(v.image_url));
+                            }
+                          }}
+                        >
+                          <span className="vaango-prod-modal__pill-val">{variantLabel(v)}</span>
+                          <span className="vaango-prod-modal__pill-price">₹{v.price}</span>
+                          {!isVarAvail && <span className="vaango-prod-modal__pill-out">Out</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Shop Mini Card (Reference Image 4) */}
+          {/* Shop Mini Card */}
           {currentShop && (
             <div className="vaango-prod-modal__shop-card">
               <div className="vaango-prod-modal__shop-avatar">
@@ -301,9 +476,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             )}
           </div>
 
-          {/* Quantity Controls & Add to Cart (Reference Image 4) */}
+          {/* Selection Summary Pill */}
+          {hasVariants && (
+            <div className={`vaango-prod-modal__selection-summary ${isOutOfStock ? 'vaango-prod-modal__selection-summary--out' : ''}`}>
+              <div className="vaango-prod-modal__summary-col">
+                <span className="vaango-prod-modal__summary-tag">Selected</span>
+                <span className="vaango-prod-modal__summary-text">
+                  {resolvedVariant ? formatCleanVariantLabel(resolvedVariant) : 'No option chosen'}
+                </span>
+              </div>
+              <div className="vaango-prod-modal__summary-right">
+                {resolvedVariant && (
+                  <span className="vaango-prod-modal__summary-price">₹{effectivePrice}</span>
+                )}
+                <span className={`vaango-prod-modal__summary-stock ${isOutOfStock ? 'is-out' : 'is-in'}`}>
+                  {isOutOfStock ? 'Out of Stock' : (selectedStock != null ? `${selectedStock} in stock` : 'In Stock')}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Quantity Controls & Add to Cart */}
           <div className="vaango-prod-modal__cta-row">
-            {!isOutOfStock ? (
+            {!isOutOfStock && !isSelectionIncomplete ? (
               <>
                 <div className="vaango-qty-control" role="group" aria-label="Quantity">
                   <button
@@ -311,6 +506,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     className="vaango-qty-btn"
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                     aria-label="Decrease quantity"
+                    disabled={quantity <= 1}
                   >
                     <Minus size={16} />
                   </button>
@@ -320,6 +516,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     className="vaango-qty-btn"
                     onClick={() => setQuantity((q) => selectedStock == null ? q + 1 : Math.min(selectedStock, q + 1))}
                     aria-label="Increase quantity"
+                    disabled={selectedStock != null && quantity >= selectedStock}
                   >
                     <Plus size={16} />
                   </button>
@@ -332,11 +529,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   onClick={handleAdd}
                   leftIcon={<ShoppingCart size={18} />}
                 >
-                  {hasVariants && !resolvedVariant
-                    ? 'Please Select Option'
-                    : `${t('add') || 'Add to Cart'}`}
+                  {t('add') || 'Add to Cart'}
                 </Button>
               </>
+            ) : isSelectionIncomplete ? (
+              <Button variant="secondary" size="lg" fullWidth disabled>
+                Select an Option
+              </Button>
             ) : (
               <Button variant="secondary" size="lg" fullWidth disabled leftIcon={<PackageX size={18} />}>
                 {t('outOfStock')}

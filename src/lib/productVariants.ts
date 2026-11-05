@@ -97,3 +97,106 @@ export const optionIsReachable = (
   return attributes[attributeName] === option &&
     Object.entries(selections).every(([name, value]) => name === attributeName || attributes[name] === value);
 });
+
+export const formatCleanVariantLabel = (variant: ProductVariant): string => {
+  if (variant.label && variant.label.trim()) return variant.label;
+  const attributes = Object.values(variant.attributes || {});
+  if (attributes.length > 0) return attributes.join(' / ');
+  return 'Standard';
+};
+
+export interface GenerateCombinationsResult {
+  variants: ProductVariant[];
+  totalCombinations: number;
+  exceededLimit: boolean;
+}
+
+export const generateVariantCombinations = (
+  groups: { name: string; options: string[] }[],
+  existingVariants: ProductVariant[] = [],
+  defaultPrice: number = 0
+): GenerateCombinationsResult => {
+  const validGroups = groups
+    .filter((g) => g.name.trim() && g.options.length > 0)
+    .map((g) => ({
+      name: g.name.trim(),
+      options: Array.from(new Set(g.options.map((o) => o.trim()).filter(Boolean))),
+    }))
+    .filter((g) => g.options.length > 0);
+
+  if (validGroups.length === 0) {
+    return { variants: existingVariants, totalCombinations: existingVariants.length, exceededLimit: false };
+  }
+
+  // Calculate total combinations
+  const totalCombinations = validGroups.reduce((acc, g) => acc * g.options.length, 1);
+  const MAX_COMBINATIONS = 36;
+  if (totalCombinations > MAX_COMBINATIONS) {
+    return { variants: existingVariants, totalCombinations, exceededLimit: true };
+  }
+
+  // Cartesian product
+  let combinations: Record<string, string>[] = [{}];
+  for (const group of validGroups) {
+    const nextCombos: Record<string, string>[] = [];
+    for (const combo of combinations) {
+      for (const option of group.options) {
+        nextCombos.push({ ...combo, [group.name]: option });
+      }
+    }
+    combinations = nextCombos;
+  }
+
+  // Map to variants, strictly preserving existing variant values if attributes match
+  const newVariants: ProductVariant[] = combinations.map((attrs) => {
+    const existing = existingVariants.find((ev) => {
+      const evAttrs = ev.attributes || {};
+      const evKeys = Object.keys(evAttrs);
+      const attrKeys = Object.keys(attrs);
+      if (evKeys.length !== attrKeys.length) return false;
+      return attrKeys.every((k) => evAttrs[k] === attrs[k]);
+    });
+
+    if (existing) {
+      return {
+        ...existing,
+        attributes: attrs,
+        label: Object.values(attrs).join(' / '),
+      };
+    }
+
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `var-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    return {
+      id,
+      label: Object.values(attrs).join(' / '),
+      attributes: attrs,
+      price: defaultPrice > 0 ? defaultPrice : 0,
+      stock_quantity: 1,
+      is_available: true,
+      in_stock: true,
+      sku: null,
+      image_url: null,
+    };
+  });
+
+  return { variants: newVariants, totalCombinations, exceededLimit: false };
+};
+
+export const isVisualAttribute = (attributeName: string): boolean => {
+  const lower = attributeName.toLowerCase();
+  return lower.includes('color') || lower.includes('colour') || lower.includes('shade') || lower.includes('pattern');
+};
+
+export const isMeasurementAttribute = (attributeName: string): boolean => {
+  const lower = attributeName.toLowerCase();
+  return (
+    lower.includes('weight') ||
+    lower.includes('size') ||
+    lower.includes('pack') ||
+    lower.includes('volume') ||
+    lower.includes('quantity') ||
+    lower.includes('storage') ||
+    lower.includes('capacity')
+  );
+};
+

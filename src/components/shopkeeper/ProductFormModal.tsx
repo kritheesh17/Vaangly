@@ -10,6 +10,8 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { ActionErrorBanner } from '../ui/ActionErrorBanner';
 import { scrollAndFocusError, classifyError } from '../../lib/errorUxUtils';
+import { variantAttributeGroups } from '../../lib/productVariants';
+import { ProductVariantManager } from './ProductVariantManager';
 import './ProductFormModal.css';
 
 export interface MasterProductTemplate {
@@ -88,7 +90,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [offerValue, setOfferValue] = useState('');
   const [hasVariants, setHasVariants] = useState(false);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [variantAttributeText, setVariantAttributeText] = useState<Record<string, string>>({});
   const [attributeGroups, setAttributeGroups] = useState<ProductAttributeGroup[]>([]);
   const [trackInventory, setTrackInventory] = useState(false);
   const [stockQuantity, setStockQuantity] = useState('');
@@ -130,8 +131,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setOfferValue(initialProduct.offer_value?.toString() || '');
       setHasVariants(Boolean(initialProduct.has_variants));
       setVariants(initialProduct.variants || []);
-      setVariantAttributeText(Object.fromEntries((initialProduct.variants || []).map((variant) => [variant.id, JSON.stringify(variant.attributes || {})])));
-      setAttributeGroups(initialProduct.attribute_groups || []);
+      // Reconstruct attribute groups if missing from legacy variants
+      let groups = initialProduct.attribute_groups || [];
+      if (groups.length === 0 && initialProduct.variants && initialProduct.variants.length > 0) {
+        const derived = variantAttributeGroups(initialProduct.variants);
+        groups = Object.entries(derived).map(([name, options]) => ({ name, options }));
+      }
+      setAttributeGroups(groups);
       setTrackInventory(Boolean(initialProduct.track_inventory));
       setStockQuantity(initialProduct.stock_quantity == null ? '' : String(initialProduct.stock_quantity));
       setMasterProductId(initialProduct.master_product_id || null);
@@ -153,7 +159,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setOfferValue('');
       setHasVariants(false);
       setVariants([]);
-      setVariantAttributeText({});
       setAttributeGroups([]);
       setTrackInventory(false);
       setStockQuantity('');
@@ -175,7 +180,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setOfferValue('');
       setHasVariants(false);
       setVariants([]);
-      setVariantAttributeText({});
       setAttributeGroups([]);
       setTrackInventory(false);
       setStockQuantity('');
@@ -205,16 +209,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     const finalUnit = unit === 'other' ? customUnit.trim() || 'item' : unit;
 
     if (hasVariants) {
+      if (variants.length === 0) {
+        setError('Please configure at least one variant option for this product.');
+        return;
+      }
       for (const variant of variants) {
-        try {
-          const attributes = JSON.parse(variantAttributeText[variant.id] ?? '{}');
-          if (!attributes || Array.isArray(attributes) || typeof attributes !== 'object') throw new Error('invalid');
-        } catch {
-          setError('Each variant must have valid attributes JSON.');
+        if (isNaN(variant.price) || variant.price < 0) {
+          setError(`Variant "${variant.label || 'Option'}" must have a valid non-negative price.`);
           return;
         }
-        if (variant.price < 0 || (variant.stock_quantity != null && variant.stock_quantity < 0)) {
-          setError('Variant price and stock cannot be negative.');
+        if (variant.stock_quantity != null && (isNaN(variant.stock_quantity) || variant.stock_quantity < 0)) {
+          setError(`Variant "${variant.label || 'Option'}" cannot have negative stock.`);
           return;
         }
       }
@@ -308,7 +313,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         offer_value: offerType && offerType !== 'bogo' ? (parseFloat(offerValue) || null) : null,
         has_variants: hasVariants,
         variants: finalVariants,
-        attribute_groups: hasVariants ? [] : attributeGroups,
+        attribute_groups: hasVariants ? attributeGroups : [],
         track_inventory: !hasVariants && trackInventory,
         stock_quantity: !hasVariants && trackInventory ? (stockQuantity === '' ? null : Number(stockQuantity)) : null,
         master_product_id: masterProductId || null,
@@ -480,69 +485,61 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           )}
 
           <label className="vaango-checkbox-row mt-3">
-            <input type="checkbox" checked={hasVariants} onChange={(e) => setHasVariants(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={hasVariants}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setHasVariants(checked);
+                if (checked && variants.length === 0) {
+                  const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `var-${Date.now()}`;
+                  setVariants([
+                    {
+                      id,
+                      label: 'Standard',
+                      attributes: {},
+                      price: parseFloat(price) || 0,
+                      stock_quantity: 1,
+                      is_available: true,
+                      in_stock: true,
+                      sku: null,
+                      image_url: null,
+                    },
+                  ]);
+                }
+              }}
+            />
             {t('productVariantsOption')}
           </label>
-          {hasVariants ? (
-            <div className="vaango-form-group mt-2">
-              {variants.map((variant) => (
-                <div key={variant.id} className="vaango-product-modal__row">
-                  <Input placeholder="Attributes JSON, e.g. {&quot;Color&quot;:&quot;Black&quot;}" value={variantAttributeText[variant.id] ?? JSON.stringify(variant.attributes || {})} onChange={(e) => {
-                    setVariantAttributeText((current) => ({ ...current, [variant.id]: e.target.value }));
-                    try {
-                      const attributes = JSON.parse(e.target.value) as Record<string, string>;
-                      setVariants((items) => items.map((item) => item.id === variant.id ? { ...item, attributes, label: Object.values(attributes).join(' / ') } : item));
-                    } catch {
-                      // Keep the current valid value until the JSON is complete.
-                    }
-                  }} />
-                  <Input type="number" min="0" placeholder={t('pricePlaceholder')} value={variant.price} onChange={(e) => setVariants((items) => items.map((item) => item.id === variant.id ? { ...item, price: Number(e.target.value) } : item))} />
-                  <Input type="number" min="0" step="1" placeholder="Stock" value={variant.stock_quantity ?? ''} onChange={(e) => setVariants((items) => items.map((item) => {
-                    if (item.id !== variant.id) return item;
-                    const val = e.target.value === '' ? null : Number(e.target.value);
-                    const isZero = val !== null && val <= 0;
-                    return {
-                      ...item,
-                      stock_quantity: val,
-                      in_stock: isZero ? false : true,
-                      is_available: isZero ? false : (item.is_available !== false),
-                    };
-                  }))} />
-                  <label><input type="checkbox" checked={variant.is_available !== false && variant.in_stock !== false && (variant.stock_quantity == null || variant.stock_quantity > 0)} onChange={(e) => setVariants((items) => items.map((item) => item.id === variant.id ? { ...item, is_available: e.target.checked, in_stock: e.target.checked } : item))} /> Available</label>
-                  <Button type="button" variant="outline" size="sm" onClick={() => { setVariants((items) => items.filter((item) => item.id !== variant.id)); setVariantAttributeText((current) => { const next = { ...current }; delete next[variant.id]; return next; }); }}>{t('deleteItem')}</Button>
-                </div>
-              ))}
-              {variants.length < 8 && (
-                <Button type="button" variant="outline" size="sm" onClick={() => { const id = crypto.randomUUID(); setVariants((items) => [...items, { id, label: '', attributes: {}, price: Number(price) || 0, stock_quantity: 1, is_available: true, in_stock: true }]); setVariantAttributeText((current) => ({ ...current, [id]: '{}' })); }}>
-                  + {t('addVariantBtn')}
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="vaango-form-group mt-2">
-              {attributeGroups.map((group, index) => (
-                <div key={`${group.name}-${index}`} className="vaango-product-modal__row">
-                  <Input placeholder={t('groupNamePlaceholder')} value={group.name} onChange={(e) => setAttributeGroups((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, name: e.target.value } : item))} />
-                  <Input placeholder={t('optionsCommaSeparatedPlaceholder')} value={group.options.join(', ')} onChange={(e) => setAttributeGroups((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, options: e.target.value.split(',').map((option) => option.trim()).filter(Boolean) } : item))} />
-                  <Button type="button" variant="outline" size="sm" onClick={() => setAttributeGroups((items) => items.filter((_, itemIndex) => itemIndex !== index))}>{t('deleteItem')}</Button>
-                </div>
-              ))}
-              {attributeGroups.length < 4 && (
-                <Button type="button" variant="outline" size="sm" onClick={() => setAttributeGroups((items) => [...items, { name: '', options: [] }])}>
-                  + {t('addAttributeGroupBtn')}
-                </Button>
-              )}
-            </div>
-          )}
 
-          {!hasVariants && (
-            <label className="vaango-checkbox-row mt-2">
-              <input type="checkbox" checked={trackInventory} onChange={(e) => setTrackInventory(e.target.checked)} />
-              Track stock for this product
-            </label>
-          )}
-          {!hasVariants && trackInventory && (
-            <Input type="number" min="0" step="1" placeholder="Stock quantity" value={stockQuantity} onChange={(e) => setStockQuantity(e.target.value)} />
+          {hasVariants ? (
+            <ProductVariantManager
+              variants={variants}
+              onChangeVariants={setVariants}
+              attributeGroups={attributeGroups}
+              onChangeAttributeGroups={setAttributeGroups}
+              basePrice={parseFloat(price) || 0}
+              productImageUrls={[...existingImageUrls, ...imageFilePreviews].filter((u) => u && !u.startsWith('blob:'))}
+              shopId={shopId}
+              userId={user?.id}
+            />
+          ) : (
+            <>
+              <label className="vaango-checkbox-row mt-2">
+                <input type="checkbox" checked={trackInventory} onChange={(e) => setTrackInventory(e.target.checked)} />
+                Track stock for this product
+              </label>
+              {trackInventory && (
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="Stock quantity"
+                  value={stockQuantity}
+                  onChange={(e) => setStockQuantity(e.target.value)}
+                />
+              )}
+            </>
           )}
 
           {/* Description */}

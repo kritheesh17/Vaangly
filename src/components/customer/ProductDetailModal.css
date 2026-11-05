@@ -180,10 +180,17 @@
   margin: 0;
 }
 
-/* 4. Available Options (Reference Image 4) */
+/* 4. Available Options (Flipkart-Inspired Variant Selector) */
 .vaango-prod-modal__section {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.vaango-prod-modal__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
 }
 
@@ -194,54 +201,24 @@
   margin: 0;
 }
 
+.vaango-prod-modal__selected-pill {
+  font-size: 11.5px;
+  font-weight: 600;
+  background: #F1F5F9;
+  color: #475569;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: 1px solid #E2E8F0;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .vaango-prod-modal__options-grid {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.vaango-prod-modal__option-chip {
-  display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-width: 78px;
-  padding: 8px 14px;
-  border: 1.5px solid #E2E8F0;
-  border-radius: 12px;
-  background: #FFFFFF;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.vaango-prod-modal__option-chip:hover {
-  border-color: #94A3B8;
-}
-
-.vaango-prod-modal__option-chip--active {
-  border-color: #15803D;
-  background: #F0FDF4;
-}
-
-.vaango-prod-modal__option-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #0F172A;
-}
-
-.vaango-prod-modal__option-chip--active .vaango-prod-modal__option-name {
-  color: #15803D;
-}
-
-.vaango-prod-modal__option-price {
-  font-size: 12px;
-  font-weight: 600;
-  color: #64748B;
-  margin-top: 2px;
-}
-
-.vaango-prod-modal__option-chip--active .vaango-prod-modal__option-price {
-  color: #166534;
+  gap: 12px;
 }
 
 .vaango-prod-modal__attribute-group {
@@ -251,16 +228,268 @@
   width: 100%;
 }
 
-.vaango-prod-modal__attr-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #475569;
+.vaango-prod-modal__attr-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
-.vaango-prod-modal__attr-chips {
+.vaango-prod-modal__attr-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.vaango-prod-modal__attr-current {
+  font-size: 12px;
+  font-weight: 600;
+  color: #15803D;
+}
+
+/* Swatches for visual attributes (Color, Shade) */
+.vaango-prod-modal__swatch-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.vaango-prod-modal__swatch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 6px;
+  background: #FFFFFF;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.vaango-prod-modal__swatch-btn:hover:not(:disabled) {
+  border-color: #15803D;
+  background: #F0FDF4;
+}
+
+.vaango-prod-modal__swatch-btn--active {
+  border-color: #15803D !important;
+  background: #DCFCE7 !important;
+  box-shadow: 0 0 0 1px #15803D;
+}
+
+.vaango-prod-modal__swatch-img-box {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #F1F5F9;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.vaango-prod-modal__swatch-img-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vaango-prod-modal__swatch-color-fallback {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #E2E8F0;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.vaango-prod-modal__swatch-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.vaango-prod-modal__swatch-check {
+  color: #15803D;
+  stroke-width: 3;
+}
+
+/* Pills for measurement and size options */
+.vaango-prod-modal__pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vaango-prod-modal__pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: #FFFFFF;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.vaango-prod-modal__pill-btn:hover:not(:disabled) {
+  border-color: #15803D;
+  background: #F0FDF4;
+}
+
+.vaango-prod-modal__pill-btn--active {
+  border-color: #15803D !important;
+  background: #F0FDF4 !important;
+  box-shadow: 0 0 0 1px #15803D;
+}
+
+.vaango-prod-modal__pill-val {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.vaango-prod-modal__pill-btn--active .vaango-prod-modal__pill-val {
+  color: #15803D;
+}
+
+.vaango-prod-modal__pill-price {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748B;
+  padding-left: 4px;
+  border-left: 1px solid #E2E8F0;
+}
+
+.vaango-prod-modal__pill-btn--active .vaango-prod-modal__pill-price {
+  color: #166534;
+  border-left-color: #BBF7D0;
+}
+
+.vaango-prod-modal__pill-out {
+  font-size: 10.5px;
+  color: #EF4444;
+  font-weight: 600;
+}
+
+.vaango-prod-modal__chip--disabled {
+  opacity: 0.45;
+  cursor: not-allowed !important;
+  text-decoration: line-through;
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+
+/* Select dropdown wrap for >6 options */
+.vaango-prod-modal__select-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.vaango-prod-modal__select {
+  width: 100%;
+  appearance: none;
+  background: #FFFFFF;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 10px;
+  padding: 8px 34px 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0F172A;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.vaango-prod-modal__select:focus {
+  border-color: #15803D;
+}
+
+.vaango-prod-modal__select-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #64748B;
+}
+
+/* Selection Summary Bar */
+.vaango-prod-modal__selection-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  background: #F8FAFC;
+  border: 1px dashed #CBD5E1;
+  border-radius: 12px;
+  margin-top: 4px;
+}
+
+.vaango-prod-modal__selection-summary--out {
+  background: #FEF2F2;
+  border-color: #FECACA;
+}
+
+.vaango-prod-modal__summary-col {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.vaango-prod-modal__summary-tag {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: #E2E8F0;
+  color: #475569;
+  padding: 2px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.vaango-prod-modal__summary-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0F172A;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vaango-prod-modal__summary-right {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.vaango-prod-modal__summary-price {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+.vaango-prod-modal__summary-stock {
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.vaango-prod-modal__summary-stock.is-in {
+  color: #15803D;
+}
+
+.vaango-prod-modal__summary-stock.is-out {
+  color: #DC2626;
 }
 
 /* 5. Shop Mini Card */

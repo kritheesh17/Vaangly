@@ -5,7 +5,13 @@ import { Badge } from '../ui/Badge';
 import { Plus, Minus, PackageX, Eye } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { ProductDetailModal } from './ProductDetailModal';
-import { findVariantForSelections, optionIsReachable, variantAttributeGroups, variantIsAvailable, variantLabel } from '../../lib/productVariants';
+import {
+  findVariantForSelections,
+  optionIsReachable,
+  variantAttributeGroups,
+  variantIsAvailable,
+  formatCleanVariantLabel,
+} from '../../lib/productVariants';
 import './ProductCard.css';
 
 export interface ProductCardProps {
@@ -42,7 +48,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     : availableVariants.find((variant) => variant.id === selectedVariantId) || null;
 
   const selectedProduct = selectedVariant
-    ? { ...product, price: selectedVariant.price, unit: variantLabel(selectedVariant) }
+    ? { ...product, price: selectedVariant.price, unit: formatCleanVariantLabel(selectedVariant) }
     : product;
   const currentQuantity = getVariantQuantity ? getVariantQuantity(selectedVariant?.id || null) : quantityInCart;
 
@@ -56,7 +62,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     validImages.push(product.image_url);
   }
 
-  const currentDisplayImage = validImages[activeImageIndex] || validImages[0] || null;
+  const variantDisplayImage = selectedVariant?.image_url && !imageError ? selectedVariant.image_url : null;
+  const currentDisplayImage = variantDisplayImage || validImages[activeImageIndex] || validImages[0] || null;
 
   const isOverallOutOfStock =
     !product.is_available ||
@@ -85,7 +92,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 loading="lazy"
                 onError={() => setImageError(true)}
               />
-              {validImages.length > 1 && (
+              {validImages.length > 1 && !variantDisplayImage && (
                 <div className="vaango-product-img-dots">
                   {validImages.map((_, index) => (
                     <button
@@ -132,28 +139,54 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Variants selector chips */}
           {product.has_variants && availableVariants.length > 0 && (
             <div className="vaango-product-variants" role="group" aria-label={product.name}>
-              {Object.entries(variantGroups).map(([attributeName, options]) => (
-                <div key={attributeName}>
-                  <strong>{attributeName}</strong>
-                  {options.map((option) => {
-                    const reachable = optionIsReachable(availableVariants, selectedAttributes, attributeName, option);
-                    return <button key={option} type="button" disabled={!reachable} className={selectedAttributes[attributeName] === option ? 'active' : ''} onClick={() => setSelectedAttributes((current) => ({ ...current, [attributeName]: option }))}>{option}</button>;
+              {Object.keys(variantGroups).length > 0 ? (
+                Object.entries(variantGroups).map(([attributeName, options]) => (
+                  <div key={attributeName} className="vaango-prod-card__group-row">
+                    <span className="vaango-prod-card__group-title">{attributeName}:</span>
+                    <div className="vaango-prod-card__group-chips">
+                      {options.map((option) => {
+                        const reachable = optionIsReachable(availableVariants, selectedAttributes, attributeName, option);
+                        const isSelected = selectedAttributes[attributeName] === option;
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            disabled={!reachable}
+                            className={`vaango-prod-card__chip ${isSelected ? 'active' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedAttributes((current) => ({ ...current, [attributeName]: option }));
+                            }}
+                          >
+                            {option}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="vaango-prod-card__group-chips">
+                  {availableVariants.map((variant) => {
+                    const isVarAvail = variantIsAvailable(variant);
+                    const isSelected = selectedVariant?.id === variant.id;
+                    return (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        disabled={!isVarAvail}
+                        className={`vaango-prod-card__chip ${isSelected ? 'active' : ''} ${!isVarAvail ? 'out-of-stock' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedVariantId(variant.id);
+                        }}
+                      >
+                        {formatCleanVariantLabel(variant)} · ₹{variant.price}
+                      </button>
+                    );
                   })}
                 </div>
-              ))}
-              {!Object.keys(variantGroups).length && availableVariants.map((variant) => {
-                const isVarAvail = variantIsAvailable(variant);
-                return (
-                  <button
-                    key={variant.id}
-                    type="button"
-                    className={`${selectedVariant?.id === variant.id ? 'active' : ''} ${!isVarAvail ? 'opacity-60' : ''}`}
-                    onClick={() => setSelectedVariantId(variant.id)}
-                  >
-                    {variantLabel(variant)} · ₹{variant.price}{!isVarAvail ? ' (Out)' : ''}
-                  </button>
-                );
-              })}
+              )}
             </div>
           )}
 

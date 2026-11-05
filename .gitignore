@@ -17,5 +17,6 @@ android/app/build/
 android/.kotlin/
 
 supabase/.temp/
+scratch/
 
 

@@ -213,46 +213,72 @@
 /* Variant Pills Styling */
 .vaango-product-variants {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 4px;
   margin-top: 4px;
 }
 
+.vaango-prod-card__group-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.vaango-prod-card__group-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-secondary, #64748B);
+}
+
+.vaango-prod-card__group-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.vaango-prod-card__chip,
 .vaango-product-variants button {
-  padding: 4px 10px;
-  font-size: 0.78rem;
+  padding: 3px 8px;
+  font-size: 0.74rem;
   font-weight: 600;
-  border-radius: var(--radius-full);
-  border: 1.5px solid var(--color-border);
-  background-color: var(--color-surface);
-  color: var(--color-text-primary);
+  border-radius: var(--radius-full, 9999px);
+  border: 1px solid var(--color-border, #CBD5E1);
+  background-color: var(--color-surface, #FFFFFF);
+  color: var(--color-text-primary, #0F172A);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all var(--transition-fast, 0.15s ease);
   white-space: nowrap;
 }
 
+.vaango-prod-card__chip:hover:not(:disabled),
 .vaango-product-variants button:hover:not(:disabled) {
-  border-color: var(--brand-primary);
-  background-color: var(--brand-primary-light);
+  border-color: var(--brand-primary, #15803D);
+  background-color: var(--brand-primary-light, #F0FDF4);
 }
 
+.vaango-prod-card__chip.active,
 .vaango-product-variants button.active {
-  border-color: var(--brand-primary);
-  background-color: var(--brand-primary-light);
-  color: var(--brand-primary);
-  box-shadow: 0 0 0 1px var(--brand-primary);
+  border-color: var(--brand-primary, #15803D);
+  background-color: var(--brand-primary-light, #F0FDF4);
+  color: var(--brand-primary, #15803D);
+  box-shadow: 0 0 0 1px var(--brand-primary, #15803D);
 }
 
+[data-theme='dark'] .vaango-prod-card__chip.active,
+.dark .vaango-prod-card__chip.active,
 [data-theme='dark'] .vaango-product-variants button.active,
 .dark .vaango-product-variants button.active {
-  border-color: var(--brand-primary);
+  border-color: var(--brand-primary, #15803D);
   background-color: rgba(52, 211, 153, 0.15);
-  color: var(--brand-primary);
-  box-shadow: 0 0 0 1px var(--brand-primary);
+  color: var(--brand-primary, #15803D);
+  box-shadow: 0 0 0 1px var(--brand-primary, #15803D);
 }
 
-.vaango-product-variants button:disabled {
+.vaango-prod-card__chip:disabled,
+.vaango-product-variants button:disabled,
+.vaango-prod-card__chip.out-of-stock {
   opacity: 0.45;
   cursor: not-allowed;
   text-decoration: line-through;

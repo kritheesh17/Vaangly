@@ -33,6 +33,7 @@ import {
 } from '../lib/orderPickupUtils';
 import { ActionErrorBanner } from '../components/ui/ActionErrorBanner';
 import { scrollAndFocusError } from '../lib/errorUxUtils';
+import { formatCleanVariantLabel } from '../lib/productVariants';
 import './CartPage.css';
 
 interface UpiPaymentPanelProps {
@@ -485,11 +486,11 @@ export const CartPage: React.FC = () => {
                           <h3 className="vaango-cart-item__name">{product.name}</h3>
                           {selectedVariant && (
                             <span className="vaango-cart-variant-pill">
-                              Option: {selectedVariant.label} (₹{selectedVariant.price})
+                              Option: {formatCleanVariantLabel(selectedVariant)} (₹{selectedVariant.price})
                             </span>
                           )}
                           <span className="vaango-cart-item__rate">
-                            ₹{unitPrice} / {selectedVariant?.label || product.unit}
+                            ₹{unitPrice} / {selectedVariant ? formatCleanVariantLabel(selectedVariant) : product.unit}
                           </span>
                           {product.offer_type === 'bogo' && (
                             <div className="vaango-bogo-badge">
