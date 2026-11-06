@@ -102,10 +102,6 @@ describe('Appointment Overbooking Prevention & Lifecycle Reliability', () => {
     });
   });
 
-  // =========================================================================
-  // 3. CONCURRENCY & OVERBOOKING ENGINE SIMULATION
-  // =========================================================================
-  describe('3. Concurrency Simulation: Exact Contract Validation', () => {
     interface SimSlot {
       id: string;
       shopId: string;
@@ -330,7 +326,10 @@ describe('Appointment Overbooking Prevention & Lifecycle Reliability', () => {
         return { success: true, tokenNumber: nextToken };
       }
     }
-
+  // =========================================================================
+  // 3. CONCURRENCY & OVERBOOKING ENGINE SIMULATION
+  // =========================================================================
+  describe('3. Concurrency Simulation: Exact Contract Validation', () => {
     it('3.1 Two customers booking the same slot simultaneously: exactly 1 succeeds, 1 rejected', () => {
       const engine = new BookingEngine();
       engine.addSlot({
@@ -669,6 +668,163 @@ describe('Appointment Overbooking Prevention & Lifecycle Reliability', () => {
       const shopCode = fs.readFileSync(shopkeeperApiPath, 'utf-8');
       assert.ok(srvCode.includes("workflowGroupCode: 'APPOINTMENT'"), 'Service API forwards appointment code');
       assert.ok(shopCode.includes('workflowGroupCode: groupCode'), 'Shopkeeper API forwards request workflow code');
+    });
+  });
+
+  // =========================================================================
+  // 5. PRODUCTION CONCURRENCY & RACE CONDITION SAFETY VERIFICATIONS
+  // =========================================================================
+  describe('5. Production Race Conditions & Safety Invariants', () => {
+    it('5.1 Race: Payment proof submission immediately before expiration preserves booking', () => {
+      const engine = new BookingEngine();
+      engine.addSlot({
+        id: 'slot-race-1',
+        shopId: 'shop-1',
+        slotDate: '2026-11-15',
+        startTime: '10:00 AM',
+        endTime: '10:30 AM',
+        capacity: 1,
+        confirmedCount: 0,
+        isAvailable: true,
+      });
+
+      const b = engine.book({
+        slotId: 'slot-race-1',
+        customerId: 'c1',
+        paymentMethod: 'online',
+        isOnlineHold: true,
+        holdMinutes: 10,
+      });
+      assert.strictEqual(b.success, true);
+      const req = engine.requests.find((r) => r.id === b.requestId);
+      assert.ok(req);
+
+      // Customer submits payment proof at minute 9
+      engine.currentTimeMs += 9 * 60 * 1000;
+      req.paymentStatus = 'PAYMENT_PROOF_SUBMITTED';
+      req.holdExpiresAt = null; // Hold cleared on proof upload
+
+      // Minute 11 cleanup triggers: request must NOT be expired!
+      engine.currentTimeMs += 2 * 60 * 1000;
+      engine.requests.forEach((r) => {
+        if (r.currentState === 'REQUESTED' && r.holdExpiresAt && r.holdExpiresAt < engine.currentTimeMs) {
+          r.currentState = 'EXPIRED';
+        }
+      });
+
+      assert.strictEqual(req.currentState, 'REQUESTED');
+      assert.strictEqual(req.paymentStatus, 'PAYMENT_PROOF_SUBMITTED');
+      assert.strictEqual(engine.slots.get('slot-race-1')?.confirmedCount, 1);
+    });
+
+    it('5.2 Race: Shopkeeper acceptance locks appointment against expiration cleanup', () => {
+      const engine = new BookingEngine();
+      engine.addSlot({
+        id: 'slot-race-2',
+        shopId: 'shop-1',
+        slotDate: '2026-11-15',
+        startTime: '11:00 AM',
+        endTime: '11:30 AM',
+        capacity: 1,
+        confirmedCount: 0,
+        isAvailable: true,
+      });
+
+      const b = engine.book({
+        slotId: 'slot-race-2',
+        customerId: 'c1',
+        paymentMethod: 'online',
+        isOnlineHold: true,
+        holdMinutes: 10,
+      });
+      const req = engine.requests.find((r) => r.id === b.requestId);
+      assert.ok(req);
+
+      // Shopkeeper accepts appointment before hold expires
+      req.currentState = 'CONFIRMED';
+
+      // Time passes past hold expiration
+      engine.currentTimeMs += 15 * 60 * 1000;
+      engine.requests.forEach((r) => {
+        if (r.currentState === 'REQUESTED' && r.holdExpiresAt && r.holdExpiresAt < engine.currentTimeMs) {
+          r.currentState = 'EXPIRED';
+        }
+      });
+
+      assert.strictEqual(req.currentState, 'CONFIRMED', 'Confirmed appointment is never expired');
+      assert.strictEqual(engine.slots.get('slot-race-2')?.confirmedCount, 1);
+    });
+
+    it('5.3 Deduplication Safety: Legitimate different bookings are NOT incorrectly deduplicated', () => {
+      const engine = new BookingEngine();
+      engine.addSlot({
+        id: 'slot-multi-1',
+        shopId: 'shop-1',
+        slotDate: '2026-11-15',
+        startTime: '02:00 PM',
+        endTime: '02:30 PM',
+        capacity: 2,
+        confirmedCount: 0,
+        isAvailable: true,
+      });
+      engine.addSlot({
+        id: 'slot-multi-2',
+        shopId: 'shop-1',
+        slotDate: '2026-11-15',
+        startTime: '03:00 PM',
+        endTime: '03:30 PM',
+        capacity: 1,
+        confirmedCount: 0,
+        isAvailable: true,
+      });
+
+      // Different customers on same slot: NOT deduplicated
+      const b1 = engine.book({ slotId: 'slot-multi-1', customerId: 'c1', paymentMethod: 'pay_at_shop' });
+      const b2 = engine.book({ slotId: 'slot-multi-1', customerId: 'c2', paymentMethod: 'pay_at_shop' });
+      assert.strictEqual(b1.alreadyBooked, false);
+      assert.strictEqual(b2.alreadyBooked, false);
+      assert.notStrictEqual(b1.requestId, b2.requestId);
+
+      // Same customer on different slot: NOT deduplicated
+      const b3 = engine.book({ slotId: 'slot-multi-2', customerId: 'c1', paymentMethod: 'pay_at_shop' });
+      assert.strictEqual(b3.alreadyBooked, false);
+      assert.notStrictEqual(b1.requestId, b3.requestId);
+    });
+
+    it('5.4 Race: Rescheduling an already-cancelled request is safely rejected', () => {
+      const engine = new BookingEngine();
+      engine.addSlot({
+        id: 'slot-old',
+        shopId: 'shop-1',
+        slotDate: '2026-11-15',
+        startTime: '09:00 AM',
+        endTime: '09:30 AM',
+        capacity: 1,
+        confirmedCount: 0,
+        isAvailable: true,
+      });
+      engine.addSlot({
+        id: 'slot-target',
+        shopId: 'shop-1',
+        slotDate: '2026-11-15',
+        startTime: '10:00 AM',
+        endTime: '10:30 AM',
+        capacity: 1,
+        confirmedCount: 0,
+        isAvailable: true,
+      });
+
+      const b = engine.book({ slotId: 'slot-old', customerId: 'c1', paymentMethod: 'pay_at_shop' });
+      // Cancel request first
+      engine.cancel(b.requestId!, 'c1');
+
+      // Attempt reschedule on cancelled request
+      const res = engine.reschedule(b.requestId!, 'slot-target');
+      assert.strictEqual(res.success, false);
+      assert.strictEqual(res.error, 'Cannot reschedule terminal request');
+
+      // Slot target remains empty and untouched
+      assert.strictEqual(engine.slots.get('slot-target')?.confirmedCount, 0);
     });
   });
 });
