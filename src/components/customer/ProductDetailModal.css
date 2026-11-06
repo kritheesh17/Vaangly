@@ -50,6 +50,11 @@
   border-radius: 16px;
 }
 
+.vaango-prod-modal__main-image-wrap .vaango-prod-modal__placeholder {
+  height: 100%;
+  border-radius: 0;
+}
+
 .vaango-prod-modal__nav-btn {
   position: absolute;
   top: 50%;
