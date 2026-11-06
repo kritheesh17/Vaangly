@@ -438,26 +438,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'Please sign in to complete your request.' };
     }
 
-    // Customer abuse / moderation check
-    try {
-      const { fetchCustomerModeration } = await import('../lib/orderCancellationApi');
-      const moderation = await fetchCustomerModeration(user.id);
-      if (moderation?.is_suspended) {
-        const isExpired = moderation.suspension_expires_at && new Date(moderation.suspension_expires_at).getTime() < Date.now();
-        if (!isExpired) {
-          const reasonText = moderation.suspension_reason ? `: "${moderation.suspension_reason}"` : '.';
-          const untilText = moderation.suspension_expires_at
-            ? ` until ${new Date(moderation.suspension_expires_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}`
-            : '';
-          return {
-            success: false,
-            error: `Your ordering privileges have been temporarily suspended${untilText}${reasonText} Please contact support if you believe this is an error.`,
-          };
-        }
-      }
-    } catch {
-      // Non-blocking fallback if check fails
-    }
+    // Fast pre-flight synchronous validation before network calls
 
     const customerPhone = user.phone ? (normalizeIndianPhone(user.phone) || user.phone) : null;
     if (!customerPhone || !isValidIndianMobile(customerPhone)) {
@@ -539,13 +520,41 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
 
-        // 1. Authoritative shop check directly from Supabase
-        const { data: dbShop, error: shopCheckErr } = await supabase
-          .from('shops')
-          .select('id, name, owner_id, status, is_live, upi_id, upi_qr_url, delivery_available, delivery_fee, free_delivery_above, address_line, phone')
-          .eq('id', targetShop.id)
-          .maybeSingle();
+        const productIds = Array.from(new Set(shopItems.map((i) => i.product.id)));
 
+        // Run authoritative customer moderation, shop state, and product availability concurrently in a single RTT
+        const [moderation, { data: dbShop, error: shopCheckErr }, { data: dbProducts, error: prodCheckErr }] =
+          await Promise.all([
+            import('../lib/orderCancellationApi')
+              .then(({ fetchCustomerModeration }) => fetchCustomerModeration(user.id))
+              .catch(() => null),
+            supabase
+              .from('shops')
+              .select('id, name, owner_id, status, is_live, upi_id, upi_qr_url, delivery_available, delivery_fee, free_delivery_above, address_line, phone')
+              .eq('id', targetShop.id)
+              .maybeSingle(),
+            supabase
+              .from('shop_products')
+              .select('id, name, is_available, is_banned, has_variants, variants, track_inventory, stock_quantity')
+              .in('id', productIds),
+          ]);
+
+        // 1. Authoritative Customer abuse / moderation check
+        if (moderation?.is_suspended) {
+          const isExpired = moderation.suspension_expires_at && new Date(moderation.suspension_expires_at).getTime() < Date.now();
+          if (!isExpired) {
+            const reasonText = moderation.suspension_reason ? `: "${moderation.suspension_reason}"` : '.';
+            const untilText = moderation.suspension_expires_at
+              ? ` until ${new Date(moderation.suspension_expires_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}`
+              : '';
+            return {
+              success: false,
+              error: `Your ordering privileges have been temporarily suspended${untilText}${reasonText} Please contact support if you believe this is an error.`,
+            };
+          }
+        }
+
+        // 2. Authoritative shop check directly from Supabase
         if (shopCheckErr || !dbShop) {
           return {
             success: false,
@@ -560,7 +569,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
 
-        // 2. Authoritative UPI QR code validation for UPI payments
+        // 3. Authoritative UPI QR code validation for UPI payments
         if (paymentMethod === 'upi') {
           const rawQr = dbShop.upi_qr_url ? dbShop.upi_qr_url.trim() : '';
           const isValidQr =
@@ -576,12 +585,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        // 3. Live backend inventory & availability verification
-        const productIds = Array.from(new Set(shopItems.map((i) => i.product.id)));
-        const { data: dbProducts, error: prodCheckErr } = await supabase
-          .from('shop_products')
-          .select('id, name, is_available, is_banned, has_variants, variants, track_inventory, stock_quantity')
-          .in('id', productIds);
+        // 4. Live backend inventory & availability verification
 
         if (prodCheckErr || !dbProducts) {
           return {
@@ -731,59 +735,88 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         createdRequest = data as Request;
 
-        // Insert initial request_events row
-        await supabase.from('request_events').insert({
-          request_id: createdRequest.id,
-          from_state: null,
-          to_state: 'REQUESTED',
-          actor_id: user.id,
-          actor_role: user.role,
-          notes: 'Customer submitted initial order request.',
-        });
-
-        // Notify shopkeeper of new incoming order in realtime
-        const shopOwnerId = dbShop.owner_id || targetShop.owner_id;
-        const customerName = user.full_name || 'Customer';
-
-        if (shopOwnerId) {
+        // Non-blocking asynchronous post-order auditing & notification dispatch
+        // Does not delay returning order confirmation to the customer
+        void (async () => {
           try {
-            await notifyOrderLifecycle({
+            await supabase.from('request_events').insert({
+              request_id: createdRequest.id,
+              from_state: null,
+              to_state: 'REQUESTED',
+              actor_id: user.id,
+              actor_role: user.role,
+              notes: 'Customer submitted initial order request.',
+            });
+          } catch (eventErr) {
+            console.warn('[Cart] Non-blocking request_event insert warning:', eventErr);
+          }
+
+          const shopOwnerId = dbShop.owner_id || targetShop.owner_id;
+          const customerName = user.full_name || 'Customer';
+
+          const notifPromises: Promise<any>[] = [];
+          if (shopOwnerId) {
+            notifPromises.push(
+              notifyOrderLifecycle({
+                event: 'ORDER_PLACED',
+                requestId: createdRequest.id,
+                referenceCode,
+                recipientId: shopOwnerId,
+                recipientRole: 'shopkeeper',
+                shopId: targetShop.id,
+                shopName: targetShop.name,
+                customerName,
+                pickupAt: pickupAt || null,
+                fulfillmentType: chosenFulfillment,
+                totalEstimate: serverCalculatedTotal,
+              }).catch((notifErr) => {
+                console.warn('[Cart] Failed to dispatch shopkeeper order notification:', notifErr);
+              })
+            );
+          }
+
+          notifPromises.push(
+            notifyOrderLifecycle({
               event: 'ORDER_PLACED',
               requestId: createdRequest.id,
               referenceCode,
-              recipientId: shopOwnerId,
-              recipientRole: 'shopkeeper',
+              recipientId: user.id,
+              recipientRole: 'customer',
               shopId: targetShop.id,
               shopName: targetShop.name,
               customerName,
               pickupAt: pickupAt || null,
               fulfillmentType: chosenFulfillment,
               totalEstimate: serverCalculatedTotal,
-            });
-          } catch (notifErr) {
-            console.warn('[Cart] Failed to dispatch shopkeeper order notification:', notifErr);
+            }).catch((custNotifErr) => {
+              console.warn('[Cart] Failed to dispatch customer order notification:', custNotifErr);
+            })
+          );
+
+          await Promise.allSettled(notifPromises);
+        })();
+      } else {
+        // Mock fallback mode: customer abuse / moderation check
+        try {
+          const { fetchCustomerModeration } = await import('../lib/orderCancellationApi');
+          const moderation = await fetchCustomerModeration(user.id);
+          if (moderation?.is_suspended) {
+            const isExpired = moderation.suspension_expires_at && new Date(moderation.suspension_expires_at).getTime() < Date.now();
+            if (!isExpired) {
+              const reasonText = moderation.suspension_reason ? `: "${moderation.suspension_reason}"` : '.';
+              const untilText = moderation.suspension_expires_at
+                ? ` until ${new Date(moderation.suspension_expires_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}`
+                : '';
+              return {
+                success: false,
+                error: `Your ordering privileges have been temporarily suspended${untilText}${reasonText} Please contact support if you believe this is an error.`,
+              };
+            }
           }
+        } catch {
+          // Non-blocking fallback if check fails
         }
 
-        // Canonical customer order placed notification
-        try {
-          await notifyOrderLifecycle({
-            event: 'ORDER_PLACED',
-            requestId: createdRequest.id,
-            referenceCode,
-            recipientId: user.id,
-            recipientRole: 'customer',
-            shopId: targetShop.id,
-            shopName: targetShop.name,
-            customerName,
-            pickupAt: pickupAt || null,
-            fulfillmentType: chosenFulfillment,
-            totalEstimate: serverCalculatedTotal,
-          });
-        } catch (custNotifErr) {
-          console.warn('[Cart] Failed to dispatch customer order notification:', custNotifErr);
-        }
-      } else {
         // Mock fallback mode: authoritative shop & inventory check
         const { getStoredMockShops, getStoredMockProducts } = await import('../lib/shopkeeperApi');
         const storedShops = getStoredMockShops();

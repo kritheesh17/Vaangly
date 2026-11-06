@@ -18,6 +18,63 @@ if (email && publicKey && privateKey) {
   }
 }
 
+function maskEndpoint(endpoint?: string | null): string {
+  if (!endpoint || typeof endpoint !== 'string') return 'unknown';
+  if (endpoint.length <= 30) return endpoint;
+  return `${endpoint.slice(0, 20)}...${endpoint.slice(-8)}`;
+}
+
+// In-memory 5-second tag deduplication map to prevent client duplicate double-buzzing
+const recentDispatches = new Map<string, number>();
+function pruneRecentDispatches() {
+  const now = Date.now();
+  for (const [k, ts] of recentDispatches.entries()) {
+    if (now - ts > 30000) {
+      recentDispatches.delete(k);
+    }
+  }
+}
+
+async function sendNotificationWithRetry(
+  target: any,
+  payload: string,
+  options: any,
+  maxRetries: number = 2
+): Promise<void> {
+  let attempt = 0;
+  while (true) {
+    try {
+      await webpush.sendNotification(
+        {
+          endpoint: target.endpoint,
+          keys: target.keys,
+        },
+        payload,
+        options
+      );
+      return;
+    } catch (err: any) {
+      attempt++;
+      const statusCode = err?.statusCode || err?.status;
+      const isTransient =
+        statusCode === 429 ||
+        (statusCode >= 500 && statusCode <= 504) ||
+        err?.code === 'ETIMEDOUT' ||
+        err?.code === 'ECONNRESET' ||
+        err?.message?.includes('timeout') ||
+        err?.message?.includes('fetch failed');
+
+      if (isTransient && attempt <= maxRetries) {
+        const backoffMs = Math.min(200 * Math.pow(2, attempt - 1), 1000) + Math.floor(Math.random() * 50);
+        console.warn(`[Edge Push] Transient push gateway error (${statusCode || err?.code || 'network'}), retry ${attempt}/${maxRetries} in ${backoffMs}ms for ${maskEndpoint(target.endpoint)}`);
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 function sanitizeDestinationUrl(rawUrl?: string | null): { valid: boolean; url: string; error?: string } {
   if (!rawUrl || typeof rawUrl !== 'string') {
     return { valid: true, url: '/' };
@@ -269,15 +326,22 @@ Deno.serve(async (request) => {
     const deadEndpoints: string[] = [];
 
     const notificationTag = tag || `vaangly-${Date.now()}`;
+    const dedupKey = `${user_id}:${notificationTag}`;
+    pruneRecentDispatches();
+    if (!is_test && recentDispatches.has(dedupKey) && Date.now() - (recentDispatches.get(dedupKey) || 0) < 5000) {
+      console.log(`[Edge Push] Deduplicated duplicate in-flight dispatch for key: ${dedupKey}`);
+      return new Response(
+        JSON.stringify({ success: true, sent: 0, deduplicated: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    recentDispatches.set(dedupKey, Date.now());
 
     for (const target of deliveryTargets) {
       if (!target || !target.endpoint) continue;
       try {
-        await webpush.sendNotification(
-          {
-            endpoint: target.endpoint,
-            keys: target.keys,
-          },
+        await sendNotificationWithRetry(
+          target,
           JSON.stringify({
             title: title || 'Vaangly',
             body: body || 'You have a new update.',
@@ -287,18 +351,29 @@ Deno.serve(async (request) => {
           {
             TTL: 86400, // 24 hours retention
             urgency: 'high', // Critical for waking Android background & locked screen
-          }
+          },
+          2
         );
         sentCount++;
       } catch (err: any) {
-        console.error('[Edge Push] Delivery error for endpoint:', target.endpoint, err?.message || err, 'status:', err?.statusCode || err?.status);
         const statusCode = err?.statusCode || err?.status;
-        const isMalformedKey = err?.message?.includes('p256dh') || err?.message?.includes('auth');
-        if (statusCode === 400 || statusCode === 403 || statusCode === 404 || statusCode === 410 || isMalformedKey) {
-          console.log(`[Edge Push] Pruning invalid/expired/gone (${statusCode || 'malformed'}) endpoint:`, target.endpoint);
+        const errMsg = String(err?.message || '');
+        const errBody = String(err?.body || '');
+        const isMalformedKey = errMsg.includes('p256dh') || errMsg.includes('auth');
+        const isUnregistered =
+          statusCode === 404 ||
+          statusCode === 410 ||
+          errBody.includes('unregistered') ||
+          errBody.includes('NotRegistered') ||
+          errMsg.includes('unregistered');
+
+        console.error(`[Edge Push] Delivery error for endpoint ${maskEndpoint(target.endpoint)}: ${errMsg} (status: ${statusCode || 'unknown'})`);
+
+        if (isUnregistered || isMalformedKey) {
+          console.log(`[Edge Push] Pruning invalid/expired/gone (${statusCode || 'malformed'}) endpoint: ${maskEndpoint(target.endpoint)}`);
           deadEndpoints.push(target.endpoint);
         }
-        sendErrors.push(`${err.message || 'Push delivery failed'} (status: ${statusCode || 'unknown'})`);
+        sendErrors.push(`${errMsg || 'Push delivery failed'} (status: ${statusCode || 'unknown'})`);
       }
     }
 
