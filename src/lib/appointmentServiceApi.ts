@@ -317,6 +317,7 @@ export const bookAppointmentRequest = async (
             referenceCode: res.reference_code,
             recipientId: shopOwnerId,
             recipientRole: 'shopkeeper',
+            workflowGroupCode: 'APPOINTMENT',
             shopId,
             shopName: sName,
             customerName,
@@ -330,6 +331,7 @@ export const bookAppointmentRequest = async (
           referenceCode: res.reference_code,
           recipientId: customerId,
           recipientRole: 'customer',
+          workflowGroupCode: 'APPOINTMENT',
           shopId,
           shopName: sName,
           customerName,
@@ -375,8 +377,41 @@ export const bookAppointmentRequest = async (
     }
   }
 
-  // Mock / Demo Mode with atomic double-booking check
+  // Mock / Demo Mode with atomic double-booking and overlap check
   try {
+    const existingRequests: Request[] = JSON.parse(localStorage.getItem(DEMO_REQUESTS_KEY) || '[]');
+
+    // 1. Idempotency guard: prevent duplicate active booking on same slot from double clicks
+    const existingCustomerReq = existingRequests.find((r) => {
+      if (
+        r.customer_id !== customerId ||
+        r.shop_id !== shopId ||
+        r.workflow_group_code !== 'APPOINTMENT' ||
+        ['CANCELLED', 'REJECTED', 'EXPIRED', 'NO_SHOW'].includes(r.current_state)
+      ) {
+        return false;
+      }
+      try {
+        return JSON.parse(r.notes || '{}').slot_id === slot.id;
+      } catch {
+        return false;
+      }
+    });
+
+    if (existingCustomerReq) {
+      return {
+        success: true,
+        request: existingCustomerReq,
+        tokenNumber: existingCustomerReq.token_number,
+        queueNumber: existingCustomerReq.token_number ? `#${existingCustomerReq.token_number}` : null,
+        customersAhead: existingCustomerReq.token_number ? Math.max(0, existingCustomerReq.token_number - 1) : 0,
+        timeWindow: `${slot.start_time} – ${slot.end_time}`,
+        paymentMethod: existingCustomerReq.payment_method || undefined,
+        paymentStatus: existingCustomerReq.payment_status || undefined,
+        price: existingCustomerReq.total_estimate ?? undefined,
+      };
+    }
+
     const rawSlots = localStorage.getItem(DEMO_SLOTS_KEY);
     const allSlots: Record<string, AppointmentSlot[]> = rawSlots ? JSON.parse(rawSlots) : {};
     const key = `${shopId}_${slot.slot_date}`;
@@ -397,6 +432,45 @@ export const bookAppointmentRequest = async (
         success: false,
         error: 'This interval is now full. Please choose another time.',
       };
+    }
+
+    // 2. Overlap duration checking for the same resource
+    const slotStartMin = parseTimeToMinutes(slot.start_time);
+    const slotEndMin = parseTimeToMinutes(slot.end_time);
+    const providerName = service.provider_name?.trim();
+
+    if (slotEndMin > slotStartMin) {
+      const overlappingCount = existingRequests.filter((r) => {
+        if (
+          r.shop_id !== shopId ||
+          r.workflow_group_code !== 'APPOINTMENT' ||
+          ['CANCELLED', 'REJECTED', 'EXPIRED', 'NO_SHOW'].includes(r.current_state)
+        ) {
+          return false;
+        }
+        try {
+          const n = JSON.parse(r.notes || '{}');
+          if (n.slot_date !== slot.slot_date) return false;
+          const matchesResource =
+            (providerName && n.provider_name === providerName) ||
+            (n.service_id && n.service_id === service.id);
+          if (!matchesResource) return false;
+
+          const otherStart = parseTimeToMinutes(n.start_time);
+          const otherEnd = parseTimeToMinutes(n.end_time);
+          // Overlap rule: start_A < end_B AND start_B < end_A
+          return otherStart < slotEndMin && slotStartMin < otherEnd;
+        } catch {
+          return false;
+        }
+      }).length;
+
+      if (overlappingCount >= capacity) {
+        return {
+          success: false,
+          error: 'The service provider or resource is already fully booked for this time window.',
+        };
+      }
     }
 
     const nextToken = bookedCount + 1;
@@ -440,7 +514,6 @@ export const bookAppointmentRequest = async (
       updated_at: new Date().toISOString(),
     };
 
-    const existingRequests: Request[] = JSON.parse(localStorage.getItem(DEMO_REQUESTS_KEY) || '[]');
     localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify([createdRequest, ...existingRequests]));
     window.dispatchEvent(new CustomEvent('vaango-requests-changed', { detail: { newRequest: createdRequest } }));
 
@@ -459,6 +532,216 @@ export const bookAppointmentRequest = async (
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Error processing appointment booking.';
+    return { success: false, error: msg };
+  }
+};
+
+/**
+ * 3b. Reschedule Appointment Request (Atomic Slot Swap & Overbooking Prevention)
+ */
+export interface RescheduleAppointmentParams {
+  requestId: string;
+  newSlot: AppointmentSlot;
+  reason?: string;
+}
+
+export interface RescheduleAppointmentResponse {
+  success: boolean;
+  request?: Request;
+  newSlotId?: string;
+  tokenNumber?: number;
+  queueNumber?: string;
+  timeWindow?: string;
+  error?: string;
+}
+
+export const rescheduleAppointmentRequest = async (
+  params: RescheduleAppointmentParams
+): Promise<RescheduleAppointmentResponse> => {
+  const { requestId, newSlot, reason } = params;
+
+  if (isSlotInPast(newSlot.slot_date, newSlot.start_time)) {
+    return {
+      success: false,
+      error: 'The selected new slot has already started or passed. Please choose a future slot.',
+    };
+  }
+
+  if (isSupabaseConfigured) {
+    try {
+      const { data: res, error: rpcErr } = await supabase.rpc('reschedule_appointment', {
+        p_request_id: requestId,
+        p_new_slot_id: newSlot.id,
+        p_reason: reason?.trim() || null,
+      });
+
+      if (rpcErr || !res?.success) {
+        return {
+          success: false,
+          error: res?.error || rpcErr?.message || 'Failed to reschedule appointment.',
+        };
+      }
+
+      const { data: reqData } = await supabase
+        .from('requests')
+        .select('*, shops(name, owner_id)')
+        .eq('id', requestId)
+        .single();
+
+      if (reqData) {
+        const shopOwnerId = (reqData as any)?.shops?.owner_id;
+        const shopName = (reqData as any)?.shops?.name || 'the shop';
+
+        try {
+          if (shopOwnerId) {
+            void notifyOrderLifecycle({
+              event: 'APPOINTMENT_RESCHEDULED',
+              requestId,
+              referenceCode: reqData.reference_code,
+              recipientId: shopOwnerId,
+              recipientRole: 'shopkeeper',
+              workflowGroupCode: 'APPOINTMENT',
+              shopId: reqData.shop_id,
+              shopName,
+              notes: `Rescheduled to ${newSlot.slot_date} (${newSlot.start_time} – ${newSlot.end_time}).`,
+            });
+          }
+
+          void notifyOrderLifecycle({
+            event: 'APPOINTMENT_RESCHEDULED',
+            requestId,
+            referenceCode: reqData.reference_code,
+            recipientId: reqData.customer_id,
+            recipientRole: 'customer',
+            workflowGroupCode: 'APPOINTMENT',
+            shopId: reqData.shop_id,
+            shopName,
+            notes: `Rescheduled to ${newSlot.slot_date} (${newSlot.start_time} – ${newSlot.end_time}).`,
+          });
+        } catch (notifErr) {
+          console.warn('[Appointment] Failed to dispatch reschedule notifications:', notifErr);
+        }
+      }
+
+      return {
+        success: true,
+        request: reqData as Request,
+        newSlotId: res.new_slot_id,
+        tokenNumber: res.token_number,
+        queueNumber: res.queue_number,
+        timeWindow: res.time_window,
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Database error rescheduling appointment.';
+      return { success: false, error: msg };
+    }
+  }
+
+  // Demo / LocalStorage mode
+  try {
+    const rawReqs = localStorage.getItem(DEMO_REQUESTS_KEY);
+    const allReqs: Request[] = rawReqs ? JSON.parse(rawReqs) : [];
+    const reqIndex = allReqs.findIndex((r) => r.id === requestId);
+
+    if (reqIndex === -1) {
+      return { success: false, error: 'Appointment request not found.' };
+    }
+
+    const currentReq = allReqs[reqIndex];
+    if (['CANCELLED', 'REJECTED', 'EXPIRED', 'NO_SHOW', 'COMPLETED'].includes(currentReq.current_state)) {
+      return {
+        success: false,
+        error: `Cannot reschedule an appointment in ${currentReq.current_state} status.`,
+      };
+    }
+
+    const rawSlots = localStorage.getItem(DEMO_SLOTS_KEY);
+    const allSlots: Record<string, AppointmentSlot[]> = rawSlots ? JSON.parse(rawSlots) : {};
+    const newDayKey = `${currentReq.shop_id}_${newSlot.slot_date}`;
+    const newDaySlots = allSlots[newDayKey] || generateDailySlots(currentReq.shop_id, newSlot.slot_date);
+
+    const newSlotIdx = newDaySlots.findIndex((s) => s.id === newSlot.id);
+    if (newSlotIdx === -1) {
+      return { success: false, error: 'The selected new slot was not found.' };
+    }
+
+    const targetSlot = newDaySlots[newSlotIdx];
+    const newCapacity = targetSlot.capacity || targetSlot.concurrent_capacity || 1;
+    const newBooked = targetSlot.booked_count || targetSlot.confirmed_count || 0;
+
+    if (newBooked >= newCapacity) {
+      return {
+        success: false,
+        error: 'The selected new slot is already full. Your current appointment remains reserved.',
+      };
+    }
+
+    let oldSlotId: string | null = null;
+    try {
+      oldSlotId = JSON.parse(currentReq.notes || '{}').slot_id;
+    } catch {
+      oldSlotId = null;
+    }
+
+    // Release old slot in allSlots
+    if (oldSlotId) {
+      for (const daySlots of Object.values(allSlots)) {
+        const oldS = daySlots.find((s) => s.id === oldSlotId);
+        if (oldS) {
+          const oldActive = Math.max(0, (oldS.booked_count || 1) - 1);
+          oldS.booked_count = oldActive;
+          oldS.confirmed_count = oldActive;
+          oldS.is_available = oldActive < (oldS.capacity || oldS.concurrent_capacity || 1);
+        }
+      }
+    }
+
+    // Reserve new slot
+    const nextToken = newBooked + 1;
+    targetSlot.booked_count = newBooked + 1;
+    targetSlot.confirmed_count = newBooked + 1;
+    targetSlot.is_available = newBooked + 1 < newCapacity;
+    newDaySlots[newSlotIdx] = targetSlot;
+    allSlots[newDayKey] = newDaySlots;
+    localStorage.setItem(DEMO_SLOTS_KEY, JSON.stringify(allSlots));
+    localStorage.setItem('vaango_demo_appointment_slots', JSON.stringify(allSlots));
+
+    // Update request
+    const payload = JSON.parse(currentReq.notes || '{}');
+    const updatedPayload = {
+      ...payload,
+      slot_id: newSlot.id,
+      slot_date: newSlot.slot_date,
+      start_time: newSlot.start_time,
+      end_time: newSlot.end_time,
+      token_number: nextToken,
+      rescheduled_at: new Date().toISOString(),
+      rescheduled_from_slot_id: oldSlotId,
+    };
+
+    const updatedRequest: Request = {
+      ...currentReq,
+      scheduled_for: `${newSlot.slot_date} ${newSlot.start_time}`,
+      token_number: nextToken,
+      notes: JSON.stringify(updatedPayload),
+      updated_at: new Date().toISOString(),
+    };
+
+    allReqs[reqIndex] = updatedRequest;
+    localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(allReqs));
+    window.dispatchEvent(new CustomEvent('vaango-requests-changed', { detail: { newRequest: updatedRequest } }));
+    window.dispatchEvent(new CustomEvent('vaango-slots-changed', { detail: { shopId: currentReq.shop_id, dateStr: newSlot.slot_date } }));
+
+    return {
+      success: true,
+      request: updatedRequest,
+      newSlotId: newSlot.id,
+      tokenNumber: nextToken,
+      queueNumber: `#${nextToken}`,
+      timeWindow: `${newSlot.start_time} – ${newSlot.end_time}`,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Error rescheduling appointment in demo mode.';
     return { success: false, error: msg };
   }
 };
@@ -1037,16 +1320,8 @@ export const cancelCustomerRequest = async (
         throw updateErr || new Error('Failed to update request state to CANCELLED.');
       }
 
-      // 3. Free appointment slot if applicable
-      if (req.workflow_group_code === 'APPOINTMENT') {
-        await supabase
-          .from('appointment_slots')
-          .update({
-            is_available: true,
-            booked_by_request_id: null,
-          })
-          .eq('booked_by_request_id', requestId);
-      }
+      // 3. Slot capacity is authoritatively and automatically maintained by database trigger
+      // sync_appointment_slot_on_request_change upon state transition to CANCELLED.
 
       // 4. Log event
       await supabase.from('request_events').insert({
@@ -1068,6 +1343,7 @@ export const cancelCustomerRequest = async (
         referenceCode: req.reference_code,
         recipientId: customerId,
         recipientRole: 'customer',
+        workflowGroupCode: req.workflow_group_code,
         shopId: req.shop_id,
         shopName,
       });
@@ -1080,6 +1356,7 @@ export const cancelCustomerRequest = async (
           referenceCode: req.reference_code,
           recipientId: shopOwnerId,
           recipientRole: 'shopkeeper',
+          workflowGroupCode: req.workflow_group_code,
           shopId: req.shop_id,
           reason: cancelReason,
         });
@@ -1133,19 +1410,42 @@ export const cancelCustomerRequest = async (
     };
     localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(allReqs));
 
-    // Free slot in demo slots if appointment
+    // Authoritatively recalculate slot in demo slots if appointment
     if (req.workflow_group_code === 'APPOINTMENT') {
       try {
+        let slotId: string | null = null;
+        try {
+          slotId = JSON.parse(req.notes || '{}').slot_id;
+        } catch {
+          slotId = null;
+        }
+
         const slotsRaw = localStorage.getItem(DEMO_SLOTS_KEY);
         if (slotsRaw) {
           const allSlots: Record<string, AppointmentSlot[]> = JSON.parse(slotsRaw);
           for (const shopSlots of Object.values(allSlots)) {
-            const slot = shopSlots.find((s) => s.booked_by_request_id === requestId);
+            const slot = shopSlots.find((s) => (slotId && s.id === slotId) || s.booked_by_request_id === requestId);
             if (slot) {
-              const bookedCount = Math.max((slot.booked_count || 1) - 1, 0);
-              slot.booked_count = bookedCount;
-              slot.is_available = bookedCount < (slot.concurrent_capacity || 1);
-              slot.booked_by_request_id = bookedCount === 0 ? null : slot.booked_by_request_id;
+              const activeBooked = allReqs.filter((r) => {
+                if (
+                  r.shop_id !== req.shop_id ||
+                  r.workflow_group_code !== 'APPOINTMENT' ||
+                  ['CANCELLED', 'REJECTED', 'EXPIRED', 'NO_SHOW'].includes(r.current_state)
+                ) {
+                  return false;
+                }
+                try {
+                  return JSON.parse(r.notes || '{}').slot_id === slot.id;
+                } catch {
+                  return false;
+                }
+              }).length;
+
+              const capacity = slot.capacity || slot.concurrent_capacity || 1;
+              slot.booked_count = activeBooked;
+              slot.confirmed_count = activeBooked;
+              slot.is_available = activeBooked < capacity;
+              slot.booked_by_request_id = activeBooked === 0 ? null : slot.booked_by_request_id;
             }
           }
           localStorage.setItem(DEMO_SLOTS_KEY, JSON.stringify(allSlots));
