@@ -901,19 +901,8 @@ export const transitionRequestState = async (
         throw updateErr || new Error('Order was modified by another session or could not be updated.');
       }
 
-      // Free appointment slot if transitioning to cancelled or rejected
-      if (groupCode === 'APPOINTMENT' && (newState === 'CANCELLED' || newState === 'REJECTED')) {
-        let appointmentPayload: { slot_id?: string } = {};
-        try { appointmentPayload = JSON.parse(currentReq.notes || '{}'); } catch { /* legacy notes */ }
-        if (appointmentPayload.slot_id) {
-          const { data: slot } = await supabase.from('appointment_slots').select('id, concurrent_capacity').eq('id', appointmentPayload.slot_id).single();
-          const { data: activeRequests } = await supabase.from('requests').select('notes').eq('shop_id', currentReq.shop_id).eq('workflow_group_code', 'APPOINTMENT').in('current_state', ['REQUESTED', 'CONFIRMED', 'IN_PROGRESS']);
-          const bookedCount = (activeRequests || []).filter((item) => {
-            try { return JSON.parse(item.notes || '{}').slot_id === appointmentPayload.slot_id; } catch { return false; }
-          }).length;
-          if (slot) await supabase.from('appointment_slots').update({ is_available: bookedCount < (slot.concurrent_capacity || 1), booked_by_request_id: bookedCount ? undefined : null }).eq('id', slot.id);
-        }
-      }
+      // Slot capacity is authoritatively and automatically maintained by database trigger
+      // sync_appointment_slot_on_request_change upon state transition to CANCELLED, REJECTED, or NO_SHOW.
 
       if (newState === 'CANCELLED' || newState === 'REJECTED') {
         const thirtyDaysAgo = new Date();
@@ -973,6 +962,7 @@ export const transitionRequestState = async (
         referenceCode: currentReq.reference_code,
         recipientId: currentReq.customer_id,
         recipientRole: 'customer',
+        workflowGroupCode: groupCode,
         shopId: currentReq.shop_id,
         shopName,
         reason: notes?.trim() || undefined,
@@ -1039,20 +1029,48 @@ export const transitionRequestState = async (
     allReqs[index] = updated;
     localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(allReqs));
 
-    // Free appointment slot in demo mode if cancelling or rejecting
-    if (groupCode === 'APPOINTMENT' && (newState === 'CANCELLED' || newState === 'REJECTED')) {
+    // Free appointment slot in demo mode if cancelling, rejecting, or marking no-show
+    if (groupCode === 'APPOINTMENT' && (newState === 'CANCELLED' || newState === 'REJECTED' || newState === 'NO_SHOW')) {
       try {
-        const slotsRaw = localStorage.getItem('vaango_demo_appointment_slots');
-        if (slotsRaw) {
-          const allSlots: Record<string, any[]> = JSON.parse(slotsRaw);
-          for (const sList of Object.values(allSlots)) {
-            const slot = sList.find((s) => s.booked_by_request_id === requestId);
-            if (slot) {
-              slot.is_available = true;
-              slot.booked_by_request_id = undefined;
+        let slotId: string | null = null;
+        try {
+          slotId = JSON.parse(currentReq.notes || '{}').slot_id;
+        } catch {
+          slotId = null;
+        }
+
+        const slotKeys = ['vaango_demo_appointment_slots', 'vaango_demo_slots'];
+        for (const storageKey of slotKeys) {
+          const slotsRaw = localStorage.getItem(storageKey);
+          if (slotsRaw) {
+            const allSlots: Record<string, any[]> = JSON.parse(slotsRaw);
+            for (const sList of Object.values(allSlots)) {
+              const slot = sList.find((s) => (slotId && s.id === slotId) || s.booked_by_request_id === requestId);
+              if (slot) {
+                const activeBooked = allReqs.filter((r) => {
+                  if (
+                    r.shop_id !== currentReq.shop_id ||
+                    r.workflow_group_code !== 'APPOINTMENT' ||
+                    ['CANCELLED', 'REJECTED', 'EXPIRED', 'NO_SHOW'].includes(r.current_state)
+                  ) {
+                    return false;
+                  }
+                  try {
+                    return JSON.parse(r.notes || '{}').slot_id === slot.id;
+                  } catch {
+                    return false;
+                  }
+                }).length;
+
+                const cap = slot.capacity || slot.concurrent_capacity || 1;
+                slot.booked_count = activeBooked;
+                slot.confirmed_count = activeBooked;
+                slot.is_available = activeBooked < cap;
+                slot.booked_by_request_id = activeBooked === 0 ? null : slot.booked_by_request_id;
+              }
             }
+            localStorage.setItem(storageKey, JSON.stringify(allSlots));
           }
-          localStorage.setItem('vaango_demo_appointment_slots', JSON.stringify(allSlots));
         }
       } catch (e) {
         console.error('Error freeing slot in demo mode:', e);

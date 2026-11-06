@@ -286,11 +286,13 @@ export interface OrderLifecycleNotificationParams {
     | 'CUSTOMER_WARNING'
     | 'CUSTOMER_SUSPENDED'
     | 'SHOPKEEPER_ABUSE_ALERT'
-    | 'REFUND_COMPLETED';
+    | 'REFUND_COMPLETED'
+    | 'APPOINTMENT_RESCHEDULED';
   requestId: string;
   referenceCode: string;
   recipientId: string;
   recipientRole?: 'customer' | 'shopkeeper';
+  workflowGroupCode?: string;
   shopId?: string | null;
   shopName?: string;
   customerName?: string;
@@ -317,6 +319,7 @@ export const notifyOrderLifecycle = async (
     referenceCode,
     recipientId,
     recipientRole = 'customer',
+    workflowGroupCode,
     shopId,
     shopName = 'the shop',
     customerName = 'Customer',
@@ -336,6 +339,7 @@ export const notifyOrderLifecycle = async (
   let message = '';
   let type: NotificationType = 'STATUS_CHANGE';
 
+  const isAppointment = workflowGroupCode === 'APPOINTMENT';
   const isPickup =
     fulfillmentType === 'pickup' ||
     fulfillmentType === 'TAKEAWAY' ||
@@ -344,7 +348,17 @@ export const notifyOrderLifecycle = async (
 
   switch (event) {
     case 'ORDER_PLACED':
-      if (recipientRole === 'shopkeeper') {
+      if (isAppointment) {
+        if (recipientRole === 'shopkeeper') {
+          type = 'NEW_ORDER';
+          title = 'New Appointment Request';
+          message = `New appointment request #${referenceCode} received from ${customerName}. Open Vaangly to view the appointment.`;
+        } else {
+          type = 'ORDER_PLACED';
+          title = customerPaid || !totalEstimate ? 'Appointment Confirmed' : 'Appointment Request Placed';
+          message = `Your appointment #${referenceCode} has been scheduled at ${shopName}.`;
+        }
+      } else if (recipientRole === 'shopkeeper') {
         type = 'NEW_ORDER';
         title = pickupAt ? 'New order received (Scheduled Pickup)' : 'New order received';
         message = `New order #${referenceCode} received from ${customerName}. Open Vaangly to view the order.`;
@@ -359,50 +373,64 @@ export const notifyOrderLifecycle = async (
 
     case 'ORDER_ACCEPTED':
       type = 'ORDER_ACCEPTED';
-      title = 'Order Accepted';
-      message = `Your order #${referenceCode} has been accepted by ${shopName}.`;
+      title = isAppointment ? 'Appointment Confirmed' : 'Order Accepted';
+      message = isAppointment
+        ? `Your appointment #${referenceCode} has been confirmed by ${shopName}.`
+        : `Your order #${referenceCode} has been accepted by ${shopName}.`;
       break;
 
     case 'ORDER_REJECTED': {
       type = 'ORDER_REJECTED';
-      title = 'Order Rejected';
+      title = isAppointment ? 'Appointment Declined' : 'Order Rejected';
       const reasonPart = reason ? ` Reason: ${reason}.` : '';
       const refundPart =
         refundAmount && refundAmount > 0
           ? ` Refund of ₹${refundAmount} has been marked as required.`
           : '';
-      message = `Your order #${referenceCode} was rejected by ${shopName}.${reasonPart}${refundPart}`;
+      message = isAppointment
+        ? `Your appointment request #${referenceCode} was declined by ${shopName}.${reasonPart}`
+        : `Your order #${referenceCode} was rejected by ${shopName}.${reasonPart}${refundPart}`;
       break;
     }
 
     case 'ORDER_PREPARING':
       type = 'ORDER_PREPARING';
-      title = 'Order Preparing';
-      message = `Your order #${referenceCode} is being prepared.`;
+      title = isAppointment ? 'Appointment In Progress' : 'Order Preparing';
+      message = isAppointment
+        ? `Your appointment #${referenceCode} is in progress.`
+        : `Your order #${referenceCode} is being prepared.`;
       break;
 
     case 'ORDER_DELAYED':
       type = 'ORDER_DELAYED';
-      title = 'Order Delayed';
-      message = `Your order #${referenceCode} is delayed.${reason || notes ? ` ${(reason || notes)?.trim()}` : ''}`;
+      title = isAppointment ? 'Appointment Delayed' : 'Order Delayed';
+      message = isAppointment
+        ? `Your appointment #${referenceCode} is delayed.${reason || notes ? ` ${(reason || notes)?.trim()}` : ''}`
+        : `Your order #${referenceCode} is delayed.${reason || notes ? ` ${(reason || notes)?.trim()}` : ''}`;
       break;
 
     case 'PAYMENT_PROOF_UPLOADED':
       type = 'PAYMENT_PROOF_UPLOADED';
       title = 'Payment Proof Uploaded';
-      message = `Payment proof uploaded for order #${referenceCode}. Please verify the payment.`;
+      message = isAppointment
+        ? `Payment proof uploaded for appointment #${referenceCode}. Please verify the payment.`
+        : `Payment proof uploaded for order #${referenceCode}. Please verify the payment.`;
       break;
 
     case 'PAYMENT_VERIFIED':
       type = 'PAYMENT_RECEIVED';
       title = 'Payment Verified';
-      message = `Payment for order #${referenceCode} has been verified.`;
+      message = isAppointment
+        ? `Payment for appointment #${referenceCode} has been verified.`
+        : `Payment for order #${referenceCode} has been verified.`;
       break;
 
     case 'PAYMENT_REJECTED':
       type = 'PAYMENT_REJECTED';
       title = 'Payment Rejected';
-      message = `Payment verification for order #${referenceCode} was rejected: ${reason || 'Invalid screenshot'}. Please submit a replacement proof.`;
+      message = isAppointment
+        ? `Payment verification for appointment #${referenceCode} was rejected: ${reason || 'Invalid screenshot'}. Please submit a replacement proof.`
+        : `Payment verification for order #${referenceCode} was rejected: ${reason || 'Invalid screenshot'}. Please submit a replacement proof.`;
       break;
 
     case 'ORDER_READY':
@@ -424,23 +452,36 @@ export const notifyOrderLifecycle = async (
 
     case 'ORDER_COMPLETED':
       type = 'ORDER_COMPLETED';
-      title = 'Order Completed';
-      message =
-        !customerPaid && totalEstimate && totalEstimate > 0
+      title = isAppointment ? 'Appointment Completed' : 'Order Completed';
+      message = isAppointment
+        ? `Your appointment #${referenceCode} has been completed.`
+        : !customerPaid && totalEstimate && totalEstimate > 0
           ? `Your order #${referenceCode} has been completed, but payment of ₹${totalEstimate} is awaiting verification.`
           : `Your order #${referenceCode} has been completed.`;
       break;
 
     case 'ORDER_CANCELLED':
       type = 'CUSTOMER_CANCELLED';
-      title = 'Order Cancelled';
+      title = isAppointment ? 'Appointment Cancelled' : 'Order Cancelled';
       if (recipientRole === 'shopkeeper') {
-        message = `Order #${referenceCode} was cancelled by the customer.${reason ? ` Reason: ${reason}` : ''}`;
+        message = isAppointment
+          ? `Appointment #${referenceCode} was cancelled by the customer.${reason ? ` Reason: ${reason}` : ''}`
+          : `Order #${referenceCode} was cancelled by the customer.${reason ? ` Reason: ${reason}` : ''}`;
       } else {
-        message = reason
-          ? `Your order #${referenceCode} has been cancelled. Reason: ${reason}`
-          : `Your order #${referenceCode} has been cancelled.`;
+        message = isAppointment
+          ? reason
+            ? `Your appointment #${referenceCode} has been cancelled. Reason: ${reason}`
+            : `Your appointment #${referenceCode} has been cancelled.`
+          : reason
+            ? `Your order #${referenceCode} has been cancelled. Reason: ${reason}`
+            : `Your order #${referenceCode} has been cancelled.`;
       }
+      break;
+
+    case 'APPOINTMENT_RESCHEDULED':
+      type = 'STATUS_CHANGE';
+      title = 'Appointment Rescheduled';
+      message = `Appointment #${referenceCode} has been rescheduled to a new time window.${notes ? ` ${notes}` : ''}`;
       break;
 
     case 'REFUND_COMPLETED':
