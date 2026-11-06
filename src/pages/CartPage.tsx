@@ -10,8 +10,6 @@ import {
   ShoppingBag,
   Building2,
   Clock,
-  Camera,
-  Image as ImageIcon,
 } from 'lucide-react';
 import { getEffectiveQuantity, useCart, ShopCartGroup } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -23,7 +21,6 @@ import { Modal } from '../components/ui/Modal';
 import { useToast } from '../context/ToastContext';
 import { getShopType, isValidUuid } from '../data/mockData';
 import { useLanguage } from '../context/LanguageContext';
-import { removePendingPaymentProof, uploadPendingPaymentProof, validatePaymentProofFile } from '../lib/paymentProof';
 import { isValidUpiQrUrl } from '../lib/upi';
 import { isValidIndianMobile } from '../lib/phoneUtils';
 import {
@@ -35,128 +32,6 @@ import { ActionErrorBanner } from '../components/ui/ActionErrorBanner';
 import { scrollAndFocusError } from '../lib/errorUxUtils';
 import { formatCleanVariantLabel } from '../lib/productVariants';
 import './CartPage.css';
-
-interface UpiPaymentPanelProps {
-  shopName: string;
-  upiId?: string | null;
-  qrUrl?: string | null;
-  amount: number;
-  userId: string;
-  proofPath: string | null;
-  onProofPathChange: (path: string | null) => void;
-}
-
-const UpiPaymentPanel: React.FC<UpiPaymentPanelProps> = ({ shopName, upiId, qrUrl, amount, userId, proofPath, onProofPathChange }) => {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleFile = async (file: File | undefined) => {
-    if (!file) return;
-    setError(null);
-    const validationError = validatePaymentProofFile(file);
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-    setIsUploading(true);
-    try {
-      await removePendingPaymentProof(proofPath);
-      const path = await uploadPendingPaymentProof(file, userId);
-      setPreviewUrl(URL.createObjectURL(file));
-      setFileName(file.name);
-      onProofPathChange(path);
-    } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'Unable to upload payment proof.');
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const removeProof = async () => {
-    await removePendingPaymentProof(proofPath);
-    setPreviewUrl(null);
-    setFileName(null);
-    onProofPathChange(null);
-  };
-
-  const hasValidQr = isValidUpiQrUrl(qrUrl);
-
-  return (
-    <div className="vaango-cart-upi-panel">
-      {hasValidQr ? <>
-        <strong>Pay ₹{amount.toFixed(2)} using any UPI app</strong>
-        <img src={qrUrl} alt={`UPI QR code for ${shopName}`} className="vaango-upi-qr" />
-        {upiId && <p className="vaango-cart-upi-id">UPI ID: <code>{upiId}</code></p>}
-        <p className="vaango-cart-payment-help">After completing payment, upload the payment screenshot. Payment remains pending until the shop verifies it.</p>
-        {!previewUrl ? (
-          <div className="vaango-payment-proof-options">
-            <span className="text-xs font-semibold text-secondary block mb-1">
-              {isUploading ? 'Uploading payment proof...' : 'Upload Payment Screenshot / Receipt:'}
-            </span>
-            <div className="vaango-payment-proof-buttons">
-              {/* Option A: Gallery / Document Picker (NO capture attribute -> opens system gallery/photos) */}
-              <label className="vaango-payment-proof-upload" title="Choose screenshot from Gallery or Files">
-                <ImageIcon size={16} />
-                <span>Choose from Gallery</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  disabled={isUploading}
-                  onChange={(event) => void handleFile(event.target.files?.[0])}
-                />
-              </label>
-
-              {/* Option B: Direct Camera Capture */}
-              <label className="vaango-payment-proof-upload vaango-payment-proof-upload--camera" title="Take a new photo with camera">
-                <Camera size={16} />
-                <span>Take Photo</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  capture="environment"
-                  disabled={isUploading}
-                  onChange={(event) => void handleFile(event.target.files?.[0])}
-                />
-              </label>
-            </div>
-          </div>
-        ) : (
-          <div className="vaango-payment-proof-selection">
-            <img src={previewUrl} alt="Payment proof preview" className="vaango-payment-proof-preview" />
-            <span className="text-xs text-secondary">{fileName}</span>
-            <div className="vaango-payment-proof-actions">
-              <label className="vaango-payment-proof-upload" title="Choose another image from Gallery">
-                <ImageIcon size={15} />
-                <span>Gallery</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  disabled={isUploading}
-                  onChange={(event) => void handleFile(event.target.files?.[0])}
-                />
-              </label>
-              <label className="vaango-payment-proof-upload vaango-payment-proof-upload--camera" title="Retake photo with camera">
-                <Camera size={15} />
-                <span>Camera</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  capture="environment"
-                  disabled={isUploading}
-                  onChange={(event) => void handleFile(event.target.files?.[0])}
-                />
-              </label>
-              <Button type="button" variant="outline" size="sm" onClick={() => void removeProof()}>Remove</Button>
-            </div>
-          </div>
-        )}
-        {error && <p className="vaango-cart-payment-error" role="alert">{error}</p>}
-      </> : <p className="vaango-cart-payment-error">UPI payment is currently unavailable because this shop has not configured its UPI QR code.</p>}
-    </div>
-  );
-};
 
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -187,7 +62,6 @@ export const CartPage: React.FC = () => {
   const [shopNotes, setShopNotes] = useState<Record<string, string>>({});
   const [shopFulfillments, setShopFulfillments] = useState<Record<string, 'DINE_IN' | 'TAKEAWAY' | null>>({});
   const [shopPaymentMethods, setShopPaymentMethods] = useState<Record<string, 'pay_at_shop' | 'upi'>>({});
-  const [paymentProofPaths, setPaymentProofPaths] = useState<Record<string, string | null>>({});
   const [shopDeliveryModes, setShopDeliveryModes] = useState<Record<string, 'PICKUP' | 'DELIVERY'>>({});
   const [shopPickupModes, setShopPickupModes] = useState<Record<string, 'ASAP' | 'SCHEDULED'>>({});
   const [shopPickupDates, setShopPickupDates] = useState<Record<string, string>>({});
@@ -247,7 +121,6 @@ export const CartPage: React.FC = () => {
     }
 
     const chosenPayment = shopPaymentMethods[shopId] || 'pay_at_shop';
-    const paymentProofPath = paymentProofPaths[shopId] || null;
     if (chosenPayment === 'upi') {
       let activeShopRecord = group.shop;
       if (!isValidUpiQrUrl(activeShopRecord.upi_qr_url)) {
@@ -262,14 +135,6 @@ export const CartPage: React.FC = () => {
         }, 50);
         return;
       }
-    }
-    if (chosenPayment === 'upi' && !paymentProofPath) {
-      const err = 'Add payment proof before placing a UPI order.';
-      setShopErrors((prev) => ({ ...prev, [shopId]: err }));
-      setTimeout(() => {
-        scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
-      }, 50);
-      return;
     }
     const chosenNote = shopNotes[shopId] || '';
 
@@ -323,7 +188,7 @@ export const CartPage: React.FC = () => {
         chosenPayment,
         effectiveFulfillment,
         chosenNote,
-        paymentProofPath,
+        null,
         chosenPickupAt
       );
       if (result.success && result.request) {
@@ -796,8 +661,6 @@ export const CartPage: React.FC = () => {
                       aria-checked={currentPayment === 'pay_at_shop'}
                       className={`vaango-cart-option-btn ${currentPayment === 'pay_at_shop' ? 'active' : ''}`}
                       onClick={() => {
-                        void removePendingPaymentProof(paymentProofPaths[shopId] || null);
-                        setPaymentProofPaths((prev) => ({ ...prev, [shopId]: null }));
                         setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'pay_at_shop' }));
                         setShopErrors((prev) => ({ ...prev, [shopId]: '' }));
                       }}
@@ -810,7 +673,7 @@ export const CartPage: React.FC = () => {
                       role="radio"
                       aria-checked={currentPayment === 'upi'}
                       disabled={!isValidUpiQrUrl(shop.upi_qr_url)}
-                      title={!isValidUpiQrUrl(shop.upi_qr_url) ? 'UPI payment unavailable: This shop has not configured its UPI QR code' : 'Pay with UPI QR code'}
+                      title={!isValidUpiQrUrl(shop.upi_qr_url) ? 'UPI payment unavailable: This shop has not configured its UPI QR code' : 'Pay with UPI QR code after acceptance'}
                       className={`vaango-cart-option-btn ${currentPayment === 'upi' ? 'active' : ''}`}
                       onClick={() => {
                         setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'upi' }));
@@ -818,23 +681,31 @@ export const CartPage: React.FC = () => {
                       }}
                     >
                       <span className="vaango-cart-option-title">📱 UPI / Online</span>
-                      <small className="vaango-cart-option-desc">Pay via UPI QR and upload payment screenshot</small>
+                      <small className="vaango-cart-option-desc">Pay via UPI QR after shopkeeper accepts order</small>
                     </button>
                   </div>
 
-                  {currentPayment === 'upi' && user && (
-                    <UpiPaymentPanel
-                      shopName={shop.name}
-                      upiId={shop.upi_id}
-                      qrUrl={shop.upi_qr_url}
-                      amount={finalTotal}
-                      userId={user.id}
-                      proofPath={paymentProofPaths[shopId] || null}
-                      onProofPathChange={(path) => {
-                        setPaymentProofPaths((prev) => ({ ...prev, [shopId]: path }));
-                        if (path) setShopErrors((prev) => ({ ...prev, [shopId]: '' }));
-                      }}
-                    />
+                  {currentPayment === 'pay_at_shop' && (
+                    <div className="vaango-cart-payment-notice vaango-cart-payment-notice--pay-at-shop">
+                      <p className="font-semibold text-sm mb-1">Your order request will be sent to the shopkeeper for approval.</p>
+                      <p className="text-xs text-secondary mb-1">
+                        You don&apos;t need to pay right now. Once the shopkeeper accepts your order, you can collect your products and pay directly at the shop.
+                      </p>
+                      <p className="text-xs font-semibold text-primary">Payment is due when you collect your order.</p>
+                    </div>
+                  )}
+
+                  {currentPayment === 'upi' && (
+                    <div className="vaango-cart-payment-notice vaango-cart-payment-notice--upi">
+                      <strong className="block text-sm font-bold text-primary mb-1">YOU DON&apos;T NEED TO PAY RIGHT NOW.</strong>
+                      <p className="text-xs text-secondary mb-1">
+                        Your order request will be sent to the shopkeeper for approval. Once the shopkeeper accepts your order, you&apos;ll receive the UPI payment instructions.
+                      </p>
+                      <p className="text-xs text-secondary mb-1">
+                        After completing the payment, upload your payment screenshot for verification.
+                      </p>
+                      <p className="text-xs font-semibold text-primary">Payment is required only after your order is accepted.</p>
+                    </div>
                   )}
                 </div>
               </div>

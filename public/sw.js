@@ -95,8 +95,8 @@ self.addEventListener('push', (event) => {
   const tag = data.tag || `vaangly-${Date.now()}`;
   const options = {
     body: data.body || '',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    icon: data.icon || '/icons/icon-192.png',
+    badge: data.badge || '/icons/icon-192.png',
     tag: tag,
     renotify: true,
     requireInteraction: true,
@@ -114,10 +114,17 @@ self.addEventListener('push', (event) => {
       // Fallback with minimal options if custom attributes fail
       return self.registration.showNotification(title, {
         body: data.body || '',
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
         data: { url: data.url || '/' },
       });
     })
   );
+});
+
+// 4b. Notification Close Event: Diagnostic logging
+self.addEventListener('notificationclose', (event) => {
+  console.log('[Vaangly SW] Notification dismissed:', event.notification?.tag);
 });
 
 // 5. Notification Click Event: Navigate user to targeted page (Order/Appointment/Queue)

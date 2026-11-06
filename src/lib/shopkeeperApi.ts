@@ -11,6 +11,17 @@ import { notifyOrderLifecycle, type OrderLifecycleNotificationParams } from './n
 import { sortRequestsChronologicalDesc } from './orderPickupUtils';
 import { variantIsAvailable, updateVariantInList } from './productVariants';
 
+async function safeNotifyLifecycle(params: OrderLifecycleNotificationParams): Promise<void> {
+  try {
+    const result = await notifyOrderLifecycle(params);
+    if (!result) {
+      console.warn('[ShopkeeperApi] Lifecycle notification not created:', params.event, params.requestId);
+    }
+  } catch (err) {
+    console.warn('[ShopkeeperApi] Failed to deliver lifecycle notification:', err);
+  }
+}
+
 const DEMO_SHOPS_KEY = 'vaango_demo_shops';
 const DEMO_PRODUCTS_KEY = 'vaango_demo_products';
 const DEMO_REQUESTS_KEY = 'vaango_demo_requests';
@@ -956,7 +967,7 @@ export const transitionRequestState = async (
           break;
       }
 
-      void notifyOrderLifecycle({
+      void safeNotifyLifecycle({
         event: eventName,
         requestId,
         referenceCode: currentReq.reference_code,
@@ -1134,7 +1145,7 @@ export const transitionRequestState = async (
         break;
     }
 
-    void notifyOrderLifecycle({
+    void safeNotifyLifecycle({
       event: mockEventName,
       requestId,
       referenceCode: updated.reference_code,
@@ -1193,7 +1204,7 @@ export const markRequestCustomerPaid = async (
     });
 
     const payableAmount = data.total_estimate ?? data.payment_amount ?? 0;
-    void notifyOrderLifecycle({
+    void safeNotifyLifecycle({
       event: 'PAYMENT_VERIFIED',
       requestId: data.id,
       referenceCode: data.reference_code,
@@ -1227,7 +1238,7 @@ export const markRequestCustomerPaid = async (
     localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(requests));
 
     const payableAmount = updated.total_estimate ?? updated.payment_amount ?? 0;
-    void notifyOrderLifecycle({
+    void safeNotifyLifecycle({
       event: 'PAYMENT_VERIFIED',
       requestId: updated.id,
       referenceCode: updated.reference_code,
@@ -1278,7 +1289,7 @@ export const recordPayAtShopRefund = async (
         return { success: false, error: requestError?.message || 'Refund was recorded but the request could not be reloaded.' };
       }
 
-      void notifyOrderLifecycle({
+      void safeNotifyLifecycle({
         event: 'REFUND_COMPLETED',
         requestId: request.id,
         referenceCode: request.reference_code,
@@ -1338,7 +1349,7 @@ export const recordPayAtShopRefund = async (
     });
     localStorage.setItem(DEMO_REQUEST_EVENTS_KEY, JSON.stringify(events));
 
-    void notifyOrderLifecycle({
+    void safeNotifyLifecycle({
       event: 'REFUND_COMPLETED',
       requestId: updated.id,
       referenceCode: updated.reference_code,
@@ -1385,7 +1396,7 @@ export const rejectRequestPayment = async (
       notes: `Payment proof rejected: ${cleanReason}`,
     });
 
-    void notifyOrderLifecycle({
+    void safeNotifyLifecycle({
       event: 'PAYMENT_REJECTED',
       requestId: data.id,
       referenceCode: data.reference_code,
@@ -1413,7 +1424,7 @@ export const rejectRequestPayment = async (
     requests[index] = updated;
     localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(requests));
 
-    void notifyOrderLifecycle({
+    void safeNotifyLifecycle({
       event: 'PAYMENT_REJECTED',
       requestId: updated.id,
       referenceCode: updated.reference_code,

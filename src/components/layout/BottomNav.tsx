@@ -23,7 +23,6 @@ import { MoreMenuModal } from './MoreMenuModal';
 import './BottomNav.css';
 import { useLanguage } from '../../context/LanguageContext';
 import { Shop } from '../../types/database';
-import { getShopkeeperShop } from '../../lib/shopkeeperApi';
 import { getShopBusinessFeatures } from '../../lib/shopBusinessTypes';
 
 interface ShopkeeperNavItem {
@@ -53,6 +52,7 @@ export const BottomNav: React.FC = () => {
     let isMounted = true;
     const fetchShop = async () => {
       try {
+        const { getShopkeeperShop } = await import('../../lib/shopkeeperApi');
         const s = await getShopkeeperShop(user.id);
         if (isMounted) setShop(s);
       } catch (err) {

@@ -120,8 +120,11 @@ const SupabaseDiagnosticPage = React.lazy(() =>
   import('./pages/dev/SupabaseDiagnosticPage').then((m) => ({ default: m.SupabaseDiagnosticPage }))
 );
 
+const AdminLayout = React.lazy(() =>
+  import('./components/admin/AdminLayout').then((m) => ({ default: m.AdminLayout }))
+);
+
 import { AdminRoute } from './components/admin/AdminRoute';
-import { AdminLayout } from './components/admin/AdminLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 export const App: React.FC = () => {

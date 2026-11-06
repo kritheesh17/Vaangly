@@ -51,6 +51,7 @@ export default defineConfig({
           'vendor-icons': ['lucide-react'],
           'vendor-supabase': ['@supabase/supabase-js'],
           'vendor-leaflet': ['leaflet'],
+          'i18n-data': ['./src/lib/i18n'],
           'mock-data': ['./src/data/mockData'],
         },
       },

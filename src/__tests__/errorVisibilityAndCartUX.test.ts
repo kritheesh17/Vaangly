@@ -147,14 +147,14 @@ describe('Global Error Visibility & Validation UX Overhaul', () => {
       );
     });
 
-    it('verifies auto-clearing error when switching slot, payment method, or uploading proof', () => {
+    it('verifies auto-clearing error when switching slot or payment method', () => {
       assert.ok(
         cartPageContent.includes('setShopPickupDates'),
         'Must have scheduled pickup date selection'
       );
       assert.ok(
-        cartPageContent.includes('setPaymentProofPaths'),
-        'Must have payment proof upload handler'
+        cartPageContent.includes('setShopPaymentMethods'),
+        'Must have payment method selection handler'
       );
     });
 

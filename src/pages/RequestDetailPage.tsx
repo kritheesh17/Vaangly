@@ -156,6 +156,10 @@ export const RequestDetailPage: React.FC = () => {
           });
         }
       } else {
+        if (!['CONFIRMED', 'IN_PROGRESS', 'READY', 'COMPLETED'].includes(request.current_state)) {
+          throw new Error('Payment can only be submitted after the shopkeeper has accepted your order.');
+        }
+
         const { data, error } = await supabase
           .from('requests')
           .update({
@@ -165,9 +169,10 @@ export const RequestDetailPage: React.FC = () => {
           })
           .eq('id', request.id)
           .eq('customer_id', user.id)
+          .in('current_state', ['CONFIRMED', 'IN_PROGRESS', 'READY', 'COMPLETED'])
           .select('*, shops(owner_id)')
           .single();
-        if (error || !data) throw error || new Error('Unable to save payment proof.');
+        if (error || !data) throw error || new Error('Unable to save payment proof. The order must be accepted by the shopkeeper first.');
         setRequest(data as Request);
 
         const shopOwnerId = (data as any)?.shops?.owner_id;
@@ -750,77 +755,139 @@ export const RequestDetailPage: React.FC = () => {
           </div>
         )}
 
-        <div className={`vaango-customer-payment-card ${isPayAtShopPayment ? 'vaango-pay-at-shop-card' : ''}`}>
-          <div className="vaango-customer-payment-card__header">
-            <span>Payment</span>
-            {isPaymentRefunded ? (
-              <Badge variant="success" size="sm" withDot>Refunded</Badge>
-            ) : isPaymentVerified ? (
-              <Badge variant="success" size="sm" withDot>{isOnlinePayment ? 'Payment Verified' : 'Paid'}</Badge>
-            ) : (
-              <Badge variant="neutral" size="sm" withDot>{isOnlinePayment ? 'Pending verification' : 'Awaiting Payment'}</Badge>
-            )}
-          </div>
-          <strong className="vaango-customer-payment-card__amount">₹{paymentAmount}</strong>
-          <div className="vaango-customer-payment-card__row"><span>Payment method</span><strong>{paymentMethodLabel}</strong></div>
-          <div className="vaango-customer-payment-card__row"><span>Status</span><strong>{isPaymentRefunded ? 'Refunded' : isPaymentVerified ? (isOnlinePayment ? 'Payment verified' : 'Paid') : isOnlinePayment ? 'Awaiting payment verification' : 'Awaiting Payment'}</strong></div>
+        {/* Payment Card */}
+        {(() => {
+          const isTerminalState = ['REJECTED', 'CANCELLED', 'EXPIRED'].includes(request.current_state);
+          const isAwaitingAcceptance = groupCode === 'ORDER' && request.current_state === 'REQUESTED';
+          const isAcceptedState = groupCode === 'APPOINTMENT' || ['CONFIRMED', 'IN_PROGRESS', 'READY', 'COMPLETED'].includes(request.current_state);
 
-          {isOnlinePayment && !isPaymentVerified && !isPaymentRefunded && (
-            <div className="vaango-customer-payment-card__upi">
-              {isValidUpiQrUrl(payload.shop_upi_qr_url) && payload.shop_upi_id ? <>
-                <h3>{t('payViaUpiTitle')}</h3>
-                <p className="text-secondary text-sm">Scan the shop's QR using any UPI app, then upload a payment screenshot. Uploading proof does not verify payment.</p>
-                <img src={payload.shop_upi_qr_url} alt={`${shopName} UPI QR code`} className="vaango-upi-qr" />
-                <p className="text-xs text-secondary mt-2">UPI ID: <strong>{payload.shop_upi_id}</strong> · Amount: <strong>₹{paymentAmount}</strong></p>
-                <div className="vaango-customer-payment-card__actions">
-                  <Button type="button" variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(payload.shop_upi_id || '').then(() => success('UPI ID copied.')).catch(() => toastError('Unable to copy UPI ID.'))}>Copy UPI ID</Button>
-                  <a className="vaango-upi-open-btn" href={`upi://pay?pa=${encodeURIComponent(payload.shop_upi_id)}&pn=${encodeURIComponent(shopName)}&am=${encodeURIComponent(String(paymentAmount))}&cu=INR`}>{t('openUpiAppBtn')}</a>
+          return (
+            <div className={`vaango-customer-payment-card ${isPayAtShopPayment ? 'vaango-pay-at-shop-card' : ''}`}>
+              <div className="vaango-customer-payment-card__header">
+                <span>Payment</span>
+                {isPaymentRefunded ? (
+                  <Badge variant="success" size="sm" withDot>Refunded</Badge>
+                ) : isTerminalState ? (
+                  <Badge variant="neutral" size="sm" withDot>Not Required</Badge>
+                ) : isPaymentVerified ? (
+                  <Badge variant="success" size="sm" withDot>{isOnlinePayment ? 'Payment Verified' : 'Paid'}</Badge>
+                ) : isAwaitingAcceptance ? (
+                  <Badge variant="warning" size="sm" withDot>Awaiting Acceptance</Badge>
+                ) : (
+                  <Badge variant="neutral" size="sm" withDot>{isOnlinePayment ? 'Pending verification' : 'Awaiting Payment'}</Badge>
+                )}
+              </div>
+              <strong className="vaango-customer-payment-card__amount">₹{paymentAmount}</strong>
+              <div className="vaango-customer-payment-card__row"><span>Payment method</span><strong>{paymentMethodLabel}</strong></div>
+              <div className="vaango-customer-payment-card__row">
+                <span>Status</span>
+                <strong>
+                  {isPaymentRefunded
+                    ? 'Refunded'
+                    : isTerminalState
+                    ? 'Payment not required'
+                    : isPaymentVerified
+                    ? (isOnlinePayment ? 'Payment verified' : 'Paid')
+                    : isAwaitingAcceptance
+                    ? 'Awaiting shopkeeper acceptance'
+                    : isOnlinePayment
+                    ? 'Awaiting payment verification'
+                    : 'Awaiting Payment'}
+                </strong>
+              </div>
+
+              {/* Terminal order / rejected order: payment strictly forbidden and not required */}
+              {isTerminalState && (
+                <div className="vaango-order-terminal-notice p-3 mt-3 rounded border border-border bg-surface-sunken">
+                  <p className="text-xs text-secondary mb-0">
+                    {request.current_state === 'REJECTED'
+                      ? 'This order was declined by the shopkeeper. No payment is required.'
+                      : 'This order has been cancelled. No payment is required.'}
+                  </p>
                 </div>
-                {!request.payment_screenshot_url || request.payment_status === 'PAYMENT_REJECTED' ? <>
-                  <label className="vaango-form-label mt-3" htmlFor="payment-proof">I've Paid — Upload Payment Proof</label>
-                  <div className="vaango-payment-proof-buttons flex gap-2 mt-1 mb-2">
-                    <label className="vaango-payment-proof-upload" title="Choose screenshot from Gallery or Files">
-                      <ImageIcon size={16} />
-                      <span>Choose from Gallery</span>
-                      <input
-                        id="payment-proof-gallery"
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
-                        className="vaango-file-input"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] || null;
-                          setPaymentProofFile(file);
-                          setPaymentProofPreview(file ? URL.createObjectURL(file) : null);
-                        }}
-                      />
-                    </label>
-                    <label className="vaango-payment-proof-upload vaango-payment-proof-upload--camera" title="Take a new photo with camera">
-                      <Camera size={16} />
-                      <span>Take Photo</span>
-                      <input
-                        id="payment-proof-camera"
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
-                        capture="environment"
-                        className="vaango-file-input"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] || null;
-                          setPaymentProofFile(file);
-                          setPaymentProofPreview(file ? URL.createObjectURL(file) : null);
-                        }}
-                      />
-                    </label>
-                  </div>
-                  {paymentProofPreview && <img src={paymentProofPreview} alt="Payment screenshot preview" className="vaango-payment-proof-preview mb-2" />}
-                  <Button type="button" variant="primary" size="sm" isLoading={isSubmittingProof} disabled={!paymentProofFile} onClick={() => void handleSubmitPaymentProof()}>{t('submitPaymentProofBtn')}</Button>
-                </> : <Badge variant="warning" size="md">{t('paymentScreenshotSubmittedBadge')}</Badge>}
-              </> : <p className="vaango-cart-payment-error">Online payment is currently unavailable for this shop. No merchant QR is displayed.</p>}
-            </div>
-          )}
+              )}
 
-          {isPayAtShopPayment && !isPaymentVerified && !isPaymentRefunded && <p className="text-xs text-secondary mb-0">Please pay ₹{paymentAmount} at the shop or counter.</p>}
-          {isPaymentVerified && !isPaymentRefunded && <div className="vaango-paid-confirm">{t('paymentConfirmedBanner')}</div>}
-        </div>
+              {/* Unaccepted order (REQUESTED): Clear instructions that payment is only after acceptance */}
+              {isAwaitingAcceptance && !isTerminalState && (
+                <div className="vaango-order-awaiting-notice p-3 mt-3 rounded border border-primary/20 bg-primary/5">
+                  <strong className="block text-sm font-semibold text-primary mb-1">
+                    Awaiting Shopkeeper Acceptance
+                  </strong>
+                  <p className="text-xs text-secondary mb-0">
+                    {isOnlinePayment
+                      ? "Your order request has been sent to the shopkeeper for approval. Once accepted, you'll receive the UPI payment instructions and QR code here."
+                      : "Your order request has been sent to the shopkeeper for approval. Once accepted, you can collect your products and pay directly at the shop."}
+                  </p>
+                </div>
+              )}
+
+              {/* Accepted order or active appointment: Show UPI QR & upload controls */}
+              {isAcceptedState && !isTerminalState && isOnlinePayment && !isPaymentVerified && !isPaymentRefunded && (
+                <div className="vaango-customer-payment-card__upi">
+                  {isValidUpiQrUrl(payload.shop_upi_qr_url) && payload.shop_upi_id ? <>
+                    <h3>{t('payViaUpiTitle')}</h3>
+                    <p className="text-secondary text-sm">Scan the shop&apos;s QR using any UPI app, then upload a payment screenshot. Uploading proof does not verify payment.</p>
+                    <img src={payload.shop_upi_qr_url} alt={`${shopName} UPI QR code`} className="vaango-upi-qr" />
+                    <p className="text-xs text-secondary mt-2">UPI ID: <strong>{payload.shop_upi_id}</strong> · Amount: <strong>₹{paymentAmount}</strong></p>
+                    <div className="vaango-customer-payment-card__actions">
+                      <Button type="button" variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(payload.shop_upi_id || '').then(() => success('UPI ID copied.')).catch(() => toastError('Unable to copy UPI ID.'))}>Copy UPI ID</Button>
+                      <a className="vaango-upi-open-btn" href={`upi://pay?pa=${encodeURIComponent(payload.shop_upi_id)}&pn=${encodeURIComponent(shopName)}&am=${encodeURIComponent(String(paymentAmount))}&cu=INR`}>{t('openUpiAppBtn')}</a>
+                    </div>
+                    {!request.payment_screenshot_url || request.payment_status === 'PAYMENT_REJECTED' ? <>
+                      <label className="vaango-form-label mt-3" htmlFor="payment-proof">I&apos;ve Paid — Upload Payment Proof</label>
+                      <div className="vaango-payment-proof-buttons flex gap-2 mt-1 mb-2">
+                        <label className="vaango-payment-proof-upload" title="Choose screenshot from Gallery or Files">
+                          <ImageIcon size={16} />
+                          <span>Choose from Gallery</span>
+                          <input
+                            id="payment-proof-gallery"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                            className="vaango-file-input"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] || null;
+                              setPaymentProofFile(file);
+                              setPaymentProofPreview(file ? URL.createObjectURL(file) : null);
+                            }}
+                          />
+                        </label>
+                        <label className="vaango-payment-proof-upload vaango-payment-proof-upload--camera" title="Take a new photo with camera">
+                          <Camera size={16} />
+                          <span>Take Photo</span>
+                          <input
+                            id="payment-proof-camera"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                            capture="environment"
+                            className="vaango-file-input"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] || null;
+                              setPaymentProofFile(file);
+                              setPaymentProofPreview(file ? URL.createObjectURL(file) : null);
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {paymentProofPreview && <img src={paymentProofPreview} alt="Payment screenshot preview" className="vaango-payment-proof-preview mb-2" />}
+                      <Button type="button" variant="primary" size="sm" isLoading={isSubmittingProof} disabled={!paymentProofFile} onClick={() => void handleSubmitPaymentProof()}>{t('submitPaymentProofBtn')}</Button>
+                    </> : <Badge variant="warning" size="md">{t('paymentScreenshotSubmittedBadge')}</Badge>}
+                  </> : <p className="vaango-cart-payment-error">Online payment is currently unavailable for this shop. No merchant QR is displayed.</p>}
+                </div>
+              )}
+
+              {/* Accepted order: Pay at Shop instructions */}
+              {isAcceptedState && !isTerminalState && isPayAtShopPayment && !isPaymentVerified && !isPaymentRefunded && (
+                <div className="p-3 mt-3 rounded border border-border bg-surface-sunken">
+                  <p className="text-xs text-secondary mb-0">
+                    You have selected Pay at Shop. Pay directly to the shopkeeper upon pickup or delivery (₹{paymentAmount}).
+                  </p>
+                </div>
+              )}
+
+              {isPaymentVerified && !isPaymentRefunded && <div className="vaango-paid-confirm">{t('paymentConfirmedBanner')}</div>}
+            </div>
+          );
+        })()}
 
         {request.refund_status && request.refund_status !== 'not_required' && (
           <div className={`vaango-customer-refund-card vaango-customer-refund-card--${request.refund_status}`}>

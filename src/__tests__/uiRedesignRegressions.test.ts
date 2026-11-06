@@ -116,25 +116,18 @@ describe('Vaango Focused UI Functionality & Regression Verification', () => {
   // ISSUE 2: Payment Proof Upload (Gallery & Camera Support)
   // =========================================================================
   describe('Issue 2: Payment Proof Upload', () => {
-    it('2.1 CartPage does not force camera-only upload (allows Gallery selection)', () => {
-      // Must NOT have capture="environment" on the primary/gallery file input
+    it('2.1 Redesigned checkout: CartPage submits order request without upfront proof, displaying approval notice', () => {
       assert.ok(
-        cartPageContent.includes('Choose from Gallery'),
-        'Provides explicit "Choose from Gallery" option'
+        cartPageContent.includes("YOU DON&apos;T NEED TO PAY RIGHT NOW.") || cartPageContent.includes("YOU DON'T NEED TO PAY RIGHT NOW."),
+        'CartPage displays approval-gated notice for UPI'
       );
       assert.ok(
-        cartPageContent.includes('Take Photo'),
-        'Provides explicit "Take Photo" option'
+        requestDetailPageContent.includes('Choose from Gallery'),
+        'RequestDetailPage provides explicit "Choose from Gallery" option'
       );
-      // Verify there is at least one file input WITHOUT capture attribute for gallery
       assert.ok(
-        cartPageContent.includes('type="file"\n                  accept="image/jpeg,image/png,image/webp,image/gif"\n                  disabled={isUploading}\n                  onChange={(event) => void handleFile'),
-        'Gallery file input has no capture attribute, allowing Android gallery/file picker'
-      );
-      // Verify there is also a file input with capture="environment" for camera
-      assert.ok(
-        cartPageContent.includes('capture="environment"'),
-        'Camera file input has capture="environment"'
+        requestDetailPageContent.includes('Take Photo'),
+        'RequestDetailPage provides explicit "Take Photo" option'
       );
     });
 
@@ -151,12 +144,8 @@ describe('Vaango Focused UI Functionality & Regression Verification', () => {
 
     it('2.3 Preserves payment proof security, size limits, and storage isolation', () => {
       assert.ok(
-        cartPageContent.includes('validatePaymentProofFile'),
-        'CartPage validates payment proof file size and MIME type'
-      );
-      assert.ok(
-        cartPageContent.includes('uploadPendingPaymentProof'),
-        'CartPage uploads strictly to payment-proofs bucket'
+        requestDetailPageContent.includes('handleSubmitPaymentProof'),
+        'RequestDetailPage securely handles payment proof submission'
       );
     });
   });

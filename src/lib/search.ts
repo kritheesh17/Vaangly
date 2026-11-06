@@ -87,13 +87,43 @@ export const getCustomerVisibleShops = (): Shop[] => {
   return shops.filter((s) => s.status === 'active' && s.is_live);
 };
 
+// In-memory catalog cache with 60s TTL and event-driven invalidation
+interface CachedCatalogEntry {
+  data: CustomerCatalogData;
+  timestamp: number;
+}
+
+const CATALOG_CACHE_TTL_MS = 60 * 1000; // 60 seconds TTL
+const locationCatalogCache = new Map<string, CachedCatalogEntry>();
+const nearbyCatalogCache = new Map<string, CachedCatalogEntry>();
+
+export function clearCatalogCache(): void {
+  locationCatalogCache.clear();
+  nearbyCatalogCache.clear();
+}
+
+// Invalidate on shop or catalogue mutations
+if (typeof window !== 'undefined') {
+  window.addEventListener('vaango-shops-changed', clearCatalogCache);
+  window.addEventListener('vaango-catalogue-changed', clearCatalogCache);
+}
+
 /**
  * Asynchronously fetches live active shops, products, services, and types from Supabase
- * for a specific customer hometown location. Falls back to mock data if offline or no DB rows exist.
+ * for a specific customer hometown location. Cached for 60s to prevent redundant round-trips.
+ * Falls back to mock data if offline or no DB rows exist.
  */
 export const fetchCustomerLocationCatalog = async (
-  locationId: string
+  locationId: string,
+  forceFresh = false
 ): Promise<CustomerCatalogData> => {
+  if (!forceFresh) {
+    const cached = locationCatalogCache.get(locationId);
+    if (cached && Date.now() - cached.timestamp < CATALOG_CACHE_TTL_MS) {
+      return cached.data;
+    }
+  }
+
   if (isSupabaseConfigured) {
     try {
       // 1. Fetch live active shops for this location
@@ -152,12 +182,14 @@ export const fetchCustomerLocationCatalog = async (
 
       // In live Supabase mode, return authoritative live database catalog.
       // Genuine zero-results (liveShops.length === 0) must NEVER be replaced with fabricated mock shops.
-      return {
+      const catalogData: CustomerCatalogData = {
         shops: liveShops,
         products: productsData,
         services: servicesData,
         shopTypes: loadedShopTypes,
       };
+      locationCatalogCache.set(locationId, { data: catalogData, timestamp: Date.now() });
+      return catalogData;
     } catch (err) {
       console.error('Failed to fetch customer catalog from Supabase:', err);
       // In live Supabase mode, never silently substitute mock/demo shops on network or query failure.
@@ -172,12 +204,14 @@ export const fetchCustomerLocationCatalog = async (
   const mockProducts = mockShopIds.flatMap((id) => getShopProducts(id)).filter((p) => !p.is_banned);
   const mockServices = mockShopIds.flatMap((id) => getShopServices(id));
 
-  return {
+  const fallbackCatalog: CustomerCatalogData = {
     shops: mockShops,
     products: mockProducts,
     services: mockServices,
     shopTypes: MOCK_SHOP_TYPES,
   };
+  locationCatalogCache.set(locationId, { data: fallbackCatalog, timestamp: Date.now() });
+  return fallbackCatalog;
 };
 
 /**
@@ -188,8 +222,17 @@ export const fetchCustomerLocationCatalog = async (
 export const fetchNearbyShopCatalog = async (
   latitude: number,
   longitude: number,
-  radiusMeters: number = 5000
+  radiusMeters: number = 5000,
+  forceFresh = false
 ): Promise<CustomerCatalogData> => {
+  const cacheKey = `${latitude.toFixed(3)}_${longitude.toFixed(3)}_${radiusMeters}`;
+  if (!forceFresh) {
+    const cached = nearbyCatalogCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CATALOG_CACHE_TTL_MS) {
+      return cached.data;
+    }
+  }
+
   if (isSupabaseConfigured) {
     try {
       // 1. Call PostGIS get_nearby_shops RPC
@@ -242,12 +285,14 @@ export const fetchNearbyShopCatalog = async (
         servicesData = (servRes.data as ShopService[]) || [];
       }
 
-      return {
+      const catalogData: CustomerCatalogData = {
         shops: liveShops,
         products: productsData,
         services: servicesData,
         shopTypes: loadedShopTypes,
       };
+      nearbyCatalogCache.set(cacheKey, { data: catalogData, timestamp: Date.now() });
+      return catalogData;
     } catch (err) {
       console.error('Failed to fetch nearby customer catalog from Supabase:', err);
       // In live Supabase mode, never silently substitute mock/demo shops on failure.
@@ -270,12 +315,14 @@ export const fetchNearbyShopCatalog = async (
   const mockProducts = mockShopIds.flatMap((id) => getShopProducts(id)).filter((p) => !p.is_banned);
   const mockServices = mockShopIds.flatMap((id) => getShopServices(id));
 
-  return {
+  const fallbackNearby: CustomerCatalogData = {
     shops: nearbyMockShops,
     products: mockProducts,
     services: mockServices,
     shopTypes: MOCK_SHOP_TYPES,
   };
+  nearbyCatalogCache.set(cacheKey, { data: fallbackNearby, timestamp: Date.now() });
+  return fallbackNearby;
 };
 
 /**

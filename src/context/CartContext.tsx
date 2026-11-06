@@ -8,8 +8,6 @@ import { notifyOrderLifecycle } from '../lib/notificationApi';
 import { validateOrderPickupAt } from '../lib/orderPickupUtils';
 import { cleanPaymentProofPath } from '../lib/paymentProof';
 import { variantIsAvailable } from '../lib/productVariants';
-import { fetchCustomerModeration } from '../lib/orderCancellationApi';
-import { getStoredMockShops, getStoredMockProducts } from '../lib/shopkeeperApi';
 
 export interface CartItem {
   product: ShopProduct;
@@ -174,6 +172,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               );
             }
           } else {
+            const { getStoredMockShops } = await import('../lib/shopkeeperApi');
             const storedMockShops = getStoredMockShops();
             const shopMap = new Map(storedMockShops.map((s) => [s.id, s]));
             setItems((current) =>
@@ -441,6 +440,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Customer abuse / moderation check
     try {
+      const { fetchCustomerModeration } = await import('../lib/orderCancellationApi');
       const moderation = await fetchCustomerModeration(user.id);
       if (moderation?.is_suspended) {
         const isExpired = moderation.suspension_expires_at && new Date(moderation.suspension_expires_at).getTime() < Date.now();
@@ -785,6 +785,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else {
         // Mock fallback mode: authoritative shop & inventory check
+        const { getStoredMockShops, getStoredMockProducts } = await import('../lib/shopkeeperApi');
         const storedShops = getStoredMockShops();
         const liveShop = storedShops.find((s) => s.id === targetShop.id) || targetShop;
 

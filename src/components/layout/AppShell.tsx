@@ -10,11 +10,20 @@ import './AppShell.css';
 import { InstallPrompt } from './InstallPrompt';
 import { PwaUpdateBanner } from './PwaUpdateBanner';
 import { PwaInstallStatusModal } from './PwaInstallStatusModal';
-import { FirstVisitPermissionModal } from '../permissions/FirstVisitPermissionModal';
-import { ManualInstallModal } from '../permissions/ManualInstallModal';
-import { PermissionCenterModal } from '../permissions/PermissionCenterModal';
-import { NotificationPermissionGate } from '../permissions/NotificationPermissionGate';
 import { usePermissions } from '../../context/PermissionContext';
+
+const FirstVisitPermissionModal = React.lazy(() =>
+  import('../permissions/FirstVisitPermissionModal').then((m) => ({ default: m.FirstVisitPermissionModal }))
+);
+const ManualInstallModal = React.lazy(() =>
+  import('../permissions/ManualInstallModal').then((m) => ({ default: m.ManualInstallModal }))
+);
+const PermissionCenterModal = React.lazy(() =>
+  import('../permissions/PermissionCenterModal').then((m) => ({ default: m.PermissionCenterModal }))
+);
+const NotificationPermissionGate = React.lazy(() =>
+  import('../permissions/NotificationPermissionGate').then((m) => ({ default: m.NotificationPermissionGate }))
+);
 
 export const AppShell: React.FC = () => {
   const location = useLocation();
@@ -72,13 +81,15 @@ export const AppShell: React.FC = () => {
     !(notificationStatus === 'unsupported' && unsupportedAcknowledged)
   ) {
     return (
-      <NotificationPermissionGate
-        onContinue={handleDismissGate}
-        onAcknowledgeUnsupported={() => {
-          setUnsupportedAcknowledged(true);
-          handleDismissGate();
-        }}
-      />
+      <React.Suspense fallback={null}>
+        <NotificationPermissionGate
+          onContinue={handleDismissGate}
+          onAcknowledgeUnsupported={() => {
+            setUnsupportedAcknowledged(true);
+            handleDismissGate();
+          }}
+        />
+      </React.Suspense>
     );
   }
 
@@ -94,9 +105,11 @@ export const AppShell: React.FC = () => {
       <InstallPrompt />
       <PwaInstallStatusModal />
       <PwaUpdateBanner />
-      <FirstVisitPermissionModal />
-      <ManualInstallModal />
-      <PermissionCenterModal />
+      <React.Suspense fallback={null}>
+        <FirstVisitPermissionModal />
+        <ManualInstallModal />
+        <PermissionCenterModal />
+      </React.Suspense>
 
       {/* Main Content Area with safe bottom padding when CartBar is present */}
       <main
