@@ -93,7 +93,7 @@ BEGIN
         IF OLD.current_state IN ('REJECTED', 'CANCELLED', 'EXPIRED') THEN
           RAISE EXCEPTION 'Payment cannot be submitted for rejected or cancelled requests';
         END IF;
-        IF OLD.current_state NOT IN ('CONFIRMED', 'IN_PROGRESS', 'READY', 'COMPLETED') THEN
+        IF OLD.current_state NOT IN ('ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY', 'COMPLETED') THEN
           RAISE EXCEPTION 'Payment can only be submitted after the order has been accepted';
         END IF;
       END IF;

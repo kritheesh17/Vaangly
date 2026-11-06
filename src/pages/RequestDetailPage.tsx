@@ -156,7 +156,7 @@ export const RequestDetailPage: React.FC = () => {
           });
         }
       } else {
-        if (!['CONFIRMED', 'IN_PROGRESS', 'READY', 'COMPLETED'].includes(request.current_state)) {
+        if (!['ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY', 'COMPLETED'].includes(request.current_state)) {
           throw new Error('Payment can only be submitted after the shopkeeper has accepted your order.');
         }
 
@@ -169,7 +169,7 @@ export const RequestDetailPage: React.FC = () => {
           })
           .eq('id', request.id)
           .eq('customer_id', user.id)
-          .in('current_state', ['CONFIRMED', 'IN_PROGRESS', 'READY', 'COMPLETED'])
+          .in('current_state', ['ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY', 'COMPLETED'])
           .select('*, shops(owner_id)')
           .single();
         if (error || !data) throw error || new Error('Unable to save payment proof. The order must be accepted by the shopkeeper first.');
@@ -759,7 +759,7 @@ export const RequestDetailPage: React.FC = () => {
         {(() => {
           const isTerminalState = ['REJECTED', 'CANCELLED', 'EXPIRED'].includes(request.current_state);
           const isAwaitingAcceptance = groupCode === 'ORDER' && request.current_state === 'REQUESTED';
-          const isAcceptedState = groupCode === 'APPOINTMENT' || ['CONFIRMED', 'IN_PROGRESS', 'READY', 'COMPLETED'].includes(request.current_state);
+          const isAcceptedState = groupCode === 'APPOINTMENT' || ['ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY', 'COMPLETED'].includes(request.current_state);
 
           return (
             <div className={`vaango-customer-payment-card ${isPayAtShopPayment ? 'vaango-pay-at-shop-card' : ''}`}>

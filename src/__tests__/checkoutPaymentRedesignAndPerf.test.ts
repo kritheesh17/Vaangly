@@ -57,7 +57,7 @@ assert(
   'RequestDetailPage must display Awaiting Shopkeeper Acceptance for unaccepted orders'
 );
 assert(
-  requestDetailSource.includes("in('current_state', ['CONFIRMED', 'IN_PROGRESS', 'READY', 'COMPLETED'])"),
+  requestDetailSource.includes("in('current_state', ['ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY', 'COMPLETED'])"),
   'RequestDetailPage must enforce server-side state filter on payment screenshot update'
 );
 assert(
