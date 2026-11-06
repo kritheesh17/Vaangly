@@ -579,7 +579,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // 3. Live backend inventory & availability verification
         const productIds = Array.from(new Set(shopItems.map((i) => i.product.id)));
         const { data: dbProducts, error: prodCheckErr } = await supabase
-          .from('shops_products')
+          .from('shop_products')
           .select('id, name, is_available, is_banned, has_variants, variants, track_inventory, stock_quantity')
           .in('id', productIds);
 

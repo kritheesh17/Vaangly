@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ShopProduct, ProductVariant } from '../../types/database';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -38,6 +38,8 @@ interface ProductDetailModalProps {
   shop?: any;
   onAddToCart: (product: ShopProduct, variant?: ProductVariant | null, quantity?: number) => void;
   currentCartQty?: number;
+  initialVariant?: ProductVariant | null;
+  initialAttributes?: Record<string, string>;
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
@@ -47,6 +49,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   shop: propShop,
   onAddToCart,
   currentCartQty: _currentCartQty = 0,
+  initialVariant,
+  initialAttributes,
 }) => {
   const { t } = useLanguage();
   const { activeShop } = useCart();
@@ -55,75 +59,101 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
-  const [imageError, setImageError] = useState<Record<number, boolean>>({});
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   const currentShop = propShop || activeShop;
 
-  // Reset state when product changes
+  // Reset state when product changes or modal opens
   useEffect(() => {
-    if (product) {
+    if (product && isOpen) {
       setActiveImageIndex(0);
-      setImageError({});
+      setImageErrors({});
       setQuantity(1);
       if (product.has_variants && product.variants?.length) {
-        const defaultVar = product.variants.find(variantIsAvailable) || product.variants[0];
+        const defaultVar =
+          initialVariant ||
+          (initialAttributes && Object.keys(initialAttributes).length > 0
+            ? findVariantForSelections(product.variants, initialAttributes)
+            : null) ||
+          product.variants.find(variantIsAvailable) ||
+          product.variants[0];
         setSelectedVariant(defaultVar || null);
-        setSelectedAttributes(defaultVar?.attributes || {});
+        setSelectedAttributes(initialAttributes || defaultVar?.attributes || {});
       } else {
         setSelectedVariant(null);
         setSelectedAttributes({});
       }
     }
-  }, [product, isOpen]);
+  }, [product?.id, isOpen]);
 
-  if (!product) return null;
-
-  // Gather all unique valid images (including variant-specific photos)
-  const allImages: string[] = [];
-  if (product.image_urls && product.image_urls.length > 0) {
-    product.image_urls.forEach((url) => {
-      if (url && !allImages.includes(url) && !url.startsWith('blob:')) {
-        allImages.push(url);
-      }
-    });
-  }
-  if (product.image_url && !allImages.includes(product.image_url) && !product.image_url.startsWith('blob:')) {
-    allImages.push(product.image_url);
-  }
-  if (product.variants && product.variants.length > 0) {
-    product.variants.forEach((v) => {
-      if (v.image_url && !allImages.includes(v.image_url) && !v.image_url.startsWith('blob:')) {
-        allImages.push(v.image_url);
-      }
-    });
-  }
-
-  const variantGroups = variantAttributeGroups(product.variants || []);
+  const variantGroups = useMemo(
+    () => variantAttributeGroups(product?.variants || []),
+    [product?.variants]
+  );
   const hasAttributeVariants = Object.keys(variantGroups).length > 0;
-  const hasVariants = Boolean(product.has_variants && product.variants && product.variants.length > 0);
+  const hasVariants = Boolean(product?.has_variants && product?.variants && product.variants.length > 0);
   const resolvedVariant = hasVariants
     ? (hasAttributeVariants
-        ? findVariantForSelections(product.variants || [], selectedAttributes)
+        ? findVariantForSelections(product?.variants || [], selectedAttributes)
         : selectedVariant)
     : null;
 
-  // Auto-switch gallery photo when the selected variant has a specific photo
-  useEffect(() => {
-    if (resolvedVariant?.image_url && allImages.length > 0) {
-      const idx = allImages.indexOf(resolvedVariant.image_url);
-      if (idx !== -1) {
-        setActiveImageIndex(idx);
-      }
+  // Base general photos of the product (deduplicated)
+  const baseProductImages = useMemo(() => {
+    if (!product) return [];
+    const list: string[] = [];
+    if (product.image_urls && product.image_urls.length > 0) {
+      product.image_urls.forEach((url) => {
+        if (url && !list.includes(url) && !url.startsWith('blob:')) {
+          list.push(url);
+        }
+      });
     }
-  }, [resolvedVariant?.image_url]);
+    if (product.image_url && !list.includes(product.image_url) && !product.image_url.startsWith('blob:')) {
+      list.push(product.image_url);
+    }
+    return list;
+  }, [product?.image_urls, product?.image_url]);
 
-  const effectivePrice = resolvedVariant ? resolvedVariant.price : product.price;
-  const effectiveUnit = resolvedVariant ? formatCleanVariantLabel(resolvedVariant) : product.unit;
-  const selectedStock = resolvedVariant?.stock_quantity ?? product.stock_quantity;
+  // Gallery for currently selected variant:
+  // Shows variant's specific photo first (if present), followed by base product photos.
+  // Other unrelated variants' photos are excluded.
+  const activeGalleryImages = useMemo(() => {
+    if (!product) return [];
+    const list: string[] = [];
+    const variantImg = resolvedVariant?.image_url;
+    if (variantImg && !variantImg.startsWith('blob:')) {
+      list.push(variantImg);
+    }
+    baseProductImages.forEach((url) => {
+      if (!list.includes(url)) {
+        list.push(url);
+      }
+    });
+    // Fallback if no images found yet (e.g. legacy variants without base images)
+    if (list.length === 0 && product.variants?.length) {
+      product.variants.forEach((v) => {
+        if (v.image_url && !list.includes(v.image_url) && !v.image_url.startsWith('blob:')) {
+          list.push(v.image_url);
+        }
+      });
+    }
+    return list;
+  }, [resolvedVariant?.image_url, baseProductImages, product?.variants]);
+
+  // Reset gallery to index 0 whenever the selected variant changes
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [resolvedVariant?.id, resolvedVariant?.image_url]);
+
+  const effectivePrice = resolvedVariant ? resolvedVariant.price : (product?.price ?? 0);
+  const effectiveUnit = resolvedVariant ? formatCleanVariantLabel(resolvedVariant) : (product?.unit ?? 'item');
+  const selectedStock = resolvedVariant?.stock_quantity ?? product?.stock_quantity;
   const isOutOfStock =
-    !product.is_available ||
+    !product?.is_available ||
     (hasVariants && resolvedVariant !== null && !variantIsAvailable(resolvedVariant)) ||
-    (product.track_inventory && product.stock_quantity != null && product.stock_quantity <= 0);
+    (Boolean(product?.track_inventory) && product?.stock_quantity != null && product.stock_quantity <= 0);
 
   const isSelectionIncomplete = hasVariants && !resolvedVariant;
   const originalPrice = Math.round(effectivePrice * 1.25);
@@ -136,15 +166,46 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   }, [selectedStock, quantity]);
 
   const handlePrevImage = () => {
-    setActiveImageIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
+    if (activeGalleryImages.length <= 1) return;
+    setActiveImageIndex((prev) => (prev === 0 ? activeGalleryImages.length - 1 : prev - 1));
   };
 
   const handleNextImage = () => {
-    setActiveImageIndex((prev) => (prev === allImages.length - 1 ? 0 : prev + 1));
+    if (activeGalleryImages.length <= 1) return;
+    setActiveImageIndex((prev) => (prev === activeGalleryImages.length - 1 ? 0 : prev + 1));
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null) return;
+    const diff = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) {
+        handlePrevImage();
+      } else {
+        handleNextImage();
+      }
+    }
+    setTouchStartX(null);
+  };
+
+  const handleImageError = (url: string) => {
+    setImageErrors((prev) => ({ ...prev, [url]: true }));
+  };
+
+  const safeImageIndex = activeGalleryImages.length > 0
+    ? Math.min(Math.max(0, activeImageIndex), activeGalleryImages.length - 1)
+    : 0;
+
+  const currentDisplayUrl = activeGalleryImages[safeImageIndex] || null;
+  const isCurrentImgError = Boolean(currentDisplayUrl && imageErrors[currentDisplayUrl]);
+  const fallbackDisplayUrl = activeGalleryImages.find((u) => !imageErrors[u]) || product?.image_url || null;
+
   const getOptionThumbnail = (attrName: string, optVal: string): string | null => {
-    if (!product.variants) return null;
+    if (!product?.variants) return null;
     const match = product.variants.find(
       (v) => v.attributes && v.attributes[attrName] === optVal && v.image_url
     );
@@ -152,7 +213,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   };
 
   const getOptionPrice = (attrName: string, optVal: string): number | null => {
-    if (!product.variants) return null;
+    if (!product?.variants) return null;
     const matchingVariant = product.variants.find((v) => {
       const attrs = v.attributes || {};
       if (attrs[attrName] !== optVal) return false;
@@ -168,17 +229,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const handleAttributeSelect = (attrName: string, optVal: string) => {
     const nextSelections = { ...selectedAttributes, [attrName]: optVal };
     setSelectedAttributes(nextSelections);
-
-    if (product.variants) {
-      const resulting = findVariantForSelections(product.variants, nextSelections);
-      const targetImage = resulting?.image_url || getOptionThumbnail(attrName, optVal);
-      if (targetImage && allImages.includes(targetImage)) {
-        setActiveImageIndex(allImages.indexOf(targetImage));
-      }
-    }
   };
 
   const handleAdd = () => {
+    if (!product) return;
     if (isSelectionIncomplete) {
       warning('Please choose an available product option.');
       return;
@@ -201,6 +255,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     }
   };
 
+  if (!product) return null;
+
   return (
     <Modal
       isOpen={isOpen}
@@ -211,15 +267,35 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       <div className="vaango-prod-modal">
         {/* Top: Gallery / Carousel with Dots */}
         <div className="vaango-prod-modal__gallery">
-          {allImages.length > 0 && !imageError[activeImageIndex] ? (
-            <div className="vaango-prod-modal__main-image-wrap">
-              <img
-                src={allImages[activeImageIndex]}
-                alt={`${product.name} - View ${activeImageIndex + 1}`}
-                className="vaango-prod-modal__main-image"
-                onError={() => setImageError((prev) => ({ ...prev, [activeImageIndex]: true }))}
-              />
-              {allImages.length > 1 && (
+          {activeGalleryImages.length > 0 ? (
+            <div
+              className="vaango-prod-modal__main-image-wrap"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
+              {currentDisplayUrl && !isCurrentImgError ? (
+                <img
+                  key={currentDisplayUrl}
+                  src={currentDisplayUrl}
+                  alt={`${product.name} - View ${safeImageIndex + 1}`}
+                  className="vaango-prod-modal__main-image"
+                  onError={() => handleImageError(currentDisplayUrl)}
+                />
+              ) : fallbackDisplayUrl && !imageErrors[fallbackDisplayUrl] ? (
+                <img
+                  key={fallbackDisplayUrl}
+                  src={fallbackDisplayUrl}
+                  alt={`${product.name} - Alternate view`}
+                  className="vaango-prod-modal__main-image"
+                />
+              ) : (
+                <div className="vaango-prod-modal__placeholder">
+                  <span>{product.name.charAt(0).toUpperCase()}</span>
+                </div>
+              )}
+
+              {/* Prev / Next controls: ALWAYS RENDERED inside main-image-wrap when multiple images exist */}
+              {activeGalleryImages.length > 1 && (
                 <>
                   <button
                     type="button"
@@ -247,13 +323,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           )}
 
           {/* Dots Indicator */}
-          {allImages.length > 1 && (
+          {activeGalleryImages.length > 1 && (
             <div className="vaango-prod-modal__dots">
-              {allImages.map((_, idx) => (
+              {activeGalleryImages.map((_, idx) => (
                 <button
                   key={idx}
                   type="button"
-                  className={`vaango-prod-modal__dot ${activeImageIndex === idx ? 'vaango-prod-modal__dot--active' : ''}`}
+                  className={`vaango-prod-modal__dot ${safeImageIndex === idx ? 'vaango-prod-modal__dot--active' : ''}`}
                   onClick={() => setActiveImageIndex(idx)}
                   aria-label={`Photo ${idx + 1}`}
                 />
@@ -409,9 +485,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                           className={`vaango-prod-modal__pill-btn ${isSelected ? 'vaango-prod-modal__pill-btn--active' : ''} ${!isVarAvail ? 'vaango-prod-modal__chip--disabled' : ''}`}
                           onClick={() => {
                             setSelectedVariant(v);
-                            if (v.image_url && allImages.includes(v.image_url)) {
-                              setActiveImageIndex(allImages.indexOf(v.image_url));
-                            }
+                            setActiveImageIndex(0);
                           }}
                         >
                           <span className="vaango-prod-modal__pill-val">{variantLabel(v)}</span>

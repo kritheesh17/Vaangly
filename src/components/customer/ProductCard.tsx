@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShopProduct, ProductVariant } from '../../types/database';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -35,7 +35,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   const { t } = useLanguage();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [imageError, setImageError] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const availableVariants = product.variants || [];
@@ -62,8 +62,35 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     validImages.push(product.image_url);
   }
 
-  const variantDisplayImage = selectedVariant?.image_url && !imageError ? selectedVariant.image_url : null;
-  const currentDisplayImage = variantDisplayImage || validImages[activeImageIndex] || validImages[0] || null;
+  // Unified gallery for the current selection:
+  // Shows variant's specific image first (if present), followed by base product photos
+  const cardGallery: string[] = [];
+  if (selectedVariant?.image_url && !selectedVariant.image_url.startsWith('blob:')) {
+    cardGallery.push(selectedVariant.image_url);
+  }
+  validImages.forEach((u) => {
+    if (!cardGallery.includes(u)) cardGallery.push(u);
+  });
+  if (cardGallery.length === 0 && availableVariants.length > 0) {
+    availableVariants.forEach((v) => {
+      if (v.image_url && !cardGallery.includes(v.image_url) && !v.image_url.startsWith('blob:')) {
+        cardGallery.push(v.image_url);
+      }
+    });
+  }
+
+  // Reset image carousel to first photo when variant changes
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [selectedVariant?.id, selectedVariant?.image_url]);
+
+  const safeCardIndex = cardGallery.length > 0
+    ? Math.min(Math.max(0, activeImageIndex), cardGallery.length - 1)
+    : 0;
+
+  const currentDisplayImage = cardGallery[safeCardIndex] || null;
+  const isCardImgError = Boolean(currentDisplayImage && imageErrors[currentDisplayImage]);
+  const fallbackDisplayImage = cardGallery.find((u) => !imageErrors[u]) || product.image_url || null;
 
   const isOverallOutOfStock =
     !product.is_available ||
@@ -83,22 +110,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           aria-label={`View details for ${product.name}`}
           onKeyDown={(e) => { if (e.key === 'Enter') setIsDetailModalOpen(true); }}
         >
-          {currentDisplayImage && !imageError ? (
+          {currentDisplayImage && !isCardImgError ? (
             <div className="vaango-product-img-wrap">
               <img
+                key={currentDisplayImage}
                 src={currentDisplayImage}
                 alt={product.name}
                 className="vaango-prod-card__img"
                 loading="lazy"
-                onError={() => setImageError(true)}
+                onError={() => setImageErrors((prev) => ({ ...prev, [currentDisplayImage]: true }))}
               />
-              {validImages.length > 1 && !variantDisplayImage && (
+              {cardGallery.length > 1 && (
                 <div className="vaango-product-img-dots">
-                  {validImages.map((_, index) => (
+                  {cardGallery.map((_, index) => (
                     <button
                       key={index}
                       type="button"
-                      className={`vaango-img-dot ${activeImageIndex === index ? 'vaango-img-dot--active' : ''}`}
+                      className={`vaango-img-dot ${safeCardIndex === index ? 'vaango-img-dot--active' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         setActiveImageIndex(index);
@@ -108,6 +136,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                   ))}
                 </div>
               )}
+            </div>
+          ) : fallbackDisplayImage && !imageErrors[fallbackDisplayImage] ? (
+            <div className="vaango-product-img-wrap">
+              <img
+                key={fallbackDisplayImage}
+                src={fallbackDisplayImage}
+                alt={product.name}
+                className="vaango-prod-card__img"
+                loading="lazy"
+              />
             </div>
           ) : (
             <div className="vaango-prod-card__placeholder">
@@ -256,6 +294,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         product={product}
         shop={shop}
         currentCartQty={quantityInCart}
+        initialVariant={selectedVariant}
+        initialAttributes={selectedAttributes}
         onAddToCart={(prod, variant, qty) => {
           onAdd(prod, variant, qty || 1);
         }}

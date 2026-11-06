@@ -393,7 +393,7 @@ console.log('\n--- TEST 7: Codebase Source Inspection for Reliability Fixes ---'
   // 7a: CartContext contains syncCartShops and authoritative database check
   assert.ok(cartContextContent.includes('syncCartShops'), 'CartContext exports syncCartShops');
   assert.ok(
-    cartContextContent.includes("from('shops_products')"),
+    cartContextContent.includes("from('shop_products')") || cartContextContent.includes("from('shops_products')"),
     'CartContext performs backend live inventory verification on order placement'
   );
   assert.ok(
