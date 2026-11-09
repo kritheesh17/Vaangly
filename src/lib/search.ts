@@ -261,6 +261,7 @@ export const fetchNearbyShopCatalog = async (
         avg_rating: shop.avg_rating != null ? Number(shop.avg_rating) : null,
         total_ratings: shop.total_ratings != null ? Number(shop.total_ratings) : 0,
         distance_meters: shop.distance_meters != null ? Number(shop.distance_meters) : null,
+        upi_qr_url: (shop.upi_qr_url as string | null | undefined) ?? null,
       })) as Shop[];
 
       const shopIds = liveShops.map((s) => s.id);
@@ -268,7 +269,13 @@ export const fetchNearbyShopCatalog = async (
       let servicesData: ShopService[] = [];
 
       if (shopIds.length > 0) {
-        const [prodRes, servRes] = await Promise.all([
+        // Defensive backward compatibility: if RPC returns without upi_qr_url prior to migration 74,
+        // hydrate UPI configuration in parallel with products & services in the exact same RTT.
+        const needsUpiHydration = (nearbyData || []).some(
+          (s: Record<string, unknown>) => s.upi_qr_url === undefined
+        );
+
+        const [prodRes, servRes, upiRes] = await Promise.all([
           supabase
             .from('shop_products')
             .select('*')
@@ -280,9 +287,25 @@ export const fetchNearbyShopCatalog = async (
             .select('*')
             .in('shop_id', shopIds)
             .eq('is_available', true),
+          needsUpiHydration
+            ? supabase.from('shops').select('id, upi_qr_url, upi_id').in('id', shopIds)
+            : Promise.resolve({ data: null, error: null }),
         ]);
         productsData = ((prodRes.data as ShopProduct[]) || []).filter((p) => !p.is_banned);
         servicesData = (servRes.data as ShopService[]) || [];
+
+        if (needsUpiHydration && upiRes?.data && upiRes.data.length > 0) {
+          const upiMap = new Map((upiRes.data as { id: string; upi_qr_url?: string | null; upi_id?: string | null }[]).map((u) => [u.id, u]));
+          for (const s of liveShops) {
+            const upiInfo = upiMap.get(s.id);
+            if (upiInfo) {
+              s.upi_qr_url = upiInfo.upi_qr_url ?? null;
+              if (s.upi_id === undefined && upiInfo.upi_id !== undefined) {
+                s.upi_id = upiInfo.upi_id ?? null;
+              }
+            }
+          }
+        }
       }
 
       const catalogData: CustomerCatalogData = {

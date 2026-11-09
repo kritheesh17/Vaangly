@@ -184,7 +184,7 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
     return bookableSlots.find((s) => s.id === selectedSlotId) || null;
   }, [bookableSlots, selectedSlotId]);
 
-  const hasAuthoritativeUpi = isValidUpiQrUrl(shop.upi_qr_url) && Boolean(shop.upi_id?.trim());
+  const hasAuthoritativeUpi = isValidUpiQrUrl(shop.upi_qr_url);
   const appointmentAmount = selectedService?.base_price ?? selectedService?.min_price ?? 0;
 
   useEffect(() => {
@@ -602,19 +602,23 @@ export const AppointmentBookingCard: React.FC<AppointmentBookingCardProps> = ({ 
                     </div>
 
                     <div className="vaango-appointment-upi-card__details">
-                      <div className="vaango-appointment-upi-card__row">
-                        <span className="vaango-appointment-upi-card__label">UPI ID</span>
-                        <strong className="vaango-appointment-upi-card__val">{shop.upi_id}</strong>
-                      </div>
+                      {shop.upi_id && (
+                        <div className="vaango-appointment-upi-card__row">
+                          <span className="vaango-appointment-upi-card__label">UPI ID</span>
+                          <strong className="vaango-appointment-upi-card__val">{shop.upi_id}</strong>
+                        </div>
+                      )}
                       <div className="vaango-appointment-upi-card__row">
                         <span className="vaango-appointment-upi-card__label">Amount</span>
                         <strong className="vaango-appointment-upi-card__val text-primary">₹{appointmentAmount}</strong>
                       </div>
                     </div>
 
-                    <Button type="button" variant="outline" size="sm" onClick={() => void copyMerchantUpiId()}>
-                      Copy UPI ID
-                    </Button>
+                    {shop.upi_id && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => void copyMerchantUpiId()}>
+                        Copy UPI ID
+                      </Button>
+                    )}
                     <p className="vaango-appointment-upi-card__hint">
                       After you pay, use the booking button below to reserve the slot and upload your payment proof.
                     </p>

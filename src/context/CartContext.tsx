@@ -8,6 +8,7 @@ import { notifyOrderLifecycle } from '../lib/notificationApi';
 import { validateOrderPickupAt } from '../lib/orderPickupUtils';
 import { cleanPaymentProofPath } from '../lib/paymentProof';
 import { variantIsAvailable } from '../lib/productVariants';
+import { isValidUpiQrUrl } from '../lib/upi';
 
 export interface CartItem {
   product: ShopProduct;
@@ -60,7 +61,7 @@ interface CartContextType {
     quantity: number,
     variantId?: string | null
   ) => { success: boolean; maxStock?: number; error?: string };
-  syncCartShops: () => Promise<void>;
+  syncCartShops: () => Promise<Map<string, Shop>>;
   clearCart: () => void;
   clearShopItems: (shopId: string) => void;
   shopGroups: ShopCartGroup[];
@@ -132,6 +133,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Active shop fallback for single-shop interfaces
   const activeShop = items.length > 0 ? items[0].shop : null;
 
+  // Track latest items synchronously across async callback cycles
+  const itemsRef = React.useRef(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
   // Sync to localStorage
   useEffect(() => {
     try {
@@ -144,55 +151,57 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [items, activeShop, fulfillmentType]);
 
-  const syncCartShops = React.useCallback(async () => {
-    setItems((prev) => {
-      if (prev.length === 0) return prev;
-      const shopIds = Array.from(new Set(prev.map((i) => i.shopId || i.shop.id))).filter((id) => isValidUuid(id));
-      if (shopIds.length === 0) return prev;
+  const syncCartShops = React.useCallback(async (): Promise<Map<string, Shop>> => {
+    const currentItems = itemsRef.current;
+    if (currentItems.length === 0) return new Map();
+    const shopIds = Array.from(
+      new Set(currentItems.map((i) => i.shopId || i.shop.id))
+    ).filter((id) => isValidUuid(id));
+    if (shopIds.length === 0) return new Map();
 
-      (async () => {
-        try {
-          if (isSupabaseConfigured) {
-            const { data: dbShops, error } = await supabase
-              .from('shops')
-              .select('id, name, owner_id, status, is_live, upi_id, upi_qr_url, delivery_available, delivery_fee, free_delivery_above, address_line, phone, photo_url, slot_config')
-              .in('id', shopIds);
+    try {
+      if (isSupabaseConfigured) {
+        const { data: dbShops, error } = await supabase
+          .from('shops')
+          .select(
+            'id, name, owner_id, status, is_live, upi_id, upi_qr_url, delivery_available, delivery_fee, free_delivery_above, address_line, phone, photo_url, slot_config'
+          )
+          .in('id', shopIds);
 
-            if (!error && dbShops && dbShops.length > 0) {
-              const shopMap = new Map(dbShops.map((s) => [s.id, s as Shop]));
-              setItems((current) =>
-                current.map((item) => {
-                  const sId = item.shopId || item.shop.id;
-                  const fresh = shopMap.get(sId);
-                  if (fresh) {
-                    return { ...item, shop: { ...item.shop, ...fresh } };
-                  }
-                  return item;
-                })
-              );
-            }
-          } else {
-            const { getStoredMockShops } = await import('../lib/shopkeeperApi');
-            const storedMockShops = getStoredMockShops();
-            const shopMap = new Map(storedMockShops.map((s) => [s.id, s]));
-            setItems((current) =>
-              current.map((item) => {
-                const sId = item.shopId || item.shop.id;
-                const fresh = shopMap.get(sId);
-                if (fresh) {
-                  return { ...item, shop: { ...item.shop, ...fresh } };
-                }
-                return item;
-              })
-            );
-          }
-        } catch (err) {
-          console.warn('Failed to sync shop details in cart:', err);
+        if (!error && dbShops && dbShops.length > 0) {
+          const shopMap = new Map(dbShops.map((s) => [s.id, s as Shop]));
+          setItems((current) =>
+            current.map((item) => {
+              const sId = item.shopId || item.shop.id;
+              const fresh = shopMap.get(sId);
+              if (fresh) {
+                return { ...item, shop: { ...item.shop, ...fresh } };
+              }
+              return item;
+            })
+          );
+          return shopMap;
         }
-      })();
-
-      return prev;
-    });
+      } else {
+        const { getStoredMockShops } = await import('../lib/shopkeeperApi');
+        const storedMockShops = getStoredMockShops();
+        const shopMap = new Map(storedMockShops.map((s) => [s.id, s]));
+        setItems((current) =>
+          current.map((item) => {
+            const sId = item.shopId || item.shop.id;
+            const fresh = shopMap.get(sId);
+            if (fresh) {
+              return { ...item, shop: { ...item.shop, ...fresh } };
+            }
+            return item;
+          })
+        );
+        return shopMap;
+      }
+    } catch (err) {
+      console.warn('Failed to sync shop details in cart:', err);
+    }
+    return new Map();
   }, []);
 
   useEffect(() => {
@@ -571,13 +580,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // 3. Authoritative UPI QR code validation for UPI payments
         if (paymentMethod === 'upi') {
-          const rawQr = dbShop.upi_qr_url ? dbShop.upi_qr_url.trim() : '';
-          const isValidQr =
-            Boolean(rawQr) &&
-            !rawQr.toLowerCase().includes('your-project-id') &&
-            /^(https?:\/\/|data:image\/)/i.test(rawQr);
-
-          if (!isValidQr) {
+          if (!isValidUpiQrUrl(dbShop.upi_qr_url)) {
             return {
               success: false,
               error: 'UPI payment is unavailable because this shop has not configured its UPI QR code.',
@@ -823,13 +826,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const liveShop = storedShops.find((s) => s.id === targetShop.id) || targetShop;
 
         if (paymentMethod === 'upi') {
-          const rawQr = liveShop.upi_qr_url ? liveShop.upi_qr_url.trim() : '';
-          const isValidQr =
-            Boolean(rawQr) &&
-            !rawQr.toLowerCase().includes('your-project-id') &&
-            /^(https?:\/\/|data:image\/)/i.test(rawQr);
-
-          if (!isValidQr) {
+          if (!isValidUpiQrUrl(liveShop.upi_qr_url)) {
             return {
               success: false,
               error: 'UPI payment is unavailable because this shop has not configured its UPI QR code.',

@@ -824,15 +824,21 @@ export const RequestDetailPage: React.FC = () => {
               {/* Accepted order or active appointment: Show UPI QR & upload controls */}
               {isAcceptedState && !isTerminalState && isOnlinePayment && !isPaymentVerified && !isPaymentRefunded && (
                 <div className="vaango-customer-payment-card__upi">
-                  {isValidUpiQrUrl(payload.shop_upi_qr_url) && payload.shop_upi_id ? <>
+                  {isValidUpiQrUrl(payload.shop_upi_qr_url) ? <>
                     <h3>{t('payViaUpiTitle')}</h3>
                     <p className="text-secondary text-sm">Scan the shop&apos;s QR using any UPI app, then upload a payment screenshot. Uploading proof does not verify payment.</p>
                     <img src={payload.shop_upi_qr_url} alt={`${shopName} UPI QR code`} className="vaango-upi-qr" />
-                    <p className="text-xs text-secondary mt-2">UPI ID: <strong>{payload.shop_upi_id}</strong> · Amount: <strong>₹{paymentAmount}</strong></p>
-                    <div className="vaango-customer-payment-card__actions">
-                      <Button type="button" variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(payload.shop_upi_id || '').then(() => success('UPI ID copied.')).catch(() => toastError('Unable to copy UPI ID.'))}>Copy UPI ID</Button>
-                      <a className="vaango-upi-open-btn" href={`upi://pay?pa=${encodeURIComponent(payload.shop_upi_id)}&pn=${encodeURIComponent(shopName)}&am=${encodeURIComponent(String(paymentAmount))}&cu=INR`}>{t('openUpiAppBtn')}</a>
-                    </div>
+                    {payload.shop_upi_id ? (
+                      <p className="text-xs text-secondary mt-2">UPI ID: <strong>{payload.shop_upi_id}</strong> · Amount: <strong>₹{paymentAmount}</strong></p>
+                    ) : (
+                      <p className="text-xs text-secondary mt-2">Amount: <strong>₹{paymentAmount}</strong></p>
+                    )}
+                    {payload.shop_upi_id && (
+                      <div className="vaango-customer-payment-card__actions">
+                        <Button type="button" variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(payload.shop_upi_id || '').then(() => success('UPI ID copied.')).catch(() => toastError('Unable to copy UPI ID.'))}>Copy UPI ID</Button>
+                        <a className="vaango-upi-open-btn" href={`upi://pay?pa=${encodeURIComponent(payload.shop_upi_id)}&pn=${encodeURIComponent(shopName)}&am=${encodeURIComponent(String(paymentAmount))}&cu=INR`}>{t('openUpiAppBtn')}</a>
+                      </div>
+                    )}
                     {!request.payment_screenshot_url || request.payment_status === 'PAYMENT_REJECTED' ? <>
                       <label className="vaango-form-label mt-3" htmlFor="payment-proof">I&apos;ve Paid — Upload Payment Proof</label>
                       <div className="vaango-payment-proof-buttons flex gap-2 mt-1 mb-2">

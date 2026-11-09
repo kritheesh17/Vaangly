@@ -124,8 +124,8 @@ export const CartPage: React.FC = () => {
     if (chosenPayment === 'upi') {
       let activeShopRecord = group.shop;
       if (!isValidUpiQrUrl(activeShopRecord.upi_qr_url)) {
-        await syncCartShops();
-        activeShopRecord = shopGroups.find((g) => g.shop.id === shopId)?.shop || group.shop;
+        const freshMap = await syncCartShops();
+        activeShopRecord = freshMap.get(shopId) || shopGroups.find((g) => g.shop.id === shopId)?.shop || group.shop;
       }
       if (!isValidUpiQrUrl(activeShopRecord.upi_qr_url)) {
         const err = 'UPI payment is currently unavailable because this shop has not configured its UPI QR code.';
@@ -684,6 +684,12 @@ export const CartPage: React.FC = () => {
                       <small className="vaango-cart-option-desc">Pay via UPI QR after shopkeeper accepts order</small>
                     </button>
                   </div>
+
+                  {!isValidUpiQrUrl(shop.upi_qr_url) && (
+                    <div className="vaango-cart-upi-unavailable-note text-xs text-secondary mt-2 px-1">
+                      <span>UPI payment is currently unavailable because this shop has not configured its UPI QR code. Pay at Shop is available.</span>
+                    </div>
+                  )}
 
                   {currentPayment === 'pay_at_shop' && (
                     <div className="vaango-cart-payment-notice vaango-cart-payment-notice--pay-at-shop">
