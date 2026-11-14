@@ -656,10 +656,10 @@ export function isCriticalTransactionRoute(pathname: string): boolean {
     p.startsWith('/cart') ||
     p.startsWith('/checkout') ||
     p.startsWith('/request-confirmation') ||
-    p.startsWith('/request/') ||
-    p.startsWith('/requests/') ||
+    p.startsWith('/request') ||
     p.startsWith('/orders') ||
     p.startsWith('/bookings') ||
+    p.startsWith('/appointments') ||
     p.startsWith('/complete-profile') ||
     p.startsWith('/auth') ||
     p.startsWith('/login') ||
@@ -732,15 +732,21 @@ export function markAdSkipped(): void {
  */
 export async function fetchEligibleAd(
   sessionId: string,
-  lastSeenCampaignId?: string
+  lastSeenCampaignId?: string,
+  excludeCampaignIds?: string[]
 ): Promise<AdEligibleCampaign | null> {
   if (!isSupabaseConfigured) return null;
 
   try {
-    const { data, error } = await supabase.rpc('get_eligible_advertisement', {
+    const params: Record<string, unknown> = {
       p_session_id: sessionId,
       p_last_seen_campaign_id: lastSeenCampaignId || null,
-    });
+    };
+    if (excludeCampaignIds && excludeCampaignIds.length > 0) {
+      params.p_exclude_campaign_ids = excludeCampaignIds;
+    }
+
+    const { data, error } = await supabase.rpc('get_eligible_advertisement', params);
 
     if (error) {
       console.warn('Error fetching eligible ad:', error.message);

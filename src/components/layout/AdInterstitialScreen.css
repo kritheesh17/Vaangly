@@ -167,6 +167,37 @@
   z-index: 6;
 }
 
+.vaango-ad-buffering-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  color: #cbd5e1;
+  gap: 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.vaango-ad-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--color-primary, #0a7b83);
+  border-radius: 50%;
+  animation: vaangoAdSpin 0.8s linear infinite;
+}
+
+@keyframes vaangoAdSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Footer details bar */
 .vaango-ad-footer {
   display: flex;

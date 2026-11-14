@@ -25,11 +25,83 @@ export const AdInterstitialScreen: React.FC = () => {
   const [autoplayBlocked, setAutoplayBlocked] = useState<boolean>(false);
   const [hasRecordedClick, setHasRecordedClick] = useState<boolean>(false);
   const [hasCompletedView, setHasCompletedView] = useState<boolean>(false);
+  const [isMediaLoaded, setIsMediaLoaded] = useState<boolean>(false);
+  const [isMediaBuffering, setIsMediaBuffering] = useState<boolean>(true);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hasInitializedRef = useRef<boolean>(false);
   const sessionIdRef = useRef<string>(getOrCreateAdSessionId());
   const timerRef = useRef<number | null>(null);
+  const hasRecordedImpressionRef = useRef<boolean>(false);
+  const failedCampaignIdsRef = useRef<Set<string>>(new Set());
+
+  // Safe handler: records persistent impression and frequency metrics ONLY when media actually displays/plays
+  const handleMediaReady = useCallback(() => {
+    if (!campaign || hasRecordedImpressionRef.current) return;
+    hasRecordedImpressionRef.current = true;
+    setIsMediaLoaded(true);
+    setIsMediaBuffering(false);
+
+    // Record persistent frequency markers in browser storage
+    markAdDisplayed(campaign.campaign_id);
+
+    // Track confirmed impression event
+    trackAdEvent(
+      campaign.campaign_id,
+      campaign.creative_id,
+      campaign.impression_id,
+      sessionIdRef.current,
+      'impression'
+    ).catch(() => {});
+  }, [campaign]);
+
+  // Safe Fallback: when an ad creative fails, record error and immediately try another eligible campaign
+  const handleMediaError = useCallback(async () => {
+    if (!campaign) return;
+    const failedId = campaign.campaign_id;
+    failedCampaignIdsRef.current.add(failedId);
+
+    // Track playback error event
+    trackAdEvent(
+      campaign.campaign_id,
+      campaign.creative_id,
+      campaign.impression_id,
+      sessionIdRef.current,
+      'playback_error',
+      { error: 'Media failed to load or play' }
+    ).catch(() => {});
+
+    // If we haven't exceeded retry threshold (max 2 fallback attempts), try next eligible campaign
+    if (failedCampaignIdsRef.current.size < 3) {
+      try {
+        const lastSeenId = localStorage.getItem(AD_LAST_CAMPAIGN_KEY) || undefined;
+        const fallbackAd = await fetchEligibleAd(
+          sessionIdRef.current,
+          lastSeenId,
+          Array.from(failedCampaignIdsRef.current)
+        );
+
+        if (fallbackAd && !failedCampaignIdsRef.current.has(fallbackAd.campaign_id)) {
+          // Switch to fallback campaign
+          hasRecordedImpressionRef.current = false;
+          setIsMediaLoaded(false);
+          setIsMediaBuffering(true);
+          setHasCompletedView(false);
+          setHasRecordedClick(false);
+          setAutoplayBlocked(false);
+          setCampaign(fallbackAd);
+          setSecondsRemaining(fallbackAd.skip_duration || 5);
+          setCanSkip(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('Fallback advertisement retrieval warning:', err);
+      }
+    }
+
+    // If no valid fallback exists, dismiss overlay gracefully
+    setIsVisible(false);
+  }, [campaign]);
 
   // 1. Initial Evaluation on App Open
   useEffect(() => {
@@ -47,7 +119,11 @@ export const AdInterstitialScreen: React.FC = () => {
         }
 
         const lastSeenId = localStorage.getItem(AD_LAST_CAMPAIGN_KEY) || undefined;
-        const eligibleAd = await fetchEligibleAd(sessionIdRef.current, lastSeenId);
+        const eligibleAd = await fetchEligibleAd(
+          sessionIdRef.current,
+          lastSeenId,
+          Array.from(failedCampaignIdsRef.current)
+        );
 
         if (!eligibleAd) {
           return;
@@ -58,19 +134,10 @@ export const AdInterstitialScreen: React.FC = () => {
         const skipDur = eligibleAd.skip_duration || settings.default_skip_duration || 5;
         setSecondsRemaining(skipDur);
         setCanSkip(false);
+        hasRecordedImpressionRef.current = false;
+        setIsMediaLoaded(false);
+        setIsMediaBuffering(true);
         setIsVisible(true);
-
-        // Record persistent frequency markers immediately
-        markAdDisplayed(eligibleAd.campaign_id);
-
-        // Track impression event
-        trackAdEvent(
-          eligibleAd.campaign_id,
-          eligibleAd.creative_id,
-          eligibleAd.impression_id,
-          sessionIdRef.current,
-          'impression'
-        ).catch(() => {});
       } catch (err) {
         console.warn('Ad interstitial initialization notice:', err);
       }
@@ -79,9 +146,12 @@ export const AdInterstitialScreen: React.FC = () => {
     evaluateAndLoadAd();
   }, [location.pathname]);
 
-  // 2. Countdown Timer
+  // 2. Countdown Timer: Only decrements once media is verified loaded/playing (or safety threshold reached)
   useEffect(() => {
     if (!isVisible || !campaign) return;
+
+    // Wait until media is loaded before counting down
+    if (!isMediaLoaded) return;
 
     timerRef.current = window.setInterval(() => {
       setSecondsRemaining((current) => {
@@ -110,7 +180,19 @@ export const AdInterstitialScreen: React.FC = () => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isVisible, campaign, hasCompletedView]);
+  }, [isVisible, campaign, isMediaLoaded, hasCompletedView]);
+
+  // Safety fallback: If media doesn't fire load event within 5s, start timer anyway if modal is visible
+  useEffect(() => {
+    if (!isVisible || isMediaLoaded) return;
+    const safetyTimeout = window.setTimeout(() => {
+      setIsMediaLoaded(true);
+      setIsMediaBuffering(false);
+      handleMediaReady();
+    }, 5000);
+
+    return () => clearTimeout(safetyTimeout);
+  }, [isVisible, isMediaLoaded, handleMediaReady]);
 
   // 3. Video Playback & Autoplay Handling
   useEffect(() => {
@@ -119,16 +201,23 @@ export const AdInterstitialScreen: React.FC = () => {
     }
 
     const videoEl = videoRef.current;
-    videoEl.muted = true;
-    const playPromise = videoEl.play();
+    videoEl.defaultMuted = true;
+    videoEl.muted = isMuted;
 
+    const playPromise = videoEl.play();
     if (playPromise !== undefined) {
-      playPromise.catch((err) => {
-        console.warn('Video muted autoplay interrupted/blocked:', err);
-        setAutoplayBlocked(true);
-      });
+      playPromise
+        .then(() => {
+          setAutoplayBlocked(false);
+          setIsMediaBuffering(false);
+        })
+        .catch((err) => {
+          console.warn('Video muted autoplay interrupted/blocked:', err);
+          setAutoplayBlocked(true);
+          setIsMediaBuffering(false);
+        });
     }
-  }, [isVisible, campaign]);
+  }, [isVisible, campaign, isMuted]);
 
   // Video progress for view completion (e.g. 90% played or full countdown reached)
   const handleVideoTimeUpdate = () => {
@@ -186,22 +275,6 @@ export const AdInterstitialScreen: React.FC = () => {
     setIsVisible(false);
   }, [canSkip, campaign]);
 
-  // 6. Media Failure Fallback (Never lock user)
-  const handleMediaError = useCallback(() => {
-    if (!campaign) return;
-    trackAdEvent(
-      campaign.campaign_id,
-      campaign.creative_id,
-      campaign.impression_id,
-      sessionIdRef.current,
-      'playback_error',
-      { error: 'Media failed to load' }
-    ).catch(() => {});
-
-    // Gracefully dismiss overlay without breaking app
-    setIsVisible(false);
-  }, [campaign]);
-
   // Sound Toggle
   const toggleSound = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -214,7 +287,14 @@ export const AdInterstitialScreen: React.FC = () => {
   const handleManualPlay = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!videoRef.current) return;
-    videoRef.current.play().then(() => setAutoplayBlocked(false)).catch(() => {});
+    videoRef.current
+      .play()
+      .then(() => {
+        setAutoplayBlocked(false);
+        setIsMediaBuffering(false);
+        handleMediaReady();
+      })
+      .catch(() => {});
   };
 
   if (!isVisible || !campaign) return null;
@@ -258,11 +338,20 @@ export const AdInterstitialScreen: React.FC = () => {
           }}
           aria-label={`Open advertisement link for ${campaign.advertiser_name}`}
         >
+          {/* Media Buffering Spinner */}
+          {isMediaBuffering && (
+            <div className="vaango-ad-buffering-overlay">
+              <div className="vaango-ad-spinner" />
+              <span>Loading advertisement...</span>
+            </div>
+          )}
+
           {campaign.media_type === 'image' ? (
             <img
               src={campaign.media_url}
               alt={campaign.campaign_name || 'Advertisement'}
               className="vaango-ad-media-img"
+              onLoad={handleMediaReady}
               onError={handleMediaError}
             />
           ) : (
@@ -271,8 +360,21 @@ export const AdInterstitialScreen: React.FC = () => {
                 ref={videoRef}
                 src={campaign.media_url}
                 className="vaango-ad-media-video"
+                autoPlay
                 playsInline
+                preload="auto"
+                loop
                 muted={isMuted}
+                onLoadedData={() => {
+                  setIsMediaBuffering(false);
+                  handleMediaReady();
+                }}
+                onPlaying={() => {
+                  setIsMediaBuffering(false);
+                  handleMediaReady();
+                }}
+                onWaiting={() => setIsMediaBuffering(true)}
+                onCanPlay={() => setIsMediaBuffering(false)}
                 onTimeUpdate={handleVideoTimeUpdate}
                 onError={handleMediaError}
                 onEnded={() => {
@@ -299,7 +401,10 @@ export const AdInterstitialScreen: React.FC = () => {
               </button>
               {/* Fallback play button if autoplay blocked */}
               {autoplayBlocked && (
-                <div className="vaango-ad-play-fallback" onClick={handleManualPlay}>
+                <div
+                  className="vaango-ad-play-fallback"
+                  onClick={handleManualPlay}
+                >
                   <div
                     style={{
                       width: 52,
@@ -315,7 +420,9 @@ export const AdInterstitialScreen: React.FC = () => {
                   >
                     <Play size={24} fill="#0f172a" style={{ marginLeft: 3 }} />
                   </div>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Tap to Play Video</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                    Tap to Play Video
+                  </span>
                 </div>
               )}
             </>
