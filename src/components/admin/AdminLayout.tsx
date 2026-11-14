@@ -13,6 +13,7 @@ import {
   LogOut,
   ShieldCheck,
   ShieldAlert,
+  Megaphone,
 } from 'lucide-react';
 import { NotificationBadge } from '../ui/NotificationBadge';
 import { useSectionUnreadCounts } from '../../hooks/useSectionUnreadCounts';
@@ -82,6 +83,11 @@ export const AdminLayout: React.FC = () => {
       to: '/admin/audit',
       label: t('adminAuditLog') || 'Audit Logs',
       icon: <History size={18} />,
+    },
+    {
+      to: '/admin/advertisements',
+      label: 'Advertisements',
+      icon: <Megaphone size={18} />,
     },
     {
       to: '/admin/moderation',
