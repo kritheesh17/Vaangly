@@ -1,7 +1,7 @@
 # Vaangly Advertisement Management System — Pre-Deployment Safety Review
 
 **Branch:** `feature/advertisement-management-system`  
-**HEAD Commit:** `fb5cbcba00dc68948065f61ef928c9ea4fe9ab52` (`fb5cbcb`)  
+**HEAD Commit:** `7da7ac42807f7dddb6a9f5d37fc1c179268f766e` (`7da7ac4`)  
 **Target Branch:** `main` (`0902d5dc0479a35e25391a60ee2a70a3bd8a2785`)  
 **Target Environment:** Production ([https://vaangly.vercel.app](https://vaangly.vercel.app))  
 **Supabase Project ID:** `pndikgqbgchzkrmlrmzo` (`ap-northeast-1`, Tokyo)  
