@@ -168,3 +168,4 @@ export interface UpdateCampaignPayload {
   destination_url?: string;
   cta_label?: string;
 }
+

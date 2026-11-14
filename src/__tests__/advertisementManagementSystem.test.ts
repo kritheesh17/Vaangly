@@ -1,7 +1,6 @@
 import assert from 'assert';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import {
   validateDestinationUrl,
   validateMediaFile,
@@ -18,9 +17,6 @@ import {
   ALLOWED_VIDEO_TYPES,
 } from '../lib/advertisementApi';
 import { AdSettings, SkipDuration } from '../types/advertisement';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // In-memory mock storage for Node environment tests
 class MockStorage {

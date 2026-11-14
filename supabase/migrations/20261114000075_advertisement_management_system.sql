@@ -543,3 +543,4 @@ GRANT EXECUTE ON FUNCTION public.record_ad_event(UUID, UUID, UUID, TEXT, TEXT, J
 GRANT EXECUTE ON FUNCTION public.get_ad_analytics(TIMESTAMPTZ, TIMESTAMPTZ, UUID) TO authenticated, service_role;
 
 COMMIT;
+
