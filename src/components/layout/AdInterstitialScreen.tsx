@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Volume2, VolumeX, ExternalLink, Play, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX, ExternalLink, Play, Sparkles, Film } from 'lucide-react';
 import {
   fetchAdSettings,
   fetchEligibleAd,
@@ -27,20 +27,37 @@ export const AdInterstitialScreen: React.FC = () => {
   const [hasCompletedView, setHasCompletedView] = useState<boolean>(false);
   const [isMediaLoaded, setIsMediaLoaded] = useState<boolean>(false);
   const [isMediaBuffering, setIsMediaBuffering] = useState<boolean>(true);
+  const [hasPlaybackError, setHasPlaybackError] = useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hasInitializedRef = useRef<boolean>(false);
   const sessionIdRef = useRef<string>(getOrCreateAdSessionId());
-  const timerRef = useRef<number | null>(null);
+  const timerStartedAtRef = useRef<number | null>(null);
+  const skipDurationRef = useRef<number>(5);
+  const timerIntervalRef = useRef<number | null>(null);
   const hasRecordedImpressionRef = useRef<boolean>(false);
+  const hasHandledErrorRef = useRef<boolean>(false);
   const failedCampaignIdsRef = useRef<Set<string>>(new Set());
 
-  // Safe handler: records persistent impression and frequency metrics ONLY when media actually displays/plays
+  // Safe handler: records persistent impression and anchors wall-clock timer exactly once per campaign
   const handleMediaReady = useCallback(() => {
-    if (!campaign || hasRecordedImpressionRef.current) return;
-    hasRecordedImpressionRef.current = true;
-    setIsMediaLoaded(true);
+    if (!campaign) return;
+
     setIsMediaBuffering(false);
+    setIsMediaLoaded(true);
+
+    // If timer hasn't started yet for this campaign, anchor wall-clock timer immediately
+    if (timerStartedAtRef.current === null) {
+      timerStartedAtRef.current = Date.now();
+      const dur = campaign.skip_duration || 5;
+      skipDurationRef.current = dur;
+      setSecondsRemaining(dur);
+      setCanSkip(false);
+    }
+
+    // Only record impression and frequency metrics once per campaign
+    if (hasRecordedImpressionRef.current) return;
+    hasRecordedImpressionRef.current = true;
 
     // Record persistent frequency markers in browser storage
     markAdDisplayed(campaign.campaign_id);
@@ -55,9 +72,24 @@ export const AdInterstitialScreen: React.FC = () => {
     ).catch(() => {});
   }, [campaign]);
 
-  // Safe Fallback: when an ad creative fails, record error and immediately try another eligible campaign
+  // Safe Fallback: when an ad creative fails, record error and try fallback; if none, show graceful fallback
+  // Failed creatives MUST NEVER call markAdDisplayed or setIsVisible(false).
   const handleMediaError = useCallback(async () => {
     if (!campaign) return;
+
+    // 1. Immediately anchor wall-clock timer so repeated errors or network awaits cannot shift/restart countdown
+    if (timerStartedAtRef.current === null) {
+      timerStartedAtRef.current = Date.now();
+      const dur = campaign.skip_duration || 5;
+      skipDurationRef.current = dur;
+      setSecondsRemaining(dur);
+      setCanSkip(false);
+    }
+
+    // 2. Guard against duplicate error handling for the current campaign
+    if (hasHandledErrorRef.current) return;
+    hasHandledErrorRef.current = true;
+
     const failedId = campaign.campaign_id;
     failedCampaignIdsRef.current.add(failedId);
 
@@ -82,15 +114,20 @@ export const AdInterstitialScreen: React.FC = () => {
         );
 
         if (fallbackAd && !failedCampaignIdsRef.current.has(fallbackAd.campaign_id)) {
-          // Switch to fallback campaign
+          // Switch to fallback campaign cleanly
+          hasHandledErrorRef.current = false;
           hasRecordedImpressionRef.current = false;
+          timerStartedAtRef.current = null;
           setIsMediaLoaded(false);
           setIsMediaBuffering(true);
           setHasCompletedView(false);
           setHasRecordedClick(false);
           setAutoplayBlocked(false);
+          setHasPlaybackError(false);
           setCampaign(fallbackAd);
-          setSecondsRemaining(fallbackAd.skip_duration || 5);
+          const newDur = fallbackAd.skip_duration || 5;
+          skipDurationRef.current = newDur;
+          setSecondsRemaining(newDur);
           setCanSkip(false);
           return;
         }
@@ -99,8 +136,12 @@ export const AdInterstitialScreen: React.FC = () => {
       }
     }
 
-    // If no valid fallback exists, dismiss overlay gracefully
-    setIsVisible(false);
+    // If no alternative campaign is available:
+    // PRESERVE the interstitial overlay and display a graceful fallback card.
+    // NEVER dismiss the overlay (no setIsVisible(false)) and NEVER consume user frequency quotas (no markAdDisplayed).
+    setIsMediaBuffering(false);
+    setHasPlaybackError(true);
+    setIsMediaLoaded(true);
   }, [campaign]);
 
   // 1. Initial Evaluation on App Open
@@ -132,11 +173,15 @@ export const AdInterstitialScreen: React.FC = () => {
         // Prepare campaign presentation
         setCampaign(eligibleAd);
         const skipDur = eligibleAd.skip_duration || settings.default_skip_duration || 5;
+        skipDurationRef.current = skipDur;
         setSecondsRemaining(skipDur);
         setCanSkip(false);
         hasRecordedImpressionRef.current = false;
+        hasHandledErrorRef.current = false;
+        timerStartedAtRef.current = null;
         setIsMediaLoaded(false);
         setIsMediaBuffering(true);
+        setHasPlaybackError(false);
         setIsVisible(true);
       } catch (err) {
         console.warn('Ad interstitial initialization notice:', err);
@@ -146,41 +191,48 @@ export const AdInterstitialScreen: React.FC = () => {
     evaluateAndLoadAd();
   }, [location.pathname]);
 
-  // 2. Countdown Timer: Only decrements once media is verified loaded/playing (or safety threshold reached)
+  // 2. Wall-clock countdown timer: calculates remaining seconds based on Date.now() - timerStartedAtRef.current
+  // Guaranteed not to reset or drift during re-renders, buffering, or video completion events.
   useEffect(() => {
-    if (!isVisible || !campaign) return;
+    if (!isVisible || !campaign || !isMediaLoaded) return;
 
-    // Wait until media is loaded before counting down
-    if (!isMediaLoaded) return;
+    const checkTimer = () => {
+      if (timerStartedAtRef.current === null) return;
+      const elapsed = (Date.now() - timerStartedAtRef.current) / 1000;
+      const remaining = Math.max(0, Math.ceil(skipDurationRef.current - elapsed));
+      setSecondsRemaining(remaining);
+      if (remaining <= 0) {
+        setCanSkip(true);
+      }
+    };
 
-    timerRef.current = window.setInterval(() => {
-      setSecondsRemaining((current) => {
-        if (current <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          setCanSkip(true);
+    // Run immediate check
+    checkTimer();
 
-          // For image ads, reaching the countdown satisfies completed view
-          if (campaign.media_type === 'image' && !hasCompletedView) {
-            setHasCompletedView(true);
-            trackAdEvent(
-              campaign.campaign_id,
-              campaign.creative_id,
-              campaign.impression_id,
-              sessionIdRef.current,
-              'completed_view'
-            ).catch(() => {});
-          }
-
-          return 0;
-        }
-        return current - 1;
-      });
-    }, 1000);
+    // Check frequently (200ms) for responsive second transitions
+    const intervalId = window.setInterval(checkTimer, 200);
+    timerIntervalRef.current = intervalId;
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      window.clearInterval(intervalId);
+      timerIntervalRef.current = null;
     };
-  }, [isVisible, campaign, isMediaLoaded, hasCompletedView]);
+  }, [isVisible, campaign?.campaign_id, isMediaLoaded]);
+
+  // 3. View completion tracking for image ads (completely independent of skip countdown effect)
+  useEffect(() => {
+    if (!isVisible || !campaign || hasCompletedView || hasPlaybackError) return;
+    if (campaign.media_type === 'image' && canSkip && secondsRemaining === 0) {
+      setHasCompletedView(true);
+      trackAdEvent(
+        campaign.campaign_id,
+        campaign.creative_id,
+        campaign.impression_id,
+        sessionIdRef.current,
+        'completed_view'
+      ).catch(() => {});
+    }
+  }, [isVisible, campaign, canSkip, secondsRemaining, hasCompletedView, hasPlaybackError]);
 
   // Safety fallback: If media doesn't fire load event within 5s, start timer anyway if modal is visible
   useEffect(() => {
@@ -194,9 +246,9 @@ export const AdInterstitialScreen: React.FC = () => {
     return () => clearTimeout(safetyTimeout);
   }, [isVisible, isMediaLoaded, handleMediaReady]);
 
-  // 3. Video Playback & Autoplay Handling
+  // 4. Video Playback & Autoplay Handling
   useEffect(() => {
-    if (!isVisible || !campaign || campaign.media_type !== 'video' || !videoRef.current) {
+    if (!isVisible || !campaign || campaign.media_type !== 'video' || !videoRef.current || hasPlaybackError) {
       return;
     }
 
@@ -217,9 +269,10 @@ export const AdInterstitialScreen: React.FC = () => {
           setIsMediaBuffering(false);
         });
     }
-  }, [isVisible, campaign, isMuted]);
+  }, [isVisible, campaign, isMuted, hasPlaybackError]);
 
   // Video progress for view completion (e.g. 90% played or full countdown reached)
+  // Analytics tracking is strictly independent of skip timer
   const handleVideoTimeUpdate = () => {
     if (!campaign || hasCompletedView || !videoRef.current) return;
     const { currentTime, duration } = videoRef.current;
@@ -235,7 +288,7 @@ export const AdInterstitialScreen: React.FC = () => {
     }
   };
 
-  // 4. Click Destination Handling
+  // 5. Click Destination Handling
   const handleAdClick = useCallback(() => {
     if (!campaign) return;
 
@@ -257,9 +310,10 @@ export const AdInterstitialScreen: React.FC = () => {
     }
   }, [campaign, hasRecordedClick]);
 
-  // 5. Skip Handling
+  // 6. Skip Handling: strictly requires canSkip=true, secondsRemaining=0, and valid campaign
+  // Reaching zero does NOT automatically dismiss; explicit user click is required.
   const handleSkip = useCallback(() => {
-    if (!canSkip || !campaign) return;
+    if (!canSkip || secondsRemaining > 0 || !campaign) return;
 
     markAdSkipped();
 
@@ -273,7 +327,7 @@ export const AdInterstitialScreen: React.FC = () => {
     ).catch(() => {});
 
     setIsVisible(false);
-  }, [canSkip, campaign]);
+  }, [canSkip, secondsRemaining, campaign]);
 
   // Sound Toggle
   const toggleSound = (e: React.MouseEvent) => {
@@ -317,12 +371,12 @@ export const AdInterstitialScreen: React.FC = () => {
           <div className="vaango-ad-header-right">
             <button
               type="button"
-              className={`vaango-ad-skip-btn ${canSkip ? 'ready' : 'waiting'}`}
+              className={`vaango-ad-skip-btn ${canSkip && secondsRemaining === 0 ? 'ready' : 'waiting'}`}
               onClick={handleSkip}
-              disabled={!canSkip}
-              aria-label={canSkip ? 'Skip advertisement' : `Skip in ${secondsRemaining} seconds`}
+              disabled={!canSkip || secondsRemaining > 0}
+              aria-label={canSkip && secondsRemaining === 0 ? 'Skip advertisement' : `Skip in ${secondsRemaining} seconds`}
             >
-              {canSkip ? 'Skip Ad' : `Skip in ${secondsRemaining}s`}
+              {canSkip && secondsRemaining === 0 ? 'Skip Ad' : `Skip in ${secondsRemaining}s`}
             </button>
           </div>
         </div>
@@ -339,14 +393,28 @@ export const AdInterstitialScreen: React.FC = () => {
           aria-label={`Open advertisement link for ${campaign.advertiser_name}`}
         >
           {/* Media Buffering Spinner */}
-          {isMediaBuffering && (
+          {isMediaBuffering && !hasPlaybackError && (
             <div className="vaango-ad-buffering-overlay">
               <div className="vaango-ad-spinner" />
               <span>Loading advertisement...</span>
             </div>
           )}
 
-          {campaign.media_type === 'image' ? (
+          {/* Graceful Fallback Creative if media fails and no fallback campaign exists */}
+          {hasPlaybackError ? (
+            <div className="vaango-ad-playback-fallback">
+              <div className="vaango-ad-playback-fallback-icon">
+                <Film size={26} />
+              </div>
+              <h3 className="vaango-ad-playback-fallback-title">{campaign.campaign_name}</h3>
+              <p className="vaango-ad-playback-fallback-desc">
+                {campaign.description || `Special promotion from ${campaign.advertiser_name}`}
+              </p>
+              <div className="vaango-ad-playback-fallback-hint">
+                Tap to visit {campaign.advertiser_name}
+              </div>
+            </div>
+          ) : campaign.media_type === 'image' ? (
             <img
               src={campaign.media_url}
               alt={campaign.campaign_name || 'Advertisement'}

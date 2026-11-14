@@ -167,6 +167,63 @@
   z-index: 6;
 }
 
+/* Graceful Fallback if video playback encounters an error and no alternate campaign exists */
+.vaango-ad-playback-fallback {
+  position: relative;
+  width: 100%;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+  color: #fff;
+  padding: 32px 24px;
+  text-align: center;
+  gap: 12px;
+  z-index: 5;
+}
+
+.vaango-ad-playback-fallback-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f59e0b;
+  margin-bottom: 4px;
+}
+
+.vaango-ad-playback-fallback-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 0;
+  max-width: 90%;
+  line-height: 1.3;
+}
+
+.vaango-ad-playback-fallback-desc {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  max-width: 360px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.vaango-ad-playback-fallback-hint {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #38bdf8;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
 .vaango-ad-buffering-overlay {
   position: absolute;
   inset: 0;

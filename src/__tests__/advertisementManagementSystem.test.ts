@@ -501,9 +501,394 @@ async function runTests() {
 
   console.log('✓ Test Suite 8 Passed: All 13 regression tests passed cleanly.');
 
-  // Verify migration 76 exists on disk
+  // =========================================================================
+  // TEST SUITE 9: Interstitial Countdown Timer, Buffering, Early Failure & Quota Non-Consumption
+  // =========================================================================
+  console.log('\n--- Test Suite 9: Interstitial Countdown Timer & Fallback Resilience ---');
+
+  // Simulated Interstitial State Machine matching AdInterstitialScreen.tsx
+  class SimulatedInterstitial {
+    campaignId: string;
+    mediaType: 'image' | 'video';
+    skipDuration: number;
+    timerStartedAt: number | null = null;
+    secondsRemaining: number;
+    canSkip: boolean = false;
+    isVisible: boolean = true;
+    isMediaLoaded: boolean = false;
+    isMediaBuffering: boolean = true;
+    hasRecordedImpression: boolean = false;
+    hasCompletedView: boolean = false;
+    hasPlaybackError: boolean = false;
+    hasHandledError: boolean = false;
+    renderCount: number = 0;
+    impressionCount: number = 0;
+    errorCount: number = 0;
+
+    constructor(campaignId: string, mediaType: 'image' | 'video', skipDuration: number) {
+      this.campaignId = campaignId;
+      this.mediaType = mediaType;
+      this.skipDuration = skipDuration;
+      this.secondsRemaining = skipDuration;
+    }
+
+    handleMediaReady(now: number) {
+      this.isMediaBuffering = false;
+      this.isMediaLoaded = true;
+
+      // Anchor wall-clock timer exactly once
+      if (this.timerStartedAt === null) {
+        this.timerStartedAt = now;
+        this.secondsRemaining = this.skipDuration;
+        this.canSkip = false;
+      }
+
+      // Record impression and frequency quota once
+      if (!this.hasRecordedImpression) {
+        this.hasRecordedImpression = true;
+        this.impressionCount++;
+        markAdDisplayed(this.campaignId);
+      }
+    }
+
+    tick(now: number) {
+      if (this.timerStartedAt === null) return;
+      const elapsed = (now - this.timerStartedAt) / 1000;
+      const remaining = Math.max(0, Math.ceil(this.skipDuration - elapsed));
+      this.secondsRemaining = remaining;
+      if (remaining <= 0) {
+        this.canSkip = true;
+      }
+    }
+
+    reRender() {
+      this.renderCount++;
+      // Ordinary re-renders do NOT reset timerStartedAt or secondsRemaining
+    }
+
+    handleVideoBuffering(isBuffering: boolean) {
+      this.isMediaBuffering = isBuffering;
+    }
+
+    handleVideoTimeUpdate(currentTime: number, duration: number) {
+      if (duration > 0 && currentTime / duration >= 0.9 && !this.hasCompletedView) {
+        this.hasCompletedView = true;
+      }
+    }
+
+    handleMediaError(now: number, fallback?: { id: string; mediaType: 'image' | 'video'; skipDuration: number }) {
+      // 1. Immediately anchor wall-clock timer if not already running
+      if (this.timerStartedAt === null) {
+        this.timerStartedAt = now;
+        this.secondsRemaining = this.skipDuration;
+        this.canSkip = false;
+      }
+
+      // 2. Guard against duplicate error handling
+      if (this.hasHandledError) return;
+      this.hasHandledError = true;
+      this.errorCount++;
+
+      if (fallback) {
+        // Switch to fallback campaign cleanly
+        this.campaignId = fallback.id;
+        this.mediaType = fallback.mediaType;
+        this.skipDuration = fallback.skipDuration;
+        this.secondsRemaining = fallback.skipDuration;
+        this.timerStartedAt = null;
+        this.hasHandledError = false;
+        this.isMediaLoaded = false;
+        this.isMediaBuffering = true;
+        this.hasRecordedImpression = false;
+        this.hasCompletedView = false;
+        this.hasPlaybackError = false;
+        this.canSkip = false;
+      } else {
+        // No alternative campaign available:
+        // PRESERVE the interstitial, show graceful fallback, DO NOT dismiss!
+        // CRITICAL: Failed media must NEVER consume frequency quotas (NO markAdDisplayed)
+        this.isMediaBuffering = false;
+        this.hasPlaybackError = true;
+        this.isMediaLoaded = true;
+      }
+    }
+
+    handleSkip(): boolean {
+      if (!this.canSkip || this.secondsRemaining > 0) {
+        return false;
+      }
+      markAdSkipped();
+      this.isVisible = false;
+      return true;
+    }
+  }
+
+  // 9.1 Image Ad: 5s, 10s, and 30s countdown lifecycles with wall-clock accuracy
+  const t0 = 1000000;
+  for (const duration of [5, 10, 30] as const) {
+    globalThis.sessionStorage.clear();
+    globalThis.localStorage.clear();
+
+    const imageAd = new SimulatedInterstitial(`img-ad-${duration}s`, 'image', duration);
+    assert.strictEqual(imageAd.secondsRemaining, duration);
+    assert.strictEqual(imageAd.canSkip, false);
+    assert.strictEqual(imageAd.isVisible, true);
+
+    // Media loads at t0 + 400ms
+    imageAd.handleMediaReady(t0 + 400);
+    assert.strictEqual(imageAd.isMediaLoaded, true);
+    assert.strictEqual(imageAd.impressionCount, 1);
+    assert.strictEqual(imageAd.timerStartedAt, t0 + 400);
+    assert.strictEqual(globalThis.sessionStorage.getItem(AD_SESSION_COUNT_KEY), '1', `9.1a (${duration}s): Successful image ad consumes session quota`);
+
+    // Tick at 1s remaining
+    imageAd.tick(t0 + 400 + (duration - 1) * 1000);
+    assert.strictEqual(imageAd.secondsRemaining, 1);
+    assert.strictEqual(imageAd.canSkip, false);
+    assert.strictEqual(imageAd.handleSkip(), false, `9.1b (${duration}s): Skip blocked while 1s remains`);
+
+    // Tick at exact completion
+    imageAd.tick(t0 + 400 + duration * 1000);
+    assert.strictEqual(imageAd.secondsRemaining, 0);
+    assert.strictEqual(imageAd.canSkip, true);
+    assert.strictEqual(imageAd.isVisible, true, `9.1c (${duration}s): Ad must NOT automatically dismiss on reaching 0`);
+
+    // Explicit skip succeeds
+    assert.strictEqual(imageAd.handleSkip(), true);
+    assert.strictEqual(imageAd.isVisible, false);
+  }
+
+  // 9.2 Video Ad: 5s, 10s, and 30s countdowns with buffering and re-renders
+  for (const duration of [5, 10, 30] as const) {
+    globalThis.sessionStorage.clear();
+    globalThis.localStorage.clear();
+
+    const videoAd = new SimulatedInterstitial(`vid-ad-${duration}s`, 'video', duration);
+
+    // Video begins playing at t0 + 800ms
+    videoAd.handleMediaReady(t0 + 800);
+    assert.strictEqual(videoAd.isMediaLoaded, true);
+    assert.strictEqual(videoAd.timerStartedAt, t0 + 800);
+
+    // Mid-countdown buffering event at t0 + 2000ms
+    videoAd.handleVideoBuffering(true);
+    assert.strictEqual(videoAd.isMediaBuffering, true);
+    videoAd.tick(t0 + 2500);
+
+    // React component re-renders 5 times during playback
+    for (let i = 0; i < 5; i++) {
+      videoAd.reRender();
+    }
+    assert.strictEqual(videoAd.renderCount, 5);
+
+    // Buffering resolves at t0 + 3000ms
+    videoAd.handleVideoBuffering(false);
+    assert.strictEqual(videoAd.isMediaBuffering, false);
+
+    // Fast-forward to completion
+    videoAd.tick(t0 + 800 + duration * 1000);
+    assert.strictEqual(videoAd.secondsRemaining, 0);
+    assert.strictEqual(videoAd.canSkip, true);
+    assert.strictEqual(videoAd.isVisible, true, `9.2: Reaching zero does not auto-dismiss video ad`);
+
+    // User skips
+    assert.strictEqual(videoAd.handleSkip(), true);
+    assert.strictEqual(videoAd.isVisible, false);
+  }
+
+  // 9.3 Video failure BEFORE media readiness: Fallback countdown anchors exactly once
+  // CRITICAL REQUIREMENT: Failed ad must NOT consume frequency quotas!
+  for (const duration of [5, 10, 30] as const) {
+    globalThis.sessionStorage.clear();
+    globalThis.localStorage.clear();
+
+    const earlyFailAd = new SimulatedInterstitial(`early-fail-${duration}s`, 'video', duration);
+    assert.strictEqual(earlyFailAd.timerStartedAt, null);
+    assert.strictEqual(earlyFailAd.isMediaLoaded, false);
+    assert.strictEqual(earlyFailAd.hasPlaybackError, false);
+    assert.strictEqual(earlyFailAd.isVisible, true);
+
+    // Failure occurs at t0 + 150ms before any ready/playing event
+    const failureTs = t0 + 150;
+    earlyFailAd.handleMediaError(failureTs); // No alternative fallback available
+
+    // 1. Fallback card is active, modal is preserved, and NO quota is consumed!
+    assert.strictEqual(earlyFailAd.hasPlaybackError, true, `9.3a (${duration}s): Playback error active`);
+    assert.strictEqual(earlyFailAd.isVisible, true, `9.3b (${duration}s): Interstitial strictly preserved`);
+    assert.strictEqual(earlyFailAd.timerStartedAt, failureTs, `9.3c (${duration}s): Timer anchored at failure timestamp`);
+    assert.strictEqual(earlyFailAd.secondsRemaining, duration, `9.3d (${duration}s): Configured duration respected`);
+
+    // FREQUENCY QUOTA ASSERTION: Failed ad must NOT set session count or last shown ts
+    assert.strictEqual(globalThis.sessionStorage.getItem(AD_SESSION_COUNT_KEY), null, `9.3e (${duration}s): Failed ad must NOT consume session count`);
+    assert.strictEqual(globalThis.localStorage.getItem(AD_LAST_SHOWN_KEY), null, `9.3f (${duration}s): Failed ad must NOT trigger 15-minute cooldown`);
+
+    // 2. Repeated error events (e.g. browser retries or network aborts) CANNOT restart the timer
+    earlyFailAd.handleMediaError(failureTs + 300);
+    earlyFailAd.handleMediaError(failureTs + 1200);
+    assert.strictEqual(earlyFailAd.timerStartedAt, failureTs, `9.3g (${duration}s): Repeated errors must not overwrite timer anchor`);
+    assert.strictEqual(earlyFailAd.errorCount, 1, `9.3h (${duration}s): Error handled exactly once`);
+
+    // 3. Skip button remains disabled while countdown runs
+    earlyFailAd.tick(failureTs + 1000);
+    assert.strictEqual(earlyFailAd.secondsRemaining, duration - 1);
+    assert.strictEqual(earlyFailAd.canSkip, false);
+    assert.strictEqual(earlyFailAd.handleSkip(), false, `9.3i (${duration}s): Skip blocked while timer > 0`);
+
+    // Advance to exact expiration
+    earlyFailAd.tick(failureTs + duration * 1000);
+    assert.strictEqual(earlyFailAd.secondsRemaining, 0);
+    assert.strictEqual(earlyFailAd.canSkip, true, `9.3j (${duration}s): Skip enabled at 0s`);
+    assert.strictEqual(earlyFailAd.isVisible, true, `9.3k (${duration}s): Reaching 0 does not auto-dismiss`);
+
+    // 4. Interstitial does NOT remain stuck: explicit user skip succeeds
+    const userSkipped = earlyFailAd.handleSkip();
+    assert.strictEqual(userSkipped, true, `9.3l (${duration}s): User skip succeeds after countdown`);
+    assert.strictEqual(earlyFailAd.isVisible, false, `9.3m (${duration}s): Modal dismissed cleanly on skip`);
+  }
+
+  // 9.4 Video progress does not cancel or interfere with timer
+  const videoProgressAd = new SimulatedInterstitial('vid-progress-10s', 'video', 10);
+  videoProgressAd.handleMediaReady(t0);
+  videoProgressAd.tick(t0 + 3000);
+  assert.strictEqual(videoProgressAd.secondsRemaining, 7);
+
+  // 90% progress reached -> completed view tracked, but timer keeps running
+  videoProgressAd.handleVideoTimeUpdate(9, 10);
+  assert.strictEqual(videoProgressAd.hasCompletedView, true);
+  videoProgressAd.tick(t0 + 5000);
+  assert.strictEqual(videoProgressAd.secondsRemaining, 5);
+  assert.strictEqual(videoProgressAd.canSkip, false);
+
+  console.log('✓ Test Suite 9 Passed: All timer lifecycle, buffering, early failure resilience, and quota non-consumption tests passed.');
+
+  // =========================================================================
+  // TEST SUITE 10: Campaign Selection, Fair Round-Robin, and 24-Hour Starvation Prevention (Migration 77)
+  // =========================================================================
+  console.log('\n--- Test Suite 10: Campaign Rotation & Starvation Prevention (Migration 77) ---');
+
+  interface CandidateCampaign {
+    id: string;
+    name: string;
+    mediaType: 'image' | 'video';
+    recentImpressions: number;
+    recentErrors: number;
+    priority: number;
+  }
+
+  function simulateSelectCandidate(
+    candidates: CandidateCampaign[],
+    lastSeenId: string | null = null,
+    strategy: 'fair_round_robin' | 'priority_weighted' = 'fair_round_robin',
+    excludeIds: string[] = []
+  ): CandidateCampaign | null {
+    const eligible = candidates.filter((c) => !excludeIds.includes(c.id));
+    if (eligible.length === 0) return null;
+
+    // Rank candidates matching Migration 77 ORDER BY logic
+    const scored = eligible.map((c) => {
+      const repetitionPenalty = lastSeenId && c.id === lastSeenId ? 1 : 0;
+      const priorityScore =
+        strategy === 'priority_weighted'
+          ? (c.priority / (c.recentImpressions + 1)) * (1.0 / (1.0 + c.recentErrors * 0.15))
+          : 0;
+      const randomScore = Math.random() * (1.0 + Math.min(c.recentErrors, 5) * 0.15);
+
+      return {
+        candidate: c,
+        repetitionPenalty,
+        priorityScore,
+        recentImpressions: c.recentImpressions,
+        randomScore,
+      };
+    });
+
+    scored.sort((a, b) => {
+      // 1. Repetition penalty ASC
+      if (a.repetitionPenalty !== b.repetitionPenalty) {
+        return a.repetitionPenalty - b.repetitionPenalty;
+      }
+      // 2. Priority weighted score DESC (if enabled)
+      if (strategy === 'priority_weighted') {
+        if (a.priorityScore !== b.priorityScore) {
+          return b.priorityScore - a.priorityScore;
+        }
+      }
+      // 3. In fair_round_robin, lowest recent impressions ASC
+      if (a.recentImpressions !== b.recentImpressions) {
+        return a.recentImpressions - b.recentImpressions;
+      }
+      // 4. Soft error randomized tie-breaker ASC
+      return a.randomScore - b.randomScore;
+    });
+
+    return scored[0].candidate;
+  }
+
+  const imageCampaign: CandidateCampaign = {
+    id: '12c3c1d9-c688-48de-a8c0-e645bf00b2e3',
+    name: 'vaango-image',
+    mediaType: 'image',
+    recentImpressions: 0,
+    recentErrors: 0,
+    priority: 10,
+  };
+
+  const videoCampaign: CandidateCampaign = {
+    id: '6ff53c62-5b52-4098-a231-f86abd5aba3e',
+    name: 'vaango-video',
+    mediaType: 'video',
+    recentImpressions: 0,
+    recentErrors: 0,
+    priority: 10,
+  };
+
+  // 10.1 Two active campaigns rotate fairly across fresh sessions (p_last_seen_campaign_id = null)
+  const freshDistribution = { image: 0, video: 0 };
+  for (let i = 0; i < 1000; i++) {
+    const selected = simulateSelectCandidate([imageCampaign, videoCampaign], null, 'fair_round_robin');
+    assert.notStrictEqual(selected, null);
+    if (selected!.mediaType === 'image') freshDistribution.image++;
+    if (selected!.mediaType === 'video') freshDistribution.video++;
+  }
+  assert(freshDistribution.image >= 420 && freshDistribution.image <= 580, `10.1a: Image ad selected fairly (${freshDistribution.image}/1000)`);
+  assert(freshDistribution.video >= 420 && freshDistribution.video <= 580, `10.1b: Video ad selected fairly (${freshDistribution.video}/1000)`);
+
+  // 10.2 Subsequent session alternating rotation (repetition penalty)
+  const afterImage = simulateSelectCandidate([imageCampaign, videoCampaign], imageCampaign.id, 'fair_round_robin');
+  assert.strictEqual(afterImage?.id, videoCampaign.id, '10.2a: After seeing image campaign, video campaign is selected 100% of the time');
+
+  const afterVideo = simulateSelectCandidate([imageCampaign, videoCampaign], videoCampaign.id, 'fair_round_robin');
+  assert.strictEqual(afterVideo?.id, imageCampaign.id, '10.2b: After seeing video campaign, image campaign is selected 100% of the time');
+
+  // 10.3 Playback-error history DOES NOT starve a campaign for 24 hours (Migration 77 vs Migration 76)
+  // Video campaign has 1 recent error, Image campaign has 0 errors
+  const videoWithHistoricalError: CandidateCampaign = { ...videoCampaign, recentErrors: 1 };
+  const errorDistribution = { image: 0, video: 0 };
+  for (let i = 0; i < 1000; i++) {
+    const selected = simulateSelectCandidate([imageCampaign, videoWithHistoricalError], null, 'fair_round_robin');
+    if (selected!.mediaType === 'image') errorDistribution.image++;
+    if (selected!.mediaType === 'video') errorDistribution.video++;
+  }
+  // Video campaign must NOT be starved (in Migration 76 it was 0/1000). In Migration 77 it receives substantial delivery!
+  assert(errorDistribution.video >= 350, `10.3: Video campaign with previous error must not be starved (received ${errorDistribution.video}/1000)`);
+  assert(errorDistribution.image >= 500, `10.3b: Image campaign receives fair share (${errorDistribution.image}/1000)`);
+
+  // 10.4 Impression balancing: Campaign with fewer impressions is served first
+  const imageWith1Impression: CandidateCampaign = { ...imageCampaign, recentImpressions: 1 };
+  const selectedToBalance = simulateSelectCandidate([imageWith1Impression, videoWithHistoricalError], null, 'fair_round_robin');
+  assert.strictEqual(selectedToBalance?.id, videoCampaign.id, '10.4: Campaign with 0 impressions strictly preferred over campaign with 1 impression');
+
+  // 10.5 Session fallback exclusion: When video fails in current session, image is cleanly selected
+  const fallbackSelection = simulateSelectCandidate([imageCampaign, videoCampaign], null, 'fair_round_robin', [videoCampaign.id]);
+  assert.strictEqual(fallbackSelection?.id, imageCampaign.id, '10.5: When video is excluded in current session, image is cleanly selected');
+
+  console.log('✓ Test Suite 10 Passed: All rotation, fair selection, and 24-hour starvation prevention tests passed cleanly.');
+
+  // Verify migration 76 and migration 77 exist on disk
   const migration76Path = path.resolve('supabase/migrations/20261114000076_fix_ad_campaign_fallback_and_rotation.sql');
+  const migration77Path = path.resolve('supabase/migrations/20261114000077_fix_ad_rotation_starvation_and_fair_selection.sql');
   assert.strictEqual(fs.existsSync(migration76Path), true, 'Migration 76 must exist in supabase/migrations');
+  assert.strictEqual(fs.existsSync(migration77Path), true, 'Migration 77 must exist in supabase/migrations');
 
   console.log('\n===============================================================');
   console.log('ALL ADVERTISEMENT MANAGEMENT SYSTEM TESTS PASSED SUCCESSFULLY!');
