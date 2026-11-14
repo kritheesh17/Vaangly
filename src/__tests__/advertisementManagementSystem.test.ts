@@ -698,6 +698,7 @@ async function runTests() {
 
   // 9.3 Video failure BEFORE media readiness: Fallback countdown anchors exactly once
   // CRITICAL REQUIREMENT: Failed ad must NOT consume frequency quotas!
+  // CRITICAL REQUIREMENT: Fallback card alone must NOT record a creative impression!
   for (const duration of [5, 10, 30] as const) {
     globalThis.sessionStorage.clear();
     globalThis.localStorage.clear();
@@ -707,6 +708,7 @@ async function runTests() {
     assert.strictEqual(earlyFailAd.isMediaLoaded, false);
     assert.strictEqual(earlyFailAd.hasPlaybackError, false);
     assert.strictEqual(earlyFailAd.isVisible, true);
+    assert.strictEqual(earlyFailAd.impressionCount, 0);
 
     // Failure occurs at t0 + 150ms before any ready/playing event
     const failureTs = t0 + 150;
@@ -718,32 +720,36 @@ async function runTests() {
     assert.strictEqual(earlyFailAd.timerStartedAt, failureTs, `9.3c (${duration}s): Timer anchored at failure timestamp`);
     assert.strictEqual(earlyFailAd.secondsRemaining, duration, `9.3d (${duration}s): Configured duration respected`);
 
+    // ANALYTICS ASSERTION: Fallback card alone must NOT record a creative impression
+    assert.strictEqual(earlyFailAd.impressionCount, 0, `9.3e (${duration}s): Failed creative must NOT increment impression count`);
+    assert.strictEqual(earlyFailAd.errorCount, 1, `9.3f (${duration}s): Failed creative records playback_error only`);
+
     // FREQUENCY QUOTA ASSERTION: Failed ad must NOT set session count or last shown ts
-    assert.strictEqual(globalThis.sessionStorage.getItem(AD_SESSION_COUNT_KEY), null, `9.3e (${duration}s): Failed ad must NOT consume session count`);
-    assert.strictEqual(globalThis.localStorage.getItem(AD_LAST_SHOWN_KEY), null, `9.3f (${duration}s): Failed ad must NOT trigger 15-minute cooldown`);
+    assert.strictEqual(globalThis.sessionStorage.getItem(AD_SESSION_COUNT_KEY), null, `9.3g (${duration}s): Failed ad must NOT consume session count`);
+    assert.strictEqual(globalThis.localStorage.getItem(AD_LAST_SHOWN_KEY), null, `9.3h (${duration}s): Failed ad must NOT trigger 15-minute cooldown`);
 
     // 2. Repeated error events (e.g. browser retries or network aborts) CANNOT restart the timer
     earlyFailAd.handleMediaError(failureTs + 300);
     earlyFailAd.handleMediaError(failureTs + 1200);
-    assert.strictEqual(earlyFailAd.timerStartedAt, failureTs, `9.3g (${duration}s): Repeated errors must not overwrite timer anchor`);
-    assert.strictEqual(earlyFailAd.errorCount, 1, `9.3h (${duration}s): Error handled exactly once`);
+    assert.strictEqual(earlyFailAd.timerStartedAt, failureTs, `9.3i (${duration}s): Repeated errors must not overwrite timer anchor`);
+    assert.strictEqual(earlyFailAd.errorCount, 1, `9.3j (${duration}s): Error handled exactly once`);
 
     // 3. Skip button remains disabled while countdown runs
     earlyFailAd.tick(failureTs + 1000);
     assert.strictEqual(earlyFailAd.secondsRemaining, duration - 1);
     assert.strictEqual(earlyFailAd.canSkip, false);
-    assert.strictEqual(earlyFailAd.handleSkip(), false, `9.3i (${duration}s): Skip blocked while timer > 0`);
+    assert.strictEqual(earlyFailAd.handleSkip(), false, `9.3k (${duration}s): Skip blocked while timer > 0`);
 
     // Advance to exact expiration
     earlyFailAd.tick(failureTs + duration * 1000);
     assert.strictEqual(earlyFailAd.secondsRemaining, 0);
-    assert.strictEqual(earlyFailAd.canSkip, true, `9.3j (${duration}s): Skip enabled at 0s`);
-    assert.strictEqual(earlyFailAd.isVisible, true, `9.3k (${duration}s): Reaching 0 does not auto-dismiss`);
+    assert.strictEqual(earlyFailAd.canSkip, true, `9.3l (${duration}s): Skip enabled at 0s`);
+    assert.strictEqual(earlyFailAd.isVisible, true, `9.3m (${duration}s): Reaching 0 does not auto-dismiss`);
 
     // 4. Interstitial does NOT remain stuck: explicit user skip succeeds
     const userSkipped = earlyFailAd.handleSkip();
-    assert.strictEqual(userSkipped, true, `9.3l (${duration}s): User skip succeeds after countdown`);
-    assert.strictEqual(earlyFailAd.isVisible, false, `9.3m (${duration}s): Modal dismissed cleanly on skip`);
+    assert.strictEqual(userSkipped, true, `9.3n (${duration}s): User skip succeeds after countdown`);
+    assert.strictEqual(earlyFailAd.isVisible, false, `9.3o (${duration}s): Modal dismissed cleanly on skip`);
   }
 
   // 9.4 Video progress does not cancel or interfere with timer
@@ -789,9 +795,9 @@ async function runTests() {
       const repetitionPenalty = lastSeenId && c.id === lastSeenId ? 1 : 0;
       const priorityScore =
         strategy === 'priority_weighted'
-          ? (c.priority / (c.recentImpressions + 1)) * (1.0 / (1.0 + c.recentErrors * 0.15))
+          ? c.priority / (c.recentImpressions + 1)
           : 0;
-      const randomScore = Math.random() * (1.0 + Math.min(c.recentErrors, 5) * 0.15);
+      const randomScore = Math.random();
 
       return {
         candidate: c,
@@ -813,11 +819,11 @@ async function runTests() {
           return b.priorityScore - a.priorityScore;
         }
       }
-      // 3. In fair_round_robin, lowest recent impressions ASC
+      // 3. In fair_round_robin, strictly lowest recent impressions ASC
       if (a.recentImpressions !== b.recentImpressions) {
         return a.recentImpressions - b.recentImpressions;
       }
-      // 4. Soft error randomized tie-breaker ASC
+      // 4. Pure random selection only among equal-impression candidates (zero probability skew)
       return a.randomScore - b.randomScore;
     });
 
@@ -850,8 +856,8 @@ async function runTests() {
     if (selected!.mediaType === 'image') freshDistribution.image++;
     if (selected!.mediaType === 'video') freshDistribution.video++;
   }
-  assert(freshDistribution.image >= 420 && freshDistribution.image <= 580, `10.1a: Image ad selected fairly (${freshDistribution.image}/1000)`);
-  assert(freshDistribution.video >= 420 && freshDistribution.video <= 580, `10.1b: Video ad selected fairly (${freshDistribution.video}/1000)`);
+  assert(freshDistribution.image >= 440 && freshDistribution.image <= 560, `10.1a: Image ad selected fairly (${freshDistribution.image}/1000)`);
+  assert(freshDistribution.video >= 440 && freshDistribution.video <= 560, `10.1b: Video ad selected fairly (${freshDistribution.video}/1000)`);
 
   // 10.2 Subsequent session alternating rotation (repetition penalty)
   const afterImage = simulateSelectCandidate([imageCampaign, videoCampaign], imageCampaign.id, 'fair_round_robin');
@@ -860,27 +866,37 @@ async function runTests() {
   const afterVideo = simulateSelectCandidate([imageCampaign, videoCampaign], videoCampaign.id, 'fair_round_robin');
   assert.strictEqual(afterVideo?.id, imageCampaign.id, '10.2b: After seeing video campaign, image campaign is selected 100% of the time');
 
-  // 10.3 Playback-error history DOES NOT starve a campaign for 24 hours (Migration 77 vs Migration 76)
-  // Video campaign has 1 recent error, Image campaign has 0 errors
-  const videoWithHistoricalError: CandidateCampaign = { ...videoCampaign, recentErrors: 1 };
+  // 10.3 Historical playback errors DO NOT create any starvation or probability skew
+  // Video campaign has historical errors (5 errors), Image campaign has 0 errors. Impressions are equal (0 and 0).
+  const videoWithHistoricalError: CandidateCampaign = { ...videoCampaign, recentErrors: 5 };
   const errorDistribution = { image: 0, video: 0 };
   for (let i = 0; i < 1000; i++) {
     const selected = simulateSelectCandidate([imageCampaign, videoWithHistoricalError], null, 'fair_round_robin');
     if (selected!.mediaType === 'image') errorDistribution.image++;
     if (selected!.mediaType === 'video') errorDistribution.video++;
   }
-  // Video campaign must NOT be starved (in Migration 76 it was 0/1000). In Migration 77 it receives substantial delivery!
-  assert(errorDistribution.video >= 350, `10.3: Video campaign with previous error must not be starved (received ${errorDistribution.video}/1000)`);
-  assert(errorDistribution.image >= 500, `10.3b: Image campaign receives fair share (${errorDistribution.image}/1000)`);
+  // Zero probability skew: both campaigns receive ~50% delivery across equal impressions
+  assert(errorDistribution.video >= 440 && errorDistribution.video <= 560, `10.3: Video campaign with previous error receives unskewed fair share (${errorDistribution.video}/1000)`);
+  assert(errorDistribution.image >= 440 && errorDistribution.image <= 560, `10.3b: Image campaign receives unskewed fair share (${errorDistribution.image}/1000)`);
 
-  // 10.4 Impression balancing: Campaign with fewer impressions is served first
+  // 10.4 Unequal impression counts: Campaign with strictly fewer impressions is served first
   const imageWith1Impression: CandidateCampaign = { ...imageCampaign, recentImpressions: 1 };
   const selectedToBalance = simulateSelectCandidate([imageWith1Impression, videoWithHistoricalError], null, 'fair_round_robin');
-  assert.strictEqual(selectedToBalance?.id, videoCampaign.id, '10.4: Campaign with 0 impressions strictly preferred over campaign with 1 impression');
+  assert.strictEqual(selectedToBalance?.id, videoCampaign.id, '10.4a: Campaign with 0 impressions strictly preferred over campaign with 1 impression');
 
-  // 10.5 Session fallback exclusion: When video fails in current session, image is cleanly selected
-  const fallbackSelection = simulateSelectCandidate([imageCampaign, videoCampaign], null, 'fair_round_robin', [videoCampaign.id]);
-  assert.strictEqual(fallbackSelection?.id, imageCampaign.id, '10.5: When video is excluded in current session, image is cleanly selected');
+  const videoWith2Impressions: CandidateCampaign = { ...videoCampaign, recentImpressions: 2 };
+  const selectedToBalanceImage = simulateSelectCandidate([imageCampaign, videoWith2Impressions], null, 'fair_round_robin');
+  assert.strictEqual(selectedToBalanceImage?.id, imageCampaign.id, '10.4b: Campaign with 0 impressions strictly preferred over campaign with 2 impressions');
+
+  // 10.5 Explicitly excluded campaign IDs (p_exclude_campaign_ids)
+  const excludeVideoSelection = simulateSelectCandidate([imageCampaign, videoCampaign], null, 'fair_round_robin', [videoCampaign.id]);
+  assert.strictEqual(excludeVideoSelection?.id, imageCampaign.id, '10.5a: When video is excluded in current session, image is cleanly selected');
+
+  const excludeImageSelection = simulateSelectCandidate([imageCampaign, videoCampaign], null, 'fair_round_robin', [imageCampaign.id]);
+  assert.strictEqual(excludeImageSelection?.id, videoCampaign.id, '10.5b: When image is excluded in current session, video is cleanly selected');
+
+  const excludeBothSelection = simulateSelectCandidate([imageCampaign, videoCampaign], null, 'fair_round_robin', [imageCampaign.id, videoCampaign.id]);
+  assert.strictEqual(excludeBothSelection, null, '10.5c: When both campaigns are excluded, returns null gracefully');
 
   console.log('✓ Test Suite 10 Passed: All rotation, fair selection, and 24-hour starvation prevention tests passed cleanly.');
 

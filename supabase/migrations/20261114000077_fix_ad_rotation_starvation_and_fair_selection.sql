@@ -1,8 +1,8 @@
 -- Migration: 20261114000077_fix_ad_rotation_starvation_and_fair_selection.sql
--- Description: Resolve 24-hour campaign starvation by making playback errors a secondary soft signal
--- 1. Tightens error inspection window from 24 hours to 1 hour
--- 2. Prevents binary error partitions from locking out healthy campaigns with previous playback errors
--- 3. Ensures fair_round_robin rotates evenly across fresh sessions (50/50 balance) and subsequent sessions
+-- Description: Resolve 24-hour campaign starvation and ensure fair_round_robin selection
+-- 1. In fair_round_robin, strictly prefer campaigns with the lowest impression count
+-- 2. Use pure random selection among equal-impression candidates with ZERO error-based probability skew
+-- 3. Playback errors do not create permanent or probability-based starvation mechanisms
 -- 4. Preserves campaign scheduling, RLS policies, RPC permissions, and analytics tracking
 
 BEGIN;
@@ -84,14 +84,7 @@ BEGIN
         WHERE e.campaign_id = c.id
           AND e.event_type = 'impression'
           AND e.created_at >= now() - INTERVAL '24 hours'
-      ) AS recent_impressions,
-      (
-        SELECT count(*)
-        FROM public.ad_events e
-        WHERE e.campaign_id = c.id
-          AND e.event_type = 'playback_error'
-          AND e.created_at >= now() - INTERVAL '1 hour'
-      ) AS recent_errors
+      ) AS recent_impressions
     FROM public.ad_campaigns c
     JOIN public.ad_creatives cr ON cr.campaign_id = c.id
     WHERE c.status = 'active'
@@ -132,13 +125,13 @@ BEGIN
     -- Priority weighted strategy balances priority ratio against delivery count
     CASE
       WHEN v_rotation_strategy = 'priority_weighted' THEN
-        ((rc.c_priority::NUMERIC / (rc.recent_impressions + 1)::NUMERIC) * (1.0 / (1.0 + rc.recent_errors * 0.15)))
+        (rc.c_priority::NUMERIC / (rc.recent_impressions + 1)::NUMERIC)
       ELSE 0
     END DESC,
-    -- In fair round-robin, campaigns with fewer impressions are served first
+    -- In fair round-robin, campaigns with lowest impression count are served first
     rc.recent_impressions ASC,
-    -- Error history acts as a secondary soft tie-breaker, allowing healthy rotation across equal-impression campaigns
-    (random() * (1.0 + LEAST(rc.recent_errors, 5) * 0.15)) ASC
+    -- Pure random selection only among equal-impression candidates (zero error-based starvation)
+    random()
   LIMIT 1;
 END;
 $$;
