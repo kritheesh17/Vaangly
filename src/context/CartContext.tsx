@@ -9,6 +9,7 @@ import { validateOrderPickupAt } from '../lib/orderPickupUtils';
 import { cleanPaymentProofPath } from '../lib/paymentProof';
 import { variantIsAvailable } from '../lib/productVariants';
 import { isValidUpiQrUrl } from '../lib/upi';
+import { calculatePlatformFeeRupees, generateOrderPickupCode } from '../lib/financeApi';
 
 export interface CartItem {
   product: ShopProduct;
@@ -670,7 +671,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        const serverCalculatedTotal = itemsTotal + deliveryCharge;
+        const platformFee = calculatePlatformFeeRupees(itemsTotal);
+        const serverCalculatedTotal = itemsTotal + deliveryCharge + platformFee;
         const referenceCode = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const requestPayload = {
@@ -693,6 +695,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               variant_attributes: i.selectedVariant?.attributes || {},
             };
           }),
+          items_total: itemsTotal,
+          delivery_fee: deliveryCharge,
+          platform_fee: platformFee,
+          total_payable: serverCalculatedTotal,
           notes: (shopNotes || orderNotes || '').trim() || null,
           customer_name: user.full_name || user.email || 'Customer',
           customer_phone: customerPhone,
@@ -722,6 +728,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             workflow_group_code: 'ORDER',
             current_state: 'REQUESTED',
             total_estimate: serverCalculatedTotal,
+            platform_fee_paise: Math.round(platformFee * 100),
             notes: JSON.stringify(requestPayload),
             fulfillment_type: chosenFulfillment,
             payment_method: paymentMethod,
@@ -737,6 +744,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         createdRequest = data as Request;
+
+        // Generate customer pickup verification code
+        void generateOrderPickupCode(createdRequest.id);
 
         // Non-blocking asynchronous post-order auditing & notification dispatch
         // Does not delay returning order confirmation to the customer

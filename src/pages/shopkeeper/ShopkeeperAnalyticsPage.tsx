@@ -32,6 +32,21 @@ import { getShopBusinessFeatures } from '../../lib/shopBusinessTypes';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Modal } from '../../components/ui/Modal';
+import { Input } from '../../components/ui/Input';
+import { formatINR } from '../../lib/currency';
+import {
+  fetchMerchantFinancialSummary,
+  fetchMerchantLedger,
+  fetchMerchantSettlements,
+  submitMerchantSettlement,
+} from '../../lib/financeApi';
+import {
+  MerchantFinancialSummary,
+  PlatformFeeLedgerEntry,
+  MerchantSettlement,
+  SettlementPaymentMethod,
+} from '../../types/finance';
 import './ShopkeeperAnalyticsPage.css';
 
 export const ShopkeeperAnalyticsPage: React.FC = () => {
@@ -44,6 +59,19 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
   const [analytics, setAnalytics] = useState<BusinessAnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Financial Ledger & Remittances State
+  const [mainTab, setMainTab] = useState<'sales' | 'ledger'>('sales');
+  const [financialSummary, setFinancialSummary] = useState<MerchantFinancialSummary | null>(null);
+  const [merchantLedger, setMerchantLedger] = useState<PlatformFeeLedgerEntry[]>([]);
+  const [merchantSettlements, setMerchantSettlements] = useState<MerchantSettlement[]>([]);
+  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
+  const [settleAmount, setSettleAmount] = useState('');
+  const [settleMethod, setSettleMethod] = useState<SettlementPaymentMethod>('upi');
+  const [settleUtr, setSettleUtr] = useState('');
+  const [settleProofUrl, setSettleProofUrl] = useState('');
+  const [settleNotes, setSettleNotes] = useState('');
+  const [isSubmittingSettlement, setIsSubmittingSettlement] = useState(false);
 
   // Chart View Tab Toggle: Revenue Trends vs Daily Order Count
   const [chartView, setChartView] = useState<'revenue' | 'orders'>('revenue');
@@ -67,8 +95,16 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
         setAllRequests(reqs);
 
         const filter: AnalyticsFilter = { preset, startDate, endDate };
-        const data = await calculateShopAnalytics(userShop, filter);
+        const [data, summary, ledger, settlements] = await Promise.all([
+          calculateShopAnalytics(userShop, filter),
+          fetchMerchantFinancialSummary(userShop.id),
+          fetchMerchantLedger(userShop.id, 50),
+          fetchMerchantSettlements({ shopId: userShop.id }),
+        ]);
         setAnalytics(data);
+        setFinancialSummary(summary);
+        setMerchantLedger(ledger);
+        setMerchantSettlements(settlements);
       }
     } catch (err) {
       console.error('Error loading analytics:', err);
@@ -77,6 +113,45 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
       setIsLoading(false);
     }
   }, [user, preset, startDate, endDate, toastError]);
+
+  const handleSubmitRemittance = async () => {
+    if (!shop || !user) return;
+    const amountRupees = parseFloat(settleAmount);
+    if (isNaN(amountRupees) || amountRupees <= 0) {
+      toastError('Please enter a valid positive settlement amount.');
+      return;
+    }
+    if (!settleUtr.trim()) {
+      toastError('Transaction reference / UTR number is required.');
+      return;
+    }
+    setIsSubmittingSettlement(true);
+    try {
+      const res = await submitMerchantSettlement({
+        shopId: shop.id,
+        amountPaise: Math.round(amountRupees * 100),
+        paymentMethod: settleMethod,
+        transactionReference: settleUtr.trim(),
+        proofDocumentUrl: settleProofUrl.trim() || null,
+        notes: settleNotes.trim() || null,
+        userId: user.id,
+      });
+      if (res.success) {
+        success('Settlement remittance submitted. Admin will verify received funds.');
+        setIsSettlementModalOpen(false);
+        setSettleUtr('');
+        setSettleProofUrl('');
+        setSettleNotes('');
+        await loadData();
+      } else {
+        toastError(res.error || 'Failed to submit settlement.');
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : 'Error submitting settlement.');
+    } finally {
+      setIsSubmittingSettlement(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -565,86 +640,119 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Date Filter Bar */}
-        <div className="vaango-analytics-filters">
-          <div className="vaango-date-presets">
-            <button
-              type="button"
-              className={`vaango-preset-btn ${preset === 'today' ? 'vaango-preset-btn--active' : ''}`}
-              onClick={() => handlePresetChange('today')}
-            >
-              Today
-            </button>
-            <button
-              type="button"
-              className={`vaango-preset-btn ${preset === '7d' ? 'vaango-preset-btn--active' : ''}`}
-              onClick={() => handlePresetChange('7d')}
-            >
-              Last 7 days
-            </button>
-            <button
-              type="button"
-              className={`vaango-preset-btn ${preset === '30d' ? 'vaango-preset-btn--active' : ''}`}
-              onClick={() => handlePresetChange('30d')}
-            >
-              Last 30 days
-            </button>
-            <button
-              type="button"
-              className={`vaango-preset-btn ${preset === 'this_month' ? 'vaango-preset-btn--active' : ''}`}
-              onClick={() => handlePresetChange('this_month')}
-            >
-              This month
-            </button>
-            <button
-              type="button"
-              className={`vaango-preset-btn ${preset === 'all' ? 'vaango-preset-btn--active' : ''}`}
-              onClick={() => handlePresetChange('all')}
-            >
-              All time
-            </button>
-            <button
-              type="button"
-              className={`vaango-preset-btn ${preset === 'custom' ? 'vaango-preset-btn--active' : ''}`}
-              onClick={() => handlePresetChange('custom')}
-            >
-              Custom
-            </button>
-          </div>
-
-          {preset === 'custom' && (
-            <div className="vaango-custom-date-inputs">
-              <label>
-                From:{' '}
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  max={endDate}
-                />
-              </label>
-              <label>
-                To:{' '}
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  min={startDate}
-                />
-              </label>
-              <Button variant="secondary" size="sm" onClick={handleApplyCustomDates}>
-                Apply
-              </Button>
-            </div>
-          )}
-
-          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-            Showing: <strong>{new Date(`${startDate}T00:00:00`).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</strong> – <strong>{new Date(`${endDate}T00:00:00`).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
-          </div>
+        {/* Main View Tab Selector */}
+        <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--color-border)', paddingBottom: '12px', marginTop: '16px', marginBottom: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className={`vaango-preset-btn ${mainTab === 'sales' ? 'vaango-preset-btn--active' : ''}`}
+            onClick={() => setMainTab('sales')}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <TrendingUp size={15} />
+            <span>Sales & Orders Analytics</span>
+          </button>
+          <button
+            type="button"
+            className={`vaango-preset-btn ${mainTab === 'ledger' ? 'vaango-preset-btn--active' : ''}`}
+            onClick={() => {
+              setMainTab('ledger');
+              if (financialSummary?.outstanding_balance_paise) {
+                setSettleAmount((financialSummary.outstanding_balance_paise / 100).toString());
+              }
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <IndianRupee size={15} />
+            <span>Platform Fees & Settlement Ledger</span>
+            {financialSummary && financialSummary.outstanding_balance_paise > 0 && (
+              <Badge variant="warning" size="sm" style={{ marginLeft: 6 }}>
+                ₹{financialSummary.outstanding_balance_paise / 100} Due
+              </Badge>
+            )}
+          </button>
         </div>
+
+        {mainTab === 'sales' && (
+          <div className="vaango-analytics-filters">
+            <div className="vaango-date-presets">
+              <button
+                type="button"
+                className={`vaango-preset-btn ${preset === 'today' ? 'vaango-preset-btn--active' : ''}`}
+                onClick={() => handlePresetChange('today')}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                className={`vaango-preset-btn ${preset === '7d' ? 'vaango-preset-btn--active' : ''}`}
+                onClick={() => handlePresetChange('7d')}
+              >
+                Last 7 days
+              </button>
+              <button
+                type="button"
+                className={`vaango-preset-btn ${preset === '30d' ? 'vaango-preset-btn--active' : ''}`}
+                onClick={() => handlePresetChange('30d')}
+              >
+                Last 30 days
+              </button>
+              <button
+                type="button"
+                className={`vaango-preset-btn ${preset === 'this_month' ? 'vaango-preset-btn--active' : ''}`}
+                onClick={() => handlePresetChange('this_month')}
+              >
+                This month
+              </button>
+              <button
+                type="button"
+                className={`vaango-preset-btn ${preset === 'all' ? 'vaango-preset-btn--active' : ''}`}
+                onClick={() => handlePresetChange('all')}
+              >
+                All time
+              </button>
+              <button
+                type="button"
+                className={`vaango-preset-btn ${preset === 'custom' ? 'vaango-preset-btn--active' : ''}`}
+                onClick={() => handlePresetChange('custom')}
+              >
+                Custom
+              </button>
+            </div>
+
+            {preset === 'custom' && (
+              <div className="vaango-custom-date-inputs">
+                <label>
+                  From:{' '}
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    max={endDate}
+                  />
+                </label>
+                <label>
+                  To:{' '}
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    min={startDate}
+                  />
+                </label>
+                <Button variant="secondary" size="sm" onClick={handleApplyCustomDates}>
+                  Apply
+                </Button>
+              </div>
+            )}
+
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+              Showing: <strong>{new Date(`${startDate}T00:00:00`).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</strong> – <strong>{new Date(`${endDate}T00:00:00`).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
+            </div>
+          </div>
+        )}
       </div>
 
-      {analytics && (
+      {mainTab === 'sales' && analytics && (
         <>
           {/* Executive Overview Section (Phase 1) */}
           <section className="vaango-exec-overview" aria-label="Executive Overview">
@@ -1380,6 +1488,323 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
           </div>
         </>
       )}
+
+      {/* TAB: PLATFORM FEE & SETTLEMENT LEDGER */}
+      {mainTab === 'ledger' && (
+        <div className="space-y-6" style={{ marginTop: '20px' }}>
+          {/* Financial Summary Cards */}
+          <div className="vaango-analytics-kpi-grid">
+            <div className="vaango-kpi-card">
+              <span className="vaango-kpi-card__label">Completed Orders</span>
+              <span className="vaango-kpi-card__value">{financialSummary?.total_completed_orders ?? 0}</span>
+              <span className="vaango-kpi-card__sub">Fulfilled orders</span>
+            </div>
+
+            <div className="vaango-kpi-card">
+              <span className="vaango-kpi-card__label">Total Order GMV</span>
+              <span className="vaango-kpi-card__value">{formatINR((financialSummary?.gmv_paise ?? 0) / 100)}</span>
+              <span className="vaango-kpi-card__sub">Product sales collected</span>
+            </div>
+
+            <div className="vaango-kpi-card">
+              <span className="vaango-kpi-card__label">Platform Fees Assessed</span>
+              <span className="vaango-kpi-card__value text-primary">{formatINR((financialSummary?.net_fees_owed_paise ?? 0) / 100)}</span>
+              <span className="vaango-kpi-card__sub">Customer-paid fee liability</span>
+            </div>
+
+            <div className="vaango-kpi-card">
+              <span className="vaango-kpi-card__label">Verified Settlements</span>
+              <span className="vaango-kpi-card__value text-success">{formatINR((financialSummary?.total_verified_settled_paise ?? 0) / 100)}</span>
+              <span className="vaango-kpi-card__sub">Credited by admin</span>
+            </div>
+          </div>
+
+          {/* Outstanding Balance Banner & Settle Action */}
+          <div style={{
+            background: (financialSummary?.outstanding_balance_paise ?? 0) > 0 ? 'rgba(234, 179, 8, 0.08)' : 'rgba(34, 197, 94, 0.08)',
+            border: `1px solid ${(financialSummary?.outstanding_balance_paise ?? 0) > 0 ? '#eab308' : '#22c55e'}`,
+            borderRadius: '12px',
+            padding: '18px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px',
+          }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: (financialSummary?.outstanding_balance_paise ?? 0) > 0 ? '#854d0e' : '#166534' }}>
+                  Current Outstanding Platform Fee Balance
+                </span>
+                <Badge variant={(financialSummary?.outstanding_balance_paise ?? 0) > 0 ? 'warning' : 'success'} size="sm">
+                  {(financialSummary?.outstanding_balance_paise ?? 0) > 0 ? 'Remittance Due' : 'Fully Settled'}
+                </Badge>
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: (financialSummary?.outstanding_balance_paise ?? 0) > 0 ? '#a16207' : '#15803d', marginTop: '2px' }}>
+                {formatINR((financialSummary?.outstanding_balance_paise ?? 0) / 100)}
+              </div>
+              <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                {(financialSummary?.pending_settlement_paise ?? 0) > 0
+                  ? `Pending Verification: ${formatINR((financialSummary?.pending_settlement_paise ?? 0) / 100)} submitted by you.`
+                  : 'Customer-paid platform fees collected by your counter to be remitted to Vaangly.'}
+              </p>
+            </div>
+
+            {(financialSummary?.outstanding_balance_paise ?? 0) > 0 && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => {
+                  setSettleAmount(((financialSummary?.outstanding_balance_paise ?? 0) / 100).toString());
+                  setIsSettlementModalOpen(true);
+                }}
+                leftIcon={<IndianRupee size={16} />}
+              >
+                Settle Outstanding Fees
+              </Button>
+            )}
+          </div>
+
+          {/* Append-Only Ledger Table */}
+          <div className="vaango-chart-card">
+            <div className="vaango-chart-card__header">
+              <div>
+                <h3 className="vaango-chart-card__title">Platform Fee Ledger Entries</h3>
+                <p className="vaango-chart-card__subtitle">Append-only audit trail of customer fees assessed and reversals.</p>
+              </div>
+            </div>
+
+            <div className="vaango-analytics-table-wrap">
+              <table className="vaango-analytics-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Entry Type</th>
+                    <th>Signed Amount</th>
+                    <th>Order Reference</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {merchantLedger.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: 'var(--color-text-muted)' }}>
+                        No platform fee ledger entries recorded yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    merchantLedger.map((entry) => (
+                      <tr key={entry.id}>
+                        <td className="text-muted" style={{ fontSize: '0.8rem' }}>
+                          {new Date(entry.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </td>
+                        <td>
+                          <Badge
+                            variant={entry.entry_type === 'fee_assessed' ? 'primary' : entry.entry_type === 'fee_reversed' ? 'error' : 'neutral'}
+                            size="sm"
+                          >
+                            {entry.entry_type}
+                          </Badge>
+                        </td>
+                        <td style={{ fontWeight: 700, color: entry.amount_paise > 0 ? 'var(--color-text-primary)' : 'var(--color-error)' }}>
+                          {entry.amount_paise > 0 ? `+₹${entry.amount_paise / 100}` : `-₹${Math.abs(entry.amount_paise) / 100}`}
+                        </td>
+                        <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>
+                          {entry.requests?.reference_code || 'N/A'}
+                        </td>
+                        <td className="text-secondary" style={{ fontSize: '0.8rem' }}>
+                          {entry.notes || '-'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Settlement Remittances History Table */}
+          <div className="vaango-chart-card">
+            <div className="vaango-chart-card__header">
+              <div>
+                <h3 className="vaango-chart-card__title">Settlement Remittances History</h3>
+                <p className="vaango-chart-card__subtitle">Remittances submitted by you to Vaangly and their verification status.</p>
+              </div>
+            </div>
+
+            <div className="vaango-analytics-table-wrap">
+              <table className="vaango-analytics-table">
+                <thead>
+                  <tr>
+                    <th>Submission Date</th>
+                    <th>Remitted Amount</th>
+                    <th>Payment Method</th>
+                    <th>UTR / Reference</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {merchantSettlements.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: '30px', color: 'var(--color-text-muted)' }}>
+                        No settlement remittances submitted yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    merchantSettlements.map((st) => (
+                      <tr key={st.id}>
+                        <td className="text-muted" style={{ fontSize: '0.8rem' }}>
+                          {new Date(st.submitted_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td style={{ fontWeight: 700 }}>
+                          {formatINR(st.amount_paise / 100)}
+                        </td>
+                        <td style={{ textTransform: 'uppercase', fontSize: '0.8rem', fontWeight: 600 }}>
+                          {st.payment_method}
+                        </td>
+                        <td style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                          {st.transaction_reference}
+                        </td>
+                        <td>
+                          <Badge
+                            variant={st.verification_status === 'verified' ? 'success' : st.verification_status === 'submitted' ? 'warning' : 'error'}
+                            size="sm"
+                          >
+                            {st.verification_status.toUpperCase()}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Settle Outstanding Fees */}
+      <Modal
+        isOpen={isSettlementModalOpen}
+        onClose={() => {
+          if (!isSubmittingSettlement) setIsSettlementModalOpen(false);
+        }}
+        title="Settle Outstanding Platform Fees"
+        maxWidth="md"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ padding: '12px 16px', background: 'var(--color-surface-subtle, #f8fafc)', borderRadius: '10px', border: '1px solid var(--color-border)', fontSize: '0.85rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <span className="text-secondary">Current Outstanding Liability:</span>
+              <strong className="text-primary">{formatINR((financialSummary?.outstanding_balance_paise ?? 0) / 100)}</strong>
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+              Remit this fee directly to Vaangly’s official collection account below, then enter your transaction reference (UTR).
+            </div>
+          </div>
+
+          <div style={{ padding: '12px 16px', background: 'rgba(34, 197, 94, 0.08)', borderRadius: '10px', border: '1px solid #86efac' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Official Vaangly Remittance Details
+            </div>
+            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#15803d', marginTop: '2px', fontFamily: 'monospace' }}>
+              vaangly-finance@okhdfcbank
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#14532d', marginTop: '2px' }}>
+              Account Name: Vaangly Marketplace Financials
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+              Remittance Amount (INR)
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              value={settleAmount}
+              onChange={(e) => setSettleAmount(e.target.value)}
+              placeholder="e.g. 50"
+              disabled={isSubmittingSettlement}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+              Payment Method
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              {(['upi', 'bank_transfer', 'cash'] as SettlementPaymentMethod[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  style={{
+                    padding: '8px 10px',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    border: `1px solid ${settleMethod === m ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                    background: settleMethod === m ? 'rgba(34, 197, 94, 0.1)' : 'transparent',
+                    color: settleMethod === m ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => setSettleMethod(m)}
+                >
+                  {m.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+              Transaction Reference / UTR Number
+            </label>
+            <Input
+              type="text"
+              value={settleUtr}
+              onChange={(e) => setSettleUtr(e.target.value)}
+              placeholder="e.g. 423190847291"
+              disabled={isSubmittingSettlement}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+              Optional Notes / Reference
+            </label>
+            <Input
+              type="text"
+              value={settleNotes}
+              onChange={(e) => setSettleNotes(e.target.value)}
+              placeholder="e.g. Weekly settlement Nov 14-21"
+              disabled={isSubmittingSettlement}
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => setIsSettlementModalOpen(false)}
+              disabled={isSubmittingSettlement}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              isLoading={isSubmittingSettlement}
+              disabled={!settleUtr.trim() || !settleAmount}
+              onClick={() => void handleSubmitRemittance()}
+              leftIcon={<CheckCircle2 size={16} />}
+            >
+              Submit Remittance
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

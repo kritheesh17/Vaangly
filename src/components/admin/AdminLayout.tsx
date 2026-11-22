@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   Megaphone,
+  IndianRupee,
 } from 'lucide-react';
 import { NotificationBadge } from '../ui/NotificationBadge';
 import { useSectionUnreadCounts } from '../../hooks/useSectionUnreadCounts';
@@ -73,6 +74,11 @@ export const AdminLayout: React.FC = () => {
       to: '/admin/subscriptions',
       label: t('adminSubscriptions') || 'Subscriptions',
       icon: <CreditCard size={18} />,
+    },
+    {
+      to: '/admin/finance',
+      label: 'Financial Ledger',
+      icon: <IndianRupee size={18} />,
     },
     {
       to: '/admin/locations',

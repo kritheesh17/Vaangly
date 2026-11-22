@@ -35,6 +35,7 @@ import { Modal } from '../../components/ui/Modal';
 import { useToast } from '../../context/ToastContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatPickupTime } from '../../lib/orderPickupUtils';
+import { completeOrderAndAssessFee, calculatePlatformFeeRupees } from '../../lib/financeApi';
 import './ShopkeeperRequestDetailPage.css';
 
 interface DecodedPayload {
@@ -104,7 +105,45 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
   const [isRejectCancelModalOpen, setIsRejectCancelModalOpen] = useState(false);
   const [rejectCancelReason, setRejectCancelReason] = useState('');
 
+  // Counter Pickup & Order Completion Modal
+  const [isCompleteOrderModalOpen, setIsCompleteOrderModalOpen] = useState(false);
+  const [pickupCodeInput, setPickupCodeInput] = useState('');
+  const [collectedPaymentMethod, setCollectedPaymentMethod] = useState<'cash' | 'upi'>('cash');
+  const [paymentCollectionConfirmed, setPaymentCollectionConfirmed] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
+
   const groupCode: WorkflowGroupCode = (request?.workflow_group_code || 'ORDER') as WorkflowGroupCode;
+
+  const handleConfirmOrderCompletion = async () => {
+    if (!request || !user) return;
+    if (!paymentCollectionConfirmed) {
+      setCompletionError('Please confirm customer item handover and payment collection.');
+      return;
+    }
+    setIsActionLoading(true);
+    setCompletionError(null);
+    try {
+      const res = await completeOrderAndAssessFee({
+        requestId: request.id,
+        pickupCode: pickupCodeInput.trim(),
+        paymentMethod: collectedPaymentMethod,
+        actorId: user.id,
+      });
+      if (res.success) {
+        success(`Order #${request.reference_code} completed successfully.`);
+        setIsCompleteOrderModalOpen(false);
+        setPickupCodeInput('');
+        setCompletionError(null);
+        await loadRequestAndHistory();
+      } else {
+        setCompletionError(res.error || 'Failed to complete order. Please check the pickup code.');
+      }
+    } catch (err: unknown) {
+      setCompletionError(err instanceof Error ? err.message : 'Error completing order.');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
   const loadRequestAndHistory = useCallback(async () => {
     if (!requestId) return;
@@ -1445,10 +1484,15 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
                     size="lg"
                     className="w-full sm:w-auto"
                     isLoading={isActionLoading}
-                    onClick={() => void handleTransition('COMPLETED', 'Customer collected items at counter.')}
+                    onClick={() => {
+                      setCompletionError(null);
+                      setPickupCodeInput('');
+                      setPaymentCollectionConfirmed(false);
+                      setIsCompleteOrderModalOpen(true);
+                    }}
                     leftIcon={<CheckCircle size={18} />}
                   >
-                    Mark Order Completed (Customer Collected)
+                    Verify Pickup & Complete Order
                   </Button>
                 </div>
               )}
@@ -1457,7 +1501,13 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
               {request.current_state === 'COMPLETED' && (
                 <div className="vaango-req-action-card__terminal">
                   <CheckCircle size={22} className="text-success" />
-                  <span>This order is fully fulfilled and completed.</span>
+                  <div>
+                    <div className="font-semibold">Order fully fulfilled and completed.</div>
+                    <div className="text-xs text-secondary mt-0.5">
+                      Platform fee assessed: ₹{request.platform_fee_paise ? (request.platform_fee_paise / 100) : calculatePlatformFeeRupees(request.total_estimate || 0)}
+                      {request.merchant_payment_reported_method && ` · Collected via ${request.merchant_payment_reported_method.toUpperCase()}`}
+                    </div>
+                  </div>
                 </div>
               )}
             </>
@@ -1934,6 +1984,123 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
               onClick={() => void handleDeclineCancellation()}
             >
               Confirm Decline
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Counter Pickup & Order Completion Modal */}
+      <Modal
+        isOpen={isCompleteOrderModalOpen}
+        onClose={() => {
+          if (!isActionLoading) {
+            setIsCompleteOrderModalOpen(false);
+            setCompletionError(null);
+          }
+        }}
+        title={`Counter Handover & Payment — ${request?.reference_code || 'Order'}`}
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-sm">
+            <div className="flex justify-between font-semibold mb-1">
+              <span>Total Customer Payment to Collect:</span>
+              <span className="text-primary text-base">₹{request?.total_estimate || 0}</span>
+            </div>
+            <div className="flex justify-between text-xs text-secondary">
+              <span>Platform Fee Included (remitted later):</span>
+              <span>₹{calculatePlatformFeeRupees(request?.total_estimate || 0)}</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
+              Customer 6-Digit Pickup Code
+            </label>
+            <Input
+              type="text"
+              maxLength={6}
+              placeholder="e.g. 849201"
+              value={pickupCodeInput}
+              onChange={(e) => setPickupCodeInput(e.target.value.replace(/\D/g, ''))}
+              className="text-center font-mono text-lg tracking-widest font-bold"
+              disabled={isActionLoading}
+            />
+            <p className="text-xs text-muted mt-1">
+              Ask the customer for the 6-digit verification code shown on their order status screen.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-1.5">
+              Payment Method Collected at Counter
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className={`py-2 px-3 text-sm rounded-lg border font-medium transition-colors ${
+                  collectedPaymentMethod === 'cash'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-slate-200 dark:border-slate-800 text-secondary'
+                }`}
+                onClick={() => setCollectedPaymentMethod('cash')}
+              >
+                Cash Received
+              </button>
+              <button
+                type="button"
+                className={`py-2 px-3 text-sm rounded-lg border font-medium transition-colors ${
+                  collectedPaymentMethod === 'upi'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-slate-200 dark:border-slate-800 text-secondary'
+                }`}
+                onClick={() => setCollectedPaymentMethod('upi')}
+              >
+                Direct UPI QR Paid
+              </button>
+            </div>
+          </div>
+
+          <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={paymentCollectionConfirmed}
+              onChange={(e) => setPaymentCollectionConfirmed(e.target.checked)}
+              className="mt-0.5"
+              disabled={isActionLoading}
+            />
+            <span className="text-xs text-foreground leading-relaxed">
+              I confirm that I have physically handed over the items to the customer and collected the full payment of ₹{request?.total_estimate || 0}.
+            </span>
+          </label>
+
+          {completionError && (
+            <div className="p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-lg">
+              {completionError}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => {
+                setIsCompleteOrderModalOpen(false);
+                setCompletionError(null);
+              }}
+              disabled={isActionLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              isLoading={isActionLoading}
+              disabled={!paymentCollectionConfirmed || pickupCodeInput.length < 6}
+              onClick={() => void handleConfirmOrderCompletion()}
+              leftIcon={<CheckCircle size={16} />}
+            >
+              Complete Order
             </Button>
           </div>
         </div>

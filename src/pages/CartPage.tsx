@@ -31,6 +31,7 @@ import {
 import { ActionErrorBanner } from '../components/ui/ActionErrorBanner';
 import { scrollAndFocusError } from '../lib/errorUxUtils';
 import { formatCleanVariantLabel } from '../lib/productVariants';
+import { calculatePlatformFeeRupees } from '../lib/financeApi';
 import './CartPage.css';
 
 export const CartPage: React.FC = () => {
@@ -315,7 +316,8 @@ export const CartPage: React.FC = () => {
             standardFee === 0 || (freeThreshold != null && freeThreshold > 0 && subtotal >= freeThreshold)
           );
           const effectiveDeliveryFee = currentDeliveryMode === 'DELIVERY' ? (isFreeEligible ? 0 : standardFee) : 0;
-          const finalTotal = subtotal + effectiveDeliveryFee;
+          const platformFee = calculatePlatformFeeRupees(subtotal);
+          const finalTotal = subtotal + effectiveDeliveryFee + platformFee;
 
           return (
             <Card key={shopId} variant="default" padding="lg" className="vaango-cart-shop-group-card">
@@ -752,8 +754,12 @@ export const CartPage: React.FC = () => {
                       Add ₹{freeThreshold - subtotal} more for Free Delivery!
                     </div>
                   )}
+                  <div className="flex justify-between items-center text-sm text-secondary mb-1">
+                    <span>Platform Fee (Vaangly):</span>
+                    <span>₹{platformFee}</span>
+                  </div>
                   <div className="flex justify-between items-center font-bold text-base border-t border-border pt-1">
-                    <span>Store Total:</span>
+                    <span>Total Payable:</span>
                     <strong>₹{finalTotal}</strong>
                   </div>
                 </div>

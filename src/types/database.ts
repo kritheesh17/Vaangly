@@ -77,6 +77,10 @@ export interface Shop {
   cancellation_rate?: number;
   google_maps_url?: string | null;
   subscription_tier?: 'FREE' | 'PRO';
+  financial_status?: 'ACTIVE' | 'WARNING' | 'RESTRICTED' | 'SUSPENDED';
+  financial_restriction_reason?: string | null;
+  financial_restricted_at?: string | null;
+  financial_restricted_by?: string | null;
   business_type?: string | null;
   capabilities?: string[] | null;
   description?: string | null;
@@ -324,6 +328,18 @@ export interface Request {
   cancelled_by?: string | null;
   cancelled_at?: string | null;
   cancellation_actor_role?: 'customer' | 'shopkeeper' | 'admin' | null;
+  platform_fee_paise?: number;
+  platform_fee_rule_id?: string | null;
+  pickup_code_hash?: string | null;
+  pickup_code_salt?: string | null;
+  pickup_code_generated_at?: string | null;
+  pickup_code_expires_at?: string | null;
+  pickup_code_attempts?: number;
+  pickup_verified_at?: string | null;
+  pickup_verified_by?: string | null;
+  merchant_payment_confirmed_at?: string | null;
+  merchant_payment_confirmed_by?: string | null;
+  merchant_payment_reported_method?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -34,6 +34,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { validatePaymentProofFile } from '../lib/paymentProof';
 import { isValidUpiQrUrl } from '../lib/upi';
 import { formatPickupTime } from '../lib/orderPickupUtils';
+import { fetchCustomerPickupCode, calculatePlatformFeeRupees } from '../lib/financeApi';
 import './RequestDetailPage.css';
 
 interface DecodedPayload {
@@ -88,8 +89,19 @@ export const RequestDetailPage: React.FC = () => {
   const [userRating, setUserRating] = useState(0);
   const [hasRated, setHasRated] = useState(false);
   const [ratingModalOpen, setRatingModalOpen] = useState(false);
+  const [pickupCode, setPickupCode] = useState<string | null>(null);
 
   const groupCode: WorkflowGroupCode = (request?.workflow_group_code || 'ORDER') as WorkflowGroupCode;
+
+  useEffect(() => {
+    if (request?.id && groupCode === 'ORDER' && !['COMPLETED', 'CANCELLED', 'REJECTED'].includes(request.current_state)) {
+      fetchCustomerPickupCode(request.id).then((res) => {
+        if (res.success && res.pickupCode) {
+          setPickupCode(res.pickupCode);
+        }
+      });
+    }
+  }, [request?.id, groupCode, request?.current_state]);
 
   const handleSubmitPaymentProof = async () => {
     if (!request || !user || !paymentProofFile) return;
@@ -1084,38 +1096,81 @@ export const RequestDetailPage: React.FC = () => {
         </Card>
       ) : (
         /* Order Items Section (Group A) */
-        <Card variant="default" padding="lg" className="vaango-items-card">
-          <div className="vaango-items-card__header">
-            <h2 className="vaango-items-card__title">{t('orderItemsTitle', { count: items.length })}</h2>
-            <span className="vaango-items-card__total">₹{request.total_estimate}</span>
-          </div>
-
-          <div className="vaango-items-list">
-            {items.map((item, idx) => (
-              <div key={idx} className="vaango-item-row">
+        <>
+          {groupCode === 'ORDER' && pickupCode && !['COMPLETED', 'CANCELLED', 'REJECTED'].includes(request.current_state) && (
+            <Card variant="outlined" padding="md" style={{ marginBottom: 'var(--space-4)', backgroundColor: 'rgba(34, 197, 94, 0.08)', borderColor: '#22c55e' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                 <div>
-                  <span className="vaango-item-row__name">{item.name}</span>
-                  {(item.variant_label || Object.keys(item.variant_attributes || {}).length > 0) && (
-                    <span className="vaango-item-row__unit">{item.variant_label || Object.entries(item.variant_attributes || {}).map(([name, value]) => `${name}: ${value}`).join(' / ')}</span>
-                  )}
-                  <span className="vaango-item-row__unit">
-                    ₹{item.price} / {item.unit}
+                  <strong style={{ display: 'block', fontSize: '0.95rem', color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Counter Pickup Verification Code
+                  </strong>
+                  <span style={{ fontSize: '0.85rem', color: '#166534' }}>
+                    Provide this 6-digit code to the merchant at the counter when collecting your order.
                   </span>
                 </div>
-                <div className="vaango-item-row__calc">
-                  <span>x{item.quantity}</span>
-                  <strong>₹{item.subtotal}</strong>
+                <div style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '4px', color: '#15803d', fontFamily: 'monospace', background: '#ffffff', padding: '6px 16px', borderRadius: '8px', border: '2px solid #86efac', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}>
+                  {pickupCode}
                 </div>
               </div>
-            ))}
-          </div>
-
-          {payload.notes && (
-            <div className="vaango-item-notes-box">
-              <strong>{t('customerNoteLabel')}</strong> &ldquo;{payload.notes}&rdquo;
-            </div>
+            </Card>
           )}
-        </Card>
+
+          <Card variant="default" padding="lg" className="vaango-items-card">
+            <div className="vaango-items-card__header">
+              <h2 className="vaango-items-card__title">{t('orderItemsTitle', { count: items.length })}</h2>
+              <span className="vaango-items-card__total">₹{request.total_estimate}</span>
+            </div>
+
+            <div className="vaango-items-list">
+              {items.map((item, idx) => (
+                <div key={idx} className="vaango-item-row">
+                  <div>
+                    <span className="vaango-item-row__name">{item.name}</span>
+                    {(item.variant_label || Object.keys(item.variant_attributes || {}).length > 0) && (
+                      <span className="vaango-item-row__unit">{item.variant_label || Object.entries(item.variant_attributes || {}).map(([name, value]) => `${name}: ${value}`).join(' / ')}</span>
+                    )}
+                    <span className="vaango-item-row__unit">
+                      ₹{item.price} / {item.unit}
+                    </span>
+                  </div>
+                  <div className="vaango-item-row__calc">
+                    <span>x{item.quantity}</span>
+                    <strong>₹{item.subtotal}</strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {payload.notes && (
+              <div className="vaango-item-notes-box">
+                <strong>{t('customerNoteLabel')}</strong> &ldquo;{payload.notes}&rdquo;
+              </div>
+            )}
+
+            <div className="vaango-items-breakdown" style={{ borderTop: '1px solid var(--color-border)', marginTop: '12px', paddingTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                <span>Items Subtotal:</span>
+                <span>₹{items.reduce((sum, item) => sum + (item.subtotal || item.price * item.quantity), 0)}</span>
+              </div>
+              {((payload as any).delivery_fee != null && Number((payload as any).delivery_fee) > 0) && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                  <span>Delivery Fee:</span>
+                  <span>₹{Number((payload as any).delivery_fee)}</span>
+                </div>
+              )}
+              {((payload as any).platform_fee != null ? Number((payload as any).platform_fee) : (request.platform_fee_paise ? request.platform_fee_paise / 100 : calculatePlatformFeeRupees(items.reduce((sum, item) => sum + (item.subtotal || item.price * item.quantity), 0)))) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                  <span>Platform Fee (Vaangly):</span>
+                  <span>₹{(payload as any).platform_fee != null ? Number((payload as any).platform_fee) : (request.platform_fee_paise ? request.platform_fee_paise / 100 : calculatePlatformFeeRupees(items.reduce((sum, item) => sum + (item.subtotal || item.price * item.quantity), 0)))}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '1.05rem', borderTop: '1px solid var(--color-border)', paddingTop: '6px', marginTop: '6px' }}>
+                <span>Total Payable:</span>
+                <strong>₹{request.total_estimate ?? (items.reduce((sum, item) => sum + (item.subtotal || item.price * item.quantity), 0) + ((payload as any).delivery_fee || 0) + ((payload as any).platform_fee || 0))}</strong>
+              </div>
+            </div>
+          </Card>
+        </>
       )}
 
       {/* Pending Cancellation Request Banner */}
