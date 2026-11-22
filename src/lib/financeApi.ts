@@ -49,6 +49,56 @@ export const formatPaiseToRupees = (paise: number): string => {
   return `₹${rupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
+export interface PlatformFeeSystemConfig {
+  is_enabled: boolean;
+  activated_at: string | null;
+  activated_by?: string | null;
+  version: string;
+}
+
+/**
+ * 0. Fetch Platform Fee System Master Switch & Activation Timestamp
+ */
+export const fetchPlatformFeeSystemConfig = async (): Promise<PlatformFeeSystemConfig> => {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('platform_settings')
+        .select('value')
+        .eq('key', 'platform_fee_system')
+        .maybeSingle();
+
+      if (!error && data?.value) {
+        return data.value as PlatformFeeSystemConfig;
+      }
+    } catch (err) {
+      console.warn('Error fetching platform fee system config:', err);
+    }
+  }
+  return { is_enabled: true, activated_at: null, version: 'v1.0' };
+};
+
+/**
+ * 0B. Activate Platform Fee System (Admin Only)
+ */
+export const activatePlatformFeeSystem = async (): Promise<{
+  success: boolean;
+  is_enabled?: boolean;
+  activated_at?: string;
+  error?: string;
+}> => {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase.rpc('activate_platform_fee_system');
+      if (error) return { success: false, error: error.message };
+      return data as any;
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to activate fee system' };
+    }
+  }
+  return { success: true, is_enabled: true, activated_at: new Date().toISOString() };
+};
+
 /**
  * 1. Generate or retrieve a short-lived 6-digit pickup verification code for a customer order
  */

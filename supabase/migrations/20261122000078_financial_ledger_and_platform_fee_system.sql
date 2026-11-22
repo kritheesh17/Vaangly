@@ -45,26 +45,43 @@ CREATE TABLE IF NOT EXISTS public.platform_fee_rules (
     fee_amount_paise INTEGER NOT NULL CHECK (fee_amount_paise >= 0),
     effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     effective_to TIMESTAMPTZ,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_by UUID REFERENCES public.profiles(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_fee_rules_active ON public.platform_fee_rules (is_active, min_amount_paise, max_amount_paise);
 
+-- Initialize Controlled Server-Side Master Fee Activation Switch in platform_settings
+-- Initialized as inactive (is_enabled = FALSE) to guarantee that applying Migration 78
+-- causes ZERO platform fee assessments until explicitly activated after deployment and smoke tests.
+INSERT INTO public.platform_settings (key, value, description)
+VALUES (
+    'platform_fee_system',
+    jsonb_build_object(
+        'is_enabled', false,
+        'activated_at', null,
+        'activated_by', null,
+        'version', 'v1.0'
+    ),
+    'Master activation switch and timestamp for customer platform fee assessment'
+)
+ON CONFLICT (key) DO NOTHING;
+
 -- Seed Initial Slabs (Version 1 - Upper Bound Inclusive: ₹0.01-₹100 = ₹1, ₹100.01-₹200 = ₹2, etc.)
+-- Slabs start dormant (is_active = FALSE) and are activated atomically by activate_platform_fee_system RPC.
 INSERT INTO public.platform_fee_rules (rule_version, min_amount_paise, max_amount_paise, fee_amount_paise, is_active)
 VALUES
-    ('v1.0', 1, 10000, 100, TRUE),        -- ₹0.01 to ₹100.00 -> ₹1
-    ('v1.0', 10001, 20000, 200, TRUE),    -- ₹100.01 to ₹200.00 -> ₹2
-    ('v1.0', 20001, 30000, 300, TRUE),    -- ₹200.01 to ₹300.00 -> ₹3
-    ('v1.0', 30001, 40000, 400, TRUE),    -- ₹300.01 to ₹400.00 -> ₹4
-    ('v1.0', 40001, 50000, 500, TRUE),    -- ₹400.01 to ₹500.00 -> ₹5
-    ('v1.0', 50001, 60000, 600, TRUE),    -- ₹500.01 to ₹600.00 -> ₹6
-    ('v1.0', 60001, 70000, 700, TRUE),    -- ₹600.01 to ₹700.00 -> ₹7
-    ('v1.0', 70001, 80000, 800, TRUE),    -- ₹700.01 to ₹800.00 -> ₹8
-    ('v1.0', 80001, 90000, 900, TRUE),    -- ₹800.01 to ₹900.00 -> ₹9
-    ('v1.0', 90001, 100000, 1000, TRUE)   -- ₹900.01 to ₹1000.00 -> ₹10
+    ('v1.0', 1, 10000, 100, FALSE),        -- ₹0.01 to ₹100.00 -> ₹1
+    ('v1.0', 10001, 20000, 200, FALSE),    -- ₹100.01 to ₹200.00 -> ₹2
+    ('v1.0', 20001, 30000, 300, FALSE),    -- ₹200.01 to ₹300.00 -> ₹3
+    ('v1.0', 30001, 40000, 400, FALSE),    -- ₹300.01 to ₹400.00 -> ₹4
+    ('v1.0', 40001, 50000, 500, FALSE),    -- ₹400.01 to ₹500.00 -> ₹5
+    ('v1.0', 50001, 60000, 600, FALSE),    -- ₹500.01 to ₹600.00 -> ₹6
+    ('v1.0', 60001, 70000, 700, FALSE),    -- ₹600.01 to ₹700.00 -> ₹7
+    ('v1.0', 70001, 80000, 800, FALSE),    -- ₹700.01 to ₹800.00 -> ₹8
+    ('v1.0', 80001, 90000, 900, FALSE),    -- ₹800.01 to ₹900.00 -> ₹9
+    ('v1.0', 90001, 100000, 1000, FALSE)   -- ₹900.01 to ₹1000.00 -> ₹10
 ON CONFLICT DO NOTHING;
 
 -- ----------------------------------------------------------------------------
@@ -170,15 +187,33 @@ CREATE INDEX IF NOT EXISTS idx_fin_audit_created ON public.financial_audit_logs 
 -- ₹0.01 to ₹100.00 -> ₹1 (100 paise)
 -- ₹100.01 to ₹200.00 -> ₹2 (200 paise)
 -- Formula: CEIL(amount_paise / 10000.0) * 100
-CREATE OR REPLACE FUNCTION public.calculate_platform_fee(p_amount_paise INTEGER)
+-- Respects the controlled master switch in platform_settings unless p_force_calculation is TRUE
+CREATE OR REPLACE FUNCTION public.calculate_platform_fee(
+    p_amount_paise INTEGER,
+    p_force_calculation BOOLEAN DEFAULT FALSE
+)
 RETURNS INTEGER
 LANGUAGE plpgsql
-IMMUTABLE
+STABLE
 AS $$
+DECLARE
+    v_is_enabled BOOLEAN := FALSE;
 BEGIN
     IF p_amount_paise IS NULL OR p_amount_paise <= 0 THEN
         RETURN 0;
     END IF;
+
+    IF p_force_calculation IS NOT TRUE THEN
+        SELECT COALESCE((value->>'is_enabled')::BOOLEAN, FALSE)
+        INTO v_is_enabled
+        FROM public.platform_settings
+        WHERE key = 'platform_fee_system';
+
+        IF v_is_enabled IS NOT TRUE THEN
+            RETURN 0;
+        END IF;
+    END IF;
+
     RETURN (CEIL(p_amount_paise::NUMERIC / 10000.0) * 100)::INTEGER;
 END;
 $$;
@@ -299,6 +334,8 @@ DECLARE
     v_ledger_id UUID;
     v_is_admin BOOLEAN;
     v_is_owner BOOLEAN;
+    v_fee_system_enabled BOOLEAN := FALSE;
+    v_activation_time TIMESTAMPTZ;
 BEGIN
     -- 1. Fetch request and associated shop
     SELECT * INTO v_req FROM public.requests WHERE id = p_request_id FOR UPDATE;
@@ -355,12 +392,24 @@ BEGIN
     END IF;
 
     -- 5. Calculate customer-paid platform fee
-    -- If order already has platform_fee_paise stored at checkout, use it.
-    -- If platform_fee_paise is 0 or NULL and order was placed before Migration 78 activation, fee is 0.
-    v_fee_paise := COALESCE(v_req.platform_fee_paise, 0);
-    IF v_fee_paise <= 0 AND v_req.created_at >= '2026-11-22T00:00:00Z' THEN
-        v_amount_paise := ROUND(COALESCE(v_req.total_estimate, 0) * 100)::INTEGER;
-        v_fee_paise := public.calculate_platform_fee(v_amount_paise);
+    -- Check master fee system status & exact activation timestamp from platform_settings
+    SELECT
+        COALESCE((value->>'is_enabled')::BOOLEAN, FALSE),
+        (value->>'activated_at')::TIMESTAMPTZ
+    INTO v_fee_system_enabled, v_activation_time
+    FROM public.platform_settings
+    WHERE key = 'platform_fee_system';
+
+    -- If fee system is active AND order was created on or after exact activation timestamp, assess fee.
+    -- All orders created prior to activation time are permanently fee-free (0 paise).
+    IF v_fee_system_enabled IS TRUE AND v_activation_time IS NOT NULL AND v_req.created_at >= v_activation_time THEN
+        v_fee_paise := COALESCE(v_req.platform_fee_paise, 0);
+        IF v_fee_paise <= 0 THEN
+            v_amount_paise := ROUND(COALESCE(v_req.total_estimate, 0) * 100)::INTEGER;
+            v_fee_paise := (CEIL(v_amount_paise::NUMERIC / 10000.0) * 100)::INTEGER;
+        END IF;
+    ELSE
+        v_fee_paise := 0;
     END IF;
 
     -- 6. Transition order to COMPLETED and update pickup/payment verification metadata
@@ -864,6 +913,80 @@ BEGIN
 END;
 $$;
 
+-- H. Activate Platform Fee System Atomically (Admin Only)
+-- Enables the fee system in platform_settings, stamps exact activated_at,
+-- activates rules in platform_fee_rules, and records an immutable audit log.
+CREATE OR REPLACE FUNCTION public.activate_platform_fee_system(
+    p_admin_id UUID DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+DECLARE
+    v_now TIMESTAMPTZ := NOW();
+    v_admin UUID;
+    v_prev_config JSONB;
+BEGIN
+    IF NOT public.is_admin() THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Unauthorized: Only platform admin can activate fee system.');
+    END IF;
+
+    v_admin := COALESCE(auth.uid(), p_admin_id);
+
+    -- Fetch current state
+    SELECT value INTO v_prev_config FROM public.platform_settings WHERE key = 'platform_fee_system';
+
+    -- 1. Update platform_settings with exact activation timestamp
+    INSERT INTO public.platform_settings (key, value, description, updated_by, updated_at)
+    VALUES (
+        'platform_fee_system',
+        jsonb_build_object(
+            'is_enabled', true,
+            'activated_at', v_now,
+            'activated_by', v_admin,
+            'version', 'v1.0'
+        ),
+        'Master activation switch and timestamp for customer platform fee assessment',
+        v_admin,
+        v_now
+    )
+    ON CONFLICT (key) DO UPDATE
+    SET
+        value = jsonb_build_object(
+            'is_enabled', true,
+            'activated_at', COALESCE((public.platform_settings.value->>'activated_at')::TIMESTAMPTZ, v_now),
+            'activated_by', v_admin,
+            'version', 'v1.0'
+        ),
+        updated_by = v_admin,
+        updated_at = v_now;
+
+    -- 2. Activate fee rules in platform_fee_rules
+    UPDATE public.platform_fee_rules
+    SET is_active = TRUE, effective_from = v_now
+    WHERE rule_version = 'v1.0';
+
+    -- 3. Record in financial_audit_logs
+    INSERT INTO public.financial_audit_logs (
+        admin_id, action, target_entity, target_id, previous_state, new_state, reason
+    )
+    VALUES (
+        v_admin, 'ACTIVATE_PLATFORM_FEE_SYSTEM', 'platform_settings', gen_random_uuid(),
+        COALESCE(v_prev_config, jsonb_build_object('is_enabled', false)),
+        jsonb_build_object('is_enabled', true, 'activated_at', v_now),
+        'Admin activated customer-paid platform fee engine after post-deployment smoke tests.'
+    );
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'is_enabled', true,
+        'activated_at', v_now
+    );
+END;
+$$;
+
 -- ----------------------------------------------------------------------------
 -- 9. Row Level Security Policies
 -- ----------------------------------------------------------------------------
@@ -949,7 +1072,7 @@ GRANT ALL ON public.settlement_allocations TO service_role;
 GRANT SELECT ON public.financial_audit_logs TO authenticated;
 GRANT ALL ON public.financial_audit_logs TO service_role;
 
-GRANT EXECUTE ON FUNCTION public.calculate_platform_fee(INTEGER) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.calculate_platform_fee(INTEGER, BOOLEAN) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.generate_order_pickup_code(UUID) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_order_pickup_code(UUID) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.complete_order_and_assess_fee(UUID, TEXT, TEXT, UUID, BOOLEAN) TO authenticated, service_role;
@@ -957,4 +1080,5 @@ GRANT EXECUTE ON FUNCTION public.record_order_fee_reversal(UUID, TEXT, UUID) TO 
 GRANT EXECUTE ON FUNCTION public.get_merchant_financial_summary(UUID) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_admin_financial_kpis(TIMESTAMPTZ, TIMESTAMPTZ) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.verify_merchant_settlement(UUID, TEXT, INTEGER, TEXT, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.activate_platform_fee_system(UUID) TO authenticated, service_role;
 

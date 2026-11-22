@@ -29,6 +29,9 @@ import {
   fetchMerchantLedger,
   fetchMerchantFinancialSummary,
   exportToCSV,
+  fetchPlatformFeeSystemConfig,
+  activatePlatformFeeSystem,
+  PlatformFeeSystemConfig,
 } from '../../lib/financeApi';
 import {
   AdminFinancialKPIs,
@@ -72,6 +75,10 @@ export const AdminFinancialPage: React.FC = () => {
   const [merchantSummary, setMerchantSummary] = useState<MerchantFinancialSummary | null>(null);
   const [merchantLedger, setMerchantLedger] = useState<PlatformFeeLedgerEntry[]>([]);
   const [isLoadingDrillDown, setIsLoadingDrillDown] = useState(false);
+
+  // Controlled Fee Activation State
+  const [feeConfig, setFeeConfig] = useState<PlatformFeeSystemConfig | null>(null);
+  const [isActivatingFee, setIsActivatingFee] = useState(false);
 
   const getDateRange = (filter: DateFilterOption): { start?: string; end?: string } => {
     const now = new Date();
@@ -130,9 +137,40 @@ export const AdminFinancialPage: React.FC = () => {
     setIsLoadingSettlements(false);
   }, [settlementFilter]);
 
+  const loadFeeConfig = useCallback(async () => {
+    const cfg = await fetchPlatformFeeSystemConfig();
+    setFeeConfig(cfg);
+  }, []);
+
+  const handleActivateFeeEngine = async () => {
+    if (
+      !window.confirm(
+        'Are you sure you want to activate the Platform Fee Assessment System? Once activated, customer orders will be assessed platform fees based on configured fee slabs.'
+      )
+    ) {
+      return;
+    }
+    setIsActivatingFee(true);
+    try {
+      const res = await activatePlatformFeeSystem();
+      if (res.success) {
+        success('Platform Fee Assessment System activated successfully!');
+        await loadFeeConfig();
+        await loadKPIs();
+      } else {
+        toastError(res.error || 'Failed to activate fee engine');
+      }
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : 'Activation failed');
+    } finally {
+      setIsActivatingFee(false);
+    }
+  };
+
   useEffect(() => {
     loadKPIs();
-  }, [loadKPIs]);
+    loadFeeConfig();
+  }, [loadKPIs, loadFeeConfig]);
 
   useEffect(() => {
     if (activeTab === 'directory') {
@@ -261,6 +299,33 @@ export const AdminFinancialPage: React.FC = () => {
         </div>
 
         <div className="vaango-admin-finance__controls">
+          {/* Controlled Fee Engine Status & Activation */}
+          <div className="flex items-center gap-2">
+            {feeConfig?.is_enabled ? (
+              <Badge variant="success" size="sm" className="flex items-center gap-1">
+                <CheckCircle size={12} />
+                <span>
+                  Fee Engine: ACTIVE
+                  {feeConfig.activated_at ? ` (${new Date(feeConfig.activated_at).toLocaleDateString()})` : ''}
+                </span>
+              </Badge>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Badge variant="warning" size="sm">
+                  Fee Engine: DORMANT (Staging)
+                </Badge>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  isLoading={isActivatingFee}
+                  onClick={handleActivateFeeEngine}
+                >
+                  Activate Fee Engine
+                </Button>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-2">
             <Calendar size={16} className="text-muted" />
             <select
