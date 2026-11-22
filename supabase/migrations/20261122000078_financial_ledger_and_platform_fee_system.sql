@@ -916,9 +916,9 @@ $$;
 -- H. Activate Platform Fee System Atomically (Admin Only)
 -- Enables the fee system in platform_settings, stamps exact activated_at,
 -- activates rules in platform_fee_rules, and records an immutable audit log.
-CREATE OR REPLACE FUNCTION public.activate_platform_fee_system(
-    p_admin_id UUID DEFAULT NULL
-)
+-- Enforces auth.uid() directly (never accepts client-supplied admin ID).
+-- Guards against timestamp overwrite: if already active, preserves original activated_at.
+CREATE OR REPLACE FUNCTION public.activate_platform_fee_system()
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -929,14 +929,24 @@ DECLARE
     v_admin UUID;
     v_prev_config JSONB;
 BEGIN
-    IF NOT public.is_admin() THEN
+    v_admin := auth.uid();
+    IF v_admin IS NULL OR NOT public.is_admin() THEN
         RETURN jsonb_build_object('success', false, 'error', 'Unauthorized: Only platform admin can activate fee system.');
     END IF;
 
-    v_admin := COALESCE(auth.uid(), p_admin_id);
-
     -- Fetch current state
     SELECT value INTO v_prev_config FROM public.platform_settings WHERE key = 'platform_fee_system';
+
+    -- Guard against silent rewriting if already active
+    IF COALESCE((v_prev_config->>'is_enabled')::BOOLEAN, FALSE) IS TRUE THEN
+        RETURN jsonb_build_object(
+            'success', true,
+            'is_enabled', true,
+            'already_active', true,
+            'activated_at', (v_prev_config->>'activated_at')::TIMESTAMPTZ,
+            'message', 'Platform fee system is already active. Original activation timestamp preserved.'
+        );
+    END IF;
 
     -- 1. Update platform_settings with exact activation timestamp
     INSERT INTO public.platform_settings (key, value, description, updated_by, updated_at)
@@ -1080,5 +1090,5 @@ GRANT EXECUTE ON FUNCTION public.record_order_fee_reversal(UUID, TEXT, UUID) TO 
 GRANT EXECUTE ON FUNCTION public.get_merchant_financial_summary(UUID) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_admin_financial_kpis(TIMESTAMPTZ, TIMESTAMPTZ) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.verify_merchant_settlement(UUID, TEXT, INTEGER, TEXT, UUID) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.activate_platform_fee_system(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.activate_platform_fee_system() TO authenticated, service_role;
 
