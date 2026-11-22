@@ -158,11 +158,12 @@ export const completeOrderAndAssessFee = async (params: {
 
   if (isSupabaseConfigured) {
     try {
+      const currentUserId = actorId || (await supabase.auth.getUser()).data.user?.id || null;
       const { data, error } = await supabase.rpc('complete_order_and_assess_fee', {
         p_request_id: requestId,
         p_pickup_code: pickupCode || '',
         p_payment_method: paymentMethod || 'cash',
-        p_actor_id: actorId,
+        p_actor_id: currentUserId,
         p_override_without_code: overrideWithoutCode,
       });
 
@@ -200,10 +201,11 @@ export const recordOrderFeeReversal = async (
 ): Promise<{ success: boolean; reversedPaise?: number; error?: string }> => {
   if (isSupabaseConfigured) {
     try {
+      const currentUserId = actorId || (await supabase.auth.getUser()).data.user?.id || null;
       const { data, error } = await supabase.rpc('record_order_fee_reversal', {
         p_request_id: requestId,
         p_reason: reason,
-        p_actor_id: actorId,
+        p_actor_id: currentUserId,
       });
 
       if (error) return { success: false, error: error.message };

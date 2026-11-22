@@ -60,7 +60,11 @@ VALUES
     ('v1.0', 20001, 30000, 300, TRUE),    -- ₹200.01 to ₹300.00 -> ₹3
     ('v1.0', 30001, 40000, 400, TRUE),    -- ₹300.01 to ₹400.00 -> ₹4
     ('v1.0', 40001, 50000, 500, TRUE),    -- ₹400.01 to ₹500.00 -> ₹5
-    ('v1.0', 50001, 100000, 1000, TRUE)   -- ₹500.01 to ₹1000.00 -> ₹10
+    ('v1.0', 50001, 60000, 600, TRUE),    -- ₹500.01 to ₹600.00 -> ₹6
+    ('v1.0', 60001, 70000, 700, TRUE),    -- ₹600.01 to ₹700.00 -> ₹7
+    ('v1.0', 70001, 80000, 800, TRUE),    -- ₹700.01 to ₹800.00 -> ₹8
+    ('v1.0', 80001, 90000, 900, TRUE),    -- ₹800.01 to ₹900.00 -> ₹9
+    ('v1.0', 90001, 100000, 1000, TRUE)   -- ₹900.01 to ₹1000.00 -> ₹10
 ON CONFLICT DO NOTHING;
 
 -- ----------------------------------------------------------------------------
@@ -115,6 +119,9 @@ CREATE TABLE IF NOT EXISTS public.merchant_settlements (
 
 CREATE INDEX IF NOT EXISTS idx_settlements_shop ON public.merchant_settlements (shop_id, submitted_at DESC);
 CREATE INDEX IF NOT EXISTS idx_settlements_status ON public.merchant_settlements (verification_status, submitted_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_settlements_unique_utr 
+    ON public.merchant_settlements (transaction_reference)
+    WHERE payment_method IN ('upi', 'bank_transfer') AND verification_status <> 'rejected';
 
 -- ----------------------------------------------------------------------------
 -- 6. Table: settlement_allocations
@@ -177,8 +184,8 @@ END;
 $$;
 
 -- B. Generate Pickup Verification Code
--- Generates a 6-digit numeric code, hashes it with SHA-256 and a random salt,
--- stores the hash and salt, and returns the plaintext code to the caller.
+-- Generates a deterministic 6-digit numeric code, hashes it with SHA-256 and server secret salt,
+-- stores the hash and salt, and returns the plaintext code to the customer.
 CREATE OR REPLACE FUNCTION public.generate_order_pickup_code(p_request_id UUID)
 RETURNS TEXT
 LANGUAGE plpgsql
@@ -186,26 +193,36 @@ SECURITY DEFINER
 SET search_path = public, auth, pg_temp
 AS $$
 DECLARE
-    v_raw_code TEXT;
-    v_salt TEXT;
-    v_hash TEXT;
+    v_req RECORD;
+    v_code TEXT;
+    v_secret TEXT := 'vaangly_secure_pickup_salt_2026';
 BEGIN
-    -- Generate random 6-digit number between 100000 and 999999
-    v_raw_code := lpad(floor(random() * 900000 + 100000)::TEXT, 6, '0');
-    v_salt := encode(gen_random_bytes(16), 'hex');
-    v_hash := encode(digest(v_raw_code || v_salt, 'sha256'), 'hex');
+    SELECT * INTO v_req FROM public.requests WHERE id = p_request_id;
+    IF NOT FOUND THEN
+        RETURN NULL;
+    END IF;
+
+    IF NOT (v_req.customer_id = auth.uid() OR public.is_admin()) THEN
+        RAISE EXCEPTION 'Unauthorized: Only the customer who placed this order can generate the pickup code.';
+    END IF;
+
+    -- Deterministic derivation matching get_order_pickup_code
+    v_code := lpad(
+        (abs(('x' || substr(md5(v_req.id::text || v_req.created_at::text || v_secret), 1, 8))::bit(32)::integer) % 900000 + 100000)::text,
+        6, '0'
+    );
 
     UPDATE public.requests
     SET
-        pickup_code_hash = v_hash,
-        pickup_code_salt = v_salt,
+        pickup_code_hash = encode(digest(v_code || v_secret, 'sha256'), 'hex'),
+        pickup_code_salt = v_secret,
         pickup_code_generated_at = NOW(),
         pickup_code_expires_at = NOW() + INTERVAL '72 hours',
         pickup_code_attempts = 0,
         updated_at = NOW()
     WHERE id = p_request_id;
 
-    RETURN v_raw_code;
+    RETURN v_code;
 END;
 $$;
 
@@ -296,7 +313,7 @@ BEGIN
 
     -- 2. Authorization check
     v_is_admin := public.is_admin();
-    v_is_owner := (v_shop.owner_id = p_actor_id);
+    v_is_owner := (auth.uid() IS NOT NULL AND v_shop.owner_id = auth.uid()) OR (v_shop.owner_id = p_actor_id AND auth.uid() IS NULL);
     IF NOT (v_is_admin OR v_is_owner) THEN
         RETURN jsonb_build_object('success', false, 'error', 'Unauthorized: You cannot complete orders for this shop.');
     END IF;
@@ -338,8 +355,13 @@ BEGIN
     END IF;
 
     -- 5. Calculate customer-paid platform fee
-    v_amount_paise := ROUND(COALESCE(v_req.total_estimate, 0) * 100)::INTEGER;
-    v_fee_paise := public.calculate_platform_fee(v_amount_paise);
+    -- If order already has platform_fee_paise stored at checkout, use it.
+    -- If platform_fee_paise is 0 or NULL and order was placed before Migration 78 activation, fee is 0.
+    v_fee_paise := COALESCE(v_req.platform_fee_paise, 0);
+    IF v_fee_paise <= 0 AND v_req.created_at >= '2026-11-22T00:00:00Z' THEN
+        v_amount_paise := ROUND(COALESCE(v_req.total_estimate, 0) * 100)::INTEGER;
+        v_fee_paise := public.calculate_platform_fee(v_amount_paise);
+    END IF;
 
     -- 6. Transition order to COMPLETED and update pickup/payment verification metadata
     UPDATE public.requests
@@ -437,6 +459,14 @@ BEGIN
     END IF;
 
     v_is_admin := public.is_admin();
+    IF NOT (
+        v_is_admin 
+        OR (auth.uid() IS NOT NULL AND EXISTS (SELECT 1 FROM public.shops WHERE id = v_req.shop_id AND owner_id = auth.uid()))
+        OR (auth.uid() IS NOT NULL AND v_req.customer_id = auth.uid() AND v_req.current_state IN ('CANCELLED', 'REJECTED'))
+        OR (auth.uid() IS NULL AND p_actor_id IS NOT NULL)
+    ) THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Unauthorized: You cannot reverse fees for this order.');
+    END IF;
 
     -- Find fee_assessed ledger entry
     SELECT * INTO v_assessed
@@ -550,10 +580,21 @@ BEGIN
 
     -- Check oldest unsettled liability
     IF v_outstanding_paise > 0 THEN
-        SELECT MIN(created_at)
+        SELECT MIN(l.created_at)
         INTO v_oldest_unpaid_at
-        FROM public.platform_fee_ledger
-        WHERE shop_id = p_shop_id AND entry_type = 'fee_assessed';
+        FROM public.platform_fee_ledger l
+        LEFT JOIN (
+            SELECT ledger_entry_id, COALESCE(SUM(allocated_amount_paise), 0) AS total_allocated
+            FROM public.settlement_allocations
+            GROUP BY ledger_entry_id
+        ) a ON a.ledger_entry_id = l.id
+        WHERE l.shop_id = p_shop_id
+          AND l.entry_type = 'fee_assessed'
+          AND l.amount_paise > COALESCE(a.total_allocated, 0)
+          AND NOT EXISTS (
+              SELECT 1 FROM public.platform_fee_ledger rev
+              WHERE rev.shop_id = l.shop_id AND rev.request_id = l.request_id AND rev.entry_type = 'fee_reversed'
+          );
 
         IF v_oldest_unpaid_at IS NOT NULL THEN
             v_days_overdue := GREATEST(0, EXTRACT(DAY FROM (NOW() - v_oldest_unpaid_at))::INTEGER);
@@ -719,6 +760,8 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Unauthorized');
     END IF;
 
+    p_admin_id := COALESCE(auth.uid(), p_admin_id);
+
     SELECT * INTO v_st FROM public.merchant_settlements WHERE id = p_settlement_id FOR UPDATE;
     IF NOT FOUND THEN
         RETURN jsonb_build_object('success', false, 'error', 'Settlement record not found.');
@@ -762,14 +805,24 @@ BEGIN
             updated_at = NOW()
         WHERE id = p_settlement_id;
 
-        -- Allocate against unallocated fee_assessed ledger entries FIFO
+        -- Lock shop row to serialize concurrent settlement allocations for this shop
+        PERFORM 1 FROM public.shops WHERE id = v_st.shop_id FOR UPDATE;
+
+        -- Allocate against unallocated fee_assessed ledger entries FIFO (excluding reversed orders)
         v_unallocated_amount := p_verified_amount_paise;
 
         FOR v_entry IN
             SELECT l.id, l.amount_paise, COALESCE(SUM(sa.allocated_amount_paise), 0) AS total_allocated
             FROM public.platform_fee_ledger l
             LEFT JOIN public.settlement_allocations sa ON sa.ledger_entry_id = l.id
-            WHERE l.shop_id = v_st.shop_id AND l.entry_type = 'fee_assessed'
+            WHERE l.shop_id = v_st.shop_id 
+              AND l.entry_type = 'fee_assessed'
+              AND NOT EXISTS (
+                  SELECT 1 FROM public.platform_fee_ledger rev
+                  WHERE rev.shop_id = l.shop_id 
+                    AND rev.request_id = l.request_id 
+                    AND rev.entry_type = 'fee_reversed'
+              )
             GROUP BY l.id, l.amount_paise, l.created_at
             HAVING l.amount_paise > COALESCE(SUM(sa.allocated_amount_paise), 0)
             ORDER BY l.created_at ASC
