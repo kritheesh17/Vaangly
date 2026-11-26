@@ -157,86 +157,68 @@
   gap: var(--space-4);
 }
 
-/* Step 2: OTP Verification Screen Styles */
-.vaango-auth-otp-step {
+/* Google-Only Authentication & SSO Card */
+.vaango-auth-google-section {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  align-items: center;
+  width: 100%;
 }
 
-.vaango-otp-dest-bar {
+.vaango-auth-google-btn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-3);
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 24px;
+  font-size: 1.05rem;
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.vaango-auth-google-btn:hover:not(:disabled) {
+  background-color: var(--color-surface-sunken);
+  border-color: var(--brand-primary);
+  box-shadow: 0 4px 14px rgba(27, 77, 62, 0.12);
+  transform: translateY(-1px);
+}
+
+.vaango-auth-google-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.vaango-auth-value-props {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
   background-color: var(--color-surface-sunken);
   border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
+  border: 1px solid var(--color-border-subtle);
+  width: 100%;
 }
 
-.vaango-otp-dest-label {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.vaango-otp-dest-email {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vaango-otp-change-btn {
-  color: var(--brand-primary);
-  font-weight: var(--font-weight-bold);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  text-decoration: underline;
-}
-
-.vaango-otp-resend-row {
+.vaango-auth-value-prop-item {
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding-top: var(--space-1);
-}
-
-.vaango-otp-cooldown-text {
+  gap: var(--space-3);
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
-.vaango-otp-cooldown-text strong {
+.vaango-auth-value-prop-icon {
   color: var(--brand-primary);
+  flex-shrink: 0;
 }
-
-.vaango-otp-resend-btn {
-  color: var(--brand-primary);
-  font-weight: var(--font-weight-bold);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: var(--font-size-sm);
-  text-decoration: underline;
-}
-
-.vaango-otp-resend-btn:hover:not(:disabled) {
-  opacity: 0.8;
-}
-
-.vaango-otp-resend-btn:disabled {
-  color: var(--color-text-muted);
-  cursor: not-allowed;
-  text-decoration: none;
-}
-
-/* Informational Notice Banner for Phone OTP */
 .vaango-auth-info-banner {
   display: flex;
   align-items: flex-start;

@@ -280,7 +280,7 @@ export const ShopkeeperDashboardPage: React.FC = () => {
         </button>
 
         <div className="vaango-sk-header__center">
-          <h1 className="vaango-sk-header__title">{shop.name || 'Vaango Shop'}</h1>
+          <h1 className="vaango-sk-header__title">{shop.name || 'Kartzo Shop'}</h1>
           <button
             type="button"
             className={`vaango-sk-live-pill ${shop.is_live ? 'vaango-sk-live-pill--online' : 'vaango-sk-live-pill--offline'}`}

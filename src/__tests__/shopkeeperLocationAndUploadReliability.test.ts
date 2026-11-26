@@ -302,7 +302,7 @@ describe('Shopkeeper Location Fallback & Upload Reliability Tests', () => {
     assert.strictEqual(classified.isRetryable, true);
     assert.strictEqual(
       classified.userMessage,
-      "We couldn't connect to Vaangly. Check your internet connection and try again."
+      "We couldn't connect to Kartzo. Check your internet connection and try again."
     );
   });
 });

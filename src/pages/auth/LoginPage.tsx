@@ -1,21 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { User, Lock, Mail, Phone, ArrowRight, ShieldCheck, CheckCircle2, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { ShieldCheck, Store, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { FormField } from '../../components/ui/FormField';
-import { Checkbox } from '../../components/ui/Checkbox';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
-import { isValidIndianMobile } from '../../lib/phoneUtils';
 import { ActionErrorBanner } from '../../components/ui/ActionErrorBanner';
 import { scrollAndFocusError, classifyError } from '../../lib/errorUxUtils';
 import { sanitizeRedirectUrl } from '../../lib/authUtils';
 import './Auth.css';
-
-type AuthMode = 'signin' | 'signup' | 'forgot' | 'recovery';
 
 export const LoginPage: React.FC = () => {
   const {
@@ -23,11 +17,6 @@ export const LoginPage: React.FC = () => {
     isAuthenticated,
     isLoading: isAuthLoading,
     signInWithGoogle,
-    loginWithEmail,
-    signUpWithEmail,
-    resendEmailConfirmation,
-    resetPasswordForEmail,
-    updatePassword,
     refreshUser,
   } = useAuth();
   const { t } = useLanguage();
@@ -40,61 +29,33 @@ export const LoginPage: React.FC = () => {
     redirectParam || (location.state as { from?: { pathname?: string; search?: string } })?.from?.pathname || '/'
   );
 
-  // Mode state: signin | signup | forgot | recovery
-  const initialMode = (searchParams.get('mode') as AuthMode) || 'signin';
-  const [mode, setMode] = useState<AuthMode>(initialMode);
-
-  // Form states
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  // UI state
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
-  const [isResendingEmail, setIsResendingEmail] = useState(false);
-  const [isCheckingVerification, setIsCheckingVerification] = useState(false);
+
+  const clearAuthError = () => {
+    if (errorMsg) setErrorMsg(null);
+  };
 
   // If already authenticated upon arrival, redirect directly to destination once verified
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated && user) {
       if (user.is_verified) {
         setSuccessMsg(null);
-        setUnconfirmedEmail(null);
         navigate(from, { replace: true });
-      } else {
-        setUnconfirmedEmail(user.email?.trim().toLowerCase() || null);
       }
     }
   }, [isAuthLoading, isAuthenticated, user, navigate, from]);
 
-  // Check URL hash or query parameters or Supabase event for password recovery token
+  // Handle active session sync and focus recovery
   useEffect(() => {
-    const hash = window.location.hash;
-    const isRecovery = searchParams.get('mode') === 'recovery' || hash.includes('type=recovery');
-    if (isRecovery) {
-      navigate(`/reset-password${window.location.search}${window.location.hash}`, { replace: true });
-      return;
-    }
-
     if (isSupabaseConfigured) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'PASSWORD_RECOVERY') {
-          navigate('/reset-password', { replace: true });
-          return;
-        } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
           if (session?.user) {
             const updated = await refreshUser();
             if (updated?.is_verified) {
               setSuccessMsg(null);
-              setUnconfirmedEmail(null);
               navigate(from, { replace: true });
             }
           }
@@ -133,9 +94,9 @@ export const LoginPage: React.FC = () => {
     }
   }, [from, isGoogleLoading, navigate, refreshUser]);
 
-  // Customer / Partner: Continue with Google
+  // Primary Google OAuth Sign-In handler
   const handleGoogleSignIn = async () => {
-    setErrorMsg(null);
+    clearAuthError();
     setSuccessMsg(null);
     setIsGoogleLoading(true);
 
@@ -147,260 +108,39 @@ export const LoginPage: React.FC = () => {
 
       const result = await signInWithGoogle(from);
       if (!result.success) {
-        setErrorMsg(result.error || t('genericError'));
+        const errorText = result.error || t('genericError');
+        setErrorMsg(errorText);
+        scrollAndFocusError('signin-action-error', { focus: true });
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || t('genericError'));
+      const errorText = err?.message || t('genericError');
+      setErrorMsg(errorText);
+      scrollAndFocusError('signin-action-error', { focus: true });
     } finally {
       setIsGoogleLoading(false);
     }
   };
 
-  const reportAuthError = (msg: string, targetId?: string) => {
-    setErrorMsg(msg);
-    scrollAndFocusError(targetId || 'auth-action-error', { focus: true });
-  };
-
-  // Sign In submit
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setSuccessMsg(null);
-    setUnconfirmedEmail(null);
-
-    if (!email.trim()) {
-      reportAuthError(t('enterEmailPrompt'), 'signin-email');
-      return;
-    }
-    if (!password) {
-      reportAuthError(t('enterPasswordPrompt'), 'signin-password');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const result = await loginWithEmail(email, password);
-      if (result.success) {
-        setSuccessMsg(null);
-        setUnconfirmedEmail(null);
-        navigate(from, { replace: true });
-      } else {
-        reportAuthError(result.error || t('genericError'), 'signin-action-error');
-        if (result.isEmailUnconfirmed) {
-          setUnconfirmedEmail(email.trim().toLowerCase());
-        }
-      }
-    } catch (err: any) {
-      reportAuthError(err?.message || t('genericError'), 'signin-action-error');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Sign Up submit
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setSuccessMsg(null);
-    setUnconfirmedEmail(null);
-
-    if (!fullName.trim()) {
-      reportAuthError(t('enterNamePrompt'), 'signup-name');
-      return;
-    }
-    if (!email.trim()) {
-      reportAuthError(t('enterEmailPrompt'), 'signup-email');
-      return;
-    }
-    if (!password || password.length < 6) {
-      reportAuthError(t('passwordMinHint'), 'signup-password');
-      return;
-    }
-    if (password !== confirmPassword) {
-      reportAuthError(t('passwordMismatch'), 'signup-confirm-password');
-      return;
-    }
-    if (!phone.trim()) {
-      reportAuthError(t('validPhonePrompt') || 'Please enter your 10-digit mobile number.', 'signup-phone');
-      return;
-    }
-    if (!isValidIndianMobile(phone.trim())) {
-      reportAuthError(t('validPhonePrompt') || 'Please enter a valid 10-digit Indian mobile number.', 'signup-phone');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      if (from && from !== '/') {
-        sessionStorage.setItem('vaangly_auth_redirect', from);
-        localStorage.setItem('vaangly_auth_redirect', from);
-      }
-
-      const result = await signUpWithEmail(email, password, fullName, 'customer', phone.trim(), from);
-      if (result.success) {
-        if (result.requiresEmailConfirmation) {
-          setSuccessMsg(
-            result.message || t('verificationEmailSent')
-          );
-          setUnconfirmedEmail(email.trim().toLowerCase());
-        } else {
-          navigate(from, { replace: true });
-        }
-      } else {
-        reportAuthError(result.error || t('genericError'), 'signup-action-error');
-      }
-    } catch (err: any) {
-      reportAuthError(err?.message || t('genericError'), 'signup-action-error');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Forgot password submit
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
-    if (!email.trim()) {
-      reportAuthError(t('enterEmailPrompt'), 'forgot-email');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const result = await resetPasswordForEmail(email);
-      if (result.success) {
-        setSuccessMsg(t('verificationEmailSent'));
-      } else {
-        reportAuthError(result.error || t('genericError'), 'forgot-action-error');
-      }
-    } catch (err: any) {
-      reportAuthError(err?.message || t('genericError'), 'forgot-action-error');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Password recovery (set new password) submit
-  const handlePasswordRecovery = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
-    if (!password || password.length < 6) {
-      reportAuthError(t('passwordMinHint'), 'recovery-password');
-      return;
-    }
-    if (password !== confirmPassword) {
-      reportAuthError(t('passwordMismatch'), 'recovery-confirm-password');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const result = await updatePassword(password);
-      if (result.success) {
-        setSuccessMsg(t('passwordUpdatedSuccess'));
-        window.setTimeout(() => {
-          navigate(from, { replace: true });
-        }, 1200);
-      } else {
-        reportAuthError(result.error || t('genericError'), 'recovery-action-error');
-      }
-    } catch (err: any) {
-      reportAuthError(err?.message || t('genericError'), 'recovery-action-error');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Resend verification email
-  const handleResendConfirmation = async () => {
-    const targetEmail = unconfirmedEmail || email.trim().toLowerCase();
-    if (!targetEmail) return;
-
-    setIsResendingEmail(true);
-    try {
-      const result = await resendEmailConfirmation(targetEmail);
-      if (result.success) {
-        setSuccessMsg(t('verificationEmailSent'));
-      } else {
-        setErrorMsg(result.error || t('genericError'));
-      }
-    } catch (err: any) {
-      setErrorMsg(err?.message || t('genericError'));
-    } finally {
-      setIsResendingEmail(false);
-    }
-  };
+  const isPartnerFlow = from.includes('/shopkeeper');
 
   return (
     <div className="container vaango-auth-container">
       <Card variant="elevated" padding="lg" className="vaango-auth-card">
-        {/* Header */}
+        {/* Brand Header */}
         <div className="vaango-auth-header">
-          <Link to="/" className="vaango-auth-brand" aria-label="Vaangly Home">
+          <Link to="/" className="vaango-auth-brand" aria-label="Kartzo Home" onClick={clearAuthError}>
             <div className="vaango-header__logo-icon" aria-hidden="true">
               <span>V</span>
             </div>
-            <span className="vaango-header__logo-text">VAANGLY</span>
+            <span className="vaango-header__logo-text">KARTZO</span>
           </Link>
-          <h1 className="vaango-auth-title">
-            {mode === 'signin' && t('signInTitle')}
-            {mode === 'signup' && t('signUpTitle')}
-            {mode === 'forgot' && t('authForgotTitle')}
-            {mode === 'recovery' && t('authRecoveryTitle')}
-          </h1>
+          <h1 className="vaango-auth-title">{t('signInTitle')}</h1>
           <p className="vaango-auth-subtitle">
-            {mode === 'signin' &&
-              (from.includes('/shopkeeper')
-                ? t('authPartnerSignInSubtitle')
-                : t('signInSubtitle'))}
-            {mode === 'signup' &&
-              (from.includes('/shopkeeper')
-                ? t('authPartnerSignUpSubtitle')
-                : t('signUpSubtitle'))}
-            {mode === 'forgot' && t('authForgotSubtitle')}
-            {mode === 'recovery' && t('authRecoverySubtitle')}
+            {isPartnerFlow
+              ? t('authPartnerSignInSubtitle')
+              : t('signInSubtitle')}
           </p>
         </div>
-
-        {/* Tab Switcher for Sign In / Sign Up */}
-        {(mode === 'signin' || mode === 'signup') && (
-          <div className="vaango-auth-tabs" role="tablist" aria-label="Authentication modes">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'signin'}
-              className={`vaango-auth-tab ${mode === 'signin' ? 'vaango-auth-tab--active' : ''}`}
-              onClick={() => {
-                setMode('signin');
-                setErrorMsg(null);
-                setSuccessMsg(null);
-                setUnconfirmedEmail(null);
-              }}
-            >
-              <Lock size={16} />
-              <span>{t('signInSubmit')}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'signup'}
-              className={`vaango-auth-tab ${mode === 'signup' ? 'vaango-auth-tab--active' : ''}`}
-              onClick={() => {
-                setMode('signup');
-                setErrorMsg(null);
-                setSuccessMsg(null);
-                setUnconfirmedEmail(null);
-              }}
-            >
-              <User size={16} />
-              <span>{t('signUpSubmit')}</span>
-            </button>
-          </div>
-        )}
 
         {/* Success Alert */}
         {successMsg && (
@@ -410,575 +150,86 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
-        {/* Unconfirmed Email Action Banner */}
-        {unconfirmedEmail && (
-          <div
-            style={{
-              padding: 'var(--space-3)',
-              background: 'var(--color-surface-sunken)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-border)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 'var(--space-2)',
-            }}
-          >
-            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-              {t('waitingEmailVerification', { email: unconfirmedEmail })}
-            </span>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                isLoading={isCheckingVerification}
-                onClick={async () => {
-                  setErrorMsg(null);
-                  setIsCheckingVerification(true);
-                  try {
-                    const updated = await refreshUser();
-                    if (updated?.is_verified) {
-                      setSuccessMsg(t('emailVerifiedRedirect'));
-                      setUnconfirmedEmail(null);
-                      setTimeout(() => navigate(from, { replace: true }), 500);
-                    } else {
-                      setErrorMsg(t('emailNotDetectedYet'));
-                    }
-                  } catch (err: any) {
-                    setErrorMsg(err?.message || t('genericError'));
-                  } finally {
-                    setIsCheckingVerification(false);
-                  }
-                }}
-              >
-                {t('checkEmailVerificationBtn')}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                isLoading={isResendingEmail}
-                onClick={handleResendConfirmation}
-              >
-                {t('resendVerificationLink')}
-              </Button>
-            </div>
+        {/* Value Propositions / Key Features */}
+        <div className="vaango-auth-value-props">
+          <div className="vaango-auth-value-prop-item">
+            <ShieldCheck size={20} className="vaango-auth-value-prop-icon" />
+            <span>Fast, verified & secure one-click sign in</span>
           </div>
+          <div className="vaango-auth-value-prop-item">
+            <Store size={20} className="vaango-auth-value-prop-icon" />
+            <span>Connect with neighbourhood stores & track orders</span>
+          </div>
+          <div className="vaango-auth-value-prop-item">
+            <Sparkles size={20} className="vaango-auth-value-prop-icon" />
+            <span>No passwords or SMS OTP codes required</span>
+          </div>
+        </div>
+
+        {/* Action Error Banner */}
+        {errorMsg && (
+          <ActionErrorBanner
+            id="signin-action-error"
+            message={errorMsg}
+            variant={classifyError(errorMsg).category === 'network' ? 'network' : 'error'}
+            onDismiss={() => {
+              if (errorMsg) setErrorMsg(null);
+            }}
+          />
         )}
 
-        {/* ========================================================= */}
-        {/* MODE: SIGN IN */}
-        {/* ========================================================= */}
-        {mode === 'signin' && (
-          <form onSubmit={handleSignIn} className="vaango-auth-form">
-            <FormField id="signin-email" label={t('emailLabel')} required>
-              <Input
-                id="signin-email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (errorMsg) setErrorMsg(null);
-                }}
-                placeholder="you@example.com"
-                leftIcon={<Mail size={18} />}
+        {/* Google Sign In CTA */}
+        <div className="vaango-auth-google-section">
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            fullWidth
+            isLoading={isGoogleLoading}
+            onClick={handleGoogleSignIn}
+            className="vaango-auth-google-btn"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
               />
-            </FormField>
-
-            <FormField id="signin-password" label={t('passwordLabel')} required>
-              <Input
-                id="signin-password"
-                type={showPassword ? 'text' : 'password'}
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (errorMsg) setErrorMsg(null);
-                }}
-                placeholder="••••••••"
-                leftIcon={<Lock size={18} />}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'inherit' }}
-                    title={showPassword ? 'Hide password' : 'Show password'}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
               />
-            </FormField>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', marginBottom: '8px' }}>
-              <Checkbox
-                id="signin-show-password"
-                label="Show password"
-                checked={showPassword}
-                onChange={(e) => setShowPassword(e.target.checked)}
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
               />
-              <button
-                type="button"
-                className="vaango-auth-link"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }}
-                onClick={() => {
-                  setMode('forgot');
-                  setErrorMsg(null);
-                  setSuccessMsg(null);
-                }}
-              >
-                {t('forgotPasswordLink')}
-              </button>
-            </div>
-
-            {errorMsg && (
-              <ActionErrorBanner
-                id="signin-action-error"
-                message={errorMsg}
-                variant={classifyError(errorMsg).category === 'network' ? 'network' : 'error'}
-                onDismiss={() => setErrorMsg(null)}
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
-            )}
+            </svg>
+            <span>{t('googleSignInBtn')}</span>
+          </Button>
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              fullWidth
-              isLoading={isSubmitting}
-              rightIcon={<ArrowRight size={18} />}
-            >
-              {t('signInSubmit')}
-            </Button>
+          <p className="vaango-auth-subtitle" style={{ fontSize: '0.8rem', textAlign: 'center', margin: 0 }}>
+            {t('googleOnlyAuthNotice') || 'Kartzo uses Google Sign-In for fast, secure, one-click access without passwords or OTPs.'}
+          </p>
+        </div>
 
-            {/* Divider */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                margin: 'var(--space-2) 0',
-                gap: 'var(--space-3)',
-              }}
-            >
-              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
-              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                {t('orDivider')}
-              </span>
-              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
-            </div>
-
-            {/* Google Sign In */}
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              fullWidth
-              isLoading={isGoogleLoading}
-              onClick={handleGoogleSignIn}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '12px',
-                fontWeight: 600,
-                fontSize: '1rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--color-surface)',
-                color: 'var(--color-text-primary)',
-                cursor: 'pointer',
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <span>{t('googleSignInBtn')}</span>
-            </Button>
-          </form>
-        )}
-
-        {/* ========================================================= */}
-        {/* MODE: SIGN UP */}
-        {/* ========================================================= */}
-        {mode === 'signup' && (
-          <form onSubmit={handleSignUp} className="vaango-auth-form">
-            <FormField id="signup-name" label={t('fullNameLabel')} required>
-              <Input
-                id="signup-name"
-                type="text"
-                required
-                autoComplete="name"
-                value={fullName}
-                onChange={(e) => {
-                  setFullName(e.target.value);
-                  if (errorMsg) setErrorMsg(null);
-                }}
-                placeholder="John Doe"
-                leftIcon={<User size={18} />}
-              />
-            </FormField>
-
-            <FormField id="signup-email" label={t('emailLabel')} required>
-              <Input
-                id="signup-email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (errorMsg) setErrorMsg(null);
-                }}
-                placeholder="you@example.com"
-                leftIcon={<Mail size={18} />}
-              />
-            </FormField>
-
-            <FormField id="signup-phone" label={t('phoneLabel') || 'Mobile Number'} required hint="10-digit Indian mobile number for order delivery">
-              <Input
-                id="signup-phone"
-                type="tel"
-                inputMode="numeric"
-                required
-                autoComplete="tel"
-                value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value);
-                  if (errorMsg) setErrorMsg(null);
-                }}
-                placeholder="9876543210"
-                maxLength={15}
-                leftIcon={<Phone size={18} />}
-              />
-            </FormField>
-
-            <FormField id="signup-password" label={t('passwordLabel')} required hint={t('passwordMinHint')}>
-              <Input
-                id="signup-password"
-                type={showPassword ? 'text' : 'password'}
-                required
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (errorMsg) setErrorMsg(null);
-                }}
-                placeholder={t('passwordMinHint')}
-                leftIcon={<Lock size={18} />}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'inherit' }}
-                    title={showPassword ? 'Hide password' : 'Show password'}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
-              />
-            </FormField>
-
-            <FormField id="signup-confirm-password" label={t('confirmPasswordLabel')} required>
-              <Input
-                id="signup-confirm-password"
-                type={showConfirmPassword ? 'text' : 'password'}
-                required
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value);
-                  if (errorMsg) setErrorMsg(null);
-                }}
-                placeholder={t('confirmPasswordLabel')}
-                leftIcon={<Lock size={18} />}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'inherit' }}
-                    title={showConfirmPassword ? 'Hide password' : 'Show password'}
-                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
-              />
-            </FormField>
-
-            <div style={{ marginTop: '4px', marginBottom: '8px' }}>
-              <Checkbox
-                id="signup-show-password"
-                label="Show password"
-                checked={showPassword && showConfirmPassword}
-                onChange={(e) => {
-                  setShowPassword(e.target.checked);
-                  setShowConfirmPassword(e.target.checked);
-                }}
-              />
-            </div>
-
-            {errorMsg && (
-              <ActionErrorBanner
-                id="signup-action-error"
-                message={errorMsg}
-                variant={classifyError(errorMsg).category === 'network' ? 'network' : 'error'}
-                onDismiss={() => setErrorMsg(null)}
-              />
-            )}
-
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              fullWidth
-              isLoading={isSubmitting}
-              rightIcon={<ArrowRight size={18} />}
-            >
-              {t('signUpSubmit')}
-            </Button>
-
-            {/* Divider */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                margin: 'var(--space-2) 0',
-                gap: 'var(--space-3)',
-              }}
-            >
-              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
-              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                {t('orDivider')}
-              </span>
-              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
-            </div>
-
-            {/* Google Sign In */}
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              fullWidth
-              isLoading={isGoogleLoading}
-              onClick={handleGoogleSignIn}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '12px',
-                fontWeight: 600,
-                fontSize: '1rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--color-surface)',
-                color: 'var(--color-text-primary)',
-                cursor: 'pointer',
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <span>{t('googleSignInBtn')}</span>
-            </Button>
-          </form>
-        )}
-
-        {/* ========================================================= */}
-        {/* MODE: FORGOT PASSWORD */}
-        {/* ========================================================= */}
-        {mode === 'forgot' && (
-          <form onSubmit={handleForgotPassword} className="vaango-auth-form">
-            <FormField id="forgot-email" label={t('emailLabel')} required>
-              <Input
-                id="forgot-email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (errorMsg) setErrorMsg(null);
-                }}
-                placeholder="you@example.com"
-                leftIcon={<Mail size={18} />}
-              />
-            </FormField>
-
-            {errorMsg && (
-              <ActionErrorBanner
-                id="forgot-action-error"
-                message={errorMsg}
-                variant={classifyError(errorMsg).category === 'network' ? 'network' : 'error'}
-                onDismiss={() => setErrorMsg(null)}
-              />
-            )}
-
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              fullWidth
-              isLoading={isSubmitting}
-              leftIcon={<KeyRound size={18} />}
-            >
-              {t('sendResetLinkBtn')}
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              fullWidth
-              onClick={() => {
-                setMode('signin');
-                setErrorMsg(null);
-                setSuccessMsg(null);
-              }}
-            >
-              {t('backToSignInBtn')}
-            </Button>
-          </form>
-        )}
-
-        {/* ========================================================= */}
-        {/* MODE: PASSWORD RECOVERY */}
-        {/* ========================================================= */}
-        {mode === 'recovery' && (
-          <form onSubmit={handlePasswordRecovery} className="vaango-auth-form">
-            <FormField id="recovery-password" label={t('passwordLabel')} required hint={t('passwordMinHint')}>
-              <Input
-                id="recovery-password"
-                type={showPassword ? 'text' : 'password'}
-                required
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (errorMsg) setErrorMsg(null);
-                }}
-                placeholder={t('passwordMinHint')}
-                leftIcon={<Lock size={18} />}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'inherit' }}
-                    title={showPassword ? 'Hide password' : 'Show password'}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
-              />
-            </FormField>
-
-            <FormField id="recovery-confirm-password" label={t('confirmPasswordLabel')} required>
-              <Input
-                id="recovery-confirm-password"
-                type={showConfirmPassword ? 'text' : 'password'}
-                required
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value);
-                  if (errorMsg) setErrorMsg(null);
-                }}
-                placeholder={t('confirmPasswordLabel')}
-                leftIcon={<Lock size={18} />}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'inherit' }}
-                    title={showConfirmPassword ? 'Hide password' : 'Show password'}
-                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
-              />
-            </FormField>
-
-            <div style={{ marginTop: '4px', marginBottom: '8px' }}>
-              <Checkbox
-                id="recovery-show-password"
-                label="Show password"
-                checked={showPassword && showConfirmPassword}
-                onChange={(e) => {
-                  setShowPassword(e.target.checked);
-                  setShowConfirmPassword(e.target.checked);
-                }}
-              />
-            </div>
-
-            {errorMsg && (
-              <ActionErrorBanner
-                id="recovery-action-error"
-                message={errorMsg}
-                variant={classifyError(errorMsg).category === 'network' ? 'network' : 'error'}
-                onDismiss={() => setErrorMsg(null)}
-              />
-            )}
-
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              fullWidth
-              isLoading={isSubmitting}
-              leftIcon={<ShieldCheck size={18} />}
-            >
-              {t('saveNewPasswordBtn')}
-            </Button>
-          </form>
-        )}
+        {/* Operational Phone Notice */}
+        <div className="vaango-auth-note">
+          <span>
+            <strong>Delivery & Contact Information:</strong> Your phone number is used exclusively for order fulfillment and delivery coordination. No SMS verification is required.
+          </span>
+        </div>
 
         {/* Footer */}
         <div className="vaango-auth-footer">
           <p>
             {t('authMerchantPrompt')}{' '}
             <Link
-              to={isAuthenticated ? '/shopkeeper/apply' : '/login?redirect=/shopkeeper/apply'}
+              to="/shopkeeper/apply"
               className="vaango-auth-link"
-              onClick={() => {
-                if (!isAuthenticated) {
-                  setErrorMsg(null);
-                  setSuccessMsg(null);
-                }
-              }}
+              onClick={clearAuthError}
             >
               {t('authApplyPartner')}
             </Link>

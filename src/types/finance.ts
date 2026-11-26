@@ -1,4 +1,4 @@
-// Financial Domain Interfaces and Types for Vaangly Platform Fee & Ledger System
+// Financial Domain Interfaces and Types for Vaango Platform Fee & Ledger System
 
 export type FinancialStatus = 'ACTIVE' | 'WARNING' | 'RESTRICTED' | 'SUSPENDED';
 

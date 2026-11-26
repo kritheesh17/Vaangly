@@ -247,7 +247,7 @@ export const AdminLocationsPage: React.FC = () => {
           </button>
           <h1 className="vaango-admin-locs__title">Hometowns & Operating Locations</h1>
           <p className="vaango-admin-locs__subtitle">
-            Control which regional towns Vaango operates in. Deactivating a location hides it from new customer selection without destroying past orders or shop records.
+            Control which regional towns Kartzo operates in. Deactivating a location hides it from new customer selection without destroying past orders or shop records.
           </p>
         </div>
 

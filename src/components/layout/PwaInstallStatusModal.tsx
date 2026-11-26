@@ -74,7 +74,7 @@ export const PwaInstallStatusModal: React.FC = () => {
             <div className="vaangly-install-card__title-group">
               <span className="vaangly-install-card__kicker">PWA Installation</span>
               <h3 id="vaangly-install-title" className="vaangly-install-card__title">
-                {isInstalled ? 'Vaangly is Installed' : 'Install Vaangly App'}
+                {isInstalled ? 'Kartzo is Installed' : 'Install Kartzo App'}
               </h3>
             </div>
           </div>
@@ -164,7 +164,7 @@ export const PwaInstallStatusModal: React.FC = () => {
               leftIcon={<ExternalLink size={16} />}
               className="w-full"
             >
-              Open Vaangly
+              Open Kartzo
             </Button>
           ) : isCompleting ? (
             <Button
@@ -235,7 +235,7 @@ export const PwaInstallStatusModal: React.FC = () => {
               leftIcon={<Download size={16} />}
               className="w-full"
             >
-              Install Vaangly
+              Install Kartzo
             </Button>
           )}
         </div>

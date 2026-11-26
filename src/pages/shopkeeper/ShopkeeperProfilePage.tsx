@@ -16,7 +16,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { Shop, ShopSubscription, TimeRange } from '../../types/database';
+import { Shop, ShopSubscription, TimeRange, MerchantPaymentPreference } from '../../types/database';
 import { getShopkeeperShop, updateShopProfile, updateSlotConfig } from '../../lib/shopkeeperApi';
 import { getShopType } from '../../data/mockData';
 import { fetchShopSubscription, calculateTrialWindow, updateShopBillingCycle } from '../../lib/adminApi';
@@ -70,6 +70,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
   const [hasFreeDeliveryThreshold, setHasFreeDeliveryThreshold] = useState(false);
   const [freeDeliveryAbove, setFreeDeliveryAbove] = useState('299');
   const [upiId, setUpiId] = useState('');
+  const [paymentPreference, setPaymentPreference] = useState<MerchantPaymentPreference>('both');
   const [isBillingSaving, setIsBillingSaving] = useState(false);
   const [slotDuration, setSlotDuration] = useState(30);
   const [availableDays, setAvailableDays] = useState<number[]>([1, 2, 3, 4, 5, 6]);
@@ -133,6 +134,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
             setFreeDeliveryAbove('299');
           }
           setUpiId(data.upi_id || '');
+          setPaymentPreference(data.payment_preference || 'both');
           setCustomisedCakeAvailable(Boolean(data.customised_cake_available));
           if (data.slot_config) {
             setSlotDuration(data.slot_config.slotDurationMinutes);
@@ -219,7 +221,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
         }
       }
 
-      if (upiId.trim() && !isValidUpiQrUrl(upiQrUrl)) {
+      if ((upiId.trim() || paymentPreference === 'upi_only') && !isValidUpiQrUrl(upiQrUrl)) {
         throw new Error('UPI QR code is required to accept UPI payments.');
       }
 
@@ -248,6 +250,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
           : null,
         upi_id: upiId.trim() || null,
         upi_qr_url: upiQrUrl,
+        payment_preference: paymentPreference,
         customised_cake_available: customisedCakeAvailable,
       });
 
@@ -603,7 +606,7 @@ export const ShopkeeperProfilePage: React.FC = () => {
           </div>
 
           <p className="vaango-settings-card__desc">
-            Vaango does not process payments or deduct commissions. Customers pay you directly at your counter or delivery. Enter your shop's UPI ID so customers can pay straight to your bank.
+            Kartzo does not process payments or deduct commissions. Customers pay you directly at your counter or delivery. Enter your shop's UPI ID so customers can pay straight to your bank.
           </p>
 
           <div className="vaango-form-group">
@@ -619,8 +622,49 @@ export const ShopkeeperProfilePage: React.FC = () => {
             <span className="text-xs text-secondary mt-1">
               Displayed to customer upon order ready/pickup.
             </span>
-            <label className="vaango-form-label mt-3" htmlFor="shop-upi-qr">UPI QR Photo (Required)</label>
+            <label className="vaango-form-label mt-3" htmlFor="shop-upi-qr">UPI QR Photo (Required for UPI payments)</label>
             <input id="shop-upi-qr" type="file" accept="image/*" className="vaango-file-input" onChange={(e) => setUpiQrFile(e.target.files?.[0] || null)} />
+
+            <div className="mt-4 pt-3 border-t border-border">
+              <label className="vaango-form-label mb-2">
+                Accepted Payment Methods
+              </label>
+              <div className="vaango-cart-options-toggle" role="radiogroup" aria-label="Accepted Payment Methods">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={paymentPreference === 'both'}
+                  className={`vaango-cart-option-btn ${paymentPreference === 'both' ? 'active' : ''}`}
+                  onClick={() => setPaymentPreference('both')}
+                >
+                  <span className="vaango-cart-option-title">🔄 Both Methods</span>
+                  <small className="vaango-cart-option-desc">UPI / Online & Pay at Shop</small>
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={paymentPreference === 'upi_only'}
+                  className={`vaango-cart-option-btn ${paymentPreference === 'upi_only' ? 'active' : ''}`}
+                  onClick={() => setPaymentPreference('upi_only')}
+                >
+                  <span className="vaango-cart-option-title">📱 UPI / Online Only</span>
+                  <small className="vaango-cart-option-desc">Require direct UPI payment</small>
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={paymentPreference === 'pay_at_shop_only'}
+                  className={`vaango-cart-option-btn ${paymentPreference === 'pay_at_shop_only' ? 'active' : ''}`}
+                  onClick={() => setPaymentPreference('pay_at_shop_only')}
+                >
+                  <span className="vaango-cart-option-title">🏪 Pay at Shop Only</span>
+                  <small className="vaango-cart-option-desc">Collect counter payment</small>
+                </button>
+              </div>
+              <span className="text-xs text-secondary mt-1 block">
+                Controls which payment options are presented to customers during cart checkout.
+              </span>
+            </div>
           </div>
         </Card>
 

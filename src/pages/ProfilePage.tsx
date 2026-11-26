@@ -319,7 +319,7 @@ export const ProfilePage: React.FC = () => {
               </div>
               <div className="vaango-profile-card__item">
                 <Mail size={18} className="vaango-profile-card__item-icon" />
-                <span>{user?.email || 'customer@vaangly.in'}</span>
+                <span>{user?.email || 'customer@kartzo.in'}</span>
               </div>
               {user?.address && (
                 <div className="vaango-profile-card__item">
@@ -498,9 +498,9 @@ export const ProfilePage: React.FC = () => {
                   setUpdateFeedback(null);
                   const hasUpdate = await checkForUpdates();
                   if (hasUpdate) {
-                    setUpdateFeedback('A new version of Vaangly is ready!');
+                    setUpdateFeedback('A new version of Kartzo is ready!');
                   } else {
-                    setUpdateFeedback('Vaangly is up to date.');
+                    setUpdateFeedback('Kartzo is up to date.');
                     setTimeout(() => setUpdateFeedback(null), 4000);
                   }
                 }}
@@ -518,7 +518,7 @@ export const ProfilePage: React.FC = () => {
                 <Smartphone size={20} style={{ color: 'var(--color-primary)' }} />
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
-                    Vaangly App {isInstalled ? `(v${appVersion})` : ''}
+                    Kartzo App {isInstalled ? `(v${appVersion})` : ''}
                   </div>
                   <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
                     {isInstalled
@@ -538,7 +538,7 @@ export const ProfilePage: React.FC = () => {
                   </Button>
                 ) : isInstallable ? (
                   <Button variant="primary" size="sm" onClick={() => promptInstall()} leftIcon={<Download size={14} />}>
-                    Install Vaangly
+                    Install Kartzo
                   </Button>
                 ) : (
                   <Button variant="ghost" size="sm" onClick={() => setIsManualInstallOpen(true)}>
@@ -553,7 +553,7 @@ export const ProfilePage: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'rgba(27, 77, 62, 0.08)', border: '1px solid rgba(27, 77, 62, 0.2)', borderRadius: 'var(--radius-md)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-primary)' }}>
                   <Sparkles size={16} />
-                  <span>A new version of Vaangly is ready!</span>
+                  <span>A new version of Kartzo is ready!</span>
                 </div>
                 <Button variant="primary" size="sm" onClick={applyUpdate}>
                   Update Now
@@ -757,12 +757,12 @@ export const ProfilePage: React.FC = () => {
           </div>
         </Card>
 
-        {/* About Vaangly (Part 6 Requirement) */}
+        {/* About Kartzo (Part 6 Requirement) */}
         <Card variant="default" padding="lg" className="vaango-profile-card">
           <div className="vaango-profile-card__section-head">
             <Info className="vaango-section-icon" />
             <div>
-              <h3 className="vaango-card-heading">About Vaangly</h3>
+              <h3 className="vaango-card-heading">About Kartzo</h3>
               <p className="vaango-card-subheading">
                 Hyperlocal discovery & commerce platform.
               </p>

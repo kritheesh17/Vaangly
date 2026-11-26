@@ -68,9 +68,9 @@ const DEMO_PROFILES: Record<UserRole, Profile> = {
   admin: {
     id: 'a3333333-0000-0000-0000-000000000003',
     role: 'admin',
-    full_name: 'Vaango Platform Admin',
+    full_name: 'Kartzo Platform Admin',
     phone: '+91 99999 00000',
-    email: 'admin@vaango.in',
+    email: 'admin@kartzo.in',
     avatar_url: null,
     preferred_location_id: '11111111-1111-1111-1111-111111111111',
     is_verified: true,
@@ -450,13 +450,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!cleanName) {
       return { success: false, error: 'Please enter your full name.' };
     }
-    if (!phone || !phone.trim()) {
-      return { success: false, error: 'Mobile number is required.' };
+    if (phone && phone.trim()) {
+      if (isValidIndianMobile(phone.trim())) {
+        normalizedPhone = normalizeIndianPhone(phone.trim());
+      }
     }
-    if (!isValidIndianMobile(phone.trim())) {
-      return { success: false, error: 'Please enter a valid 10-digit Indian mobile number.' };
-    }
-    normalizedPhone = normalizeIndianPhone(phone.trim());
     if (!password || password.length < 6) {
       return { success: false, error: 'Password must be at least 6 characters long.' };
     }
@@ -574,6 +572,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         provider: 'google',
         options: {
           redirectTo: getAuthRedirectUrl(redirectPath),
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
         },
       });
       if (error) {

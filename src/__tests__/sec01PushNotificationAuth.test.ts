@@ -245,7 +245,7 @@ describe('SEC-01: Push Notification Edge Function Authorization & Guard Tests', 
 
   it('10. Security Contract: Non-admin senders attempting system/admin message impersonation are rejected with HTTP 403', () => {
     const maliciousTitles = [
-      'Vaangly Admin Alert: Action Required',
+      'Kartzo Admin Alert: Action Required',
       'System Alert: Suspended Account',
       'Security Alert: Unauthorized Login',
       'Official Support: Password Reset',

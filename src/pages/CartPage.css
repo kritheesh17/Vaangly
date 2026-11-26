@@ -444,6 +444,105 @@
   gap: var(--space-3);
 }
 
+.vaango-cart-order-badge-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 4px;
+}
+
+.vaango-cart-order-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--color-primary-light, rgba(25, 135, 84, 0.12));
+  color: var(--color-primary);
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 9999px);
+  border: 1px solid var(--color-primary-border, rgba(25, 135, 84, 0.25));
+}
+
+.vaango-cart-order-count {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.vaango-cart-shop-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.vaango-cart-order-total-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-right: var(--space-1);
+}
+
+.vaango-cart-total-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.4px;
+  line-height: 1;
+}
+
+.vaango-cart-total-amount {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.vaango-cart-details-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-primary);
+  font-size: var(--font-size-xs, 0.8rem);
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vaango-cart-details-toggle-btn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary);
+}
+
+.vaango-cart-expanded-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .vaango-cart-shop-group-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+  .vaango-cart-shop-header-actions {
+    justify-content: space-between;
+    width: 100%;
+    padding-top: var(--space-2);
+    border-top: 1px dashed var(--color-border);
+  }
+  .vaango-cart-order-total-preview {
+    align-items: flex-start;
+  }
+}
+
 .vaango-cart-shop-group-meta {
   display: flex;
   align-items: center;

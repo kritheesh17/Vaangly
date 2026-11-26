@@ -465,7 +465,7 @@ export async function sendLocalSwTestNotification(): Promise<{ success: boolean;
     const registration = await navigator.serviceWorker.ready;
     const origin = getCurrentOrigin();
 
-    await registration.showNotification('Vaangly Test (Local SW)', {
+    await registration.showNotification('Kartzo Test (Local SW)', {
       body: `Local Service Worker notification channel is active on ${origin}! 🚀`,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
@@ -533,7 +533,7 @@ export async function sendCloudEdgePushNotification(userId?: string): Promise<{ 
     const { data, error } = await supabase.functions.invoke('send-push-notification', {
       body: {
         user_id: targetUserId,
-        title: 'Vaangly Real Web Push',
+        title: 'Kartzo Real Web Push',
         body: `Live Web Push received on ${origin} via Supabase Edge Function! ✨`,
         url: '/permissions',
         origin,

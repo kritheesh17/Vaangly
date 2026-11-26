@@ -170,7 +170,7 @@ export const getShopkeeperShop = async (ownerId: string): Promise<Shop | null> =
  */
 export const updateShopProfile = async (
   shopId: string,
-  updates: Partial<Pick<Shop, 'name' | 'tagline' | 'address_line' | 'phone' | 'photo_url' | 'opening_time' | 'closing_time' | 'is_open_today' | 'delivery_available' | 'delivery_fee' | 'free_delivery_above' | 'upi_id' | 'upi_qr_url' | 'customised_cake_available' | 'subscription_tier' | 'gps_lat' | 'gps_lng'>>
+  updates: Partial<Pick<Shop, 'name' | 'tagline' | 'address_line' | 'phone' | 'photo_url' | 'opening_time' | 'closing_time' | 'is_open_today' | 'delivery_available' | 'delivery_fee' | 'free_delivery_above' | 'upi_id' | 'upi_qr_url' | 'customised_cake_available' | 'subscription_tier' | 'gps_lat' | 'gps_lng' | 'payment_preference'>>
 ): Promise<{ success: boolean; shop?: Shop; error?: string }> => {
   if (updates.delivery_fee !== undefined && updates.delivery_fee < 0) {
     return { success: false, error: 'Delivery fee cannot be negative.' };
@@ -184,7 +184,7 @@ export const updateShopProfile = async (
 
   if (isSupabaseConfigured) {
     try {
-      const { data, error } = await supabase
+      let res = await supabase
         .from('shops')
         .update({
           ...updates,
@@ -194,7 +194,22 @@ export const updateShopProfile = async (
         .select()
         .single();
 
-      if (error) throw error;
+      // Graceful fallback if remote database does not yet have payment_preference column
+      if (res.error && res.error.message && res.error.message.includes('payment_preference')) {
+        const { payment_preference, ...safeUpdates } = updates;
+        res = await supabase
+          .from('shops')
+          .update({
+            ...safeUpdates,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', shopId)
+          .select()
+          .single();
+      }
+
+      if (res.error) throw res.error;
+      const data = res.data;
       if (typeof window !== 'undefined') {
         window.dispatchEvent(
           new CustomEvent('vaango-shops-changed', {
@@ -286,7 +301,7 @@ export const toggleShopLive = async (
       if (targetLive && currentShop.status === 'suspended') {
         return {
           success: false,
-          error: 'Your shop was suspended by the Vaango admin team. Contact support or wait for admin approval to go live again.',
+          error: 'Your shop was suspended by the Kartzo admin team. Contact support or wait for admin approval to go live again.',
         };
       }
 
@@ -335,7 +350,7 @@ export const toggleShopLive = async (
   if (targetLive && allShops[index].status === 'suspended') {
     return {
       success: false,
-      error: 'Your shop was suspended by the Vaango admin team. Contact support or wait for admin approval to go live again.',
+      error: 'Your shop was suspended by the Kartzo admin team. Contact support or wait for admin approval to go live again.',
     };
   }
 
@@ -1840,7 +1855,7 @@ export const simulateApplicationReview = async (
           shop_type_id: updated.shop_type_id,
           location_id: updated.location_id,
           name: updated.shop_name,
-          tagline: updated.description || 'Neighborhood storefront on Vaango',
+          tagline: updated.description || 'Neighborhood storefront on Kartzo',
           address_line: 'Town Center, Verified Location',
           phone: updated.contact_phone,
           status: 'active',

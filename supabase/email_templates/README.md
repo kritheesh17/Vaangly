@@ -45,9 +45,8 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 
 ---
 
-## 4. Phone OTP Status
+## 4. Authentication Architecture: Google-Only Authentication
 
-- Phone OTP remains isolated in `AuthContext.tsx` (`requestPhoneOtp`, `verifyPhoneOtp`).
-- Phone OTP will display a notice to the user:
-  > **Phone OTP Notice:** Phone OTP is temporarily unavailable until the SMS provider is configured. Please use Email verification.
-- To activate Phone OTP in the future, configure Twilio or MessageBird under **Authentication** -> **Providers** -> **Phone** in the Supabase Dashboard.
+- Google OAuth is the authoritative, primary, and sole authentication provider across Vaango.
+- Phone OTP / SMS authentication has been permanently decommissioned and removed.
+- Phone numbers are collected post-login strictly as operational contact and delivery attributes (in `public.profiles` and order snapshots) without OTP gating.

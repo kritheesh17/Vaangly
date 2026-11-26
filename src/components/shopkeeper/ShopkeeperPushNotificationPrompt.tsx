@@ -104,7 +104,7 @@ export const ShopkeeperPushNotificationPrompt: React.FC<ShopkeeperPushNotificati
     try {
       const granted = await requestNotificationPermission();
       if (granted) {
-        success('Order alerts enabled! You will receive notifications even when Vaangly is closed.');
+        success('Order alerts enabled! You will receive notifications even when Kartzo is closed.');
         void registerPushSubscription();
         await loadLocalDiagnostics();
       } else {
@@ -200,10 +200,10 @@ export const ShopkeeperPushNotificationPrompt: React.FC<ShopkeeperPushNotificati
 
           <p className="vaangly-sk-notif-prompt__desc">
             {isGranted
-              ? 'This device will alert you with sound and vibration when a customer places an order or books a service, even when Vaangly is in the background or your phone is locked.'
+              ? 'This device will alert you with sound and vibration when a customer places an order or books a service, even when Kartzo is in the background or your phone is locked.'
               : isDenied
-              ? 'Browser notification permission is currently blocked. To receive alerts when orders arrive while Vaangly is closed, allow notifications in your browser site settings.'
-              : 'Never miss an order! Get real-time alerts with sound and vibration the moment a customer orders, even if your phone is locked or Vaangly is closed.'}
+              ? 'Browser notification permission is currently blocked. To receive alerts when orders arrive while Kartzo is closed, allow notifications in your browser site settings.'
+              : 'Never miss an order! Get real-time alerts with sound and vibration the moment a customer orders, even if your phone is locked or Kartzo is closed.'}
           </p>
 
           <div className="vaangly-sk-notif-prompt__actions">

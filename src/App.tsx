@@ -250,12 +250,9 @@ export const App: React.FC = () => {
                           <Route path="/shopkeeper/settings" element={<Navigate to="/shopkeeper/profile" replace />} />
                           <Route
                             path="/shopkeeper/apply"
-                            element={
-                              <ProtectedRoute requireVerified={true}>
-                                <ShopkeeperOnboardingPage />
-                              </ProtectedRoute>
-                            }
+                            element={<ShopkeeperOnboardingPage />}
                           />
+                          <Route path="/apply" element={<Navigate to="/shopkeeper/apply" replace />} />
 
                           {/* Admin & Business Operations Routes (Phase 5) */}
                           <Route

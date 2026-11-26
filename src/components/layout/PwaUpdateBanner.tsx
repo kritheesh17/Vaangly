@@ -18,7 +18,7 @@ export const PwaUpdateBanner: React.FC = () => {
         <div className="vaangly-update-banner__text">
           <span className="vaangly-update-banner__title">New version available</span>
           <span className="vaangly-update-banner__desc">
-            Vaangly {appVersion} is ready with fresh improvements and bug fixes.
+            Kartzo {appVersion} is ready with fresh improvements and bug fixes.
           </span>
         </div>
       </div>

@@ -1546,7 +1546,7 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
               <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
                 {(financialSummary?.pending_settlement_paise ?? 0) > 0
                   ? `Pending Verification: ${formatINR((financialSummary?.pending_settlement_paise ?? 0) / 100)} submitted by you.`
-                  : 'Customer-paid platform fees collected by your counter to be remitted to Vaangly.'}
+                  : 'Customer-paid platform fees collected by your counter to be remitted to Kartzo.'}
               </p>
             </div>
 
@@ -1628,7 +1628,7 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
             <div className="vaango-chart-card__header">
               <div>
                 <h3 className="vaango-chart-card__title">Settlement Remittances History</h3>
-                <p className="vaango-chart-card__subtitle">Remittances submitted by you to Vaangly and their verification status.</p>
+                <p className="vaango-chart-card__subtitle">Remittances submitted by you to Kartzo and their verification status.</p>
               </div>
             </div>
 
@@ -1699,19 +1699,19 @@ export const ShopkeeperAnalyticsPage: React.FC = () => {
               <strong className="text-primary">{formatINR((financialSummary?.outstanding_balance_paise ?? 0) / 100)}</strong>
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-              Remit this fee directly to Vaangly’s official collection account below, then enter your transaction reference (UTR).
+              Remit this fee directly to Kartzo’s official collection account below, then enter your transaction reference (UTR).
             </div>
           </div>
 
           <div style={{ padding: '12px 16px', background: 'rgba(34, 197, 94, 0.08)', borderRadius: '10px', border: '1px solid #86efac' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Official Vaangly Remittance Details
+              Official Kartzo Remittance Details
             </div>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#15803d', marginTop: '2px', fontFamily: 'monospace' }}>
-              vaangly-finance@okhdfcbank
+              kartzo-finance@okhdfcbank
             </div>
             <div style={{ fontSize: '0.75rem', color: '#14532d', marginTop: '2px' }}>
-              Account Name: Vaangly Marketplace Financials
+              Account Name: Kartzo Marketplace Financials
             </div>
           </div>
 

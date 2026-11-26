@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const publicKey = Deno.env.get('VAPID_PUBLIC_KEY') ?? '';
 const privateKey = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
-const email = Deno.env.get('VAPID_EMAIL') ?? 'mailto:support@vaangly.com';
+const email = Deno.env.get('VAPID_EMAIL') ?? 'mailto:support@vaango.com';
 
 if (email && publicKey && privateKey) {
   try {
@@ -343,7 +343,7 @@ Deno.serve(async (request) => {
         await sendNotificationWithRetry(
           target,
           JSON.stringify({
-            title: title || 'Vaangly',
+            title: title || 'Vaango',
             body: body || 'You have a new update.',
             url: safeUrl,
             tag: notificationTag,

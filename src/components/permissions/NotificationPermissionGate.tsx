@@ -116,7 +116,7 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
                   : 'Permission State: Default (Action Required)'}
               </span>
             </div>
-            <h1 className="vaangly-notif-gate__brand">Vaangly</h1>
+            <h1 className="vaangly-notif-gate__brand">Kartzo</h1>
           </div>
 
           {/* STATE 1: DEFAULT / PROMPT (First time or not yet decided) */}
@@ -130,11 +130,11 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
               </div>
 
               <h2 id="gate-title" className="vaangly-notif-gate__title">
-                Enable Notifications to Access Vaangly
+                Enable Notifications to Access Kartzo
               </h2>
 
               <p className="vaangly-notif-gate__subtitle">
-                Vaangly keeps you informed with real-time updates for orders, doctor appointments, and urgent shop alerts.
+                Kartzo keeps you informed with real-time updates for orders, doctor appointments, and urgent shop alerts.
                 You must enable notifications to enter the app.
               </p>
 
@@ -357,7 +357,7 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
                     <li>
                       <span className="vaangly-notif-gate__step-num">2</span>
                       <div>
-                        Scroll down and tap <strong>Safari</strong> (or <strong>Vaangly</strong> if added to Home Screen).
+                        Scroll down and tap <strong>Safari</strong> (or <strong>Kartzo</strong> if added to Home Screen).
                       </div>
                     </li>
                     <li>
@@ -397,12 +397,12 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
                     className="vaangly-notif-gate__btn-secondary"
                     onClick={onContinue}
                   >
-                    <span>Continue to Vaango</span>
+                    <span>Continue to Kartzo</span>
                   </Button>
                 )}
 
                 <p className="vaangly-notif-gate__disclaimer text-center">
-                  Notifications are optional. You can continue using Vaango now and enable alerts later in Chrome site settings.
+                  Notifications are optional. You can continue using Kartzo now and enable alerts later in Chrome site settings.
                 </p>
               </div>
             </div>
@@ -422,7 +422,7 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
               </h2>
 
               <p className="vaangly-notif-gate__subtitle">
-                Your current browser does not support the Web Notifications API. For live queue alerts and order tracking, please use <strong>Google Chrome on Android</strong> or add Vaangly to your Home Screen on <strong>iOS 16.4+</strong>.
+                Your current browser does not support the Web Notifications API. For live queue alerts and order tracking, please use <strong>Google Chrome on Android</strong> or add Kartzo to your Home Screen on <strong>iOS 16.4+</strong>.
               </p>
 
               <div className="vaangly-notif-gate__actions">
@@ -435,7 +435,7 @@ export const NotificationPermissionGate: React.FC<NotificationPermissionGateProp
                     if (onContinue) onContinue();
                   }}
                 >
-                  <span>Continue to Vaango</span>
+                  <span>Continue to Kartzo</span>
                 </Button>
               </div>
             </div>

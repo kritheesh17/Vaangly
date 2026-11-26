@@ -9,7 +9,7 @@ import { validateOrderPickupAt } from '../lib/orderPickupUtils';
 import { cleanPaymentProofPath } from '../lib/paymentProof';
 import { variantIsAvailable } from '../lib/productVariants';
 import { isValidUpiQrUrl } from '../lib/upi';
-import { calculatePlatformFeeRupees, generateOrderPickupCode } from '../lib/financeApi';
+import { generateOrderPickupCode, fetchAuthoritativePlatformFee } from '../lib/financeApi';
 
 export interface CartItem {
   product: ShopProduct;
@@ -273,6 +273,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): { success: boolean; requiresClear?: boolean; error?: string } => {
     const qtyToAdd = Math.max(1, quantityToAdd);
 
+    // Enforce strict appointment separation: appointments & services never enter shopping cart
+    if (
+      (product as any).service_id ||
+      (product as any).is_service ||
+      (product as any).appointment_id ||
+      (product as any).is_appointment ||
+      (product as any).type === 'service' ||
+      (product as any).type === 'appointment'
+    ) {
+      return {
+        success: false,
+        error: 'Appointments and services are booked independently and cannot be added to the shopping cart.',
+      };
+    }
+
     // Validate UUID safety for shop and product
     if (!isValidUuid(shop.id) || !isValidUuid(product.id)) {
       return {
@@ -514,7 +529,26 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       let createdRequest: Request;
 
-      if (isSupabaseConfigured) {
+      // Determine if this is a live authenticated session or demo/preview evaluation mode
+      const isDemoPersona = Boolean(
+        user.id.startsWith('c1111111-') ||
+        user.id.startsWith('s2222222-') ||
+        user.id.startsWith('a3333333-')
+      );
+
+      let activeSessionUser: { id: string } | null = null;
+      if (isSupabaseConfigured && !isDemoPersona) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData?.session?.user) {
+            activeSessionUser = sessionData.session.user;
+          }
+        } catch (authCheckErr) {
+          console.warn('[Cart] Error checking live auth session:', authCheckErr);
+        }
+      }
+
+      if (isSupabaseConfigured && !isDemoPersona && activeSessionUser) {
         if (!isValidUuid(targetShop.id)) {
           return {
             success: false,
@@ -579,7 +613,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
 
-        // 3. Authoritative UPI QR code validation for UPI payments
+        // 3. Authoritative payment preference & UPI QR code validation
+        const pref = (dbShop as any)?.payment_preference || (targetShop as any)?.payment_preference || 'both';
+        if (pref === 'pay_at_shop_only' && paymentMethod === 'upi') {
+          return {
+            success: false,
+            error: 'This merchant currently accepts Pay at Shop / Cash only.',
+          };
+        }
+        if (pref === 'upi_only' && paymentMethod === 'pay_at_shop') {
+          return {
+            success: false,
+            error: 'This merchant currently accepts UPI / Online payments only.',
+          };
+        }
         if (paymentMethod === 'upi') {
           if (!isValidUpiQrUrl(dbShop.upi_qr_url)) {
             return {
@@ -671,8 +718,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        const platformFee = calculatePlatformFeeRupees(itemsTotal);
-        const serverCalculatedTotal = itemsTotal + deliveryCharge + platformFee;
+        // Authoritatively fetch platform fee status and amount
+        const { feePaise, feeRupees } = await fetchAuthoritativePlatformFee(itemsTotal * 100);
+        const serverCalculatedTotal = itemsTotal + deliveryCharge + feeRupees;
         const referenceCode = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const requestPayload = {
@@ -697,7 +745,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }),
           items_total: itemsTotal,
           delivery_fee: deliveryCharge,
-          platform_fee: platformFee,
+          platform_fee: feeRupees,
           total_payable: serverCalculatedTotal,
           notes: (shopNotes || orderNotes || '').trim() || null,
           customer_name: user.full_name || user.email || 'Customer',
@@ -717,18 +765,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ? cleanPaymentProofPath(paymentProofPath) || null
             : null;
 
+        // Strict customer ownership: order is always authoritatively owned by the authenticated session user
+        const customerId = activeSessionUser.id;
+
         // Insert into Supabase requests table
         const { data, error } = await supabase
           .from('requests')
           .insert({
             reference_code: referenceCode,
-            customer_id: user.id,
+            customer_id: customerId,
             customer_phone: customerPhone,
             shop_id: targetShop.id,
             workflow_group_code: 'ORDER',
             current_state: 'REQUESTED',
             total_estimate: serverCalculatedTotal,
-            platform_fee_paise: Math.round(platformFee * 100),
+            platform_fee_paise: feePaise,
             notes: JSON.stringify(requestPayload),
             fulfillment_type: chosenFulfillment,
             payment_method: paymentMethod,
@@ -835,6 +886,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const storedShops = getStoredMockShops();
         const liveShop = storedShops.find((s) => s.id === targetShop.id) || targetShop;
 
+        const mockPref = liveShop.payment_preference || 'both';
+        if (mockPref === 'pay_at_shop_only' && paymentMethod === 'upi') {
+          return {
+            success: false,
+            error: 'This merchant currently accepts Pay at Shop / Cash only.',
+          };
+        }
+        if (mockPref === 'upi_only' && paymentMethod === 'pay_at_shop') {
+          return {
+            success: false,
+            error: 'This merchant currently accepts UPI / Online payments only.',
+          };
+        }
         if (paymentMethod === 'upi') {
           if (!isValidUpiQrUrl(liveShop.upi_qr_url)) {
             return {
@@ -884,7 +948,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
 
-        const serverCalculatedTotal = itemsTotal + deliveryCharge;
+        const { feePaise, feeRupees } = await fetchAuthoritativePlatformFee(itemsTotal * 100);
+        const serverCalculatedTotal = itemsTotal + deliveryCharge + feeRupees;
         const referenceCode = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const requestPayload = {
@@ -907,6 +972,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               variant_attributes: i.selectedVariant?.attributes || {},
             };
           }),
+          items_total: itemsTotal,
+          delivery_fee: deliveryCharge,
+          platform_fee: feeRupees,
+          total_payable: serverCalculatedTotal,
           notes: (shopNotes || orderNotes || '').trim() || null,
           customer_name: user.full_name || user.email || 'Customer',
           customer_phone: customerPhone,
@@ -934,6 +1003,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           current_state: 'REQUESTED',
           reference_code: referenceCode,
           total_estimate: serverCalculatedTotal,
+          platform_fee_paise: feePaise,
           customer_paid: false,
           payment_method: paymentMethod,
           payment_status: paymentMethod === 'upi' ? 'PAYMENT_PROOF_SUBMITTED' : 'NOT_REQUIRED',

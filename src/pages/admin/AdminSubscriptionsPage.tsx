@@ -267,13 +267,13 @@ export const AdminSubscriptionsPage: React.FC = () => {
       <Card variant="outlined" padding="md" className="vaango-policy-card">
         <Info size={20} className="vaango-policy-card__icon" />
         <div className="vaango-policy-card__text">
-          <strong>Vaango Subscription Pricing Policy (Phase 5)</strong>
+          <strong>Kartzo Subscription Pricing Policy (Phase 5)</strong>
           <p>
             • <strong>60-Day Free Trial:</strong> Starts on the shop's actual <em>Go-Live date</em> (Day 0), not approval date.
             <br />
             • <strong>Flat Daily Rate:</strong> Enforced cap ≤ ₹20/day. Weekly (₹10/day × 7 = ₹70) or Monthly (₹10/day × 30 = ₹300).
             <br />
-            • <strong>Zero Platform Payment Cuts:</strong> Vaango does not automatically debit merchant accounts. The platform owner manually records verified UPI receipts.
+            • <strong>Zero Platform Payment Cuts:</strong> Kartzo does not automatically debit merchant accounts. The platform owner manually records verified UPI receipts.
             <br />
             • <strong>Grace Period:</strong> Undecided by business spec; no arbitrary automatic suspensions are triggered.
           </p>

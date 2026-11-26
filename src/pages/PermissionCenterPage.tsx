@@ -21,7 +21,7 @@ export const PermissionCenterPage: React.FC = () => {
       <div className="mb-8">
         <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
           <Shield className="text-primary" size={28} />
-          <span>Vaangly Permission Center</span>
+          <span>Kartzo Permission Center</span>
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Manage device notifications, location discovery, and home screen installation settings.

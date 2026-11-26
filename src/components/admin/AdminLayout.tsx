@@ -124,7 +124,7 @@ export const AdminLayout: React.FC = () => {
               />
             </svg>
           </div>
-          <span className="vaango-admin-brand-name">Vaango</span>
+          <span className="vaango-admin-brand-name">Kartzo</span>
         </div>
 
         <span className="vaango-admin-badge-mobile">Admin</span>
@@ -149,7 +149,7 @@ export const AdminLayout: React.FC = () => {
               />
             </svg>
           </div>
-          <span className="vaango-admin-sidebar__title">Vaango</span>
+          <span className="vaango-admin-sidebar__title">Kartzo</span>
         </div>
 
         <nav className="vaango-admin-sidebar__nav" aria-label="Admin Navigation">

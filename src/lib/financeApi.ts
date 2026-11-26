@@ -75,7 +75,53 @@ export const fetchPlatformFeeSystemConfig = async (): Promise<PlatformFeeSystemC
       console.warn('Error fetching platform fee system config:', err);
     }
   }
-  return { is_enabled: true, activated_at: null, version: 'v1.0' };
+  return { is_enabled: false, activated_at: null, version: 'v1.0' };
+};
+
+/**
+ * Authoritatively calculates platform fee from the backend RPC.
+ * If the engine is dormant, the RPC returns 0 paise.
+ * When backend RPC is unreachable or in offline mode, checks fetchPlatformFeeSystemConfig()
+ * and strictly returns 0 if dormant.
+ */
+export const fetchAuthoritativePlatformFee = async (
+  amountPaise: number
+): Promise<{ feePaise: number; feeRupees: number; isEnabled: boolean }> => {
+  if (!amountPaise || amountPaise <= 0 || !Number.isFinite(amountPaise)) {
+    return { feePaise: 0, feeRupees: 0, isEnabled: false };
+  }
+
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase.rpc('calculate_platform_fee', {
+        p_amount_paise: Math.round(amountPaise),
+        p_force_calculation: false,
+      });
+
+      if (!error && typeof data === 'number') {
+        return {
+          feePaise: data,
+          feeRupees: paiseToRupees(data),
+          isEnabled: data > 0,
+        };
+      }
+    } catch (err) {
+      console.warn('Error fetching authoritative platform fee from RPC:', err);
+    }
+  }
+
+  // Fallback: check master switch config
+  const config = await fetchPlatformFeeSystemConfig();
+  if (!config.is_enabled) {
+    return { feePaise: 0, feeRupees: 0, isEnabled: false };
+  }
+
+  const feePaise = calculatePlatformFeePaise(amountPaise);
+  return {
+    feePaise,
+    feeRupees: paiseToRupees(feePaise),
+    isEnabled: true,
+  };
 };
 
 /**

@@ -267,7 +267,7 @@ describe('Vaango Focused UI Functionality & Regression Verification', () => {
         'Gate provides distinct Android and Desktop Chrome guidance'
       );
       assert.ok(
-        gateContent.includes('Continue to Vaango') && gateContent.includes('Continue without notifications'),
+        gateContent.includes('Continue to Kartzo') && gateContent.includes('Continue without notifications'),
         'Gate provides non-blocking continue buttons'
       );
     });

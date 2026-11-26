@@ -12,7 +12,7 @@ export const PermissionCenterModal: React.FC = () => {
     <Modal
       isOpen={isPermissionCenterOpen}
       onClose={() => setIsPermissionCenterOpen(false)}
-      title="Vaangly Permissions & App Manager"
+      title="Kartzo Permissions & App Manager"
       maxWidth="lg"
     >
       <div className="py-2">

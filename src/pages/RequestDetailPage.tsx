@@ -34,7 +34,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { validatePaymentProofFile } from '../lib/paymentProof';
 import { isValidUpiQrUrl } from '../lib/upi';
 import { formatPickupTime } from '../lib/orderPickupUtils';
-import { fetchCustomerPickupCode, calculatePlatformFeeRupees } from '../lib/financeApi';
+import { fetchCustomerPickupCode } from '../lib/financeApi';
 import './RequestDetailPage.css';
 
 interface DecodedPayload {
@@ -1158,10 +1158,10 @@ export const RequestDetailPage: React.FC = () => {
                   <span>₹{Number((payload as any).delivery_fee)}</span>
                 </div>
               )}
-              {((payload as any).platform_fee != null ? Number((payload as any).platform_fee) : (request.platform_fee_paise ? request.platform_fee_paise / 100 : calculatePlatformFeeRupees(items.reduce((sum, item) => sum + (item.subtotal || item.price * item.quantity), 0)))) > 0 && (
+              {((payload as any).platform_fee != null ? Number((payload as any).platform_fee) : (request.platform_fee_paise ? request.platform_fee_paise / 100 : 0)) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
-                  <span>Platform Fee (Vaangly):</span>
-                  <span>₹{(payload as any).platform_fee != null ? Number((payload as any).platform_fee) : (request.platform_fee_paise ? request.platform_fee_paise / 100 : calculatePlatformFeeRupees(items.reduce((sum, item) => sum + (item.subtotal || item.price * item.quantity), 0)))}</span>
+                  <span>Platform Fee (Kartzo):</span>
+                  <span>₹{(payload as any).platform_fee != null ? Number((payload as any).platform_fee) : (request.platform_fee_paise ? request.platform_fee_paise / 100 : 0)}</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '1.05rem', borderTop: '1px solid var(--color-border)', paddingTop: '6px', marginTop: '6px' }}>

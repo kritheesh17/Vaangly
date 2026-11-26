@@ -508,7 +508,7 @@ export const AdminShopDetailPage: React.FC = () => {
                 </Badge>
               ) : shop.is_live ? (
                 <Badge variant="success" size="md" withDot>
-                  LIVE ON VAANGLY
+                  LIVE ON KARTZO
                 </Badge>
               ) : (
                 <Badge variant="warning" size="md">
@@ -523,7 +523,7 @@ export const AdminShopDetailPage: React.FC = () => {
             </div>
             <h1 className="vaango-shop-detail__title">{shop.name}</h1>
             <p className="vaango-shop-detail__subtitle">
-              {shop.tagline || shop.description || 'Neighborhood storefront registered on Vaangly platform.'}
+              {shop.tagline || shop.description || 'Neighborhood storefront registered on Kartzo platform.'}
             </p>
           </div>
         </div>

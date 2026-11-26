@@ -545,7 +545,7 @@ export const ShopkeeperRequestDetailPage: React.FC = () => {
           ) : (
             <div className="vaango-req-payment-pending-box">
               <p className="vaango-req-payment-desc"><strong>Refund required.</strong> Online payment of <strong>₹{refundAmount}</strong> was verified before this request was cancelled.</p>
-              <p className="vaango-req-payment-question">Vaangly has no connected payment gateway to initiate or confirm a UPI/bank refund. Return the money through the merchant's payment provider and do not mark this request refunded until that transfer is actually complete.</p>
+              <p className="vaango-req-payment-question">Kartzo has no connected payment gateway to initiate or confirm a UPI/bank refund. Return the money through the merchant's payment provider and do not mark this request refunded until that transfer is actually complete.</p>
             </div>
           )}
         </div>

@@ -10,14 +10,14 @@ describe('PWA Installation State Machine and Feedback', () => {
   // Test 1: Install available / Initial state
   it('1. Install available: returns ready state when deferred prompt is captured', () => {
     const info = getInstallStatusInfo('READY', 'idle');
-    assert.strictEqual(info.title, 'Install Vaangly');
-    assert.ok(info.detail.includes('Install Vaangly on your device'));
+    assert.strictEqual(info.title, 'Install Kartzo');
+    assert.ok(info.detail.includes('Install Kartzo on your device'));
   });
 
   // Test 2 & 3: Browser prompt opened and installing state appears
   it('2 & 3. Installing state: provides truthful semantic status when prompt opens', () => {
     const preparingInfo = getInstallStatusInfo('INSTALLING', 'preparing');
-    assert.strictEqual(preparingInfo.title, 'Preparing Vaangly for installation');
+    assert.strictEqual(preparingInfo.title, 'Preparing Kartzo for installation');
     assert.ok(preparingInfo.detail.includes('Connecting with your browser installation manager'));
 
     const promptOpenedInfo = getInstallStatusInfo('INSTALLING', 'prompt_opened');
@@ -25,8 +25,8 @@ describe('PWA Installation State Machine and Feedback', () => {
     assert.ok(promptOpenedInfo.detail.includes('confirm the installation'));
 
     const installingInfo = getInstallStatusInfo('INSTALLING', 'installing');
-    assert.strictEqual(installingInfo.title, 'Installing Vaangly...');
-    assert.ok(installingInfo.detail.includes('Adding Vaangly to your device'));
+    assert.strictEqual(installingInfo.title, 'Installing Kartzo...');
+    assert.ok(installingInfo.detail.includes('Adding Kartzo to your device'));
   });
 
   // Test 4: Duplicate install click blocked simulation
@@ -55,12 +55,12 @@ describe('PWA Installation State Machine and Feedback', () => {
   // Test 5, 6, 7: User accepts and appinstalled fires -> INSTALLED state
   it('5, 6, 7. User accepts and appinstalled event handles transition to INSTALLED', () => {
     const installedInfo = getInstallStatusInfo('INSTALLED', 'installed');
-    assert.strictEqual(installedInfo.title, 'Vaangly installed successfully! ✓');
-    assert.ok(installedInfo.detail.includes('Vaangly is now ready on your device'));
+    assert.strictEqual(installedInfo.title, 'Kartzo installed successfully! ✓');
+    assert.ok(installedInfo.detail.includes('Kartzo is now ready on your device'));
 
     // In standalone mode (idle phase)
     const standaloneInfo = getInstallStatusInfo('INSTALLED', 'idle');
-    assert.strictEqual(standaloneInfo.title, 'Vaangly is installed ✓');
+    assert.strictEqual(standaloneInfo.title, 'Kartzo is installed ✓');
     assert.ok(standaloneInfo.detail.includes('Already running as an installed application'));
   });
 
@@ -76,13 +76,13 @@ describe('PWA Installation State Machine and Feedback', () => {
   it('8 & 9. User cancels prompt: handles DISMISSED state gracefully', () => {
     const cancelledInfo = getInstallStatusInfo('DISMISSED', 'cancelled');
     assert.strictEqual(cancelledInfo.title, 'Installation was cancelled.');
-    assert.ok(cancelledInfo.detail.includes('You can install Vaangly anytime from the Install button'));
+    assert.ok(cancelledInfo.detail.includes('You can install Kartzo anytime from the Install button'));
   });
 
   // Test 10: Unsupported browser
   it('10. Unsupported browser: provides helpful manual alternative instructions', () => {
     const unsuppInfo = getInstallStatusInfo('UNSUPPORTED', 'unavailable');
-    assert.strictEqual(unsuppInfo.title, "Vaangly can't be installed from this browser.");
+    assert.strictEqual(unsuppInfo.title, "Kartzo can't be installed from this browser.");
     assert.ok(unsuppInfo.detail.includes('Add to Home Screen in Safari'));
   });
 
@@ -102,7 +102,7 @@ describe('PWA Installation State Machine and Feedback', () => {
   // Test 12: Installation error handling
   it('12. Error handling: communicates unexpected browser failure with contextual advice', () => {
     const errInfo = getInstallStatusInfo('ERROR', 'error');
-    assert.strictEqual(errInfo.title, "Vaangly couldn't be installed right now.");
+    assert.strictEqual(errInfo.title, "Kartzo couldn't be installed right now.");
     assert.ok(errInfo.detail.includes('An unexpected browser error occurred'));
   });
 

@@ -47,10 +47,10 @@ export const InstallPrompt: React.FC = () => {
       )}
       <span>
         {isInstalling
-          ? 'Preparing Vaangly for installation...'
+          ? 'Preparing Kartzo for installation...'
           : platform === 'ios'
-          ? 'Install Vaangly on iPhone / iPad for instant access'
-          : 'Install Vaangly app for instant booking & offline access'}
+          ? 'Install Kartzo on iPhone / iPad for instant access'
+          : 'Install Kartzo app for instant booking & offline access'}
       </span>
       <Button
         type="button"

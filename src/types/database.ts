@@ -40,6 +40,8 @@ export interface ShopType {
 
 export type ShopStatus = 'pending' | 'verified' | 'active' | 'suspended';
 
+export type MerchantPaymentPreference = 'both' | 'upi_only' | 'pay_at_shop_only';
+
 export interface Shop {
   id: string;
   owner_id: string; // References profiles.id
@@ -60,6 +62,7 @@ export interface Shop {
   free_delivery_above?: number | null;
   upi_id: string | null;
   upi_qr_url?: string | null;
+  payment_preference?: MerchantPaymentPreference | null;
   customised_cake_available?: boolean;
   gps_lat: number | null;
   gps_lng: number | null;

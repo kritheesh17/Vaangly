@@ -161,14 +161,14 @@ export const Header: React.FC = () => {
                     : '/'
               }
               className="vaango-header__logo"
-              aria-label="Vaango Home"
+              aria-label="Kartzo Home"
               onClick={closeMobileMenu}
             >
               <div className="vaango-header__logo-icon" aria-hidden="true">
                 <MapPin size={20} />
               </div>
               <div className="vaango-header__brand-col">
-                <span className="vaango-header__logo-text">Vaango</span>
+                <span className="vaango-header__logo-text">Kartzo</span>
                 <button
                   type="button"
                   className="vaango-header__location-sub-btn"
@@ -314,14 +314,14 @@ export const Header: React.FC = () => {
               </div>
             )}
 
-            {/* Install Vaangly Button (Header Desktop/Tablet) */}
+            {/* Install Kartzo Button (Header Desktop/Tablet) */}
             {!isInstalled && (
               <button
                 type="button"
                 className="vaangly-install-btn-header hidden md:inline-flex"
                 onClick={() => void promptInstall()}
                 disabled={isInstalling}
-                title={isInstalling ? 'Installing Vaangly...' : 'Install Vaangly on your device'}
+                title={isInstalling ? 'Installing Kartzo...' : 'Install Kartzo on your device'}
               >
                 {isInstalling ? (
                   <>
@@ -614,12 +614,12 @@ export const Header: React.FC = () => {
                   {isInstalling ? (
                     <>
                       <Loader2 size={18} className="animate-spin" />
-                      <span>Installing Vaangly...</span>
+                      <span>Installing Kartzo...</span>
                     </>
                   ) : (
                     <>
                       <Download size={18} />
-                      <span>Install Vaangly App</span>
+                      <span>Install Kartzo App</span>
                     </>
                   )}
                 </button>

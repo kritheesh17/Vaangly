@@ -65,17 +65,17 @@ export const MoreMenuModal: React.FC<MoreMenuModalProps> = ({ isOpen, onClose })
   const handleHelp = () => {
     info(
       language === 'ta'
-        ? 'உதவிக்கு: support@vaango.app | +91 98765 43210'
-        : 'Support: support@vaango.app | +91 98765 43210'
+        ? 'உதவிக்கு: support@kartzo.app | +91 98765 43210'
+        : 'Support: support@kartzo.app | +91 98765 43210'
     );
   };
 
   const handleAbout = () => {
-    info('Vaango v0.1.0 — Your local marketplace & services ecosystem.');
+    info('Kartzo v0.1.0 — Your local marketplace & services ecosystem.');
   };
 
   const handleRate = () => {
-    success(language === 'ta' ? 'மதிப்பளித்தமைக்கு நன்றி!' : 'Thank you for rating Vaango 5 stars!');
+    success(language === 'ta' ? 'மதிப்பளித்தமைக்கு நன்றி!' : 'Thank you for rating Kartzo 5 stars!');
   };
 
   return (
@@ -114,7 +114,7 @@ export const MoreMenuModal: React.FC<MoreMenuModalProps> = ({ isOpen, onClose })
               {user.full_name ? user.full_name.charAt(0).toUpperCase() : <User size={20} />}
             </div>
             <div className="vaango-more-modal__user-info">
-              <span className="vaango-more-modal__user-name">{user.full_name || 'Vaango User'}</span>
+              <span className="vaango-more-modal__user-name">{user.full_name || 'Kartzo User'}</span>
               <span className="vaango-more-modal__user-sub">{user.phone || user.email || 'View Profile'}</span>
             </div>
             <ChevronRight size={18} className="vaango-more-modal__chevron" />
@@ -218,7 +218,7 @@ export const MoreMenuModal: React.FC<MoreMenuModalProps> = ({ isOpen, onClose })
             <ChevronRight size={18} className="vaango-more-modal__chevron" />
           </button>
 
-          {/* About Vaango */}
+          {/* About Kartzo */}
           <button
             type="button"
             className="vaango-more-modal__item"
@@ -228,7 +228,7 @@ export const MoreMenuModal: React.FC<MoreMenuModalProps> = ({ isOpen, onClose })
               <div className="vaango-more-modal__icon-wrap">
                 <Info size={20} />
               </div>
-              <span className="vaango-more-modal__label">About Vaango</span>
+              <span className="vaango-more-modal__label">About Kartzo</span>
             </div>
             <ChevronRight size={18} className="vaango-more-modal__chevron" />
           </button>

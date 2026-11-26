@@ -272,7 +272,7 @@ export const AdminFinancialPage: React.FC = () => {
       m.outstanding_balance_rupees,
       m.days_overdue,
     ]);
-    exportToCSV(`vaangly_merchant_financial_directory_${new Date().toISOString().slice(0, 10)}`, headers, rows);
+    exportToCSV(`vaango_merchant_financial_directory_${new Date().toISOString().slice(0, 10)}`, headers, rows);
   };
 
   // Filtered Directory Items
@@ -427,7 +427,7 @@ export const AdminFinancialPage: React.FC = () => {
                     {formatINR((kpis?.verified_fees_collected_paise || 0) / 100)}
                   </span>
                   <span className="vaango-admin-finance-card__sub">
-                    Remitted by merchants and verified in Vaangly account
+                    Remitted by merchants and verified in Kartzo account
                   </span>
                 </Card>
 
@@ -751,7 +751,7 @@ export const AdminFinancialPage: React.FC = () => {
             </div>
 
             <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl text-xs">
-              <strong>Mandatory Verification Rule:</strong> Confirm that this exact amount has visibly arrived in Vaangly’s bank account before clicking Approve. Never verify based on screenshot alone.
+              <strong>Mandatory Verification Rule:</strong> Confirm that this exact amount has visibly arrived in Kartzo’s bank account before clicking Approve. Never verify based on screenshot alone.
             </div>
 
             <div>

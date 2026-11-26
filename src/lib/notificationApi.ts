@@ -352,7 +352,7 @@ export const notifyOrderLifecycle = async (
         if (recipientRole === 'shopkeeper') {
           type = 'NEW_ORDER';
           title = 'New Appointment Request';
-          message = `New appointment request #${referenceCode} received from ${customerName}. Open Vaangly to view the appointment.`;
+          message = `New appointment request #${referenceCode} received from ${customerName}. Open Kartzo to view the appointment.`;
         } else {
           type = 'ORDER_PLACED';
           title = customerPaid || !totalEstimate ? 'Appointment Confirmed' : 'Appointment Request Placed';
@@ -361,7 +361,7 @@ export const notifyOrderLifecycle = async (
       } else if (recipientRole === 'shopkeeper') {
         type = 'NEW_ORDER';
         title = pickupAt ? 'New order received (Scheduled Pickup)' : 'New order received';
-        message = `New order #${referenceCode} received from ${customerName}. Open Vaangly to view the order.`;
+        message = `New order #${referenceCode} received from ${customerName}. Open Kartzo to view the order.`;
       } else {
         type = 'ORDER_PLACED';
         title = pickupAt ? 'Order Placed (Scheduled Pickup)' : 'Order Placed';

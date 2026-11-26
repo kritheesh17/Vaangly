@@ -320,7 +320,7 @@ export const AdminShopsPage: React.FC = () => {
                       <div>
                         <h3 className="vaango-admin-shop-item__name">{shop.name}</h3>
                         <span className="vaango-admin-shop-item__tagline">
-                          {shop.tagline || 'Neighborhood Merchant on Vaango'}
+                          {shop.tagline || 'Neighborhood Merchant on Kartzo'}
                         </span>
                         <div style={{ marginTop: '4px' }}>
                           <CopyableText text={shop.id} label="Shop UUID" truncate={true} />
@@ -334,7 +334,7 @@ export const AdminShopsPage: React.FC = () => {
                           </Badge>
                         ) : shop.is_live ? (
                           <Badge variant="success" size="sm" withDot>
-                            LIVE ON VAANGO
+                            LIVE ON KARTZO
                           </Badge>
                         ) : (
                           <Badge variant="warning" size="sm">

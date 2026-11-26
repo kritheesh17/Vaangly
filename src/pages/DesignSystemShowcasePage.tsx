@@ -160,7 +160,7 @@ export const DesignSystemShowcasePage: React.FC = () => {
 
           <div className="vaango-component-row" style={{ marginTop: 'var(--space-6)' }}>
             <Checkbox
-              label="Allow SMS order status updates"
+              label="Allow order status updates"
               sublabel="Critical updates regarding preparation time"
               checked={checkboxVal}
               onChange={(e) => setCheckboxVal(e.target.checked)}
@@ -229,7 +229,7 @@ export const DesignSystemShowcasePage: React.FC = () => {
           <div className="vaango-component-row" style={{ marginTop: 'var(--space-6)' }}>
             <Avatar name="Ananya Raman" alt="Ananya Raman" size="sm" />
             <Avatar name="Murugan Stores" alt="Murugan Stores" size="md" />
-            <Avatar name="Vaango Admin" alt="Vaango Admin" size="lg" />
+            <Avatar name="Kartzo Admin" alt="Kartzo Admin" size="lg" />
             <Avatar name="Karthik Tailors" alt="Karthik Tailors" size="xl" />
           </div>
         </Card>
@@ -262,7 +262,7 @@ export const DesignSystemShowcasePage: React.FC = () => {
           }
         >
           <p style={{ color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-            In Vaango, pre-orders are held at the shop counter with zero physical queueing.
+            In Kartzo, pre-orders are held at the shop counter with zero physical queueing.
             Customers show their reference code upon arrival.
           </p>
         </Modal>

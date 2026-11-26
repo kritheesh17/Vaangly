@@ -13,7 +13,7 @@ export const Footer: React.FC = () => {
       <div className="container vaangly-footer__inner">
         {/* Brand Column */}
         <div className="vaangly-footer__brand-col">
-          <Link to="/" className="vaangly-footer__logo" aria-label="Vaangly Home">
+          <Link to="/" className="vaangly-footer__logo" aria-label="Kartzo Home">
             <div className="vaangly-footer__logo-icon">
               <span>V</span>
             </div>
@@ -94,7 +94,7 @@ export const Footer: React.FC = () => {
                 </a>
               </li>
               <li>
-                <a href="mailto:support@vaangly.com" className="vaangly-footer__link">
+                <a href="mailto:support@vaango.com" className="vaangly-footer__link">
                   {t('supportLink')}
                 </a>
               </li>

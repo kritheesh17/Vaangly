@@ -46,8 +46,8 @@ export const OnDemandLocationModal: React.FC<OnDemandLocationModalProps> = ({
 
           <p className="text-xs text-muted-foreground mt-1.5 max-w-xs mx-auto leading-relaxed">
             {isDenied
-              ? 'Your browser has blocked location access for Vaangly. You can select your town manually to browse shops, or update browser settings.'
-              : 'Vaangly uses your location on demand to calculate live distances to neighborhood shops, pharmacies, and clinics.'}
+              ? 'Your browser has blocked location access for Kartzo. You can select your town manually to browse shops, or update browser settings.'
+              : 'Kartzo uses your location on demand to calculate live distances to neighborhood shops, pharmacies, and clinics.'}
           </p>
         </div>
 

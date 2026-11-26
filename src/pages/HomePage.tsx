@@ -83,7 +83,7 @@ export const HomePage: React.FC = () => {
       shop_type_id: '0f56b1ab-c358-4638-bf0c-4b510a15482f',
       location_id: selectedLocation.id,
       name: shopName,
-      tagline: 'Verified neighborhood store on Vaangly',
+      tagline: 'Verified neighborhood store on Kartzo',
       address_line: 'Town Center, Kangeyam',
       phone: '+91 98765 23456',
       status: 'active',
@@ -581,13 +581,13 @@ export const HomePage: React.FC = () => {
 
   const faqList = [
     {
-      q: language === 'ta' ? 'வாங்கோ என்றால் என்ன?' : 'What is Vaangly?',
+      q: language === 'ta' ? 'கார்ட்சோ என்றால் என்ன?' : 'What is Kartzo?',
       a: language === 'ta'
-        ? 'வாங்கோ என்பது உங்கள் ஊரில் உள்ள கடைகள், சேவைகள் மற்றும் முன்பதிவு வழங்குநர்களை இணைக்கும் எளிய உள்ளூர் தளமாகும். மளிகைப் பொருட்களை முன்கூட்டியே ஆர்டர் செய்யவும், மருத்துவர் மற்றும் சலூன் நேரங்களை முன்பதிவு செய்யவும் உதவுகிறது.'
-        : 'Vaangly is a local commerce and services platform that connects customers with verified nearby shops, services, and appointment providers in their hometown. You can discover local businesses, pre-order groceries and daily essentials, and book service appointments with trusted community professionals.',
+        ? 'கார்ட்சோ என்பது உங்கள் ஊரில் உள்ள கடைகள், சேவைகள் மற்றும் முன்பதிவு வழங்குநர்களை இணைக்கும் எளிய உள்ளூர் தளமாகும். மளிகைப் பொருட்களை முன்கூட்டியே ஆர்டர் செய்யவும், மருத்துவர் மற்றும் சலூன் நேரங்களை முன்பதிவு செய்யவும் உதவுகிறது.'
+        : 'Kartzo is a local commerce and services platform that connects customers with verified nearby shops, services, and appointment providers in their hometown. You can discover local businesses, pre-order groceries and daily essentials, and book service appointments with trusted community professionals.',
     },
     {
-      q: language === 'ta' ? 'வாங்கோ எவ்வாறு செயல்படுகிறது?' : 'How does Vaangly work?',
+      q: language === 'ta' ? 'கார்ட்சோ எவ்வாறு செயல்படுகிறது?' : 'How does Kartzo work?',
       a: language === 'ta'
         ? 'உங்கள் ஊரைத் தேர்வு செய்து அருகிலுள்ள கடைகளைக் காணலாம். பொருட்களை தேர்வு செய்து ஆர்டர் அனுப்பலாம், சலூன் அல்லது கிளினிக் நேரம் முன்பதிவு செய்யலாம் அல்லது வீட்டு பழுதுபார்ப்பு சேவைகளைக் கோரலாம்.'
         : 'Simply select your town to see nearby businesses. You can browse products to place order requests, book scheduled appointment slots for salons or clinics, or request home repairs. Merchants confirm your request and update you in real time when items are packed or ready.',
@@ -602,13 +602,13 @@ export const HomePage: React.FC = () => {
       q: language === 'ta' ? 'முன்பதிவு (Appointments) செய்ய முடியுமா?' : 'Can I book appointments?',
       a: language === 'ta'
         ? 'கண்டிப்பாக! முடித்திருத்தகம், அழகு நிலையம், பல் மற்றும் பொது மருத்துவ கிளினிக்குகளில் வரிசையில் காத்திருக்காமல் உங்களுக்கு வசதியான நேரத்தை நேரடியாக முன்பதிவு செய்யலாம்.'
-        : 'Yes! Vaangly is not just shopping. You can book guaranteed appointment slots at neighborhood clinics, barbershops, salons, dental care centers, and diagnostic labs without waiting in long queues.',
+        : 'Yes! Kartzo is not just shopping. You can book guaranteed appointment slots at neighborhood clinics, barbershops, salons, dental care centers, and diagnostic labs without waiting in long queues.',
     },
     {
-      q: language === 'ta' ? 'கடைக்காரர்கள் எப்படி இணையலாம்?' : 'How can businesses join Vaangly?',
+      q: language === 'ta' ? 'கடைக்காரர்கள் எப்படி இணையலாம்?' : 'How can businesses join Kartzo?',
       a: language === 'ta'
         ? 'எந்தவொரு உள்ளூர் கடை அல்லது சேவை வழங்குநரும் "கடையைத் தொடங்குங்கள்" அல்லது "விண்ணப்பிக்கவும்" பொத்தானைக் கிளிக் செய்து, அடிப்படை விவரங்கள் மற்றும் ஆவணங்களைச் சமர்ப்பித்து நிர்வாக ஒப்புதல் பெறலாம்.'
-        : 'Any verified local merchant or service provider can click "Open Your Shop on Vaangly", submit basic shop details, storefront photos, and verification documents to start receiving orders and appointment requests.',
+        : 'Any verified local merchant or service provider can click "Open Your Shop on Kartzo", submit basic shop details, storefront photos, and verification documents to start receiving orders and appointment requests.',
     },
     {
       q: language === 'ta' ? 'ஆர்டர் நிலையை எவ்வாறு அறிந்து கொள்வது?' : 'How are order updates provided?',
@@ -1541,7 +1541,7 @@ export const HomePage: React.FC = () => {
                 className="vaangly-btn vaangly-btn--outline"
                 onClick={() => {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
-                  success('Vaangly is available instantly in your browser! Add to Home Screen via browser menu.');
+                  success('Kartzo is available instantly in your browser! Add to Home Screen via browser menu.');
                 }}
               >
                 {t('getAppBtn')}
@@ -1568,7 +1568,7 @@ export const HomePage: React.FC = () => {
               </div>
               <div className="vaangly-phone-screen">
                 <div className="vaangly-phone-appbar">
-                  <strong>VAANGLY</strong>
+                  <strong>KARTZO</strong>
                   <span className="vaangly-phone-badge">{selectedLocation.name}</span>
                 </div>
                 <div className="vaangly-phone-content">
@@ -1609,7 +1609,7 @@ export const HomePage: React.FC = () => {
               <div className="vaangly-testimonial-badge">{t('customerBadge')}</div>
               <p className="vaangly-testimonial-quote">
                 {language === 'ta'
-                  ? '"அருகிலுள்ள கடைகளை எளிதாகக் கண்டுபிடித்து, தனியாக ஒவ்வொரு கடையையும் தேடாமல் ஆர்டர் செய்ய வாங்கோ மிகவும் பயனுள்ளதாக உள்ளது."'
+                  ? '"அருகிலுள்ள கடைகளை எளிதாகக் கண்டுபிடித்து, தனியாக ஒவ்வொரு கடையையும் தேடாமல் ஆர்டர் செய்ய கார்ட்சோ மிகவும் பயனுள்ளதாக உள்ளது."'
                   : '"I can find nearby shops and place orders without having to search for every business separately."'}
               </p>
               <div className="vaangly-testimonial-author">
@@ -1626,8 +1626,8 @@ export const HomePage: React.FC = () => {
               <div className="vaangly-testimonial-badge vaangly-testimonial-badge--merchant">{t('shopkeeperBadge')}</div>
               <p className="vaangly-testimonial-quote">
                 {language === 'ta'
-                  ? '"எங்கள் கடைக்கு அருகிலுள்ள புதிய வாடிக்கையாளர்களை எந்தவொரு கூடுதல் கட்டணமும் இல்லாமல் அடைய வாங்கோ எளிய வழியை வழங்குகிறது."'
-                  : '"Vaangly gives my shop a simple way to reach customers nearby."'}
+                  ? '"எங்கள் கடைக்கு அருகிலுள்ள புதிய வாடிக்கையாளர்களை எந்தவொரு கூடுதல் கட்டணமும் இல்லாமல் அடைய கார்ட்சோ எளிய வழியை வழங்குகிறது."'
+                  : '"Kartzo gives my shop a simple way to reach customers nearby."'}
               </p>
               <div className="vaangly-testimonial-author">
                 <div className="vaangly-testimonial-avatar vaangly-testimonial-avatar--merchant">S</div>

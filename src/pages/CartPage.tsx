@@ -10,6 +10,8 @@ import {
   ShoppingBag,
   Building2,
   Clock,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { getEffectiveQuantity, useCart, ShopCartGroup } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -31,7 +33,7 @@ import {
 import { ActionErrorBanner } from '../components/ui/ActionErrorBanner';
 import { scrollAndFocusError } from '../lib/errorUxUtils';
 import { formatCleanVariantLabel } from '../lib/productVariants';
-import { calculatePlatformFeeRupees } from '../lib/financeApi';
+import { calculatePlatformFeeRupees, fetchPlatformFeeSystemConfig, PlatformFeeSystemConfig } from '../lib/financeApi';
 import './CartPage.css';
 
 export const CartPage: React.FC = () => {
@@ -55,8 +57,12 @@ export const CartPage: React.FC = () => {
 
   useEffect(() => {
     syncCartShops();
+    fetchPlatformFeeSystemConfig()
+      .then(setFeeConfig)
+      .catch((err) => console.warn('Failed to load platform fee config:', err));
   }, [syncCartShops]);
 
+  const [feeConfig, setFeeConfig] = useState<PlatformFeeSystemConfig | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [submittingShopId, setSubmittingShopId] = useState<string | null>(null);
   const [shopErrors, setShopErrors] = useState<Record<string, string>>({});
@@ -69,6 +75,14 @@ export const CartPage: React.FC = () => {
   const [shopPickupTimes, setShopPickupTimes] = useState<Record<string, string>>({});
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [expandedShopIds, setExpandedShopIds] = useState<Record<string, boolean>>({});
+
+  const toggleExpandShop = (shopId: string) => {
+    setExpandedShopIds((prev) => {
+      const isCurrentlyExpanded = prev[shopId] ?? (shopGroups.length === 1 || shopGroups[0]?.shop.id === shopId);
+      return { ...prev, [shopId]: !isCurrentlyExpanded };
+    });
+  };
 
   if (items.length === 0 || shopGroups.length === 0) {
     return (
@@ -121,7 +135,32 @@ export const CartPage: React.FC = () => {
       return;
     }
 
-    const chosenPayment = shopPaymentMethods[shopId] || 'pay_at_shop';
+    const paymentPref = group.shop.payment_preference || 'both';
+    const allowPayAtShop = paymentPref === 'both' || paymentPref === 'pay_at_shop_only';
+    const allowUpi = paymentPref === 'both' || paymentPref === 'upi_only';
+    const defaultPayment = allowPayAtShop ? 'pay_at_shop' : 'upi';
+    const chosenPayment = shopPaymentMethods[shopId] || defaultPayment;
+
+    if (chosenPayment === 'upi' && !allowUpi) {
+      const err = 'This merchant accepts Pay at Shop only.';
+      setShopErrors((prev) => ({ ...prev, [shopId]: err }));
+      setExpandedShopIds((prev) => ({ ...prev, [shopId]: true }));
+      setTimeout(() => {
+        scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
+      }, 50);
+      return;
+    }
+
+    if (chosenPayment === 'pay_at_shop' && !allowPayAtShop) {
+      const err = 'This merchant accepts UPI / Online payments only.';
+      setShopErrors((prev) => ({ ...prev, [shopId]: err }));
+      setExpandedShopIds((prev) => ({ ...prev, [shopId]: true }));
+      setTimeout(() => {
+        scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
+      }, 50);
+      return;
+    }
+
     if (chosenPayment === 'upi') {
       let activeShopRecord = group.shop;
       if (!isValidUpiQrUrl(activeShopRecord.upi_qr_url)) {
@@ -131,6 +170,7 @@ export const CartPage: React.FC = () => {
       if (!isValidUpiQrUrl(activeShopRecord.upi_qr_url)) {
         const err = 'UPI payment is currently unavailable because this shop has not configured its UPI QR code.';
         setShopErrors((prev) => ({ ...prev, [shopId]: err }));
+        setExpandedShopIds((prev) => ({ ...prev, [shopId]: true }));
         setTimeout(() => {
           scrollAndFocusError(`cart-action-error-${shopId}`, { focus: true });
         }, 50);
@@ -282,7 +322,7 @@ export const CartPage: React.FC = () => {
 
       {/* Render Each Shopfront Group as an Independent Order Card */}
       <div className="vaango-cart-groups-list">
-        {shopGroups.map((group) => {
+        {shopGroups.map((group, groupIndex) => {
           const { shop, items: shopItems, subtotal } = group;
           const shopId = shop.id;
           const isInvalidShopId = !isValidUuid(shopId);
@@ -293,10 +333,19 @@ export const CartPage: React.FC = () => {
             shop.business_type === 'bakery' ||
             shop.business_type === 'restaurant';
           const currentFulfillment = shopFulfillments[shopId] || null;
-          const currentPayment = shopPaymentMethods[shopId] || 'pay_at_shop';
           const currentNote = shopNotes[shopId] || '';
           const currentError = shopErrors[shopId];
           const isThisSubmitting = submittingShopId === shopId;
+
+          const paymentPref = shop.payment_preference || 'both';
+          const allowPayAtShop = paymentPref === 'both' || paymentPref === 'pay_at_shop_only';
+          const allowUpi = paymentPref === 'both' || paymentPref === 'upi_only';
+          const defaultPayment = allowPayAtShop ? 'pay_at_shop' : 'upi';
+          const currentPayment = shopPaymentMethods[shopId] || defaultPayment;
+
+          const isExpanded =
+            expandedShopIds[shopId] ??
+            (shopGroups.length === 1 || groupIndex === 0 || Boolean(currentError));
 
           const currentPickupMode = shopPickupModes[shopId] || 'ASAP';
           const availableDates = getAvailablePickupDates(shop, shop.slot_config?.timeZone);
@@ -316,7 +365,8 @@ export const CartPage: React.FC = () => {
             standardFee === 0 || (freeThreshold != null && freeThreshold > 0 && subtotal >= freeThreshold)
           );
           const effectiveDeliveryFee = currentDeliveryMode === 'DELIVERY' ? (isFreeEligible ? 0 : standardFee) : 0;
-          const platformFee = calculatePlatformFeeRupees(subtotal);
+          const isFeeActive = Boolean(feeConfig?.is_enabled);
+          const platformFee = isFeeActive ? calculatePlatformFeeRupees(subtotal) : 0;
           const finalTotal = subtotal + effectiveDeliveryFee + platformFee;
 
           return (
@@ -328,20 +378,45 @@ export const CartPage: React.FC = () => {
                     <Store size={22} />
                   </div>
                   <div>
-                    <div className="vaango-cart-shop-banner__label">{t('orderingFromLabel')}</div>
+                    <div className="vaango-cart-order-badge-row">
+                      <span className="vaango-cart-order-badge">Order {groupIndex + 1}</span>
+                      <span className="vaango-cart-order-count">
+                        {shopItems.length} {shopItems.length === 1 ? 'product' : 'products'}
+                      </span>
+                    </div>
                     <h2 className="vaango-cart-shop-banner__name">{shop.name}</h2>
                     <span className="vaango-cart-shop-banner__address">{shop.address_line}</span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="vaango-cart-shop-clear-btn"
-                  onClick={() => clearShopItems(shopId)}
-                  title={`Remove all items from ${shop.name}`}
-                >
-                  <Trash2 size={16} />
-                  <span>Remove Store Items</span>
-                </button>
+
+                <div className="vaango-cart-shop-header-actions">
+                  <div className="vaango-cart-order-total-preview">
+                    <span className="vaango-cart-total-label">Store Total</span>
+                    <strong className="vaango-cart-total-amount">₹{finalTotal}</strong>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="vaango-cart-details-toggle-btn"
+                    onClick={() => toggleExpandShop(shopId)}
+                    aria-expanded={isExpanded}
+                    aria-label={isExpanded ? `Hide details for ${shop.name}` : `See details for ${shop.name}`}
+                  >
+                    <span>{isExpanded ? 'Hide Details' : 'See Details'}</span>
+                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="vaango-cart-shop-clear-btn"
+                    onClick={() => clearShopItems(shopId)}
+                    title={`Remove all items from ${shop.name}`}
+                    aria-label={`Remove all items from ${shop.name}`}
+                  >
+                    <Trash2 size={16} />
+                    <span>Remove Store Items</span>
+                  </button>
+                </div>
               </div>
 
               {isInvalidShopId && (
@@ -350,6 +425,9 @@ export const CartPage: React.FC = () => {
                   <span>{t('staleCartWarningDesc')}</span>
                 </div>
               )}
+
+              {isExpanded && (
+                <div className="vaango-cart-expanded-content">
 
               {/* Items for this Shop */}
               <div className="vaango-cart-items-list" role="list">
@@ -657,37 +735,41 @@ export const CartPage: React.FC = () => {
                     <span className="vaango-cart-section-sub">Choose how you wish to pay</span>
                   </div>
                   <div className="vaango-cart-options-toggle" role="radiogroup" aria-label="Payment Method">
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={currentPayment === 'pay_at_shop'}
-                      className={`vaango-cart-option-btn ${currentPayment === 'pay_at_shop' ? 'active' : ''}`}
-                      onClick={() => {
-                        setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'pay_at_shop' }));
-                        setShopErrors((prev) => ({ ...prev, [shopId]: '' }));
-                      }}
-                    >
-                      <span className="vaango-cart-option-title">🏪 Pay at Shop</span>
-                      <small className="vaango-cart-option-desc">Pay cash or UPI at the counter when collecting</small>
-                    </button>
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={currentPayment === 'upi'}
-                      disabled={!isValidUpiQrUrl(shop.upi_qr_url)}
-                      title={!isValidUpiQrUrl(shop.upi_qr_url) ? 'UPI payment unavailable: This shop has not configured its UPI QR code' : 'Pay with UPI QR code after acceptance'}
-                      className={`vaango-cart-option-btn ${currentPayment === 'upi' ? 'active' : ''}`}
-                      onClick={() => {
-                        setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'upi' }));
-                        setShopErrors((prev) => ({ ...prev, [shopId]: '' }));
-                      }}
-                    >
-                      <span className="vaango-cart-option-title">📱 UPI / Online</span>
-                      <small className="vaango-cart-option-desc">Pay via UPI QR after shopkeeper accepts order</small>
-                    </button>
+                    {allowPayAtShop && (
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={currentPayment === 'pay_at_shop'}
+                        className={`vaango-cart-option-btn ${currentPayment === 'pay_at_shop' ? 'active' : ''}`}
+                        onClick={() => {
+                          setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'pay_at_shop' }));
+                          setShopErrors((prev) => ({ ...prev, [shopId]: '' }));
+                        }}
+                      >
+                        <span className="vaango-cart-option-title">🏪 Pay at Shop</span>
+                        <small className="vaango-cart-option-desc">Pay cash or UPI at the counter when collecting</small>
+                      </button>
+                    )}
+                    {allowUpi && (
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={currentPayment === 'upi'}
+                        disabled={!isValidUpiQrUrl(shop.upi_qr_url)}
+                        title={!isValidUpiQrUrl(shop.upi_qr_url) ? 'UPI payment unavailable: This shop has not configured its UPI QR code' : 'Pay with UPI QR code after acceptance'}
+                        className={`vaango-cart-option-btn ${currentPayment === 'upi' ? 'active' : ''}`}
+                        onClick={() => {
+                          setShopPaymentMethods((prev) => ({ ...prev, [shopId]: 'upi' }));
+                          setShopErrors((prev) => ({ ...prev, [shopId]: '' }));
+                        }}
+                      >
+                        <span className="vaango-cart-option-title">📱 UPI / Online</span>
+                        <small className="vaango-cart-option-desc">Pay via UPI QR after shopkeeper accepts order</small>
+                      </button>
+                    )}
                   </div>
 
-                  {!isValidUpiQrUrl(shop.upi_qr_url) && (
+                  {allowUpi && !isValidUpiQrUrl(shop.upi_qr_url) && (
                     <div className="vaango-cart-upi-unavailable-note text-xs text-secondary mt-2 px-1">
                       <span>UPI payment is currently unavailable because this shop has not configured its UPI QR code. Pay at Shop is available.</span>
                     </div>
@@ -755,7 +837,7 @@ export const CartPage: React.FC = () => {
                     </div>
                   )}
                   <div className="flex justify-between items-center text-sm text-secondary mb-1">
-                    <span>Platform Fee (Vaangly):</span>
+                    <span>Platform Fee (Kartzo):</span>
                     <span>₹{platformFee}</span>
                   </div>
                   <div className="flex justify-between items-center font-bold text-base border-t border-border pt-1">
@@ -811,7 +893,9 @@ export const CartPage: React.FC = () => {
                   </Button>
                 </div>
               </div>
-            </Card>
+            </div>
+          )}
+        </Card>
           );
         })}
       </div>
@@ -825,7 +909,7 @@ export const CartPage: React.FC = () => {
       >
         <div className="vaango-auth-modal-content">
           <p className="vaango-auth-modal-desc">
-            Sign in with Google or your phone to complete your order and track live updates from the store.
+            Sign in with Google to complete your order and track live updates from the store.
           </p>
           {authError && (
             <div className="vaango-cart-error-alert" role="alert">
@@ -841,16 +925,6 @@ export const CartPage: React.FC = () => {
               onClick={handleGoogleSignInFromCart}
             >
               Continue with Google
-            </Button>
-            <Button
-              variant="outline"
-              fullWidth
-              onClick={() => {
-                setAuthModalOpen(false);
-                navigate('/login', { state: { from: { pathname: '/cart' } } });
-              }}
-            >
-              Sign In with Mobile OTP
             </Button>
           </div>
         </div>

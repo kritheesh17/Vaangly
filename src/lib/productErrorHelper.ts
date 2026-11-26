@@ -219,7 +219,7 @@ export function classifyApplicationError(err: unknown): ClassifiedApplicationErr
     combined.includes('abort')
   ) {
     return {
-      userMessage: "We couldn't connect to Vaangly. Check your internet connection and try again.",
+      userMessage: "We couldn't connect to Kartzo. Check your internet connection and try again.",
       isRetryable: true,
       category: 'network',
     };

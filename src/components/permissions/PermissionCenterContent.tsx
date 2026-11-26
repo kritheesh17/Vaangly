@@ -162,9 +162,9 @@ export const PermissionCenterContent: React.FC = () => {
     setUpdateCheckFeedback(null);
     const hasUpdate = await checkForUpdates();
     if (hasUpdate) {
-      setUpdateCheckFeedback('A new version of Vaangly is ready to install!');
+      setUpdateCheckFeedback('A new version of Kartzo is ready to install!');
     } else {
-      setUpdateCheckFeedback('Vaangly is already up to date!');
+      setUpdateCheckFeedback('Kartzo is already up to date!');
       setTimeout(() => setUpdateCheckFeedback(null), 4000);
     }
   };
@@ -179,7 +179,7 @@ export const PermissionCenterContent: React.FC = () => {
         <div>
           <h3 className="text-base font-bold text-foreground">Permissions & Privacy Center</h3>
           <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-            Vaangly only requests permissions needed to alert you about bookings and show nearby shops. Your data is protected by strict row-level security.
+            Kartzo only requests permissions needed to alert you about bookings and show nearby shops. Your data is protected by strict row-level security.
           </p>
         </div>
       </div>
@@ -237,7 +237,7 @@ export const PermissionCenterContent: React.FC = () => {
                 className="flex items-center gap-1.5"
                 onClick={() => void promptInstall()}
               >
-                <Download size={14} /> Install Vaangly
+                <Download size={14} /> Install Kartzo
               </Button>
             )}
           </div>
@@ -248,7 +248,7 @@ export const PermissionCenterContent: React.FC = () => {
           <div className="mt-4 p-3.5 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-xs font-semibold text-primary">
               <Sparkles size={16} />
-              <span>A new version of Vaangly has been downloaded and is ready!</span>
+              <span>A new version of Kartzo has been downloaded and is ready!</span>
             </div>
             <Button variant="primary" size="sm" onClick={applyUpdate}>
               Update Now

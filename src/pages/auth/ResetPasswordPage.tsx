@@ -194,9 +194,9 @@ export const ResetPasswordPage: React.FC = () => {
       <Card variant="elevated" padding="lg" className="vaango-auth-card">
         {/* Brand Header */}
         <div className="vaango-auth-header">
-          <Link to="/" className="vaango-auth-brand" aria-label="Vaangly Home">
+          <Link to="/" className="vaango-auth-brand" aria-label="Kartzo Home">
             <span className="vaango-header__logo-icon">V</span>
-            <span className="vaango-header__logo-text">Vaangly</span>
+            <span className="vaango-header__logo-text">Kartzo</span>
           </Link>
           <h1 className="vaango-auth-title">Set a new password</h1>
           <p className="vaango-auth-subtitle">

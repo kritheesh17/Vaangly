@@ -359,7 +359,7 @@ export const ShopDetailPage: React.FC = () => {
 
       if (shop.owner_id) {
         const notifTitle = 'New custom cake request';
-        const notifBody = `New custom cake request #${referenceCode} from ${user.full_name || 'Customer'}. Open Vaangly to view the details.`;
+        const notifBody = `New custom cake request #${referenceCode} from ${user.full_name || 'Customer'}. Open Kartzo to view the details.`;
         try {
           await createNotification({
             recipient_id: shop.owner_id,

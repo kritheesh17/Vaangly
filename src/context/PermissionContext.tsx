@@ -50,7 +50,7 @@ export function getInstallStatusInfo(state: InstallState, phase: InstallFeedback
   switch (phase) {
     case 'preparing':
       return {
-        title: 'Preparing Vaangly for installation',
+        title: 'Preparing Kartzo for installation',
         detail: 'Connecting with your browser installation manager. Please wait...',
       };
     case 'prompt_opened':
@@ -60,44 +60,44 @@ export function getInstallStatusInfo(state: InstallState, phase: InstallFeedback
       };
     case 'installing':
       return {
-        title: 'Installing Vaangly...',
-        detail: 'Adding Vaangly to your device and configuring offline access...',
+        title: 'Installing Kartzo...',
+        detail: 'Adding Kartzo to your device and configuring offline access...',
       };
     case 'completing':
       return {
         title: 'Installation request accepted',
-        detail: 'The browser is completing setup in the background. Check your home screen or app launcher for Vaangly.',
+        detail: 'The browser is completing setup in the background. Check your home screen or app launcher for Kartzo.',
       };
     case 'installed':
       return {
-        title: 'Vaangly installed successfully! ✓',
-        detail: 'Vaangly is now ready on your device. Launch it anytime from your home screen or app launcher.',
+        title: 'Kartzo installed successfully! ✓',
+        detail: 'Kartzo is now ready on your device. Launch it anytime from your home screen or app launcher.',
       };
     case 'cancelled':
       return {
         title: 'Installation was cancelled.',
-        detail: 'You can install Vaangly anytime from the Install button whenever you are ready.',
+        detail: 'You can install Kartzo anytime from the Install button whenever you are ready.',
       };
     case 'unavailable':
       return {
-        title: "Vaangly can't be installed from this browser.",
-        detail: 'Use the browser menu or Add to Home Screen in Safari to access Vaangly like an app.',
+        title: "Kartzo can't be installed from this browser.",
+        detail: 'Use the browser menu or Add to Home Screen in Safari to access Kartzo like an app.',
       };
     case 'error':
       return {
-        title: "Vaangly couldn't be installed right now.",
+        title: "Kartzo couldn't be installed right now.",
         detail: 'An unexpected browser error occurred. Please try again or check your browser settings.',
       };
     default:
       if (state === 'INSTALLED') {
         return {
-          title: 'Vaangly is installed ✓',
+          title: 'Kartzo is installed ✓',
           detail: 'Already running as an installed application.',
         };
       }
       return {
-        title: 'Install Vaangly',
-        detail: 'Install Vaangly on your device for fast access, fullscreen experience, and offline support.',
+        title: 'Install Kartzo',
+        detail: 'Install Kartzo on your device for fast access, fullscreen experience, and offline support.',
       };
   }
 }

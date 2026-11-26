@@ -575,7 +575,9 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
     setFormError(null);
 
     if (!user) {
-      toastError('Please sign in first.');
+      setFormError('Please sign in with Google to submit your shop application.');
+      toastError('Please sign in with Google to submit your application.');
+      navigate('/login?redirect=/shopkeeper/apply');
       return;
     }
 
@@ -967,7 +969,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
     <div className="container vaango-onboarding">
       <div className="vaango-onboarding__header">
         <span className="vaango-onboarding__kicker">Merchant Partner Program</span>
-        <h1 className="vaango-onboarding__title">Register Your Shop on Vaango</h1>
+        <h1 className="vaango-onboarding__title">Register Your Shop on Kartzo</h1>
         <p className="vaango-onboarding__subtitle">
           Join local neighborhood merchants in {selectedLocation.name}. Complete your application with verified device GPS location.
         </p>
@@ -1111,7 +1113,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                   ))}
                 </select>
                 <span className="text-xs text-secondary mt-1 block">
-                  Select your primary trade. Vaangly configures your store capabilities automatically.
+                  Select your primary trade. Kartzo configures your store capabilities automatically.
                 </span>
               </div>
 
@@ -1184,7 +1186,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-xs text-secondary mb-3">
-                    Bakery and food shops support both Dine-in seating and Takeaway packaging on Vaangly.
+                    Bakery and food shops support both Dine-in seating and Takeaway packaging on Kartzo.
                   </p>
                   <div className="flex flex-wrap gap-4">
                     <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
@@ -1212,7 +1214,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Sparkles size={16} className="text-primary flex-shrink-0" />
                   <span className="text-xs font-semibold text-primary uppercase">
-                    Vaangly Intelligent Classification
+                    Kartzo Intelligent Classification
                   </span>
                 </div>
                 <div className="mt-1 text-xs text-secondary flex flex-wrap items-center gap-2">
@@ -1615,7 +1617,7 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                   value={upiId}
                   onChange={(e) => setUpiId(e.target.value)}
                 />
-                <span className="text-xs text-secondary mt-1">Customers will see this to pay you directly. Vaango never touches your money.</span>
+                <span className="text-xs text-secondary mt-1">Customers will see this to pay you directly. Kartzo never touches your money.</span>
               </div>
 
               <div className="vaango-form-group mt-4">
@@ -1813,9 +1815,21 @@ export const ShopkeeperOnboardingPage: React.FC = () => {
                   <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700 }}>Human Admin Verification Process</span>
                 </div>
                 <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-                  Once submitted, the Vaangly administration team verifies your storefront photos, GPS location, and government ID. Verified merchants receive approval and access to the catalogue and shopkeeper dashboard.
+                  Once submitted, the Kartzo administration team verifies your storefront photos, GPS location, and government ID. Verified merchants receive approval and access to the catalogue and shopkeeper dashboard.
                 </p>
               </div>
+
+              {!user && (
+                <div style={{ marginTop: 'var(--space-4)', padding: 'var(--space-3)', background: 'rgba(25, 135, 84, 0.08)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(25, 135, 84, 0.25)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <ShieldCheck size={16} className="text-primary" />
+                    <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--color-primary)' }}>Google Authentication Required to Finalize</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                    You are completing this application as a new merchant. Clicking submit will prompt you to authenticate via Google to securely register your store ownership.
+                  </p>
+                </div>
+              )}
             </Card>
 
             {formError && (
