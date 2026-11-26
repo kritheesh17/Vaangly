@@ -78,7 +78,7 @@ export const ManualInstallModal: React.FC = () => {
             <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-xl mb-4 text-primary">
               <Download size={22} />
               <div className="text-sm font-medium">
-                Install Kartzo from your browser menu
+                Install Kartzo on Android / Chrome in 2 easy steps
               </div>
             </div>
             <ol className="vaangly-install-steps">
@@ -89,7 +89,7 @@ export const ManualInstallModal: React.FC = () => {
                     Open browser menu <MoreVertical size={16} className="text-primary inline" />
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Tap the three dots (⋮) in the top-right corner of your browser.
+                    Tap the three dots (⋮) in the top-right corner of Chrome or your browser.
                   </p>
                 </div>
               </li>

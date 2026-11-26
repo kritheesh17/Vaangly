@@ -79,11 +79,32 @@ describe('PWA Installation State Machine and Feedback', () => {
     assert.ok(cancelledInfo.detail.includes('You can install Kartzo anytime from the Install button'));
   });
 
-  // Test 10: Unsupported browser
-  it('10. Unsupported browser: provides helpful manual alternative instructions', () => {
-    const unsuppInfo = getInstallStatusInfo('UNSUPPORTED', 'unavailable');
-    assert.strictEqual(unsuppInfo.title, "Kartzo can't be installed from this browser.");
-    assert.ok(unsuppInfo.detail.includes('Add to Home Screen in Safari'));
+  // Test 10: Platform-specific manual instructions & unsupported browser
+  it('10. Platform-specific manual instructions & unsupported browser handling', () => {
+    // Android platform instructions
+    const androidInfo = getInstallStatusInfo('NOT_AVAILABLE', 'unavailable', 'android');
+    assert.strictEqual(androidInfo.title, 'Install Kartzo from your browser menu');
+    assert.ok(androidInfo.detail.includes('three dots (⋮) in Chrome or your browser menu'));
+    assert.ok(androidInfo.detail.includes('"Install app" or "Add to Home screen"'));
+    assert.ok(!androidInfo.detail.toLowerCase().includes('safari'), 'Android instructions must NEVER mention Safari');
+
+    // iOS platform instructions
+    const iosInfo = getInstallStatusInfo('NOT_AVAILABLE', 'unavailable', 'ios');
+    assert.strictEqual(iosInfo.title, 'Install Kartzo on iPhone / iPad');
+    assert.ok(iosInfo.detail.includes('In Safari, tap the Share button'));
+    assert.ok(iosInfo.detail.includes('"Add to Home Screen"'));
+    assert.ok(!iosInfo.detail.toLowerCase().includes('android'), 'iOS instructions must not mention Android');
+
+    // Desktop platform instructions
+    const desktopInfo = getInstallStatusInfo('NOT_AVAILABLE', 'unavailable', 'desktop');
+    assert.strictEqual(desktopInfo.title, 'Install Kartzo from your browser menu');
+    assert.ok(desktopInfo.detail.includes('Open your browser menu'));
+    assert.ok(!desktopInfo.detail.toLowerCase().includes('safari'), 'Desktop instructions must not mention Safari');
+
+    // Unsupported browser fallback
+    const unsuppInfo = getInstallStatusInfo('UNSUPPORTED', 'idle');
+    assert.strictEqual(unsuppInfo.title, 'Browser not supported for direct installation');
+    assert.ok(unsuppInfo.detail.includes('Google Chrome, Microsoft Edge, or Safari'));
   });
 
   // Test 11: Standalone mode detection

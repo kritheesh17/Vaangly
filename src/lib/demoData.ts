@@ -1,5 +1,4 @@
 import { Request } from '../types/database';
-import { MOCK_SHOPS } from '../data/mockData';
 
 export const DEMO_REQUESTS_KEY = 'vaango_demo_requests';
 export const DEMO_SHOPS_KEY = 'vaango_demo_shops';
@@ -358,8 +357,14 @@ export const resetDemoData = (): { success: boolean; message: string } => {
     const defaultRequests = buildDefaultDemoRequests();
     localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(defaultRequests));
 
-    // Reset demo shops to all active base shops
-    localStorage.setItem(DEMO_SHOPS_KEY, JSON.stringify(MOCK_SHOPS));
+    // Reset demo shops to all active base shops lazily
+    import('../data/mockData').then(({ MOCK_SHOPS }) => {
+      try {
+        localStorage.setItem(DEMO_SHOPS_KEY, JSON.stringify(MOCK_SHOPS));
+      } catch (e) {
+        console.warn('Failed to cache mock shops:', e);
+      }
+    }).catch(() => {});
 
     // Clear any stuck application status
     localStorage.removeItem(DEMO_APPLICATIONS_KEY);

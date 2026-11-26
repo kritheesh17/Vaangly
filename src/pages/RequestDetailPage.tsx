@@ -388,6 +388,10 @@ export const RequestDetailPage: React.FC = () => {
 
   // Simulated transition for tester / evaluation
   const handleSimulateTransition = async (nextState: WorkflowStateCode) => {
+    if (!import.meta.env.DEV) {
+      console.warn('Simulation tools are strictly disabled in production builds.');
+      return;
+    }
     if (!request) return;
 
     const updatedRequest: Request = {
@@ -1219,8 +1223,9 @@ export const RequestDetailPage: React.FC = () => {
         />
       )}
 
-      {/* State Simulator Tool */}
-      <Card variant="sunken" padding="md" className="vaango-simulator-panel">
+      {/* State Simulator Tool - Strictly Development Only */}
+      {import.meta.env.DEV && (
+        <Card variant="sunken" padding="md" className="vaango-simulator-panel">
         <div className="vaango-simulator-header">
           <Sparkles size={18} />
           <div>
@@ -1358,6 +1363,7 @@ export const RequestDetailPage: React.FC = () => {
           )}
         </div>
       </Card>
+      )}
 
       {/* Mobile Sticky Action Bar */}
       {['REQUESTED', 'ACCEPTED', 'PREPARING', 'CONFIRMED', 'IN_PROGRESS', 'READY', 'DELAYED'].includes(request.current_state) && (

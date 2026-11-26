@@ -35,6 +35,28 @@
         } catch (e) {}
       })();
     </script>
+
+    <!-- Early PWA Install Prompt Capture: Captures beforeinstallprompt before React mounts -->
+    <script>
+      (function() {
+        window.__kartzoInstallPrompt = null;
+        window.__kartzoAppInstalled = false;
+        window.addEventListener('beforeinstallprompt', function(e) {
+          e.preventDefault();
+          window.__kartzoInstallPrompt = e;
+          try {
+            window.dispatchEvent(new CustomEvent('kartzo:installprompt-ready'));
+          } catch (_) {}
+        });
+        window.addEventListener('appinstalled', function() {
+          window.__kartzoInstallPrompt = null;
+          window.__kartzoAppInstalled = true;
+          try {
+            window.dispatchEvent(new CustomEvent('kartzo:appinstalled'));
+          } catch (_) {}
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

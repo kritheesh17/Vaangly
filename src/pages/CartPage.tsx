@@ -21,7 +21,8 @@ import { Textarea } from '../components/ui/Textarea';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Modal } from '../components/ui/Modal';
 import { useToast } from '../context/ToastContext';
-import { getShopType, isValidUuid } from '../data/mockData';
+import { isValidUuid } from '../lib/uuid';
+import { getShopType } from '../lib/shopTypes';
 import { useLanguage } from '../context/LanguageContext';
 import { isValidUpiQrUrl } from '../lib/upi';
 import { isValidIndianMobile } from '../lib/phoneUtils';
@@ -259,7 +260,9 @@ export const CartPage: React.FC = () => {
     setAuthError(null);
     setIsGoogleLoading(true);
     try {
-      const result = await signInWithGoogle();
+      sessionStorage.setItem('vaangly_auth_redirect', '/cart');
+      localStorage.setItem('vaangly_auth_redirect', '/cart');
+      const result = await signInWithGoogle('/cart');
       if (!result.success) {
         setAuthError(result.error || t('googleSignInFailed'));
       } else {

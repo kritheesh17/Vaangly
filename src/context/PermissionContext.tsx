@@ -41,12 +41,24 @@ export interface NotificationPreferences {
   account: boolean;
 }
 
+declare global {
+  interface Window {
+    __kartzoInstallPrompt?: BeforeInstallPromptEvent | null;
+    __kartzoAppInstalled?: boolean;
+  }
+}
+
 export interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-export function getInstallStatusInfo(state: InstallState, phase: InstallFeedbackPhase): { title: string; detail: string } {
+export function getInstallStatusInfo(
+  state: InstallState,
+  phase: InstallFeedbackPhase,
+  platform?: AppPlatform
+): { title: string; detail: string } {
+  const currentPlatform = platform || (typeof window !== 'undefined' ? detectPlatform() : 'desktop');
   switch (phase) {
     case 'preparing':
       return {
@@ -79,9 +91,21 @@ export function getInstallStatusInfo(state: InstallState, phase: InstallFeedback
         detail: 'You can install Kartzo anytime from the Install button whenever you are ready.',
       };
     case 'unavailable':
+      if (currentPlatform === 'android') {
+        return {
+          title: 'Install Kartzo from your browser menu',
+          detail: 'Tap the three dots (⋮) in Chrome or your browser menu, then select "Install app" or "Add to Home screen".',
+        };
+      }
+      if (currentPlatform === 'ios') {
+        return {
+          title: 'Install Kartzo on iPhone / iPad',
+          detail: 'In Safari, tap the Share button at the bottom of the screen, then select "Add to Home Screen".',
+        };
+      }
       return {
-        title: "Kartzo can't be installed from this browser.",
-        detail: 'Use the browser menu or Add to Home Screen in Safari to access Kartzo like an app.',
+        title: 'Install Kartzo from your browser menu',
+        detail: 'Open your browser menu (⋮ or ⋯) and select "Install Kartzo" or "Add to Home screen" to pin the app to your device.',
       };
     case 'error':
       return {
@@ -93,6 +117,12 @@ export function getInstallStatusInfo(state: InstallState, phase: InstallFeedback
         return {
           title: 'Kartzo is installed ✓',
           detail: 'Already running as an installed application.',
+        };
+      }
+      if (state === 'UNSUPPORTED') {
+        return {
+          title: 'Browser not supported for direct installation',
+          detail: 'Your current browser does not support one-click installation. Open Kartzo in Google Chrome, Microsoft Edge, or Safari to install.',
         };
       }
       return {
@@ -169,15 +199,17 @@ const DEFAULT_NOTIF_PREFS: NotificationPreferences = {
 
 const PermissionContext = createContext<PermissionContextType | undefined>(undefined);
 
-function detectPlatform(): AppPlatform {
+export function detectPlatform(): AppPlatform {
   if (Capacitor.isNativePlatform()) return 'capacitor';
+  if (typeof window === 'undefined') return 'desktop';
   const ua = navigator.userAgent || '';
   if (/android/i.test(ua)) return 'android';
-  if (/iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: boolean }).MSStream) return 'ios';
+  const isIos = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIos && !(window as unknown as { MSStream?: boolean }).MSStream) return 'ios';
   return 'desktop';
 }
 
-function checkIsInstalled(): boolean {
+export function checkIsInstalled(): boolean {
   if (Capacitor.isNativePlatform()) return true;
   if (typeof window === 'undefined') return false;
 
@@ -204,25 +236,31 @@ function getInitialNotificationStatus(): PermissionStatus {
 export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [platform] = useState<AppPlatform>(detectPlatform);
-  const [isInstalled, setIsInstalled] = useState<boolean>(checkIsInstalled);
-  const [isInstallable, setIsInstallable] = useState<boolean>(false);
-  const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.__kartzoAppInstalled) return true;
+    return checkIsInstalled();
+  });
+  const [isInstallable, setIsInstallable] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && Boolean(window.__kartzoInstallPrompt)) return true;
+    return false;
+  });
+  const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(
+    typeof window !== 'undefined' ? window.__kartzoInstallPrompt || null : null
+  );
   const isInstallingRef = useRef<boolean>(false);
 
   // Centralized PWA Installation State Machine
   const [installState, setInstallState] = useState<InstallState>(() => {
+    if (typeof window !== 'undefined' && window.__kartzoAppInstalled) return 'INSTALLED';
     if (checkIsInstalled()) return 'INSTALLED';
+    if (typeof window !== 'undefined' && window.__kartzoInstallPrompt) return 'READY';
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      const ua = navigator.userAgent || '';
-      if (/iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: boolean }).MSStream) {
-        return 'UNSUPPORTED';
-      }
       return 'NOT_AVAILABLE';
     }
     return 'UNSUPPORTED';
   });
   const [installPhase, setInstallPhase] = useState<InstallFeedbackPhase>(() => {
-    return checkIsInstalled() ? 'installed' : 'idle';
+    return (checkIsInstalled() || (typeof window !== 'undefined' && window.__kartzoAppInstalled)) ? 'installed' : 'idle';
   });
   const [isInstallFeedbackOpen, setIsInstallFeedbackOpen] = useState<boolean>(false);
 
@@ -359,12 +397,32 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         .catch(() => {});
     }
 
+    // Check if early install prompt was already captured in index.html before React mounted
+    if (typeof window !== 'undefined' && window.__kartzoInstallPrompt && !deferredPromptRef.current) {
+      deferredPromptRef.current = window.__kartzoInstallPrompt;
+      setIsInstallable(true);
+      setInstallState((prev) => (prev === 'INSTALLED' ? 'INSTALLED' : 'READY'));
+    }
+
     // Listen for Chromium PWA install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      deferredPromptRef.current = e as BeforeInstallPromptEvent;
+      const promptEvent = e as BeforeInstallPromptEvent;
+      deferredPromptRef.current = promptEvent;
+      if (typeof window !== 'undefined') {
+        window.__kartzoInstallPrompt = promptEvent;
+      }
       setIsInstallable(true);
       setInstallState((prev) => (prev === 'INSTALLED' ? 'INSTALLED' : 'READY'));
+    };
+
+    // Listen for custom early prompt ready event
+    const handlePromptReadyCustom = () => {
+      if (typeof window !== 'undefined' && window.__kartzoInstallPrompt) {
+        deferredPromptRef.current = window.__kartzoInstallPrompt;
+        setIsInstallable(true);
+        setInstallState((prev) => (prev === 'INSTALLED' ? 'INSTALLED' : 'READY'));
+      }
     };
 
     // Listen for real browser app installed event
@@ -372,10 +430,19 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setIsInstalled(true);
       setIsInstallable(false);
       deferredPromptRef.current = null;
+      if (typeof window !== 'undefined') {
+        window.__kartzoInstallPrompt = null;
+        window.__kartzoAppInstalled = true;
+      }
       isInstallingRef.current = false;
       setInstallState('INSTALLED');
       setInstallPhase('installed');
     };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener('kartzo:installprompt-ready', handlePromptReadyCustom);
+    window.addEventListener('kartzo:appinstalled', handleAppInstalled);
 
     // Auto-refresh notification status when user returns to window/tab from browser settings
     const handleVisibilityOrFocus = () => {
@@ -390,6 +457,8 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       mediaQuery.removeEventListener('change', handleDisplayModeChange);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener('kartzo:installprompt-ready', handlePromptReadyCustom);
+      window.removeEventListener('kartzo:appinstalled', handleAppInstalled);
     };
   }, [refreshNotificationStatus, refreshLocationStatus]);
 
@@ -498,7 +567,9 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Trigger Install Dialog on explicit user interaction
   const promptInstall = useCallback(async (): Promise<'accepted' | 'dismissed' | 'manual'> => {
-    if (checkIsInstalled()) {
+    if (checkIsInstalled() || (typeof window !== 'undefined' && window.__kartzoAppInstalled)) {
+      setIsInstalled(true);
+      setIsInstallable(false);
       setInstallState('INSTALLED');
       setInstallPhase('installed');
       setIsInstallFeedbackOpen(true);
@@ -510,20 +581,25 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return 'dismissed';
     }
 
-    isInstallingRef.current = true;
-    setIsInstallFeedbackOpen(true);
-    setInstallState('INSTALLING');
-    setInstallPhase('preparing');
+    const promptEvent = deferredPromptRef.current || (typeof window !== 'undefined' ? window.__kartzoInstallPrompt : null);
 
-    // Brief tick to ensure UI paints preparing state
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    if (promptEvent) {
+      isInstallingRef.current = true;
+      setIsInstallFeedbackOpen(true);
+      setInstallState('INSTALLING');
+      setInstallPhase('preparing');
 
-    if (deferredPromptRef.current) {
+      // Brief tick to ensure UI paints preparing state
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       try {
         setInstallPhase('prompt_opened');
-        await deferredPromptRef.current.prompt();
-        const choice = await deferredPromptRef.current.userChoice;
+        await promptEvent.prompt();
+        const choice = await promptEvent.userChoice;
         deferredPromptRef.current = null;
+        if (typeof window !== 'undefined') {
+          window.__kartzoInstallPrompt = null;
+        }
 
         if (choice.outcome === 'accepted') {
           setInstallPhase('installing');
@@ -543,7 +619,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             }, 3500);
           });
 
-          if (receivedAppInstalled || checkIsInstalled()) {
+          if (receivedAppInstalled || checkIsInstalled() || (typeof window !== 'undefined' && window.__kartzoAppInstalled)) {
             setIsInstalled(true);
             setIsInstallable(false);
             setInstallState('INSTALLED');
@@ -571,9 +647,10 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     }
 
-    // Fallback: If no beforeinstallprompt event is available (iOS, Firefox, or desktop without prompt), open manual modal
+    // Fallback: If no beforeinstallprompt event is available (iOS, Firefox, or Android browser without prompt), open manual modal
     isInstallingRef.current = false;
-    setInstallState('UNSUPPORTED');
+    setIsInstallFeedbackOpen(false);
+    setInstallState('NOT_AVAILABLE');
     setInstallPhase('unavailable');
     setIsManualInstallOpen(true);
     return 'manual';
@@ -626,7 +703,7 @@ export const PermissionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isNativeApp: Capacitor.isNativePlatform(),
         installState,
         installPhase,
-        installStatusMessage: getInstallStatusInfo(installState, installPhase),
+        installStatusMessage: getInstallStatusInfo(installState, installPhase, platform),
         isInstalling: installState === 'INSTALLING',
         isInstallFeedbackOpen,
         setIsInstallFeedbackOpen,

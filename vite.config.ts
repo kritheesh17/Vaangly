@@ -46,13 +46,30 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-icons': ['lucide-react'],
-          'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-leaflet': ['leaflet'],
-          'i18n-data': ['./src/lib/i18n'],
-          'mock-data': ['./src/data/mockData'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            if (id.includes('@supabase')) {
+              return 'vendor-supabase';
+            }
+            if (id.includes('leaflet')) {
+              return 'vendor-leaflet';
+            }
+          }
+          if (id.includes('/lib/uuid') || id.includes('\\lib\\uuid') || id.includes('/lib/shopTypes') || id.includes('\\lib\\shopTypes')) {
+            return 'app-types';
+          }
+          if (id.includes('/data/mockData') || id.includes('\\data\\mockData')) {
+            return 'mock-data';
+          }
+          if (id.includes('/lib/i18n') || id.includes('\\lib\\i18n')) {
+            return 'i18n-data';
+          }
         },
       },
     },

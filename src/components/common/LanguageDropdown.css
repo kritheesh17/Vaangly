@@ -18,6 +18,43 @@
   cursor: pointer;
   transition: all 0.15s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .vaango-lang-dropdown__btn {
+    padding: 4px 8px;
+    font-size: 11.5px;
+    gap: 4px;
+    height: 30px;
+  }
+  .vaango-lang-dropdown__globe {
+    width: 13px;
+    height: 13px;
+  }
+  .vaango-lang-dropdown__chevron {
+    width: 11px;
+    height: 11px;
+  }
+}
+
+@media (max-width: 375px) {
+  .vaango-lang-dropdown__btn {
+    padding: 3px 6px;
+    font-size: 11px;
+    gap: 3px;
+    height: 28px;
+  }
+}
+
+@media (max-width: 320px) {
+  .vaango-lang-dropdown__btn {
+    padding: 2px 5px;
+    font-size: 10px;
+    gap: 2px;
+    height: 26px;
+  }
 }
 
 .vaango-lang-dropdown__btn:hover,

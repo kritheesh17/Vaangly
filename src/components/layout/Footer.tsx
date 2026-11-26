@@ -94,7 +94,7 @@ export const Footer: React.FC = () => {
                 </a>
               </li>
               <li>
-                <a href="mailto:support@vaango.com" className="vaangly-footer__link">
+                <a href="mailto:support@kartzo.in" className="vaangly-footer__link">
                   {t('supportLink')}
                 </a>
               </li>

@@ -212,5 +212,96 @@ describe('Mobile Responsive Layout & Viewport Safeguards', () => {
       'Order detail content has safe bottom padding for both bottom nav and sticky bar'
     );
   });
+
+  // Test 28: Mobile header authentication-aware controls and responsive safeguards
+  it('28. Mobile header renders authentication-aware controls, compact Login button, and zero overflow', () => {
+    const headerTsx = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/components/layout/Header.tsx'),
+      'utf-8'
+    );
+    const headerCss = readCss('src/components/layout/Header.css');
+    const permissionsCss = readCss('src/components/permissions/Permissions.css');
+    const langDropdownCss = readCss('src/components/common/LanguageDropdown.css');
+
+    // 1. Authentication-aware rendering in Header.tsx
+    assert.ok(
+      headerTsx.includes('to="/login"'),
+      'Header includes link to /login'
+    );
+    assert.ok(
+      headerTsx.includes('className="vaango-header__btn-login"'),
+      'Header has vaango-header__btn-login element'
+    );
+    assert.ok(
+      headerTsx.includes('vaango-header__login-icon'),
+      'Header has login icon inside login button'
+    );
+    assert.ok(
+      headerTsx.includes('vaango-header__login-text'),
+      'Header has accessible text label for login button'
+    );
+    assert.ok(
+      headerTsx.includes('vaango-header__account-wrap'),
+      'Header retains account-wrap for logged-in user state'
+    );
+
+    // 2. High-contrast, solid brand pill styling for Login button
+    assert.ok(
+      headerCss.includes('.vaango-header__btn-login'),
+      'CSS has styling for .vaango-header__btn-login'
+    );
+    assert.ok(
+      headerCss.includes('background-color: var(--brand-primary'),
+      'Login button uses solid brand primary background'
+    );
+    assert.ok(
+      headerCss.includes('border-radius: var(--radius-full'),
+      'Login button uses full pill border radius'
+    );
+
+    // 3. Responsive scaling for Login button across breakpoints
+    assert.ok(
+      headerCss.includes('@media (max-width: 640px)'),
+      'Header CSS has 640px mobile breakpoint'
+    );
+    assert.ok(
+      headerCss.includes('@media (max-width: 375px)'),
+      'Header CSS has 375px narrow phone breakpoint'
+    );
+    assert.ok(
+      headerCss.includes('@media (max-width: 320px)'),
+      'Header CSS has 320px ultra-compact breakpoint'
+    );
+
+    // 4. Install App button preserves visibility and scales down on mobile
+    assert.ok(
+      permissionsCss.includes('.vaangly-install-btn-header'),
+      'Permissions CSS defines .vaangly-install-btn-header'
+    );
+    assert.ok(
+      permissionsCss.includes('@media (max-width: 640px)') &&
+      permissionsCss.includes('@media (max-width: 375px)'),
+      'Install App button has responsive sizing for mobile devices'
+    );
+
+    // 5. Language dropdown scales down compactly without getting cut off
+    assert.ok(
+      langDropdownCss.includes('.vaango-lang-dropdown__btn'),
+      'Language dropdown CSS defines .vaango-lang-dropdown__btn'
+    );
+    assert.ok(
+      langDropdownCss.includes('@media (max-width: 640px)') &&
+      langDropdownCss.includes('@media (max-width: 375px)'),
+      'Language dropdown has responsive sizing for mobile devices'
+    );
+
+    // 6. Location selector width is constrained to prevent pushing controls off screen
+    assert.ok(
+      headerCss.includes('.vaango-header__location-sub-btn') &&
+      headerCss.includes('max-width: 95px') &&
+      headerCss.includes('max-width: 70px'),
+      'Location selector has progressive max-width constraints on small screens'
+    );
+  });
 });
 

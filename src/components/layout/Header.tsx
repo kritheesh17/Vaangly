@@ -6,6 +6,7 @@ import {
   Moon,
   Sparkles,
   User,
+  LogIn,
   LogOut,
   ChevronDown,
   ShoppingBag,
@@ -314,11 +315,11 @@ export const Header: React.FC = () => {
               </div>
             )}
 
-            {/* Install Kartzo Button (Header Desktop/Tablet) */}
+            {/* Install Kartzo Button */}
             {!isInstalled && (
               <button
                 type="button"
-                className="vaangly-install-btn-header hidden md:inline-flex"
+                className="vaangly-install-btn-header"
                 onClick={() => void promptInstall()}
                 disabled={isInstalling}
                 title={isInstalling ? 'Installing Kartzo...' : 'Install Kartzo on your device'}
@@ -504,10 +505,16 @@ export const Header: React.FC = () => {
               </div>
             ) : (
               <div className="vaango-header__auth-btns">
-                <Link to="/login" className="vaango-header__btn-login">
-                  {t('logIn')}
+                <Link
+                  to="/login"
+                  className="vaango-header__btn-login"
+                  aria-label={t('logIn') || 'Log In'}
+                  title={t('logIn') || 'Log In'}
+                >
+                  <LogIn size={14} className="vaango-header__login-icon" aria-hidden="true" />
+                  <span className="vaango-header__login-text">{t('logIn') || 'Login'}</span>
                 </Link>
-                <Link to="/shops?group=ORDER" className="vaango-header__btn-get-started">
+                <Link to="/shops?group=ORDER" className="vaango-header__btn-get-started hidden lg:inline-flex">
                   {t('getStarted')}
                 </Link>
               </div>

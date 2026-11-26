@@ -1,5 +1,5 @@
 import { Shop, ShopType } from '../types/database';
-import { getShopType } from '../data/mockData';
+import { getShopType } from './shopTypes';
 
 export interface ShopBusinessFeatures {
   hasProducts: boolean;

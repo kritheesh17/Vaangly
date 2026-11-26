@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Shop, ShopProduct, Request, ProductVariant } from '../types/database';
-import { MOCK_SHOP_TYPES, isValidUuid } from '../data/mockData';
+import { isValidUuid } from '../lib/uuid';
+import { MOCK_SHOP_TYPES } from '../lib/shopTypes';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { isValidIndianMobile, normalizeIndianPhone } from '../lib/phoneUtils';

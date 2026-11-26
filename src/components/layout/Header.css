@@ -1007,19 +1007,44 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 12px;
+  gap: 5px;
+  height: 34px;
+  padding: 0 13px;
   border-radius: var(--radius-full, 9999px);
   font-size: 0.84rem;
-  font-weight: var(--font-weight-bold, 700);
-  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold, 600);
+  background-color: var(--brand-primary, #1B4D3E);
+  color: #FFFFFF !important;
   text-decoration: none;
-  transition: all var(--transition-fast);
+  border: 1px solid var(--brand-primary, #1B4D3E);
+  box-shadow: 0 1px 3px rgba(27, 77, 62, 0.2);
+  transition: all var(--transition-fast, 150ms ease);
   white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
 .vaango-header__btn-login:hover {
-  color: var(--brand-primary);
-  background-color: var(--brand-primary-light);
+  background-color: var(--brand-primary-hover, #14372C);
+  border-color: var(--brand-primary-hover, #14372C);
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 6px rgba(27, 77, 62, 0.28);
+  transform: translateY(-0.5px);
+}
+
+.vaango-header__btn-login:active {
+  transform: translateY(0);
+}
+
+.vaango-header__login-icon {
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .vaango-header__btn-login,
+.dark .vaango-header__btn-login {
+  background-color: var(--brand-primary, #1B4D3E);
+  border-color: var(--brand-primary, #1B4D3E);
+  color: #FFFFFF !important;
 }
 
 .vaango-header__btn-get-started {
@@ -1077,16 +1102,20 @@
 
 @media (max-width: 640px) {
   .vaango-header__inner {
-    padding: 0 10px;
-    gap: 6px;
+    padding: 0 8px;
+    gap: 5px;
   }
   .vaango-header__brand-group {
-    gap: 6px;
+    gap: 5px;
   }
   .vaango-header__location-btn {
     padding: 4px 7px;
     max-width: 105px;
     font-size: 11.5px;
+  }
+  .vaango-header__location-sub-btn {
+    max-width: 95px;
+    font-size: 0.72rem;
   }
   .vaango-header__location-name {
     max-width: 58px;
@@ -1101,18 +1130,44 @@
     display: none !important;
   }
   .vaango-header__actions {
-    gap: 6px;
+    gap: 5px;
+  }
+  .vaango-header__btn-login {
+    height: 30px;
+    padding: 0 9px;
+    font-size: 11.5px;
+    gap: 4px;
+  }
+  .vaango-header__login-icon {
+    width: 13px;
+    height: 13px;
+  }
+  .vaango-header__account-btn {
+    height: 30px;
+    width: 30px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  .vaango-header__account-avatar {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+  .vaango-header__hamburger-btn {
+    width: 32px;
+    height: 30px;
   }
 }
 
 @media (max-width: 480px) {
   .vaango-header__logo-icon {
-    width: 34px;
-    height: 34px;
+    width: 33px;
+    height: 33px;
     font-size: 1rem;
   }
   .vaango-header__logo-text {
-    font-size: 1.15rem;
+    font-size: 1.12rem;
   }
   .vaango-header__location-btn {
     padding: 3px 6px;
@@ -1120,39 +1175,47 @@
     font-size: 11px;
     gap: 3px;
   }
+  .vaango-header__location-sub-btn {
+    max-width: 85px;
+    font-size: 0.70rem;
+  }
   .vaango-header__location-name {
     max-width: 52px;
   }
   .vaango-header__hamburger-btn {
-    width: 35px;
-    height: 35px;
+    width: 32px;
+    height: 30px;
   }
   .vaango-header__cart-link {
-    width: 35px;
-    height: 35px;
+    width: 32px;
+    height: 30px;
   }
 }
 
 @media (max-width: 375px) {
   .vaango-header__inner {
-    padding: 0 6px;
+    padding: 0 5px;
     gap: 4px;
   }
   .vaango-header__brand-group {
     gap: 4px;
   }
   .vaango-header__logo-icon {
-    width: 32px;
-    height: 32px;
-    font-size: 0.95rem;
+    width: 30px;
+    height: 30px;
+    font-size: 0.92rem;
   }
   .vaango-header__logo-text {
-    font-size: 1.05rem;
+    font-size: 1.02rem;
   }
   .vaango-header__location-btn {
     padding: 2px 5px;
     max-width: 78px;
     font-size: 10.5px;
+  }
+  .vaango-header__location-sub-btn {
+    max-width: 70px;
+    font-size: 0.67rem;
   }
   .vaango-header__location-name {
     max-width: 44px;
@@ -1163,36 +1226,59 @@
   .vaango-header__actions {
     gap: 4px;
   }
+  .vaango-header__btn-login {
+    height: 28px;
+    padding: 0 7px;
+    font-size: 11px;
+    gap: 3px;
+  }
+  .vaango-header__login-icon {
+    width: 12px;
+    height: 12px;
+  }
+  .vaango-header__account-btn {
+    height: 28px;
+    width: 28px;
+  }
+  .vaango-header__account-avatar {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
   .vaango-header__hamburger-btn {
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 28px;
   }
   .vaango-header__cart-link {
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 28px;
   }
 }
 
 @media (max-width: 320px) {
   .vaango-header__inner {
-    padding: 0 4px;
+    padding: 0 3px;
     gap: 3px;
   }
   .vaango-header__brand-group {
     gap: 3px;
   }
   .vaango-header__logo-icon {
-    width: 28px;
-    height: 28px;
-    font-size: 0.85rem;
+    width: 26px;
+    height: 26px;
+    font-size: 0.82rem;
   }
   .vaango-header__logo-text {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
   }
   .vaango-header__location-btn {
     padding: 2px 4px;
     max-width: 68px;
     font-size: 10px;
+  }
+  .vaango-header__location-sub-btn {
+    max-width: 55px;
+    font-size: 0.64rem;
   }
   .vaango-header__location-name {
     max-width: 36px;
@@ -1200,9 +1286,24 @@
   .vaango-header__actions {
     gap: 3px;
   }
+  .vaango-header__btn-login {
+    height: 26px;
+    padding: 0 5px;
+    font-size: 10.5px;
+    gap: 2px;
+  }
+  .vaango-header__account-btn {
+    height: 26px;
+    width: 26px;
+  }
+  .vaango-header__account-avatar {
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
+  }
   .vaango-header__hamburger-btn {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 26px;
   }
 }
 

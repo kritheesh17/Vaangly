@@ -210,9 +210,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (savedDemoRole && DEMO_PROFILES[savedDemoRole]) {
               setUser(DEMO_PROFILES[savedDemoRole]);
             } else {
-              // Default to Customer for evaluation
-              setUser(DEMO_PROFILES.customer);
-              localStorage.setItem(LOCAL_STORAGE_DEMO_KEY, 'customer');
+              // Unauthenticated visitor: user remains null until logged in or demo role explicitly activated
+              setUser(null);
             }
           }
         }
