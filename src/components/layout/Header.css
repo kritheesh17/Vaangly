@@ -58,13 +58,13 @@
 .vaango-header__logo-icon {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  background: var(--brand-primary, #1B4D3E);
+  border-radius: 22%;
+  background: var(--brand-primary, #087F5B);
   color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(27, 77, 62, 0.25);
+  box-shadow: 0 2px 6px rgba(8, 127, 91, 0.25);
   flex-shrink: 0;
 }
 
@@ -76,10 +76,12 @@
 }
 
 .vaango-header__logo-text {
+  font-family: var(--font-family-brand, 'Sora', sans-serif);
   font-size: 1.25rem;
   font-weight: 800;
   color: var(--color-text-primary, #111827);
-  letter-spacing: -0.02em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 [data-theme='dark'] .vaango-header__logo-text,

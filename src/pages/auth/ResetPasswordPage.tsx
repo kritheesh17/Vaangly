@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { FormField } from '../../components/ui/FormField';
 import { ActionErrorBanner } from '../../components/ui/ActionErrorBanner';
+import { KartzoLogo } from '../../components/brand/KartzoLogo';
 import { scrollAndFocusError, classifyError } from '../../lib/errorUxUtils';
 import './Auth.css';
 
@@ -195,8 +196,8 @@ export const ResetPasswordPage: React.FC = () => {
         {/* Brand Header */}
         <div className="vaango-auth-header">
           <Link to="/" className="vaango-auth-brand" aria-label="Kartzo Home">
-            <span className="vaango-header__logo-icon">V</span>
-            <span className="vaango-header__logo-text">Kartzo</span>
+            <KartzoLogo size={40} />
+            <span className="vaango-header__logo-text kartzo-wordmark">Kartzo</span>
           </Link>
           <h1 className="vaango-auth-title">Set a new password</h1>
           <p className="vaango-auth-subtitle">

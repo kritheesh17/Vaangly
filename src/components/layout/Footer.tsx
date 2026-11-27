@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { MapPin, ArrowUpRight } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { LanguageToggle } from '../common/LanguageToggle';
+import { KartzoLogo } from '../brand/KartzoLogo';
 import './Footer.css';
 
 export const Footer: React.FC = () => {
@@ -14,10 +15,8 @@ export const Footer: React.FC = () => {
         {/* Brand Column */}
         <div className="vaangly-footer__brand-col">
           <Link to="/" className="vaangly-footer__logo" aria-label="Kartzo Home">
-            <div className="vaangly-footer__logo-icon">
-              <span>V</span>
-            </div>
-            <span className="vaangly-footer__logo-text">{t('brand').toUpperCase()}</span>
+            <KartzoLogo size={36} />
+            <span className="vaangly-footer__logo-text kartzo-wordmark">{t('brand').toUpperCase()}</span>
           </Link>
           <p className="vaangly-footer__tagline">
             {t('footerTagline')}

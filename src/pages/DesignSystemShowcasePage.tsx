@@ -41,7 +41,7 @@ export const DesignSystemShowcasePage: React.FC = () => {
       <div className="vaango-showcase__header">
         <div className="vaango-showcase__title-row">
           <Sparkles className="vaango-showcase__icon" />
-          <h1 className="vaango-showcase__title">Vaango Design System & Tokens</h1>
+          <h1 className="vaango-showcase__title">Kartzo Design System & Tokens</h1>
         </div>
         <p className="vaango-showcase__desc">
           Modular, accessible component library built with semantic design tokens, Nunito typography, and high-contrast touch targets (≥ 52px).

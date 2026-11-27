@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+
+<rect x="0" y="0" width="512" height="512" rx="112" fill="#087F5B"/>
+<g transform="translate(100 100) scale(2.6)">
+  <path d="M22 18 H77 C82 18 85 23 82 28 L57 69 C54 74 49 77 43 77 H12 C7 77 4 72 7 67 L32 26 C35 21 28 18 22 18Z"
+        fill="#FFFFFF"/>
+  <path d="M78 43 H108 C113 43 116 48 113 53 L88 94 C85 99 80 102 74 102 H43 C38 102 35 97 38 92 L63 51 C66 46 72 43 78 43Z"
+        fill="#B7E34A"/>
+</g>
+
+</svg>

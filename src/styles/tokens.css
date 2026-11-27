@@ -1,20 +1,24 @@
 /* Vaangly Design System — Tokens */
 :root {
-  /* Brand Core Colors (Natural Green Visual Identity) */
-  --brand-primary: #1B4D3E;          /* Natural deep forest green */
-  --brand-primary-hover: #143B30;
-  --brand-primary-active: #0E2922;
-  --brand-primary-light: #EBF4F0;    /* Soft fresh green tint */
-  --brand-primary-subtle: rgba(27, 77, 62, 0.08);
+  /* Brand Core Colors (Kartzo Official Visual Identity) */
+  --brand-primary: #087F5B;          /* Primary Emerald */
+  --brand-primary-hover: #066B4D;
+  --brand-primary-active: #05563E;
+  --brand-primary-light: #E8F5F0;    /* Soft fresh emerald tint */
+  --brand-primary-subtle: rgba(8, 127, 91, 0.08);
 
   /* Color Compatibility Aliases */
   --color-primary: var(--brand-primary);
   --color-primary-hover: var(--brand-primary-hover);
 
-  --brand-accent: #2E7D32;           /* Fresh medium green */
-  --brand-accent-hover: #236327;
-  --brand-accent-light: #EDF7EE;
-  --brand-accent-subtle: rgba(46, 125, 50, 0.1);
+  --brand-accent: #B7E34A;           /* Accent Lime */
+  --brand-accent-hover: #A5D638;
+  --brand-accent-light: #F4FBE8;
+  --brand-accent-subtle: rgba(183, 227, 74, 0.15);
+
+  --brand-forest: #142B25;           /* Forest Charcoal */
+  --brand-forest-hover: #0D1C18;
+  --brand-forest-subtle: rgba(20, 43, 37, 0.08);
 
   /* Warm Accent (for highlights / badges) */
   --brand-warmth: #D97706;
@@ -97,8 +101,11 @@
   --text-2xl: var(--font-size-2xl);
   --text-3xl: var(--font-size-3xl);
 
-  /* Typography */
-  --font-family-base: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Typography System — Kartzo Distinctive Brand Identity */
+  --font-family-base: 'DM Sans', 'Noto Sans Tamil', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-heading: 'Sora', 'Noto Sans Tamil', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-brand: 'Sora', 'Noto Sans Tamil', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-monogram: 'Unbounded', 'Sora', sans-serif;
   --font-size-xs: 0.75rem;    /* 12px */
   --font-size-sm: 0.875rem;   /* 14px */
   --font-size-base: 1rem;     /* 16px */
@@ -153,19 +160,19 @@
   --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Light Theme Specific Tokens — Modern Clean Mobile First (Ref: Reference Images) */
-  --color-bg: #F8FAFC;
+  --color-bg: #F5F8F4;
   --color-surface: #FFFFFF;
   --color-surface-elevated: #FFFFFF;
-  --color-surface-sunken: #F1F5F9;
+  --color-surface-sunken: #EDF3EC;
 
-  --color-text-primary: #111827;     /* Pure readable near-black */
-  --color-text-secondary: #4B5563;
+  --color-text-primary: #142B25;     /* Forest Charcoal for high readability */
+  --color-text-secondary: #3D5A50;
   --color-text-muted: #6B7280;
   --color-text-inverse: #FFFFFF;
 
-  --color-border: #E5E7EB;
-  --color-border-subtle: #F3F4F6;
-  --color-border-focus: #15803D;
+  --color-border: #E5EBE5;
+  --color-border-subtle: #F0F4F0;
+  --color-border-focus: #087F5B;
 
   --color-disabled-bg: #F3F4F6;
   --color-disabled-text: #9CA3AF;

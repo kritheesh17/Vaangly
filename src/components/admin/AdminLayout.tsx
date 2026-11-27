@@ -21,6 +21,7 @@ import { useSectionUnreadCounts } from '../../hooks/useSectionUnreadCounts';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { KartzoLogo } from '../brand/KartzoLogo';
 import './AdminLayout.css';
 
 export const AdminLayout: React.FC = () => {
@@ -116,15 +117,8 @@ export const AdminLayout: React.FC = () => {
         </button>
 
         <div className="vaango-admin-brand-logo">
-          <div className="vaango-admin-brand-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z"
-                fill="#22C55E"
-              />
-            </svg>
-          </div>
-          <span className="vaango-admin-brand-name">Kartzo</span>
+          <KartzoLogo size={28} />
+          <span className="vaango-admin-brand-name kartzo-wordmark">Kartzo</span>
         </div>
 
         <span className="vaango-admin-badge-mobile">Admin</span>
@@ -141,15 +135,8 @@ export const AdminLayout: React.FC = () => {
       {/* Dark Sidebar (Reference Screen 4) */}
       <aside className={`vaango-admin-sidebar ${isMobileMenuOpen ? 'vaango-admin-sidebar--open' : ''}`}>
         <div className="vaango-admin-sidebar__brand">
-          <div className="vaango-admin-brand-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z"
-                fill="#22C55E"
-              />
-            </svg>
-          </div>
-          <span className="vaango-admin-sidebar__title">Kartzo</span>
+          <KartzoLogo size={32} />
+          <span className="vaango-admin-sidebar__title kartzo-wordmark">Kartzo</span>
         </div>
 
         <nav className="vaango-admin-sidebar__nav" aria-label="Admin Navigation">
@@ -178,7 +165,7 @@ export const AdminLayout: React.FC = () => {
             </div>
             <div className="vaango-admin-sidebar__user-details">
               <span className="vaango-admin-sidebar__user-name">{user?.full_name || 'Administrator'}</span>
-              <span className="vaango-admin-sidebar__user-email">{user?.email || 'admin@vaango.in'}</span>
+              <span className="vaango-admin-sidebar__user-email">{user?.email || 'admin@kartzo.in'}</span>
             </div>
           </div>
           <button

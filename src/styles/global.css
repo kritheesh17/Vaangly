@@ -137,11 +137,24 @@ button:disabled {
   }
 }
 
-/* Typography Hierarchy */
+/* Typography Hierarchy — Application Headings: Sora SemiBold 600 */
 h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-heading);
   color: var(--color-text-primary);
-  font-weight: var(--font-weight-bold);
+  font-weight: 600;
   line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+/* Wordmark & Brand Heading Classes: Sora ExtraBold 800 */
+.kartzo-wordmark,
+.vaango-header__logo-text,
+.vaangly-footer__logo-text,
+.vaango-admin-brand-name,
+.vaango-admin-sidebar__title {
+  font-family: var(--font-family-brand);
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 h1 {

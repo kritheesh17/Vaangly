@@ -44,6 +44,11 @@ function runSecurityRemediationTests() {
     throw new Error('Migration 80 must preserve acceptance gate for product orders');
   }
 
+  // Verify SEC-80-01 post-verification proof re-upload guard
+  if (!migrationContent.includes('Payment has already been verified for this request; payment proof cannot be re-uploaded')) {
+    throw new Error('Migration 80 must reject payment proof re-uploads on already verified requests (SEC-80-01)');
+  }
+
   // Verify legitimate shopkeeper verification is preserved
   if (!migrationContent.includes("NEW.payment_status IN ('PAYMENT_VERIFIED', 'paid')")) {
     throw new Error('Migration 80 must preserve shopkeeper payment verification logic');
@@ -87,6 +92,10 @@ function runSecurityRemediationTests() {
         throw new Error('Customers cannot change payment verification state');
       }
 
+      if (updated.payment_status !== oldRec.payment_status && ['PAYMENT_VERIFIED', 'paid'].includes(updated.payment_status)) {
+        throw new Error('Customers cannot change payment verification state');
+      }
+
       if (updated.payment_screenshot_url === oldRec.payment_screenshot_url) {
         if (updated.payment_status !== oldRec.payment_status) {
           throw new Error('Customers cannot change payment verification state');
@@ -94,6 +103,11 @@ function runSecurityRemediationTests() {
       }
 
       if (updated.payment_screenshot_url !== oldRec.payment_screenshot_url) {
+        // SEC-80-01: Prevent re-upload on verified payments
+        if (['PAYMENT_VERIFIED', 'paid'].includes(oldRec.payment_status) || oldRec.customer_paid === true) {
+          throw new Error('Payment has already been verified for this request; payment proof cannot be re-uploaded');
+        }
+
         if (updated.payment_method !== 'upi' || !updated.payment_screenshot_url?.trim()) {
           throw new Error('A payment proof is only valid for a UPI request');
         }
@@ -222,6 +236,89 @@ function runSecurityRemediationTests() {
     throw new Error('SEC-AUDIT-01 FAILED: Merchant verification failed to mark customer_paid=true');
   }
   console.log('✓ Legitimate merchant verifies payment and marks order customer_paid=true');
+
+  // Test 6: SEC-80-01 - Customer attempts second proof upload after verification -> must throw
+  let blockedSecondProofUpload = false;
+  try {
+    simulatePaymentTrigger(
+      merchantVerified,
+      { ...merchantVerified, payment_screenshot_url: 'payment-proofs/tampered.png' },
+      'cust-1',
+      false,
+      false
+    );
+  } catch (err: any) {
+    if (err.message.includes('Payment has already been verified for this request; payment proof cannot be re-uploaded')) {
+      blockedSecondProofUpload = true;
+    }
+  }
+  if (!blockedSecondProofUpload) {
+    throw new Error('SEC-80-01 FAILED: Customer was able to re-upload proof on an already verified payment!');
+  }
+  console.log('✓ SEC-80-01: Rejected customer attempt to re-upload proof on verified order');
+
+  // Test 7: Customer attempts to change payment status and screenshot together -> must throw
+  let blockedCombinedStatusAndScreenshot = false;
+  try {
+    simulatePaymentTrigger(
+      baseOrder,
+      {
+        ...baseOrder,
+        payment_screenshot_url: 'payment-proofs/attempt.png',
+        payment_status: 'PAYMENT_VERIFIED',
+      },
+      'cust-1',
+      false,
+      false
+    );
+  } catch (err: any) {
+    if (err.message.includes('Customers cannot change payment verification state')) {
+      blockedCombinedStatusAndScreenshot = true;
+    }
+  }
+  if (!blockedCombinedStatusAndScreenshot) {
+    throw new Error('SEC-80-01 FAILED: Customer was able to submit status change alongside screenshot!');
+  }
+  console.log('✓ Rejected customer attempt to modify payment status alongside screenshot');
+
+  // Test 8: Merchant rejects payment proof
+  const merchantRejected = simulatePaymentTrigger(
+    validProofSubmission,
+    { ...validProofSubmission, payment_status: 'PAYMENT_REJECTED' },
+    'merchant-1',
+    true,
+    false
+  );
+  if (merchantRejected.payment_status !== 'PAYMENT_REJECTED' || merchantRejected.customer_paid !== false) {
+    throw new Error('SEC-80-01 FAILED: Merchant rejection failed to set status and customer_paid=false');
+  }
+  console.log('✓ Merchant can reject payment proof and clear customer_paid');
+
+  // Test 9: Customer re-uploads proof after rejection -> permitted and transitions to PAYMENT_PROOF_SUBMITTED
+  const customerReuploaded = simulatePaymentTrigger(
+    merchantRejected,
+    { ...merchantRejected, payment_screenshot_url: 'payment-proofs/new_valid.png' },
+    'cust-1',
+    false,
+    false
+  );
+  if (customerReuploaded.payment_status !== 'PAYMENT_PROOF_SUBMITTED' || customerReuploaded.customer_paid !== false) {
+    throw new Error('SEC-80-01 FAILED: Customer re-upload after rejection was not permitted');
+  }
+  console.log('✓ Customer can re-upload corrected proof following merchant rejection');
+
+  // Test 10: Admin operations remain fully functional
+  const adminOverride = simulatePaymentTrigger(
+    baseOrder,
+    { ...baseOrder, payment_status: 'PAYMENT_VERIFIED', customer_paid: true },
+    'admin-1',
+    false,
+    true
+  );
+  if (!adminOverride.customer_paid || adminOverride.payment_status !== 'PAYMENT_VERIFIED') {
+    throw new Error('SEC-80-01 FAILED: Admin override was blocked');
+  }
+  console.log('✓ Administrator operations and overrides remain fully functional');
 
 
   console.log('\n--- 2. SEC-AUDIT-02: State Simulator & Backend State Guards ---');

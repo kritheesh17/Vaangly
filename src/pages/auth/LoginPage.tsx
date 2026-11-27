@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ShieldCheck, Store, Sparkles, CheckCircle2 } from 'lucide-react';
+import { KartzoLogo } from '../../components/brand/KartzoLogo';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { Card } from '../../components/ui/Card';
@@ -129,10 +130,8 @@ export const LoginPage: React.FC = () => {
         {/* Brand Header */}
         <div className="vaango-auth-header">
           <Link to="/" className="vaango-auth-brand" aria-label="Kartzo Home" onClick={clearAuthError}>
-            <div className="vaango-header__logo-icon" aria-hidden="true">
-              <span>V</span>
-            </div>
-            <span className="vaango-header__logo-text">KARTZO</span>
+            <KartzoLogo size={44} />
+            <span className="vaango-header__logo-text kartzo-wordmark">KARTZO</span>
           </Link>
           <h1 className="vaango-auth-title">{t('signInTitle')}</h1>
           <p className="vaango-auth-subtitle">

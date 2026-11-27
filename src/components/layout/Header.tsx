@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
-  MapPin,
   Sun,
   Moon,
   Sparkles,
@@ -43,6 +42,7 @@ import './Header.css';
 import { useLanguage } from '../../context/LanguageContext';
 import { LanguageToggle } from '../common/LanguageToggle';
 import { LanguageDropdown } from '../common/LanguageDropdown';
+import { KartzoLogo } from '../brand/KartzoLogo';
 
 export const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -165,11 +165,9 @@ export const Header: React.FC = () => {
               aria-label="Kartzo Home"
               onClick={closeMobileMenu}
             >
-              <div className="vaango-header__logo-icon" aria-hidden="true">
-                <MapPin size={20} />
-              </div>
+              <KartzoLogo size={36} />
               <div className="vaango-header__brand-col">
-                <span className="vaango-header__logo-text">Kartzo</span>
+                <span className="vaango-header__logo-text kartzo-wordmark">Kartzo</span>
                 <button
                   type="button"
                   className="vaango-header__location-sub-btn"

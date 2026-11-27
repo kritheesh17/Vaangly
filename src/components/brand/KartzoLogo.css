@@ -1,0 +1,75 @@
+.kartzo-logo {
+  display: block;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kartzo-logo--icon {
+  border-radius: 22%;
+  box-shadow: 0 2px 8px rgba(8, 127, 91, 0.28);
+}
+
+.kartzo-logo--icon:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(8, 127, 91, 0.35);
+}
+
+.kartzo-logo--symbol {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.kartzo-logo--horizontal {
+  border-radius: 0;
+  box-shadow: none;
+  height: auto;
+}
+
+.kartzo-logo__text {
+  fill: var(--color-text-primary, #142B25);
+  font-family: var(--font-family-brand, 'Sora', sans-serif);
+}
+
+[data-theme='dark'] .kartzo-logo__text,
+.dark .kartzo-logo__text {
+  fill: #F5F8F4;
+}
+
+.kartzo-brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  user-select: none;
+}
+
+.kartzo-brand-text-col {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.kartzo-wordmark {
+  font-family: var(--font-family-brand, 'Sora', sans-serif);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary, #142B25);
+  line-height: 1;
+}
+
+[data-theme='dark'] .kartzo-wordmark,
+.dark .kartzo-wordmark {
+  color: #F5F8F4;
+}
+
+.kartzo-wordmark--sm { font-size: 1.1rem; }
+.kartzo-wordmark--md { font-size: 1.25rem; }
+.kartzo-wordmark--lg { font-size: 1.5rem; }
+.kartzo-wordmark--xl { font-size: 1.875rem; }
+
+.kartzo-brand-subtitle {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #6B7280);
+  letter-spacing: 0.02em;
+}
